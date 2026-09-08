@@ -129,3 +129,15 @@
    karte hain un ke liye ye theek; magar strict ka faida sirf pasand chunne par milta hai.
 8. **Pehli dafa** strict artist par jawab ~0.3–1s der se aa sakta hai (warm-up ke bawajood cold network). Der dikha kar
    sach bataya jata hai, artist badal kar jhoot nahi.
+
+---
+
+## Release record
+
+| | |
+|---|---|
+| Commit | `f3d6576` — branch `arena/01a062e9-mana-android` (11 files, +1903 / −103) |
+| CI | run `34251026266` ✅ SUCCESS · job `build` 1m51s |
+| APK | artifact `MAYA-APK` = 3,263,675 bytes (~3.26 MB) |
+| Tests | 1602 GREEN (lab 998 · voice 348 · brain 155 · settings/CSS 101) |
+| Version | 5.15.0 · vc80 · 🎙️ MERI AWAAZ · `5.15.0-native` · `maya-v5.15.0` |

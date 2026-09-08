@@ -135,3 +135,6 @@ Artist chunein → app band → **WebView cache/data saaf** kar ke (ya phone res
 | Tests | **1602/1602 GREEN** — voice **348** (Section 19 = +54) · lab **998** (Section 39 = +54) · brain 155 · settings/CSS 101 |
 | Docs | `docs/FORENSIC-MERI-AWAAZ.md` (F84–F101) · `docs/FIX-v5.15.0-meri-awaaz.md` · ye report |
 | Mirror | `public/index.html` = `app/src/main/assets/web/index.html` (byte-identical) |
+| Git | commit `f3d6576` · branch `arena/01a062e9-mana-android` |
+| CI | run [`34251026266`](https://github.com/adil-chandio/Mana-android/actions/runs/34251026266) ✅ **SUCCESS** (build 1m51s) |
+| APK | artifact `MAYA-APK` = **3,263,675 bytes** (~3.26 MB) — usi CI run se download karein |
