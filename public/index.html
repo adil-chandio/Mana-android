@@ -599,7 +599,7 @@ nav{padding:8px 10px 10px}
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.13.0 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.14.0 ✨</small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -11752,12 +11752,12 @@ setInterval(function(){ try { HAALBAR.tick(); } catch (e) {} }, 250);
    jhoot bolti thi, aur user ko "APK purani hai ya nayi" ka faisla karne mein
    dhoka hota tha. Ab toast, log aur header teeno ek hi constant se bante hain, aur
    test-lock gradle ke versionName se milaan karta hai (Section 35). */
-var MAYA_VER = "5.13.0", MAYA_NAAM = "\u26A1\uFE0F RAFTAR";
+var MAYA_VER = "5.14.0", MAYA_NAAM = "\uD83C\uDFB5 EK AWAAZ";
 try {
   var _st = document.querySelector("#subTitle");
   if (_st) _st.textContent = "PERSONAL AI v" + MAYA_VER + " \u2728";
 } catch (e) {}
-/* 🏷️ v5.13.0 — VERSION KI PEHCHAAN, ab JS taraf se bhi: toast + log line.
+/* 🏷️ v5.14.0 — VERSION KI PEHCHAAN, ab JS taraf se bhi: toast + log line.
    (v5.10.3 ka toast Kotlin mein tha — MainActivity.onCreate; wo barqarar hai.
    Ye JS toast ISLIYE naya hai ke APK aur web-asset ka version ALAG ho sakta hai:
    purani APK + naya web-asset, ya ulta. Ab dono ek hi line mein nazar aate hain —
@@ -11767,7 +11767,7 @@ if (NATIVE) setTimeout(function(){
     var nv = "?";
     try { if (window.MayaBridge && window.MayaBridge.appVersion) nv = window.MayaBridge.appVersion(); } catch(e){}
     var v = "MAYA v" + MAYA_VER + " \u2022 " + MAYA_NAAM +
-            " \u2014 jawab tukron mein (pehla jumla foran) + screen ka pakka jawab";
+            " \u2014 ek hi artist ka poora jawab + mic ka pakka sun-na + gaana poochh kar";
     toast(v);
     pushLog(v + "   (native: " + nv + ")");
   } catch(e){}

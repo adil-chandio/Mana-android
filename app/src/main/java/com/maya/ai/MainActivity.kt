@@ -129,7 +129,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.13.0 • ⚡️ RAFTAR: jawab tukron mein (pehla jumla foran) + screen ka pakka jawab", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.14.0 • 🎵 EK AWAAZ: ek hi artist ka poora jawab · mic ka pakka sun-na · gaana poochh kar lagana", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -321,7 +321,7 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.13.0-native"
+        fun appVersion(): String = "5.14.0-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
