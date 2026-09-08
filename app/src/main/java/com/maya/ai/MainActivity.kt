@@ -494,11 +494,15 @@ class MainActivity : AppCompatActivity() {
                        number batate hain ke 600 ms ka asar hua ya nahi.) */
                     putExtra(
                         RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
-                        /* ⚡ J3 (F66) — purana 700 ms ab 600 ms: bolna khatam hone ke
-                           baad ka intezaar 100 ms kam, HAR turn par. 300 ms minimum
-                           barqarar, is liye chhote jumle kat-te nahi. Asar RAFTAR PANEL
-                           naapega (NAAP: brain → first-awaaz → done). */
-                        600L
+                        /* ⚡ J3 (F66) — 700 ms → 600 ms kiya tha (har turn par 100 ms bachat).
+                           🎵 v5.14.0 K2.5 (F76) — wapas 700 ms, aur YEHI sahi tha: user
+                           jumle ke beech saans leta / sochta hai aur 600 ms par recognition
+                           session KHTAM ho jata tha → adhoora transcript → "Maya samajh
+                           nahi rahi, ek hi baat bar bar bolni parti hai". 100 ms ki qeemat
+                           adhoore jumle se kahin kam hai. Wake path (WakeWordService)
+                           600 ms par qaim hai — wake word chhota hota hai, wahan tezi chahiye.
+                           Minimum 300 ms barqarar; asar RAFTAR PANEL naapega (NAAP). */
+                        700L
                     )
                 }
                 /* 🛡️ J1.4 (F49) — PEHLE yahan koi try/catch NAHI tha. makeRecognizer()

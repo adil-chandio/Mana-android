@@ -33,6 +33,13 @@ object WakeState {
     const val PAUSE_EXP_MS = 8000L      /* L4 sulah (pausedByApp) ki zindagi */
     const val APP_SUN_EXP_MS = 30000L   /* app ka mic 30s se zyada nahi maana jata */
     const val BOL_EXP_MS = 20000L       /* Maya ka bolna 20s se zyada nahi maana jata */
+    /* 🎵 v5.14.0 K2.2 (F74) — CHAUTHA HAAL "SOCH_RAHI": Maya ne sun liya, jawab
+       soch rahi hai (dimaag / tool / stream) magar abhi awaaz shuru nahi hui.
+       PEHLE is poori mudat mein haal KHALI rehta tha → wake ka mic khul jata →
+       DO JAWAB EK SATH takrate (awaz kat-ti, reply gayab). JS ka turn lock 45s
+       par khud khulta hai; ye 60s sirf SAFETY NET hai (JS mar jaye to wake behri
+       na rahe). */
+    const val SOCH_EXP_MS = 60000L
     const val HB_MS = 10000L            /* JS heartbeat ka waqfa (1.2) */
     const val HB_MISS = 3               /* itne heartbeat gayab = JS murda → KHALI */
     const val TAIL_MS = 550L            /* echo tail — JS SUKOON.tailMs se match */
@@ -43,7 +50,7 @@ object WakeState {
     const val TALK_EXP_MS = 90000L
 
     /* ── halat ── */
-    @Volatile var haal: String = "KHALI"        /* KHALI | BOL_RAHI | APP_SUN */
+    @Volatile var haal: String = "KHALI"        /* KHALI | BOL_RAHI | APP_SUN | SOCH_RAHI */
     @Volatile var owner: String = "NONE"        /* NONE | APP | WAKE | TTS */
     @Volatile var since: Long = 0L
     @Volatile var lastBeat: Long = 0L
@@ -141,6 +148,8 @@ object WakeState {
             return "bolne ki mudat khatam (" + ((t - since) / 1000L) + "s)"
         if (haal == "APP_SUN" && t - since > APP_SUN_EXP_MS)
             return "app ka mic " + ((t - since) / 1000L) + "s se maana ja raha tha"
+        if (haal == "SOCH_RAHI" && t - since > SOCH_EXP_MS)
+            return "sochne ki mudat khatam (" + ((t - since) / 1000L) + "s)"
         /* heartbeat sirf tab dekha jata hai jab JS ne ek dafa bhi bheja ho
            (warna service ke akele chalte waqt — app band — hum khud ko
            be-wajah murda ilan kar dete) */
@@ -169,6 +178,8 @@ object WakeState {
             why = "bolne ki mudat khatam (" + ((t - since) / 1000L) + "s)"
         } else if (haal == "APP_SUN" && t - since > APP_SUN_EXP_MS) {
             why = "app ka mic " + ((t - since) / 1000L) + "s se khula maana ja raha tha"
+        } else if (haal == "SOCH_RAHI" && t - since > SOCH_EXP_MS) {
+            why = "sochne (turn lock) ki mudat khatam (" + ((t - since) / 1000L) + "s)"
         } else if (lastBeat > 0L && owner == "APP" && t - lastBeat > HB_MS * HB_MISS) {
             why = "JS ke " + ((t - lastBeat) / 1000L) + "s se heartbeat nahi"
         }

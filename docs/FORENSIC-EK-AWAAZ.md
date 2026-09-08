@@ -233,7 +233,7 @@ Do release, tarteeb se. **K1+K2 pehle** (regression ka ilaj — malik ki awaaz a
 |---|---|---|
 | **K3.1** | **Kotlin `ytSearchList(query, max)`** — Innertube `videoRenderer`/`compactVideoRenderer` blocks se **{id, title, secs, owner}** ki list (JSON). **Shorts/reel/ad blocks reject**. Purana `ytSearch()` isi ka pehla item (compatibility barqarar). Timeout 6s + ek fallback | F79 |
 | **K3.2** | **`GANA` module (JS):** query banana (user ke lafzon se genre/zubaan/"official audio"), `GANA.played` (aakhri 30 video id, localStorage) → **repeat mana**, agli behtareen candidate; duration filter (2–8 minute = asli gaana, 15s reel nahi); **title wapas** taake Maya bata sake "ye gaana chala rahi hoon: …" | F79, F80 |
-| **K3.3** | **"koi bhi" ka pakka hal:** vague hukm ("koi bhi acha gaana") par **curated rotating list** (Urdu/Hindi/Punjabi maqbool, offline) — ek video **dobara tab hi** jab list khatam; warna YouTube search | F80, F82 |
+| **K3.3** | **"koi bhi" ka pakka hal (malik ka faisla: POOCHHO, andaza nahi):** vague hukm par Maya ek chhota sawal karti hai — *"kaunsa gaana ya artist lagaun?"* — aur `GANA.pending` darj karti hai; agla jumla (darwaza khula hone par bina "Maya" ke bhi) **gaane ka naam** samajh kar wahi chalaya jata hai. ~~curated list~~ **mansookh** | F80, F82 |
 | **K3.4** | **Tool-args ki hifazat:** tool wale step par `maxOutputTokens: 512` (280 nahi); `finishReason === "MAX_TOKENS"` + adhura functionCall → **ek retry** bare budget ke sath; aur SAAF ke `LONE` se kati hui tool-line par **HAQEEQAT ko bulao** (jawab "chala rahi hoon" jhoota na ban jaye) | F81 |
 | **K3.5** | **Adaptive thinkingBudget:** `0` chhoti/seedhi baat-cheet aur tool-turn ke liye (raftar barqarar); **256–512** khule/ambiguous faislon par (gaana chunna, "kuch acha batao", planning, pehli tool koshish nakaam). Faisla `needsTools` + ek chhote "openness" detector se | F81 |
 | **K3.6** | **Prompt ka music hissa:** "gaane ke liye query mein zubaan/genre/'official audio'; user ko **naam** batao; ek hi gaana baar baar na lagao; 'koi bhi' ka matlab **acha** gaana, ajeeb clip nahi" | F82 |
@@ -270,7 +270,16 @@ Do release, tarteeb se. **K1+K2 pehle** (regression ka ilaj — malik ki awaaz a
 * **Curated gaana list** = hard-coded content → sirf "koi bhi" wale vague hukm par; user ka naam liya hua gaana hamesha search se.
 * Har release ke baad **Qanoon 9** ka parcha (`REPORT-<ver>-aam-zubaan.md`) + CI ✅ ka saboot.
 
-## 7. 🚦 Tarteeb (malik ke ikhtiyar mein)
+## 6.1 ✅ Malik ke faisle (2026-09-08)
+
+1. **Sab EK release mein** — K1 + K2 + K3 ek sath → **v5.14.0 "EK AWAAZ"** (do release nahi).
+2. **Gaana: andaza NAHI, POOCHHO** — "koi bhi acha gaana" par Maya **sawal** karegi
+   ("kaunsa gaana ya artist?"), aur jawab milte hi wahi lagayegi. Is liye **K3.3 (curated
+   rotating list) MANSOOKH** — koi hard-coded gaanon ki fehrist nahi. Barqarar: `ytSearchList`
+   (title/duration, Shorts reject), `GANA.played` memory (**repeat mana**), aur naam milne par
+   pakka search.
+
+## 7. 🚦 Tarteeb (amal)
 1. **v5.13.5 "EK AWAAZ · PAKKA MIC"** (K1+K2) — regression ka ilaj, sab se pehle. *Andaza: 1 din.*
 2. **v5.14.0 "GANA DIMAAG"** (K3+K4) — nayi salahiyat + reasoning. *Andaza: 1–1.5 din.*
 3. Us ke baad purana roadmap: J4 ki barikiyan (Urdu rate/pitch, prosody) → Phase 2 (WAKE DOCTOR v2) → Phase 2.5 (auto-update F43) → Phase 3 (wake brain Kotlin) → Phase 4 (offline KWS = mic dot SAABIT).

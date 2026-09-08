@@ -1199,9 +1199,14 @@ Here's a thinking process:
        purane amal ke hoo-bahoo barabar hai. Gin-ti is liye ke taala lage ke wake
        waqai referee se poochti hai (chup-chaap ignore nahi karti). */
     w.__ignoreAsk = 0;
+    /* 🎵 v5.14.0 K2.1 (F73) — stub mein TURN LOCK bhi: gate ab turn bhi dekhta hai */
     w.JAWAB = {
       ignore: function () { w.__ignoreAsk++; return false; },
       age: function () { return 0; },
+      turn: { on: false, at: 0, why: '' },
+      turnOn: function () { return !!this.turn.on; },
+      turnStart: function (why) { this.turn = { on: true, at: Date.now(), why: why || 'jawab' }; },
+      turnEnd: function () { this.turn = { on: false, at: 0, why: '' }; },
       LISTEN_MAX: 12000, THINK_MAX: 40000, SPEAK_BASE: 20000
     };
     w.eval(KSRC);
@@ -2594,9 +2599,10 @@ Here's a thinking process:
       '🔌 F45+: dobara-suno ka CIRCUIT BREAKER — 25s mein 6 nakami = ruk kar bol kar khabar');
 
     /* ── wake ka ignore chup-chaap nahi (F53) ── */
-    is(HTML.indexOf('if (speaking || thinking || listening) { if (!JAWAB.ignore()) return; }') > 0 &&
+    is(HTML.indexOf('if (turnBusy || speaking || thinking || listening) { if (!JAWAB.ignore()) return; }') > 0 &&
+       /JAWAB && JAWAB\.turn && JAWAB\.turn\.on/.test(HTML) &&
        /KAAN\.push\("ignore"/.test(HTML),
-      '🙉 F53: wake ignore ki WAJAH ab log + status par (aur phansa flag ho to khud ilaaj)');
+      '🙉 F53: wake ignore ki WAJAH ab log + status par (aur phansa flag ho to khud ilaaj) — 🎵 K2.1 (F73): TURN LOCK bhi gate mein, warna soch/tool ke dauran do jawab takrate the');
 
     /* ── dimaag fail par awaaz (F54) + darwaza (F55) ── */
     is(/if \(wasVoice\) \{\s*\n\s*try \{\s*\n\s*JAWAB\.bol\("Dimaag se rabta nahi ho saka/.test(HTML),
@@ -2608,10 +2614,14 @@ Here's a thinking process:
     /* ── Kotlin: sahi code, sahi chaabi, crash-guard ── */
     is(/window\.__nativeSpeechErr\(9\)/.test(MA) && MA.indexOf('__nativeSpeechErr(7)') === -1,
       '🔐 F44: Kotlin ijazat ke liye code 9 bhejta hai (pehle 7 = "samajh nahi aaya" — JS galat loop chalati thi)');
+    /* 🎵 v5.14.0 K2.5 (F76) — J3 ne 700→600ms kiya tha (har turn par 100ms bachat), magar
+       qeemat ADHOORA TRANSCRIPT thi: Urdu bolne wala jumle ke beech saans leta / sochta
+       hai aur 600ms par session khatam ho jata tha → "Maya samajh nahi rahi, ek hi baat
+       bar bar bolni parti hai". Ab APP path wapas 700ms; wake path 600ms (tezi) */
     is(/RecognizerIntent\.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS/.test(MA) &&
-       /\n\s*600L\s*\n/.test(MA) && MA.indexOf('700L') === -1 &&
+       /\n\s*700L\s*\n/.test(MA) && MA.indexOf('600L') === -1 &&
        MA.indexOf('"android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS"') === -1,
-      '🔑 F48 + ⚡J3 (F66): silence extra SARKARI chaabi se + Long, aur ab 600L (har turn par 100ms ki bachat)');
+      '🔑 F48 + 🎵K2.5 (F76): silence extra SARKARI chaabi se + Long — APP path 700ms (beech ki saans nahi kat-ti)');
     const LI = MA.indexOf('fun listen(lang: String)');
     const LE = MA.indexOf('fun stopListen()', LI);           /* listen() ki asal hadd */
     is(LI > 0 && LE > LI && MA.slice(LI, LE).indexOf('} catch (e: Throwable) {') > 0 &&
@@ -3030,11 +3040,13 @@ Here's a thinking process:
       '📊 F65: NAAP ab PEHLI AWAAZ ka waqt naapta hai aur report mein p50/p90 dikhata hai');
     is(/if \(info\.stream\) c\.stream = 1;/.test(HTML) && /⚡ RAFTAR/.test(HTML),
       '📊 F65: har turn darj karta hai ke jawab stream hua tha + RAFTAR PANEL report mein');
-    /* (WakeWordService mein 700L abhi bhi EK jagah hai — error 6/7 ka backoff delay,
-       silence se us ka koi taluq nahi; is liye sirf MA par "koi 700L nahi" ka taala) */
-    is(MA.indexOf('600L') > 0 && MA.indexOf('700L') === -1 &&
-       /EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 600L/.test(WS),
-      '🎙️ F66: mic ki khamoshi 700ms → 600ms (dono Kotlin path) — har turn par 100ms bachat');
+    /* 🎵 K2.5 (F76) — DO RAASTE, DO ALAG FAQEHSAY: wake ka mic 600ms par khamosh hota hai
+       (wake word chhota hota hai, jawabi tezi chahiye) aur app ka mic 700ms par (poora
+       jumla milna chahiye). WakeWordService mein 700L ki doosri jagah error 6/7 ka
+       backoff delay hai — silence se us ka taluq nahi. */
+    is(/EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 600L/.test(WS) &&
+       /\n\s*700L\s*\n/.test(MA) && MA.indexOf('600L') === -1,
+      '🎙️ F76: khamoshi app=700ms / wake=600ms — adhoora transcript khatam, wake ki tezi barqarar');
 
     /* ── D1. RAFTAR ka AMAL (jsdom mein chalaa kar) ── */
     const w = world({});
@@ -3096,17 +3108,26 @@ Here's a thinking process:
       '🗣️ HOLD ke baad pehla jumla FORAN bola gaya (poore jawab ka intezar nahi)', w2.__spoke[0]);
     is(R2.spokeChars > 0 && R2.tFirst > 0, '📊 pehle harf aur pehli boli ka waqt darj hua (RAFTAR report)');
     R2.feed(' Sab accha hai.');
+    /* 🎵 v5.14.0 K1.3 (F69) — pehle tukre ke BAAD HOLD_N=300: ye chhota jumla buffer mein
+       rukta hai (kam TTS request = kam artist-switch), phir finish() par zaroor bolta hai */
+    is(w2.__spoke.length === 1,
+      '🎵 K1.3: pehle tukre ke baad chhota jumla FORAN nahi bola (HOLD_N=300 — request bachti hai)',
+      w2.__spoke.length + ' tukre');
     R2.finish();
-    is(R2.active === false && w2.__spoke.length >= 3 && /Sab accha hai/.test(w2.__spoke.join(' | ')),
+    is(R2.active === false && w2.__spoke.length >= 2 && /Sab accha hai/.test(w2.__spoke.join(' | ')),
       '🏁 finish(): bacha hua aakhri jumla bhi bola gaya, phir hisaab band', w2.__spoke.length + ' tukre');
-    is(R2.last && R2.last.pieces >= 3 && typeof R2.last.total === 'number',
+    is(/Main theek hoon/.test(w2.__spoke.join(' | ')) && /Sab accha hai/.test(w2.__spoke.join(' | ')) && /Ji boss/.test(w2.__spoke.join(' | ')),
+      '🎵 K1.3: batching ke bawajood ek harf bhi KHOOYA nahi — sab matn bola gaya');
+    is(R2.last && R2.last.pieces >= 2 && typeof R2.last.total === 'number',
       '📊 aakhri jawab ki raftar darj (tukre + waqt) — RAFTAR.line() isi se banti hai', JSON.stringify(R2.last));
     is(/stream ON|stream OFF/.test(R2.line()) && /NAZAR/.test(R2.line()),
       '📊 RAFTAR.line(): stream ka haal + strikes + fast-budget + NAZAR ka hisaab ek jagah');
 
     R2.begin(false, 0);
+    const __pehle = w2.__spoke.length;
     R2.feed('Main abhi screen parh leti hoon. Ek second ruk jao.');
-    is(w2.__spoke.length >= 4, 'tool-step se pehle preamble bolne laga (jaan-boojh kar roka jayega)');
+    is(w2.__spoke.length > __pehle,
+      'tool-step se pehle preamble bolne laga (jaan-boojh kar roka jayega)', w2.__spoke.length + ' > ' + __pehle);
     R2.rearm();
     is(R2.active === true && R2.q.length === 0 && R2.spokeChars === 0 && R2.buf === '',
       '♻️ rearm: preamble phenka MAGAR stream zinda — asli jawab bhi tukron mein hi bolega');

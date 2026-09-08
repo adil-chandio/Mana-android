@@ -232,6 +232,10 @@ class WakeWordService : Service() {
             if (fix != null) { try { s.onSelfFix(fix) } catch (e: Exception) {} }
             if (haal == "BOL_RAHI") return "Maya bol rahi hai"
             if (haal == "APP_SUN") return "app ka mic chal raha hai"
+            /* 🎵 v5.14.0 K2.2 (F74) — SOCH_RAHI: jawab socha ja raha hai (tool / stream),
+               awaaz abhi shuru nahi hui. PEHLE ye mudat KHALI maani jati thi → wake ka mic
+               khul jata → do jawab ek sath takra jate ("ek baar boli, phir kuch nahi aaya") */
+            if (haal == "SOCH_RAHI") return "Maya jawab soch rahi hai (" + (WakeState.age() / 1000L) + "s)"
             if (pausedByApp) return "sulah: app ka mic"
             /* 🎛️ J2.3 (F56) — BAAT-CHEET MODE: darwaza khula ho to wake ka mic
                BAND. Faida: (1) ek turn mein mic EK dafa khulta hai (pehle wake ka
@@ -887,7 +891,11 @@ class WakeWordService : Service() {
                    SERVER_DISCONNECTED (err 11) par khatam hoti thin. Ab dono path ek
                    jaise: khamoshi = session khatam, 300ms = kam az kam bolna.
                    ⚡ J3 (F66): 700 ms → 600 ms (dono path ek sath) — har turn par
-                   100 ms ki bachat; minimum 300 ms barqarar, chhote jumle kat-te nahi. */
+                   100 ms ki bachat; minimum 300 ms barqarar, chhote jumle kat-te nahi.
+                   🎵 v5.14.0 K2.5 (F76): WAKE path 600 ms par qaim (wake word chhota
+                   hota hai, jawabi tezi chahiye) — magar APP path wapas 700 ms par,
+                   kyunke user jumle ke beech saans leta hai aur 600 ms par transcript
+                   beech se kat jata tha ("mujhe ek hi baat bar bar bolni parti thi"). */
                 putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 600L)
                 putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 300L)
             }
