@@ -1729,7 +1729,11 @@ var FLAGS = {
      hamesha "NAZAR band hai" kehta tha (screen ka jawab hi nahi aata tha). LAB ka
      switch ab kill-switch hai.  ⚡ J3 (F63): `raftar` = dimaag ka jawab stream
      karna (pehla jumla aate hi bolna) — default ON, nakami par khud band ho jata hai. */
-  DEF: { naap: true, saaf: false, malik: false, poolTools: false, suno: true,   /* 🎵 K2.7 (F78): kam-yaqeen sunai par poochna + Roman-Urdu safaai — default ON */ sach: false, boli: false, ijazat: false, bijli: false, aankh: false, nazar: true, sukoon: true, talk: true, raftar: true, khud: false }   /* 🎛️ J2.3: talk (baat-cheet) default ON — malik ka faisla */,  /* naap + sukoon default ON (bay-zarar / bugfix) · khud (P6) default OFF — pehle sabit ho, phir chale */
+  DEF: { naap: true, saaf: false, malik: false, poolTools: false, suno: true,   /* 🎵 K2.7 (F78): kam-yaqeen sunai par poochna + Roman-Urdu safaai — default ON */
+         sach: true,    /* 🎵 K3.5 (F83): HAQEEQAT — tool ka ASAL haal dimaag ko bataya jaye
+                             ("chala diya, tasdeeq nahi" vs "ho gaya") + 2 ki jagah 4 tool-qadam.
+                             PEHLE OFF tha: dimaag andaza lagata tha ke kaam ho gaya, aur user ko
+                             "ho gaya" kehta tha jabke hua nahi hota tha */ boli: false, ijazat: false, bijli: false, aankh: false, nazar: true, sukoon: true, talk: true, raftar: true, khud: false }   /* 🎛️ J2.3: talk (baat-cheet) default ON — malik ka faisla */,  /* naap + sukoon default ON (bay-zarar / bugfix) · khud (P6) default OFF — pehle sabit ho, phir chale */
   v: null,
   load: function () {
     if (FLAGS.v) return FLAGS.v;
@@ -2923,6 +2927,32 @@ var RAFTAR = {
         " (" + (AWAAZ.FAST || 0) + "ms)";
     } catch (e) {}
     try { if (typeof NAZAR !== "undefined" && NAZAR && NAZAR.line) out += "\n  👁️ NAZAR: " + NAZAR.line(); } catch (e) {}
+    /* ── 🎵 v5.14.0 K4 — EK AWAAZ ka hisaab: number, andaza nahi. Artist kitni dafa
+       badla (0 hona chahiye), Gemini TTS ki roz ki request (hadd 12), kitne tukre
+       pehle se mangwaye gaye (gap khatam), turn lock ne kitni wake roki (do jawab
+       takrane se bache), khali transcript kitni dafa aaya, aur gaane ka record. ── */
+    try {
+      if (typeof AWAAZ !== "undefined" && AWAAZ) {
+        out += "\n  🎵 EK AWAAZ: artist badla " + (AWAAZ.switched || 0) + " dafa · TTS aaj " +
+               (AWAAZ.ttsDay ? AWAAZ.ttsDay() : 0) + "/" + (AWAAZ.TTS_DAY_MAX || 0) +
+               " (session " + (AWAAZ.ttsReq || 0) + ") · pehle se mangwaye " + (AWAAZ.preheats || 0) +
+               " · lock " + ((AWAAZ.lock && AWAAZ.lock.engine) || "\u2014");
+      }
+    } catch (e) {}
+    try {
+      if (typeof JAWAB !== "undefined" && JAWAB && JAWAB.n) {
+        out += "\n  🎙️ MIC: turn ne wake roki " + (JAWAB.n.turnBlocks || 0) +
+               " · turn muddat khatam " + (JAWAB.n.turnExpire || 0) +
+               " · khali transcript " + (JAWAB.n.empty || 0) +
+               " · haal " + (typeof SUKOON !== "undefined" ? SUKOON.haal : "?") +
+               (JAWAB.turn && JAWAB.turn.on ? (" (" + (JAWAB.turn.why || "") + " " + Math.round((Date.now() - JAWAB.turn.at) / 1000) + "s)") : "");
+      }
+    } catch (e) {}
+    try { if (typeof GANA !== "undefined" && GANA && GANA.line) out += "\n  🎵 GANA: " + GANA.line(); } catch (e) {}
+    try {
+      if (typeof DIMAAG !== "undefined" && DIMAAG) out += "\n  🧠 DIMAAG: soch ka budget " + (DIMAAG.thinks || 0) +
+        " dafa diya · jawab MAX_TOKENS par kata " + (DIMAAG.maxTok || 0) + " dafa";
+    } catch (e) {}
     return out;
   }
 };
@@ -5557,6 +5587,27 @@ function handleUserText(text, wasVoice){
   try { if (typeof TRACE !== "undefined") TRACE.start(); } catch (e) {}
   if (typeof NAAP !== "undefined") NAAP.start(wasVoice ? "voice" : "text");   /* 📊 P0 */
 
+  /* 🎵 v5.14.0 K3.2 (F82) — GAANA POOCHA THA: "kaunsa gaana ya artist?" ke jawab mein
+     aaya hua naam dimaag ke chakkar ke bagair seedha chalao. Hijack NAHI karte agar
+     ye koi doosra hukm ho (alarm/call/app/BIJLI ka kaam) — pehle wahi kaam hoga. */
+  try {
+    if (typeof GANA !== "undefined" && GANA.pending && (Date.now() - GANA.pending.at) < GANA.PENDING_MS) {
+      var _gp = "";
+      try { _gp = (typeof AMAL !== "undefined" && AMAL.guess) ? String(AMAL.guess(stripped) || "") : ""; } catch (e) {}
+      var _gb = null;
+      try { _gb = (typeof BIJLI !== "undefined" && BIJLI.match) ? BIJLI.match(stripped) : null; } catch (e) {}
+      GANA.pending = null;
+      if (!_gb && (!_gp || _gp === "play_youtube")) {
+        NAAP.mark("brain");
+        GANA.followUp(stripped).then(function (t) { reply(t, wasVoice); });
+        return;
+      }
+      try { pushLog("GANA: doosra hukm aaya — gaane ka sawal bhool gayi"); } catch (e) {}
+    } else if (typeof GANA !== "undefined" && GANA.pending) {
+      GANA.pending = null;   /* muddat khatam */
+    }
+  } catch (e) {}
+
   /* ⟲ / 📜 — ye do sawal app khud jaanti hai */
   if (typeof LEDGER !== "undefined" && FLAGS.on("ijazat")) {
     if (LEDGER.ASK_TODAY.test(stripped)) { reply(LEDGER.today(), wasVoice); return; }
@@ -5999,6 +6050,8 @@ function sysPrompt(){
     "- Alarm ('jaga dena', 'waqt par uthana', 'alarm lagao') -> set_alarm\n" +
     "- Timer/reminders -> set_timer ya set_reminder\n" +
     "- Apps kholna -> open_app; gaana/video -> play_youtube; search -> search_web\n" +
+    "\uD83C\uDFB5 GAANA QANOON: user gaana maange magar NAAM ya artist na bataye ('koi acha gaana lagao', 'kuch bhi baja do') to play_youtube MAT chalao — pehle ek line mein poocho: 'Kaunsa gaana ya artist, " + settings.name + "?' Jab naam/artist mil jaye TAB play_youtube(query='<poora gaana + artist>') chalao. Andaza laga kar purana/adhoora query bhejna mana hai.\n" +
+    "\uD83E\uDDE0 SOCH QANOON: sirf jawab mat do — chhoti si wajah bhi (kyun ye, doosra raasta kya tha, agla qadam kya). Salam/baat-cheet par 1-2 line kaafi; kaam ya sawal par 3-6 line, magar lambi lecture nahi.\n" +
     "- Naam se call/message -> call_contact / message_contact (contact list se khud dhoondo; ek se zyada mile to user se poocho). Number pata ho to call_number / send_sms\n" +
     "- Mausam -> get_weather (default sheher: " + settings.city + ")\n" +
     "- Battery -> battery_status\n" +
@@ -6840,6 +6893,23 @@ var DIMAAG = {
   historySuspect: false,
   fixes: 0,            /* kitni dafa khud marammat ki */
   calls: 0,
+  maxTok: 0,           /* 🎵 K3.4 (F81) — kitni dafa jawab MAX_TOKENS par kata */
+  thinks: 0,           /* 🎵 K3.4 — kitni dafa soch ka budget diya gaya */
+
+  /* 🎵 K3.4 (F81) — SOCH KA BUDGET. PEHLE: har sawal par `thinkingBudget: 0`, yani
+     dimaag ko sochne ki IJAZAT HI NAHI thi — aap ka tajurba: "uske andar dimaag
+     nahi, sochne samajhne ka reasoning nahi". Ab: tool wale qadam, kyun/kaise wale
+     sawal, planning aur lambe sawal par asli soch (512 token); aam baat-cheet par 0
+     (raftar barqarar — salam ka jawab sochne mein 3 second nahi lagne chahiye). */
+  thinkBudget: function (text, need) {
+    try {
+      var t = String(text || "").toLowerCase();
+      if (need) { DIMAAG.thinks++; return 512; }
+      if (/kyun|kyu\b|kaise|kaisay|kyunkar|why|how\b|plan|tarteeb|banao|likho|farq|behtar|tajweez|hisab|calculate|solve|reason|samjhao|wajah|kaunsa|which/.test(t)) { DIMAAG.thinks++; return 512; }
+      if (t.length > 120) { DIMAAG.thinks++; return 256; }
+      return 0;
+    } catch (e) { return 0; }
+  },
 
   WHY: {
     KEY_MISSING: "Koi AI key nahi hai",
@@ -7147,13 +7217,22 @@ async function geminiTry(m, plain){
   /* 🧭 kai-qadam wale hukm ("play store kholo AUR search karo") — 2 se 4 qadam */
   var maxSteps = (_activeSkill && _activeSkill.deep) ? 5 : (FLAGS.on("sach") ? 4 : 2);
 
+  /* 🎵 K3.4 (F81) — token aur soch ka budget. PEHLE: maxOutputTokens 280 + soch 0.
+     Natija: (a) tool ke args KAT jate the — asli saboot device se mila tha
+     `play_youtube(query="Funk` (adhoora!) — SAAF usay gira deta, jawab gayab;
+     (b) reasoning band thi. Ab: soch ke token bhi isi budget mein gine jate hain,
+     is liye soch ON ho to 1024, warna 512. */
+  geminiTry._retriedBig = false;
+  var think = DIMAAG.thinkBudget(plain ? "" : DIMAAG.lastUser(), !plain);
+  var maxTok = think > 0 ? 1024 : 512;
+
   for (var step = 0; step < maxSteps + 1; step++) {
     var body = {
       systemInstruction: { parts: [{ text: sysPrompt() }] },
       contents: contents,
-      generationConfig: { temperature: 0.7, maxOutputTokens: 280 }
+      generationConfig: { temperature: 0.7, maxOutputTokens: maxTok }
     };
-    if (/2\.5|gemini-3/.test(m)) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    if (/2\.5|gemini-3/.test(m)) body.generationConfig.thinkingConfig = { thinkingBudget: think };
     if (!plain && step < maxSteps) body.tools = [{ functionDeclarations: TOOL_DECLS }];
 
     var res, data = {}, st = null, useStream = false;
@@ -7211,6 +7290,20 @@ async function geminiTry(m, plain){
         contents.push({ role: "user", parts: [{ functionResponse: { name: name, response: result } }] });
       }
       continue;
+    }
+    /* 🎵 K3.4 (F81) — jawab MAX_TOKENS par kata? Adhoora jumla bolne se behtar hai
+       ek dafa bare budget par dobara maangna. SIRF tab jab stream na chala ho
+       (stream chal chuka = tukre bol chuke = dobara bolna awaaz ka jhoola hota) */
+    var frNow = String((cand && cand.finishReason) || "");
+    if (frNow === "MAX_TOKENS") {
+      DIMAAG.maxTok++;
+      if (!useStream && !geminiTry._retriedBig && !fnCalls.length) {
+        geminiTry._retriedBig = true;
+        maxTok = maxTok * 2;
+        try { DIMAAG.log("GEMINI/" + m, "MAX_TOKENS", "jawab kata tha — " + maxTok + " token par dobara"); } catch (e) {}
+        continue;
+      }
+      try { pushLog("DIMAAG: jawab MAX_TOKENS par kata (" + out.length + " harf aaye)"); } catch (e) {}
     }
     var out = parts.map(function (p) { return p.text || ""; }).join("").trim();
     if (out && typeof SAAF !== "undefined") out = SAAF.usable(out);      /* 🧹 P1 */
@@ -8640,21 +8733,198 @@ function htmlToText(h){
 }
 
 /* ---------- YOUTUBE AUTO-PLAY (pehla result seedha chalega) ---------- */
-async function ytPlay(query){
+/* ═══════════════ 🎵 GANA — v5.14.0 K3.2 (F79–F83): gaane ka dimaag ═══════════════
+   Aap ki shikayat (alfaz): "yt par jaake acha sa song lagao koi bhi — woh TikTok ki
+   salon years purani video laga deti hai aur bar bar wohi same video".
+
+   Do asal wajah thin (forensic, andaza nahi):
+   (1) Kotlin sirf PEHLA videoId uthata tha — na title, na duration, na Shorts ka
+       pehchan. Search ke top par aksar 15-second ki reel/status clip hoti hai.
+   (2) Maya ko YAAD nahi rehta tha ke kya chal chuka hai → har dafa wahi clip.
+   (3) Naam na milne par bhi andaza laga kar chala deti thi (galat cheez = gussa).
+
+   AB: Kotlin FEHRIST bhejta hai (id + title + duration + channel), GANA chunti hai:
+     · Shorts/reel/status/45s se chhoti clip → RAD
+     · 20 minute se lamba (live/mix) → RAD
+     · jo pehle chal chuka → bara jurmana (dobara wahi nahi)
+     · title mein aap ke lafz → sawab
+     · 2–8 minute ki clip (aam gaane ki lambai) → sawab
+   Aur naam/artist na mile to ANDAZA NAHI — POOCHTI HAI (malik ka faisla):
+   "Kaunsa gaana ya artist?" (aap ka chuna hua rasta; hardcoded list NAHI banai gayi)
+   ════════════════════════════════════════════════════════════════════════════════ */
+var GANA = {
+  VER: 1,
+  KEY: "maya_gana_played",
+  MAXMEM: 80,             /* kitne purane gaane yaad rakhein (dobara na chalein) */
+  MIN_SEC: 60,            /* is se chhoti clip = gaana nahi (Shorts/TikTok-nama) */
+  MAX_SEC: 1500,          /* 25 minute se lamba = live/mix/compilation — pehle nahi */
+  SWEET_MIN: 110,         /* aam gaane ki lambai: 1:50 … */
+  SWEET_MAX: 480,         /* … 8:00 tak (is range par sab se zyada sawab) */
+  PENDING_MS: 90000,      /* "kaunsa gaana?" ke jawab ka intezar (90 second) */
+  pending: null,          /* { at, q } — sawal poocha gaya, jawab baaki */
+  played: [],             /* [{ id, t, sec, at }] — sab se naya pehle */
+  loaded: false,
+  n: 0, picks: 0, asks: 0, repeats: 0, shorts: 0, fallbacks: 0,
+
+  /* aam lafz jo gaane ka NAAM nahi hote — inhen hata kar dekhte hain ke query mein
+     asal mein koi naam bacha bhi ya nahi ("koi acha gaana lagao" → kuch nahi bachta) */
+  JUNK: /\b(koi|kuch|koei|kisi|acha|achha|accha|achchha|achchi|achhi|acchi|best|top|new|naya|nayi|purana|gana|gaana|gane|gaane|song|songs|music|baja|bajao|bajaao|chalao|chala|chalaa|laga|lagao|suno|sunao|koi bhi|kuch bhi|random|mood|please|pls|yaar|maya|ek|do|hi|bhi|to|toh|abhi|zara|thoda|thora|pyara|pyari|romantic|sad|party|lofi|qawwali|naat|status|whatsapp|tiktok|reel|reels|short|shorts|clip|video|yt|youtube|play|stream|dj|remix|full|official|audio|karo|kar do|dena|do|na|the|a|an|of|for|me|and|par|pe|on)\b/gi,
+  /* Urdu mein likha ho to bhi pehchan lo (گانا / اچھا / کوئی / لگاؤ / چلاؤ / سنو / کچھ / بھی / نیا) */
+  URJUNK: /\u06AF\u0627\u0646\u0627|\u0627\u0686\u06BE\u0627|\u0627\u0686\u06BE\u06CC|\u06A9\u0648\u0626\u06CC|\u0644\u06AF\u0627\u0624|\u0686\u0644\u0627\u0624|\u0633\u0646\u0648|\u0628\u062C\u0627\u0624|\u06A9\u0686\u06BE|\u0628\u06BE\u06CC|\u0646\u06CC\u0627|\u067E\u0631\u0627\u0646\u0627/g,
+
+  load: function () {
+    if (GANA.loaded) return;
+    GANA.loaded = true;
+    try { GANA.played = JSON.parse(localStorage.getItem(GANA.KEY) || "[]") || []; } catch (e) { GANA.played = []; }
+    if (!GANA.played.length) GANA.played = [];
+  },
+  save: function () {
+    try {
+      if (GANA.played.length > GANA.MAXMEM) GANA.played = GANA.played.slice(0, GANA.MAXMEM);
+      localStorage.setItem(GANA.KEY, JSON.stringify(GANA.played));
+    } catch (e) {}
+  },
+  times: function (id) {
+    GANA.load();
+    var i, n = 0;
+    for (i = 0; i < GANA.played.length; i++) if (GANA.played[i] && GANA.played[i].id === id) n++;
+    return n;
+  },
+  remember: function (it) {
+    if (!it || !it.id) return;
+    GANA.load();
+    GANA.played.unshift({ id: it.id, t: String(it.t || "").slice(0, 90), sec: +it.sec || -1, at: Date.now() });
+    GANA.save();
+  },
+
+  /* query mein gaane ka NAAM hai bhi ya sirf aam lafz? */
+  core: function (q) {
+    var t = String(q || "").toLowerCase()
+      .replace(/[^a-z0-9\u0600-\u06FF\u0900-\u097F\s]/gi, " ")
+      .replace(GANA.URJUNK, " ")
+      .replace(GANA.JUNK, " ")
+      .replace(/\s+/g, " ").trim();
+    return t;
+  },
+  vague: function (q) { return GANA.core(q).length < 3; },
+  words: function (q) {
+    var t = GANA.core(q), arr = t ? t.split(" ") : [], out = [], i;
+    for (i = 0; i < arr.length && out.length < 6; i++) if (arr[i].length >= 2 && out.indexOf(arr[i]) < 0) out.push(arr[i]);
+    return out;
+  },
+
+  mmss: function (sec) {
+    sec = Math.round(+sec || 0);
+    if (sec <= 0) return "";
+    var m = Math.floor(sec / 60), s2 = sec % 60;
+    return m + ":" + (s2 < 10 ? "0" : "") + s2;
+  },
+
+  /* naam/artist maloom na ho to ANDAZA NAHI — poochho (aap ka chuna hua rasta) */
+  ask: function (q) {
+    GANA.asks++;
+    GANA.pending = { at: Date.now(), q: String(q || "") };
+    try { if (typeof KAAN !== "undefined" && KAAN.DARWAZA) KAAN.DARWAZA.open(); } catch (e) {}   /* jawab foran suna jaye */
+    try { pushLog("GANA: naam maloom nahi tha ('" + String(q || "").slice(0, 30) + "') — poochh rahi hoon"); } catch (e) {}
+    return "\uD83C\uDFB5 Kaunsa gaana ya artist, " + (typeof settings !== "undefined" ? settings.name : "boss") +
+           "? Naam bata dein — main wahi dhoondh kar laga dungi (andaza nahi karungi).";
+  },
+  /* pooche gaye sawal ka jawab: seedha chalao (vague check dobara nahi) */
+  followUp: function (name) { return ytPlay(name, { sure: true }); },
+
+  /* fehrist mein se behtareen gaana chuno — Shorts/chhoti clip/dohraya hua rad */
+  pick: function (list, q) {
+    GANA.load();
+    var words = GANA.words(q), i, w, best = null, bestS = -1e9;
+    for (i = 0; i < (list || []).length; i++) {
+      var it = list[i] || {};
+      if (!it.id) continue;
+      var sec = +it.sec || -1;
+      var t = String(it.title || it.t || "");
+      var low = t.toLowerCase();
+      /* 🎵 Shorts / reel / status clip — gaana nahi hoti (wahi TikTok-nama cheez) */
+      if (it.short === true || /\bshorts?\b|\breel\b|reels|tiktok|whatsapp status|status video|\bclip\b|15 ?sec|30 ?sec/.test(low)) { GANA.shorts++; continue; }
+      if (sec > 0 && sec < GANA.MIN_SEC) { GANA.shorts++; continue; }
+      if (sec > GANA.MAX_SEC) continue;                    /* live/mix — fil-haal nahi */
+      var sc = 0;
+      for (w = 0; w < words.length; w++) if (low.indexOf(words[w]) >= 0) sc += 3;
+      if (sec > 0) sc += (sec >= GANA.SWEET_MIN && sec <= GANA.SWEET_MAX) ? 3 : 1;
+      var chLow = String(it.ch || "").toLowerCase();
+      if (/vevo|official|music|audio|jukebox|records|films/.test(chLow)) sc += 1;
+      if (/full song|official|audio song|lyric/.test(low)) sc += 1;
+      var n = GANA.times(it.id);                           /* 🎵 F80 — dohrana mana */
+      if (n === 0) sc += 2; else if (n === 1) sc -= 6; else sc -= 10;
+      if (n > 0) GANA.repeats++;
+      var cand = { id: it.id, t: t, sec: sec, ch: it.ch || "", s: sc, n: n };
+      if (sc > bestS) { bestS = sc; best = cand; }
+    }
+    if (best) GANA.picks++;
+    return best;
+  },
+
+  /* ek line ka hisaab (RAFTAR/NAAP panel ke liye) */
+  line: function () {
+    GANA.load();
+    return "gaane " + GANA.n + " · chune " + GANA.picks + " · poochhe " + GANA.asks +
+           " · dohraye " + GANA.repeats + " · Shorts rade " + GANA.shorts +
+           " · yaad " + GANA.played.length + "/" + GANA.MAXMEM +
+           " · fallback " + GANA.fallbacks;
+  }
+};
+
+async function ytPlay(query, opts){
+  opts = opts || {};
   var q = String(query || "").trim();
   if (!q) return "Kya chalana hai, " + settings.name + "?";
   pushLog("YT PLAY: " + q);
-  if (NATIVE && window.MayaBridge.ytSearch) {
+
+  /* 🎵 K3.2 (F82) — POOCHHO, ANDAZA NA LAGAO: "koi acha gaana lagao" par koi bhi clip
+     thonsne se behtar hai ek line poochh lena. opts.sure = naam pehle hi mil chuka */
+  if (!opts.sure && GANA.vague(q)) return GANA.ask(q);
+
+  /* 🎵 K3.5 (F83) — 16 second ki KHAMOSH search nahi: screen par dikho ke dhundh rahi hoon */
+  try { statusText.textContent = "\uD83C\uDFB5 YouTube par dhoondh rahi hoon: " + q.slice(0, 44); } catch (e) {}
+  try { if (typeof JAWAB !== "undefined") JAWAB.turnStart("gaana"); } catch (e) {}   /* mic band: search ke dauran wake na ghusay */
+
+  /* 🎵 K3.1 (F79) — PEHLI baar FEHRIST mangwao (title + duration + channel), phir GANA chune */
+  var list = [], raw = "";
+  if (NATIVE && window.MayaBridge && window.MayaBridge.ytSearchList) {
+    try { raw = window.MayaBridge.ytSearchList(q, 8) || ""; } catch (e) { raw = ""; }
+    try { list = raw ? (JSON.parse(raw) || []) : []; } catch (e) { list = []; }
+  }
+  if (list && list.length) {
+    var pick = GANA.pick(list, q);
+    if (pick && pick.id) {
+      openURL("https://www.youtube.com/watch?v=" + pick.id);
+      GANA.remember(pick); GANA.n++;
+      try { pushLog("GANA: " + (pick.t || "").slice(0, 44) + " (" + GANA.mmss(pick.sec) + ") — " + list.length + " mein se chuna"); } catch (e) {}
+      try { statusText.textContent = "\uD83C\uDFB5 " + (pick.t || "").slice(0, 40); } catch (e) {}
+      return "\uD83C\uDFB5 " + (pick.t || "Gaana") + (pick.sec > 0 ? " (" + GANA.mmss(pick.sec) + ")" : "") +
+             " \u2014 YouTube par chala rahi hoon, " + settings.name + "!";
+    }
+    /* fehrist aayi thi magar sab Shorts/bohat lambe the — purani clip thonsne se
+       behtar hai search khol dena (aap khud chunein) */
+    GANA.fallbacks++;
+    try { pushLog("GANA: " + list.length + " natije the magar koi gaana layak nahi (Shorts/mix) — search kholi"); } catch (e) {}
+    openURL("https://www.youtube.com/results?search_query=" + encodeURIComponent(q));
+    return "YouTube par " + q + " ki search khol rahi hoon, " + settings.name +
+           " — jo natije aaye sab chhoti clips ya lambe mix the, is liye main ne khud kuch nahi chuna.";
+  }
+
+  /* purani APK (ytSearchList nahi) → purana rasta: pehla videoId */
+  if (NATIVE && window.MayaBridge && window.MayaBridge.ytSearch) {
     try {
       var vid = window.MayaBridge.ytSearch(q);
       if (vid) {
         openURL("https://www.youtube.com/watch?v=" + vid);
+        GANA.n++; GANA.fallbacks++;
         return "YouTube par chala rahi hoon, " + settings.name + "!";
       }
     } catch(e){}
   }
+  GANA.fallbacks++;
   openURL("https://www.youtube.com/results?search_query=" + encodeURIComponent(q));
-  return "YouTube search khol rahi hoon, " + settings.name + " — pehla wala dabana.";
+  return "YouTube ki search khol rahi hoon, " + settings.name + " — gaana dhoondha nahi ja saka, pehla wala aap dabaiye.";
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

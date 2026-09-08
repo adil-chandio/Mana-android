@@ -711,10 +711,23 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        /** YouTube v2 — innertube JSON + consent cookie fallback (pakka videoId) */
-        @JavascriptInterface
-        fun ytSearch(query: String): String {
-            // 1) Innertube ANDROID client — JSON, reliable
+        /* ═══════════ 🎵 v5.14.0 K3.1 (F79) — YouTube ka ASLI DIMAAG ═══════════
+           PEHLE: `ytSearch()` regex se PEHLA videoId uthata tha — na title dekha,
+           na duration, na ye ke wo Shorts/reel hai. Natija: "acha sa gaana lagao"
+           par search ke top wali wahi salon purani TikTok-nama 15-second clip, aur
+           har dafa WAHI (kyunke yaad nahi rehta tha ke kya chal chuka).
+           AB: `ytSearchList()` FEHRIST deta hai (id + title + duration + channel);
+           faisla JS ka GANA module karta hai (Shorts rad, chhoti clip rad, dobara
+           wahi gaana rad, naam na mile to andaza nahi — poochho).
+           Purani APK-par-JS / purana JS-par-APK dono ke liye `ytSearch()` barqarar. */
+        private val ytVidRe = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"")
+        private val ytTitleRe = Regex("\"(?:title|headline)\":\\{\"runs\":\\[\\{\"text\":\"((?:[^\"\\\\]|\\\\.)*)\"")
+        private val ytTitleSimpleRe = Regex("\"title\":\\{\"simpleText\":\"((?:[^\"\\\\]|\\\\.)*)\"")
+        private val ytOwnerRe = Regex("\"(?:ownerText|longBylineText|shortBylineText)\":\\{\"runs\":\\[\\{\"text\":\"((?:[^\"\\\\]|\\\\.)*)\"")
+        private val ytLenRe = Regex("\"lengthText\":\\{[^\\[]{0,400}?\"simpleText\":\"([0-9]{1,3}:[0-9]{2}(?::[0-9]{2})?)\"")
+
+        /** Innertube ANDROID client — poora raw JSON (isi mein title/duration bhi hai) */
+        private fun ytInnertube(query: String): String? {
             try {
                 val conn = URL("https://www.youtube.com/youtubei/v1/search?prettyPrint=false")
                     .openConnection() as HttpURLConnection
@@ -729,10 +742,12 @@ class MainActivity : AppCompatActivity() {
                 conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                 val txt = conn.inputStream.bufferedReader().use { it.readText() }
                 conn.disconnect()
-                val m = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"").find(txt)
-                if (m != null) return m.groupValues[1]
-            } catch (e: Exception) {}
-            // 2) HTML + CONSENT cookie
+                return if (txt.isNotEmpty()) txt else null
+            } catch (e: Exception) { return null }
+        }
+
+        /** HTML + CONSENT cookie fallback — ytInitialData isi page mein hota hai */
+        private fun ytHtml(query: String): String? {
             try {
                 val conn = URL("https://www.youtube.com/results?search_query=" + URLEncoder.encode(query, "UTF-8"))
                     .openConnection() as HttpURLConnection
@@ -744,10 +759,87 @@ class MainActivity : AppCompatActivity() {
                 conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
                 val html = conn.inputStream.bufferedReader().use { it.readText() }
                 conn.disconnect()
-                val m = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"").find(html)
-                if (m != null) return m.groupValues[1]
-            } catch (e: Exception) {}
+                return if (html.isNotEmpty()) html else null
+            } catch (e: Exception) { return null }
+        }
+
+        /** "3:45" / "1:02:10" → second (na mile to -1) */
+        private fun ytSec(t: String): Int {
+            val p = t.split(":")
+            return try {
+                when (p.size) {
+                    2 -> p[0].toInt() * 60 + p[1].toInt()
+                    3 -> p[0].toInt() * 3600 + p[1].toInt() * 60 + p[2].toInt()
+                    else -> -1
+                }
+            } catch (e: Exception) { -1 }
+        }
+
+        /** JSON string ke andar ke escapes kholna (title user ko dikhana hota hai) */
+        private fun ytUnesc(raw: String): String {
+            if (raw.isEmpty()) return ""
+            return try { JSONArray("[\"" + raw + "\"]").optString(0, "") } catch (e: Exception) { raw }
+        }
+
+        /** raw text se video-umeedwar nikaalo — Shorts/reel aur chhoti clips chhor kar */
+        private fun ytParse(txt: String, lim: Int, seen: MutableSet<String>, out: JSONArray) {
+            for (m in ytVidRe.findAll(txt)) {
+                if (out.length() >= lim) return
+                val id = m.groupValues[1]
+                if (!seen.add(id)) continue
+                val from = maxOf(0, m.range.first - 300)
+                val to = minOf(txt.length, m.range.last + 3000)
+                val ctx = txt.substring(from, to)
+                /* khidki AGLE videoId tak: doosre renderer ka title/length chipak na jaye */
+                val selfAt = m.range.first - from
+                val nextAt = ytVidRe.find(ctx, selfAt + 12)?.range?.first ?: ctx.length
+                val win = ctx.substring(0, minOf(ctx.length, maxOf(selfAt + 11, nextAt)))
+                if (win.contains("reelItemRenderer") || win.contains("shortsLockupViewModel") ||
+                    win.contains("reelPlayerHeaderRenderer") || win.contains("\"reel\"")) continue
+                val lenM = ytLenRe.find(win)
+                val sec = if (lenM != null) ytSec(lenM.groupValues[1]) else -1
+                if (sec in 1..45) continue          /* 45 second se chhoti = gaana nahi */
+                val tRaw = (ytTitleRe.find(win) ?: ytTitleSimpleRe.find(win))?.groupValues?.get(1) ?: ""
+                val title = ytUnesc(tRaw)
+                if (title.isEmpty()) continue       /* title nahi = video renderer nahi (playlist/channel/ad) */
+                val chRaw = ytOwnerRe.find(win)?.groupValues?.get(1) ?: ""
+                try {
+                    val o = JSONObject()
+                    o.put("id", id)
+                    o.put("title", title)
+                    o.put("sec", sec)
+                    o.put("ch", ytUnesc(chRaw))
+                    out.put(o)
+                } catch (e: Exception) {}
+            }
+        }
+
+        /** YouTube v2 — pehla pakka videoId (purana rasta, compatibility ke liye barqarar) */
+        @JavascriptInterface
+        fun ytSearch(query: String): String {
+            ytInnertube(query)?.let { t -> ytVidRe.find(t)?.let { return it.groupValues[1] } }
+            ytHtml(query)?.let { t -> ytVidRe.find(t)?.let { return it.groupValues[1] } }
             return ""
+        }
+
+        /**
+         * 🎵 K3.1 — gaane ki FEHRIST: [{id,title,sec,ch}, …] (JSON array string).
+         * JS ka GANA isi par faisla karta hai. Kuch na mile to "[]" (crash nahi).
+         */
+        @JavascriptInterface
+        fun ytSearchList(query: String, max: Int): String {
+            val lim = if (max in 1..20) max else 8
+            val out = JSONArray()
+            try {
+                val seen = HashSet<String>()
+                val a = ytInnertube(query)
+                if (a != null) ytParse(a, lim, seen, out)
+                if (out.length() < lim) {
+                    val b = ytHtml(query)
+                    if (b != null) ytParse(b, lim, seen, out)
+                }
+            } catch (e: Throwable) {}
+            return out.toString()
         }
 
         /** CONTACTS ENGINE (Phase 5) */
