@@ -146,7 +146,8 @@ Settings → LAB → 📊 **NAAP/BASELINE** button dabayen.
 | SW cache | `maya-v5.13.0` |
 | Tests | **1375/1375** (lab Section 36 ke **55** naye taale) |
 | Plan-doc | `docs/FIX-v5.13.0-raftar.md` (F59–F66 + ilaj) |
-| CI / APK | _build ke baad yahan link darj hoga_ |
+| CI | ✅ **GREEN** — [run 34186455021](https://github.com/adil-chandio/Mana-android/actions/runs/34186455021) (93 second) |
+| APK | **MAYA-APK 3,237,726 bytes** (v5.12.5 se +11,829) — artifact CI se utarein |
 
 **Aage:** J4 = v5.13.5 "SAAF AWAAZ" (awaaz ki pakki sehat + voice-doctor),
 phir Phase 2 (WAKE DOCTOR v2), 2.5 (auto-update), 3 (wake brain Kotlin), 4 (offline KWS).

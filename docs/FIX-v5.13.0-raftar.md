@@ -173,7 +173,22 @@ test ghante ke hisab se idle-branch chala kar `busyBlocked` 2 kar deta tha — a
 
 ---
 
-## 5. 🚀 Baqi roadmap
+## 5. ✅ Build ka saboot (CI)
+
+| Cheez | Haal |
+|---|---|
+| Commit | `3fc3411` (branch `arena/01a062e9-mana-android`) |
+| CI run | ✅ **SUCCESS** — [34186455021](%s), 93 second (gradle cache warm) |
+| Artifact | **MAYA-APK 3,237,726 bytes** (v5.12.5: 3,225,897 → **+11,829**) |
+| Tests | **1375/1375 GREEN** (101 UI/CSS + 294 voice + 155 brain + 825 lab) |
+| Kotlin | sirf 2 lines ka amal (silence 600L ×2) + toast/appVersion — compile khatra nahi |
+
+Barhne ki wajah: `RAFTAR` module + `geminiStream()` + NAZAR ki doosri koshish + sysPrompt
+ki poori tool fehrist (~11.8 KB web-asset). APK ka native hissa lagbhag wahi hai.
+
+---
+
+## 6. 🚀 Baqi roadmap
 
 | Phase | Kaam | Haal |
 |-------|------|------|

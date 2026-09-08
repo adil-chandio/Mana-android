@@ -35,6 +35,9 @@ watchdog pehle se hai). Streaming **sirf Gemini** par — backup dimaag purane r
 jsdom mein **chalaa kar** parakha (jumla kaatna, Urdu `۔؟`, SSE tukre, HOLD, kill-switch, rearm,
 abort, doosri koshish, `say` ki imaandari).
 
+✅ **CI GREEN** — [run 34186455021](https://github.com/adil-chandio/Mana-android/actions/runs/34186455021) ·
+**MAYA-APK 3,237,726 bytes** (+11,829) · **1375/1375 test**
+
 📄 **Ek parcha:** [`docs/REPORT-v5.13.0-aam-zubaan.md`](docs/REPORT-v5.13.0-aam-zubaan.md) · 📖 tafseel: [`docs/FIX-v5.13.0-raftar.md`](docs/FIX-v5.13.0-raftar.md)
 
 ---
