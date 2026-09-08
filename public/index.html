@@ -599,7 +599,7 @@ nav{padding:8px 10px 10px}
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.15.0 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.16.0 ✨</small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -1004,6 +1004,8 @@ nav{padding:8px 10px 10px}
             <div class="ui-label">TTS VOICE (system engine)</div>
             <select class="ui-input ui-select" id="sVoice"><option value="">Auto (engine default)</option></select>
           </div>
+          <button type="button" class="ui-btn ui-btn-ghost" id="artistDocBtn">🩺 ARTIST DOCTOR — har awaaz ka muaina</button>
+          <pre class="ui-pre" id="artistDocOut">—</pre>
           <button type="button" class="ui-btn ui-btn-ghost" id="testVoice">🎧 TEST AWAAZ SUNO</button>
           <div class="ui-hint" id="awaazWhy">Test karo — niche likha aayega ke kis engine ne bola.</div>
 
@@ -2970,6 +2972,10 @@ var RAFTAR = {
                " · boli " + (AWAAZ.engine || "-") + " · retry " + (AWAAZ.artistRetries || 0) +
                " · nakam " + (AWAAZ.artistFails || 0) + " · ijazat maangi " + (AWAAZ.asks || 0) +
                " · sach bataya " + (AWAAZ.tells || 0) +
+               /* 🩺 v5.16.0 K6 — policy ka amal bhi hisaab mein (chup ka matlab chup, retry ka retry) */
+               " · policy retry " + (AWAAZ.polRetries || 0) + " · chup " + (AWAAZ.silentFails || 0) +
+               ((AWAAZ.longSplits) ? (" · lambe tukre " + AWAAZ.longSplits) : "") +
+               ((AWAAZ.lat && AWAAZ.lat[String(AWAAZ.engine || "")]) ? (" · pehla tukra " + AWAAZ.lat[String(AWAAZ.engine)] + "ms") : "") +
                ((typeof FISH !== "undefined" && FISH && FISH.cacheHits) ? (" · Fish cache hit " + FISH.cacheHits) : "");
       }
     } catch (e) {}
@@ -3014,6 +3020,16 @@ var ARTIST = {
     return false;
   },
 
+  /* 🩺 K6.6 (F108) — Edge ki awaaz ka saboot: list mein ho ya Microsoft ka qanooni naam.
+     PEHLE: settings.edgeVoice mein purana/ghalat id ho to HAR tukra nakam hota tha aur wajah
+     saaf nahi aati thi (Gemini ke liye geminiOk() tha, Edge ke liye kuch nahi — do darje). */
+  edgeOk: function (v) {
+    v = String(v == null ? "" : v).trim();
+    if (!v) return false;
+    try { if (typeof EDGE_TTS !== "undefined" && EDGE_TTS && EDGE_TTS.has && EDGE_TTS.has(v)) return true; } catch (e) {}
+    return /^[a-z]{2}-[A-Za-z]{2,4}-[A-Za-z]+Neural$/.test(v);
+  },
+
   /* id → { id, n, eng, voice } */
   parse: function (id) {
     var s = ARTIST.s(), i = String(id == null ? "" : id).trim(), v;
@@ -3023,9 +3039,13 @@ var ARTIST = {
     if (i === "device") return { id: "device", n: "\uD83D\uDCF1 PHONE \u2014 " + String(s.tts || "ur-PK"), eng: "device", voice: String(s.voiceName || "") };
     if (i === "edge" || i.indexOf("edge:") === 0) {
       v = (i.indexOf("edge:") === 0) ? i.slice(5) : String(s.edgeVoice || "");
+      if (v && !ARTIST.edgeOk(v)) v = "";    /* 🩺 K6.6 (F108): ghalat id → qanooni pasand */
       if (!v && typeof EDGE_TTS !== "undefined" && EDGE_TTS && EDGE_TTS.pick) { try { v = EDGE_TTS.pick(); } catch (e) {} }
       return { id: v ? ("edge:" + v) : "edge", n: "\uD83C\uDF0A EDGE \u2014 " + String(v || "Urdu"), eng: "edge", voice: String(v || "") };
     }
+    /* 🩺 K6.6 (F113) — purane engine naam bhi pasand hain: "neural" ko chup-chaap AUTO
+       bana dete to aap ka 🔒 strict qanoon gum ho jata (sirf settings.voiceEngine dekhta) */
+    if (i === "neural" || i === "gemini") return ARTIST.parse("g:" + String(s.gVoice || "Kore"));
     if (i.indexOf("g:") === 0) {
       v = i.slice(2);
       if (!ARTIST.geminiOk(v)) v = String(s.gVoice || "Kore");
@@ -3216,6 +3236,7 @@ var AWAAZ = {
   spoke: 0,            /* kitni dafa neural bola (Doctor ke liye) */
   edgeSpoke: 0,        /* kitni dafa EDGE bola */
   fishSpoke: 0,        /* kitni dafa FISH boli */
+  deviceSpoke: 0,      /* 🩺 K6.8 — kitni dafa PHONE bola (doctor pehle andaza lagata) */
   edgeVoiceUsed: "",   /* aakhri Edge awaaz jo asal mein chali */
   cacheHits: 0,
 
@@ -3650,7 +3671,16 @@ var AWAAZ = {
     try { a = new Audio(); } catch (e) { onErr("AUDIO_BLOCKED"); return; }
     AWAAZ.audio = a;
     /* ⚡ J3 (F64) — "awaaz sach much baji" ka saboot: fast budget isi ko dekhta hai */
-    a.onplay = function () { if (gen === AWAAZ.gen) AWAAZ.audioAt = (new Date()).getTime(); };
+    a.onplay = function () {
+      if (gen !== AWAAZ.gen) return;
+      AWAAZ.audioAt = (new Date()).getTime();
+      /* 🩺 K6.8 (F111) — doctor ka saboot: is engine ne kitni der mein bolna shuru kiya */
+      try {
+        if (AWAAZ.tStart && AWAAZ.engine) {
+          AWAAZ.lat[String(AWAAZ.engine)] = AWAAZ.audioAt - AWAAZ.tStart; AWAAZ.latAt = AWAAZ.audioAt;
+        }
+      } catch (e) {}
+    };
     a.onended = function () { if (gen === AWAAZ.gen) onEnd(); };
     a.onerror = function () { if (gen === AWAAZ.gen) onErr("AUDIO_BLOCKED"); };
     a.src = url;
@@ -3754,7 +3784,7 @@ var AWAAZ = {
     var s = (typeof settings === "object" && settings) ? settings : {};
     AWAAZ.deviceDone = function () { if (gen === AWAAZ.gen) { AWAAZ.deviceDone = null; onDone(); } };
     if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge.speak) {
-      try { window.MayaBridge.speak(text, s.tts || "ur-PK", s.rate || 1, s.pitch || 1.05, s.voiceName || ""); return; }
+      try { window.MayaBridge.speak(text, s.tts || "ur-PK", s.rate || 1, s.pitch || 1.05, s.voiceName || ""); AWAAZ.deviceSpoke++; return; }
       catch (e) { AWAAZ.deviceDone = null; onDone(); return; }
     }
     if (typeof synth === "undefined" || !synth) { AWAAZ.deviceDone = null; onDone(); return; }
@@ -3770,7 +3800,7 @@ var AWAAZ = {
     u.rate = s.rate || 1; u.pitch = s.pitch || 1.05;
     u.onend = function () { if (gen === AWAAZ.gen) { AWAAZ.deviceDone = null; onDone(); } };
     u.onerror = function () { if (gen === AWAAZ.gen) { AWAAZ.deviceDone = null; onDone(); } };
-    try { synth.speak(u); } catch (e) { AWAAZ.deviceDone = null; onDone(); }
+    try { synth.speak(u); AWAAZ.deviceSpoke++; } catch (e) { AWAAZ.deviceDone = null; onDone(); }
   },
 
   /* ---------- nakami darj karo (chup-chaap fail MANA hai) ---------- */
@@ -3812,6 +3842,12 @@ var AWAAZ = {
   onceArtist: null,       /* 🎙️ K5.6 — namoona / "sirf ab" wali ek-dafa pasand */
   asks: 0, tells: 0, artistRetries: 0, artistFails: 0, allowed: 0,
   hush: false, hushKey: "",
+  /* 🩺 v5.16.0 K6 — policy ke ASAL amaal, hijack guard, aur doctor ke aankre */
+  POL_RETRY: 1, POL_RETRY_DELAY: 2500, polRetries: 0,   /* K6.1 (F102): "dobara" policy zinda */
+  silentFails: 0, longSplits: 0, lastAuditionAt: 0,      /* K6.2/K6.5/F109: doctor ke saboot */
+  ANSWER_MAX: 40,                                        /* K6.3 (F104): jawab chhota hota hai */
+  lat: { neural: 0, fish: 0, edge: 0, device: 0 }, latAt: 0,   /* K6.8 (F111): pehla tukra kitni der mein bola */
+  CMD_RE: /(alarm|timer|reminder|call|sms|whatsapp|message|youtube|kholo|khulwa|bhejo|laga do|balance|mausam|khabar|news|battery|wifi|torch|bijli|gaana|volume|brightness|kitna|kaise|kahan|kaun|kab)/,
   PERMANENT: { KEY_MISSING: 1, KEY_BAD: 1, QUOTA: 1, QUOTA_DAY: 1, OFFLINE: 1,
                MOBILE_DATA: 1, TOO_LONG: 1, DEVICE_MODE: 1, OFF: 1, BROWSER: 1 },
 
@@ -3859,6 +3895,22 @@ var AWAAZ = {
         AWAAZ.edge(text, done, fail); return;
       }
       var blk = AWAAZ.blockReason(text);
+      /* 🩺 K6.5 (F107) — strict mein TOO_LONG dead-end tha: CHUNKN (1500) maxChars (1400) se
+         bara tukra bana sakta hai → PERMANENT code → na retry, na koi kaam ka ikhtiyar (khamoshi).
+         Ab: USI artist par tukre kar ke bolo — qanoon barqarar, artist wahi, awaaz nikalti hai. */
+      if (blk === "TOO_LONG") {
+        var mx = Math.max(200, (AWAAZ.cfg().maxChars | 0) - 40), parts = AWAAZ.chunks(text, mx), pi = 0;
+        if (parts.length > 1) {
+          AWAAZ.longSplits++;
+          try { if (typeof pushLog === "function") pushLog("ARTIST: text " + text.length + " > hadd " + (AWAAZ.cfg().maxChars | 0) + " — USI artist par " + parts.length + " tukron mein bola"); } catch (e) {}
+          (function nextPart() {
+            if (gen !== AWAAZ.gen) return;
+            if (pi >= parts.length) { if (done) done(); return; }
+            AWAAZ.neural(parts[pi++], nextPart, fail);
+          })();
+          return;
+        }
+      }
       if (blk) { fail(blk); return; }
       AWAAZ.neural(text, done, fail);
     }
@@ -3874,6 +3926,43 @@ var AWAAZ = {
     if (cb && cb.audition) {                       /* namoona: sawal nahi, sirf sach */
       try { if (typeof toast === "function") toast("\uD83C\uDF99\uFE0F " + (c.artistName || "") + " nahi bol saki: " + (AWAAZ.why(code) || code)); } catch (e) {}
       if (done) done(); else if (cb.onDone) cb.onDone();
+      return;
+    }
+    /* 🩺 K6.1 (F102) — "🔁 Sirf dobara koshish": v5.15.0 tak ye option DEAD tha (waada UI par,
+       amal zero). Ab: permanent rukawat na ho to USI artist par ek aur koshish, thori der baad —
+       bina sawal, bina doosri awaaz. Baqi tukre is jawab ke hush (shor nahi). Koshishen khatam
+       ya permanent code → sach likha jaye, sawal NAHI (aap ne "poochho mat" kaha tha). */
+    if (pol === "dobara") {
+      if (!AWAAZ.PERMANENT[code] && AWAAZ.polRetries < AWAAZ.POL_RETRY && text) {
+        AWAAZ.polRetries++;
+        AWAAZ.note("");
+        AWAAZ.hush = true; AWAAZ.hushKey = (cb && cb.lockKey) || "";
+        try { if (typeof pushLog === "function") pushLog("ARTIST: policy DOBARA — " + (c.artistName || c.artist) + " par " + AWAAZ.POL_RETRY_DELAY + "ms baad ek aur koshish (" + AWAAZ.polRetries + "/" + AWAAZ.POL_RETRY + ")"); } catch (e) {}
+        var g2 = AWAAZ.gen, cbR = {}, kR;
+        for (kR in cb) if (Object.prototype.hasOwnProperty.call(cb, kR)) cbR[kR] = cb[kR];
+        cbR.forceEngine = c.mode; cbR.chain = true; cbR.forceAuto = false; cbR.audition = false;
+        setTimeout(function () {
+          if (g2 !== AWAAZ.gen) return;                  /* aap ne rok diya / naya jawab shuru */
+          AWAAZ.hush = false; AWAAZ.hushKey = "";        /* apni hi hush se ruk na jaye */
+          try { AWAAZ.speak(text, cbR); } catch (e) {}
+        }, AWAAZ.POL_RETRY_DELAY);
+        if (done) done(); else if (cb && cb.onDone) cb.onDone();
+        return;
+      }
+      AWAAZ.tells++;
+      try { if (typeof pushLog === "function") pushLog("ARTIST: policy DOBARA — koshishen khatam (" + code + "); sach likha, sawal nahi"); } catch (e) {}
+      try { if (typeof addBubble === "function") addBubble("ai", "\uD83C\uDF99\uFE0F " + (c.artistName || c.artist) + " dobara bhi nahi bol saki \u2014 " + (AWAAZ.why(code) || code) + ". Jawab screen par likha hua hai."); } catch (e) {}
+      if (done) done(); else if (cb && cb.onDone) cb.onDone();
+      return;
+    }
+    /* 🩺 K6.2 (F103) — "🤫 Chup — sirf likho": pehle chup kehne par bhi bubble + toast + sawal
+       aata tha. Ab: NA message, NA toast, NA sawal. Sach sirf log/PANEL/doctor ke aankron mein
+       (silentFails) — jhoot nahi, bas aap ki marzi ki khamoshi. */
+    if (pol === "chup") {
+      AWAAZ.silentFails++;
+      AWAAZ.hush = true; AWAAZ.hushKey = (cb && cb.lockKey) || "";
+      try { if (typeof pushLog === "function") pushLog("ARTIST: " + (c.artistName || c.artist) + " nakaam (" + code + ") — policy CHUP: koi message nahi"); } catch (e) {}
+      if (done) done(); else if (cb && cb.onDone) cb.onDone();
       return;
     }
     if (pol === "koi_bhi" || (cb && cb.forceAuto)) {
@@ -3921,10 +4010,31 @@ var AWAAZ = {
     return q;
   },
 
+  /* 🩺 K6.7 (F105) — sawal abhi ZINDA hai? (muddat ASK_MS = 90s) — ek hi saboot, har jagah */
+  askLive: function () {
+    var a = AWAAZ.ask;
+    return !!(a && ((Date.now() - a.at) < AWAAZ.ASK_MS));
+  },
+
+  /* 🩺 K6.3 (F104) — HIJACK GUARD: ye aap ka JAWAB hai ya naya HUKUM?
+     PEHLE: "theek hai, alarm 7 baje laga do" bhi jawab samjha jata tha — aap ka hukum GUM,
+     purana text doosri awaaz mein dobara. Ab: lamba message, sawal, number ya hukum ka lafz
+     = jawab NAHI. (Jawab ki pehchaan wahi purani hai — sirf hijack band hua.) */
+  answerOk: function (t) {
+    t = String(t == null ? "" : t).trim();
+    if (!t || t.length > AWAAZ.ANSWER_MAX) return false;   /* jawab chhota hota hai */
+    if (/[?\u061F]/.test(t)) return false;                /* sawal → naya sawal, jawab nahi */
+    if (/[0-9\u06F0-\u06F9]/.test(t)) return false;      /* number → waqt/miqdar ka hukum */
+    try { if (AWAAZ.CMD_RE.test(t)) return false; } catch (e) {}   /* hukum ka lafz → hukum chalega */
+    return true;
+  },
+
   /* aap ka jawab samjho (K5.3) */
   answer: function (txt) {
     var a = AWAAZ.ask; if (!a) return null;
     var t = String(txt || "").toLowerCase().trim(); if (!t) return null;
+    /* 🩺 K6.3 + K6.7 — na baasi sawal par amal, na naye hukum ko hijack */
+    if (!AWAAZ.askLive() || !AWAAZ.answerOk(t)) return null;
     var alt = (typeof ARTIST !== "undefined" && ARTIST && ARTIST.alt) ? ARTIST.alt(a.eng) : null;
     if (/(dobara|koshish|retry|phir se|again|ek aur bar)/.test(t)) return { act: "retry" };
     if (/(chup|khamosh|nahi bol|silent|bas likho|sirf likho)/.test(t)) return { act: "silent" };
@@ -3941,7 +4051,14 @@ var AWAAZ = {
     if (r.act === "always") { try { if (typeof ARTIST !== "undefined") ARTIST.set(r.id); } catch (e) {} }
     if (!txt) { try { if (typeof toast === "function") toast("\uD83C\uDF99\uFE0F Jawab screen par likha hua hai"); } catch (e) {} return ""; }
     var cb = { lockKey: a.lockKey || "" };
-    if (r.act === "once") { try { cb.forceEngine = ARTIST.parse(r.id).eng; } catch (e) {} }
+    /* 🩺 K6.4 (F106) — "sirf ab 🌊 EDGE — Uzma se bolo": pehle sirf ENGINE jata tha, waada ki
+       hui AWAAZ nahi. Ab dono — aur cb.once ki wajah se speak() is dafa ki pasand saaf nahi karta */
+    if (r.act === "once") {
+      try {
+        var A1 = ARTIST.parse(r.id);
+        cb.forceEngine = A1.eng; cb.once = true; AWAAZ.onceArtist = A1;
+      } catch (e) {}
+    }
     try { AWAAZ.speak(txt, cb); } catch (e) {}
     return (r.act === "retry") ? "\uD83C\uDF99\uFE0F Dobara koshish kar rahi hoon\u2026" : ("\uD83C\uDF99\uFE0F " + (r.n || "") + " se bol rahi hoon\u2026");
   },
@@ -3984,7 +4101,9 @@ var AWAAZ = {
     /* 🎵 K1.1 — is speak() ka lockKey jawab ke lock se milta hai? (setEngine isi se
        faisla karta hai ke lock/engine ya artist-switch ginti update karni hai) */
     AWAAZ.lockMatch = !!(cb.lockKey && AWAAZ.lock.key === cb.lockKey);
-    if (!cb.audition) AWAAZ.onceArtist = null;   /* 🎙️ namoone ki pasand aage na chale */
+    /* 🩺 K6.4 (F106) — namoona (audition) aur "sirf ab" (once) ki pasand is jawab bhar chale;
+       aam jawab par khud saaf — taake namoone ki awaaz asal qanoon par na chipke */
+    if (!cb.audition && !cb.once) AWAAZ.onceArtist = null;
     /* 🎙️ K5.3 — is jawab ki awaaz ruk chuki (artist nakaam + sawal poocha ja chuka):
        baqi tukron par NA koi doosri awaaz chalao NA sawal dobaro. Jawab screen par hai. */
     if (AWAAZ.hush && AWAAZ.hushKey && cb.lockKey && AWAAZ.hushKey === cb.lockKey) {
@@ -4165,6 +4284,7 @@ var AWAAZ = {
        hush bhi yahan saaf: naye jawab par purani nakami ka saaya na rahe */
     AWAAZ.lock = { key: String(key || ""), engine: "", voice: "", model: "", artist: "", at: Date.now() };
     AWAAZ.hush = false; AWAAZ.hushKey = "";
+    AWAAZ.polRetries = 0;   /* 🩺 K6.1 (F102) — har naye jawab par "dobara" policy ka budget tazaa */
   },
   lockEnd: function () { AWAAZ.lock = { key: "", engine: "", voice: "", model: "", artist: "", at: 0 }; },
   ttsDay: function () {
@@ -4257,11 +4377,136 @@ var AWAAZ = {
       artist: c.artist, artistName: c.artistName, strict: !!c.strict,
       artistRetries: AWAAZ.artistRetries, artistFails: AWAAZ.artistFails,
       asks: AWAAZ.asks, tells: AWAAZ.tells, hush: !!AWAAZ.hush,
+      askLive: AWAAZ.askLive(), polRetries: AWAAZ.polRetries,      /* 🩺 K6.7/K6.1 */
+      silentFails: AWAAZ.silentFails, longSplits: AWAAZ.longSplits, /* 🩺 K6.2/K6.5 */
+      lat: (AWAAZ.lat && AWAAZ.engine) ? (AWAAZ.lat[String(AWAAZ.engine)] || 0) : 0,   /* 🩺 K6.8 (F111) */
       edgeSpoke: AWAAZ.edgeSpoke,
       fish: (typeof FISH === "object" && FISH) ? FISH.status() : null,
       fishSpoke: AWAAZ.fishSpoke,
       cooldown: Math.max(0, Math.round((AWAAZ.cooldownUntil - Date.now()) / 1000))
     };
+  },
+
+  /* ═══ 🩺 K6.8 (F109–F111) — ARTIST DOCTOR ═══════════════════════════════════════
+     "kaunsi awaaz tayyar hai, kaun nahi, aur KYUN?" — ek jagah, andaze se nahi SABOOT se.
+     Network chhede baghair (is liye offline bhi chalta hai aur test bhi ho sakta hai):
+     har artist ki tayyari, key/bridge, aakhri galti, pehla tukra kitni der mein bola,
+     roz ka quota, warm-up, cache, aur aap ki pasand/policy ka haal.
+     Keys ki GEHRI jaanch (Google se khud poochh kar) purane 🩺 AWAAZ DOCTOR ka kaam hai;
+     ye report batati hai ke us jaanch ki zaroorat hai ya nahi. */
+  artistDoctor: function () {
+    var L = [], s = (typeof settings === "object" && settings) ? settings : {};
+    var A = null, st = null, i;
+    try { A = (typeof ARTIST !== "undefined" && ARTIST) ? ARTIST.cur() : null; } catch (e) {}
+    try { st = AWAAZ.status(); } catch (e) {}
+    st = st || {};
+    function ago(ms) {
+      if (!ms) return "-";
+      var d = Date.now() - ms;
+      if (d < 0) return "-";
+      if (d < 1500) return "abhi";
+      if (d < 60000) return Math.round(d / 1000) + "s pehle";
+      if (d < 3600000) return Math.round(d / 60000) + "m pehle";
+      return Math.round(d / 3600000) + " ghante pehle";
+    }
+    function num(v) { var x = parseInt(v, 10); return isNaN(x) ? 0 : x; }
+    function nat(fn) { try { return !!fn(); } catch (e) { return false; } }
+    function readyOf(eng) {
+      try {
+        if (eng === "fish") return !!AWAAZ.fishReady();
+        if (eng === "edge") return !!AWAAZ.edgeReady();
+        if (eng === "device") return true;
+        if (eng === "neural") return !AWAAZ.blockReason("salam");
+      } catch (e) {}
+      return false;
+    }
+    function whyOf(eng) {
+      try {
+        if (eng === "fish" && typeof FISH === "object" && FISH && FISH.block) return String(FISH.block() || "");
+        if (eng === "edge") return AWAAZ.edgeReady() ? "" : "BRIDGE";
+        if (eng === "neural") return String(AWAAZ.blockReason("salam") || "");
+      } catch (e) {}
+      return "";
+    }
+    var pol = String(s.artistFail || "poochho");
+    var polNote = pol === "poochho" ? " (ijazat maangegi — khud artist NAHI badlegi)"
+                : pol === "dobara"  ? " (khud USI artist par dobara koshish, sawal nahi)"
+                : pol === "chup"    ? " (khamoshi — sirf likhegi)"
+                : pol === "koi_bhi" ? " (aap ki pehle se ijazat — sach batate hue doosri awaaz)" : "";
+    L.push("🩺 ARTIST DOCTOR — " + (new Date()).toLocaleTimeString());
+    L.push("====================================================");
+    L.push("Aap ki pasand : " + ((A && A.strict) ? "🔒 SIRF yahi bolegi → " : "🤖 AUTO → ") + (A ? A.n : "?") + "   [" + (A ? A.id : "-") + "]");
+    L.push("Nakami policy : " + pol + polNote);
+    L.push("Abhi boli     : " + String(st.engine || "-") + " · pehla tukra " + (num(st.lat) ? num(st.lat) + "ms" : "abhi naapa nahi gaya") + " mein");
+    L.push("Aakhri galti  : " + (st.err ? (String(st.err) + " — " + String(st.why || "")) : "koi nahi ✅"));
+    try {
+      L.push("Warm-up       : " + ((typeof ARTIST !== "undefined" && ARTIST.warmed) ? (ARTIST.warmed + " (" + ago(ARTIST.warmAt) + ")") : "nahi hua"));
+    } catch (e) { L.push("Warm-up       : -"); }
+    L.push("");
+
+    /* 1) 🐟 FISH */
+    try {
+      var fR = readyOf("fish"), fW = whyOf("fish");
+      L.push("🐟 FISH — " + (fR ? "✅ TAYYAR" : "❌ TAYYAR NAHI" + (fW ? (" (" + fW + " — " + (AWAAZ.why(fW) || "") + ")") : "")));
+      L.push("    bridge/APK: " + (nat(function () { return FISH.native(); }) ? "✅ native (CORS ka masla nahi)" : "❌ browser mein CORS rokta hai — APK chahiye"));
+      L.push("    awaaz     : " + String(s.fishVoiceName || s.fishVoice || "-") + " · boli: " + num(AWAAZ.fishSpoke) + " dafa · pehla tukra " + num(AWAAZ.lat && AWAAZ.lat.fish) + "ms");
+      L.push("    cache     : " + num(FISH.cacheOrder && FISH.cacheOrder.length) + "/" + num(FISH.CACHE_MAX) + " clip · cache-hit: " + num(FISH.cacheHits) + " · warm: " + ago(num(FISH.warmAt)));
+    } catch (e) { L.push("🐟 FISH — report nahi ban saki (" + (e && e.message ? e.message : e) + ")"); }
+    L.push("");
+
+    /* 2) 🎭 GEMINI */
+    try {
+      var gR = readyOf("neural"), gW = whyOf("neural");
+      L.push("🎭 GEMINI — " + (gR ? "✅ TAYYAR" : "❌ TAYYAR NAHI" + (gW ? (" (" + gW + " — " + (AWAAZ.why(gW) || "") + ")") : "")));
+      L.push("    keys      : " + num(st.keys) + " likhi hui · zinda " + num(st.liveKeys) + " · key kharab: " + (st.keyBad || AWAAZ.keyBad ? "haan" : "nahi") + " · cooldown: " + num(st.cooldown) + "s");
+      L.push("    awaaz     : " + String(st.voice || s.gVoice || "-") + " · model: " + String(AWAAZ.model || "auto") + " · boli: " + num(AWAAZ.spoke || 0) + " dafa · pehla tukra " + num(AWAAZ.lat && AWAAZ.lat.neural) + "ms");
+      L.push("    roz quota : " + num(AWAAZ.ttsDay()) + "/" + num(AWAAZ.TTS_DAY_MAX) + " (is session " + num(AWAAZ.ttsReq) + " request) · clip cache: " + num(AWAAZ.cache && AWAAZ.cache.length) + "/" + num(AWAAZ.CACHE_MAX) + " · hit: " + num(AWAAZ.cacheHits));
+      if (gW === "KEY_BAD") L.push("    → 🩺 GEMINI VOICE KEYS CHECK KARO dabao: Google se asal wajah poochhi jati hai");
+      if (gW === "QUOTA" || gW === "QUOTA_DAY") L.push("    → quota KEY par nahi PROJECT par lagta hai: alag Google ACCOUNT se nayi key banaiye");
+    } catch (e) { L.push("🎭 GEMINI — report nahi ban saki (" + (e && e.message ? e.message : e) + ")"); }
+    L.push("");
+
+    /* 3) 🌊 EDGE */
+    try {
+      var eR = readyOf("edge"), ev = "";
+      try { ev = String(AWAAZ.edgeVoice() || ""); } catch (e2) {}
+      L.push("🌊 EDGE — " + (eR ? "✅ TAYYAR" : "❌ TAYYAR NAHI (bridge/APK chahiye)"));
+      L.push("    voices    : " + num(typeof EDGE_TTS === "object" && EDGE_TTS ? EDGE_TTS.VOICES.length : 0) + " · pasand: " + (ev || "-") + " " + (((typeof ARTIST !== "undefined" && ARTIST) ? ARTIST.edgeOk(ev) : true) ? "(✅ sabit)" : "(⚠️ ghalat id — qanooni pasand chune gi)"));
+      L.push("    boli      : " + num(AWAAZ.edgeSpoke) + " dafa · pehla tukra " + num(AWAAZ.lat && AWAAZ.lat.edge) + "ms · har tukra Microsoft se stream hota hai (clip cache mumkin nahi)");
+    } catch (e) { L.push("🌊 EDGE — report nahi ban saki (" + (e && e.message ? e.message : e) + ")"); }
+    L.push("");
+
+    /* 4) 📱 PHONE */
+    try {
+      var vn = 0;
+      try { vn = (typeof voices !== "undefined" && voices && voices.length) ? voices.length : 0; } catch (e2) {}
+      L.push("📱 PHONE — " + (vn ? ("✅ " + vn + " awaazein") : "⚠️ koi awaaz nahi mili (Android system TTS)"));
+      L.push("    zubaan    : " + String(s.tts || "ur-PK") + " · pasand: " + String(s.voiceName || "(engine default)") + " · boli: " + num(AWAAZ.deviceSpoke || 0) + " dafa · pehla tukra " + num(AWAAZ.lat && AWAAZ.lat.device) + "ms");
+    } catch (e) { L.push("📱 PHONE — report nahi ban saki (" + (e && e.message ? e.message : e) + ")"); }
+    L.push("");
+
+    /* 5) Hisab + nateeja */
+    L.push("Hisab (is session): boli " + (num(AWAAZ.fishSpoke) + num(AWAAZ.edgeSpoke) + num(AWAAZ.spoke || 0) + num(AWAAZ.deviceSpoke || 0)) +
+           " · usi par retry " + num(AWAAZ.artistRetries) + " · policy retry " + num(AWAAZ.polRetries) +
+           " · nakam " + num(AWAAZ.artistFails) + " · ijazat maangi " + num(AWAAZ.asks) +
+           " · sach bataya " + num(AWAAZ.tells) + " · chup " + num(AWAAZ.silentFails) +
+           " · lambe tukre " + num(AWAAZ.longSplits) + " · preheat " + num(AWAAZ.preheats) +
+           " · artist badla " + num(AWAAZ.switched) + " (ijazat se " + num(AWAAZ.allowed) + ")");
+    L.push("Sawal ka waqt : " + (AWAAZ.askLive() ? ("zinda — " + String((AWAAZ.ask && AWAAZ.ask.code) || "") + " (" + ago(num(AWAAZ.ask && AWAAZ.ask.at)) + ")") : "koi sawal baaki nahi"));
+    try {
+      var best = "", order = ["fish", "neural", "edge", "device"];
+      for (i = 0; i < order.length; i++) if (readyOf(order[i])) { best = order[i]; break; }
+      if (A && A.strict) {
+        L.push("Nateeja       : " + (readyOf(A.eng)
+          ? ("aap ki pasand (" + A.n + ") TAYYAR hai ✅ — sawal poochhne ki zaroorat nahi.")
+          : ("aap ki pasand (" + A.n + ") TAYYAR NAHI ❌ — " + (AWAAZ.why(whyOf(A.eng)) || whyOf(A.eng) || "wajah maloom nahi") +
+             ". Qanoon: artist khud NAHI badlega; policy '" + pol + "' chalegi" + (best ? (". Sab se pehle tayyar: " + best + " (ijazat dein to wahi chalegi).") : "."))));
+      } else {
+        L.push("Nateeja       : AUTO mode — machine chunegi (🐟 → 🎭 → 🌊 → 📱). Sab se pehle tayyar: " + (best || "koi nahi ❌") +
+               ". Pasand chunne par 🔒 strict qanoon chalega (khud artist nahi badlegi).");
+      }
+    } catch (e) { L.push("Nateeja       : -"); }
+    return L;
   },
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -11875,6 +12120,30 @@ window.setArtistFail = function (p) {
 window.artistSample = function (id) {
   try { ARTIST.sample(id); } catch (e) { toast("🔊 namoona nahi chal saka"); }
 };
+
+/* 🩺 K6.8 (F110) — ARTIST DOCTOR: har awaaz ka haal ek jagah, bina network, bina andaze.
+   Ye report BATATI hai ke tayyari kahan hai; keys ki gehri jaanch purane 🩺 AWAAZ DOCTOR
+   (Gemini keys) ka kaam hai — dono ka button isi hissay mein hai. */
+window.awaazArtistDoctor = function () {
+  var el = $("#artistDocOut"), lines = [];
+  try { lines = AWAAZ.artistDoctor(); }
+  catch (e) { lines = ["🩺 ARTIST DOCTOR chal nahi saka: " + (e && e.message ? e.message : e)]; }
+  try {
+    if (el) { el.classList.add("show"); el.style.display = "block"; el.textContent = lines.join("\n"); el.scrollTop = 0; }
+  } catch (e2) {}
+  try { if (typeof pushLog === "function") pushLog("ARTIST DOCTOR: " + lines.length + " lines — " + String(lines[2] || "").replace(/\s+/g, " ")); } catch (e3) {}
+  return lines;
+};
+(function () {
+  var b = $("#artistDocBtn");
+  if (!b) return;
+  b.addEventListener("click", function () {
+    try {
+      var L = window.awaazArtistDoctor();
+      toast(L && L.length ? ("🩺 " + L.length + " lines — har awaaz ka haal neeche likha hai") : "🩺 report khali hai");
+    } catch (e) { toast("🩺 doctor chal nahi saka"); }
+  });
+})();
 /* 🔑 SACH: ab pasand WAQAI badalti hai (engine + voice + strict), aur toast wahi kehta hai */
 window.selectArtist = function (id) {
   try { ARTIST.set(id); } catch (e) { toast("artist set nahi ho saka"); }
@@ -12325,7 +12594,7 @@ setInterval(function(){ try { HAALBAR.tick(); } catch (e) {} }, 250);
    jhoot bolti thi, aur user ko "APK purani hai ya nayi" ka faisla karne mein
    dhoka hota tha. Ab toast, log aur header teeno ek hi constant se bante hain, aur
    test-lock gradle ke versionName se milaan karta hai (Section 35). */
-var MAYA_VER = "5.15.0", MAYA_NAAM = "\uD83C\uDF99\uFE0F MERI AWAAZ";
+var MAYA_VER = "5.16.0", MAYA_NAAM = "\uD83E\uDE7A ARTIST DOCTOR";
 try {
   var _st = document.querySelector("#subTitle");
   if (_st) _st.textContent = "PERSONAL AI v" + MAYA_VER + " \u2728";

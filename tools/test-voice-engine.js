@@ -1354,6 +1354,215 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
       'K5.3: ijazat ke sawal ka jawab handleUserText mein suna jata hai (90s ki muddat)');
   }
 
+
+  /* ═══ 20. 🩺 v5.16.0 ARTIST DOCTOR — policy ka ASAL amal + hijack guard + doctor ═══
+     v5.15.0 ne qanoon banaya (strict artist). Ye section us qanoon ke DARWAZON ko
+     azmata hai: "🔁 dobara" aur "🤫 chup" pehle dead the (F102/F103), jawab ka regex
+     naye hukum ko hijack karta tha (F104), "sirf ab" mein awaaz nahi jati thi (F106),
+     strict TOO_LONG dead-end tha (F107), Edge id bina jaanch ke chalti thi (F108),
+     aur per-artist doctor maujood hi nahi tha (F110). */
+  head('20. 🩺 ARTIST DOCTOR — policies ka amal, hijack guard, doctor (K6)');
+  {
+    /* ── K6.1 (F102): "🔁 Sirf dobara koshish" — pehle DEAD option ── */
+    const { w, AWAAZ, FISH, state } = fishWorld({
+      settings: { artist: 'fish', artistFail: 'dobara' },
+      reply: { status: 429, b64: '', ctype: '', err: 'rate' }
+    });
+    const bubbles = []; w.addBubble = (who, t) => bubbles.push(String(t)); w.toast = () => {}; w.pushLog = () => {};
+    AWAAZ.STRICT_RETRY = 0; AWAAZ.POL_RETRY_DELAY = 120;
+    const bridgeBefore = w.MayaBridge.calls.length;
+    AWAAZ.speak('dobara policy ka tajurba', { lockKey: 'jD1' });
+    await wait(20);
+    is(AWAAZ.polRetries === 1 && AWAAZ.ask === null,
+      '🩺 K6.1 (F102 ILAAJ): "dobara" policy zinda — USI artist par ek aur koshish, bina sawal',
+      'polRetries=' + AWAAZ.polRetries + ' ask=' + JSON.stringify(AWAAZ.ask));
+    is(bubbles.length === 0, '🩺 K6.1: koshish ke dauraan koi bubble nahi (aap ne "poochho mat" kaha tha)', bubbles.length + ' bubbles');
+    await wait(260);
+    is(w.MayaBridge.calls.length > bridgeBefore && AWAAZ.engine !== 'edge' && AWAAZ.engine !== 'device' && state.deviceSaid.length === 0,
+      '🩺 K6.1: dobara koshish USI artist par hui (Edge/phone par nahi giri)',
+      'calls=' + w.MayaBridge.calls.length + ' engine=' + AWAAZ.engine);
+    is(AWAAZ.polRetries === 1 && AWAAZ.tells >= 1 && AWAAZ.ask === null && bubbles.some(b => /dobara bhi nahi bol saki/.test(b)),
+      '🩺 K6.1: koshishen khatam → sach likha gaya, sawal NAHI (budget ek hi dafa)',
+      'tells=' + AWAAZ.tells + ' bubbles=' + bubbles.length);
+    AWAAZ.polRetries = 3; AWAAZ.lockBegin('jD2');
+    is(AWAAZ.polRetries === 0, '🩺 K6.1: har naye jawab par "dobara" ka budget tazaa (lockBegin)');
+    AWAAZ.stop();
+  }
+  {
+    /* ── K6.1: permanent rukawat par bekar retry NAHI ── */
+    const { w, AWAAZ, state } = makeWorld({ settings: { artist: 'g:Kore', artistFail: 'dobara' } });
+    w.addBubble = () => {}; w.toast = () => {}; w.pushLog = () => {};
+    AWAAZ.ttsDay = () => 99;                    /* QUOTA_DAY = PERMANENT */
+    AWAAZ.POL_RETRY_DELAY = 10;
+    AWAAZ.speak('quota khatam + dobara policy', { lockKey: 'jD3' });
+    await wait(60);
+    is(AWAAZ.polRetries === 0 && AWAAZ.tells >= 1 && AWAAZ.ask === null && state.gcalls.length === 0,
+      '🩺 K6.1: PERMANENT rukawat (quota) par retry zaya nahi kiya — sach likha, sawal nahi',
+      'polRetries=' + AWAAZ.polRetries + ' g=' + state.gcalls.length);
+    AWAAZ.stop();
+  }
+  {
+    /* ── K6.2 (F103): "🤫 Chup" — pehle chup kehne par bhi bubble + toast + sawal aata tha ── */
+    const { w, AWAAZ, state } = fishWorld({
+      settings: { artist: 'fish', artistFail: 'chup' },
+      reply: { status: 429, b64: '', ctype: '', err: 'rate' }
+    });
+    const bubbles = [], toasts = [];
+    w.addBubble = (who, t) => bubbles.push(String(t)); w.toast = (t) => toasts.push(String(t)); w.pushLog = () => {};
+    AWAAZ.STRICT_RETRY = 0;
+    AWAAZ.speak('chup policy ka tajurba', { lockKey: 'jC1' });
+    await wait(60);
+    is(bubbles.length === 0 && toasts.length === 0 && AWAAZ.ask === null,
+      '🩺 K6.2 (F103 ILAAJ): "chup" par NA bubble, NA toast, NA sawal — aap ki marzi chali',
+      'bubbles=' + bubbles.length + ' toasts=' + toasts.length + ' ask=' + JSON.stringify(AWAAZ.ask));
+    is(AWAAZ.silentFails === 1 && AWAAZ.hush === true && AWAAZ.hushKey === 'jC1',
+      '🩺 K6.2: sach ginti mein darj (silentFails) + isi jawab ke baqi tukre chup');
+    const before = w.MayaBridge.calls.length;
+    AWAAZ.speak('agli chunk usi jawab ki', { lockKey: 'jC1' });
+    await wait(20);
+    is(w.MayaBridge.calls.length === before && state.deviceSaid.length === 0 && AWAAZ.engine !== 'edge',
+      '🩺 K6.2: hush ke baad na doosri awaaz, na baar baar nakami ka shor');
+    AWAAZ.stop();
+  }
+  {
+    /* ── K6.3 (F104): hijack guard — naya hukum gum na ho ── */
+    const { w, AWAAZ } = makeWorld({ settings: { artist: 'g:Kore' } });
+    const mk = () => { AWAAZ.ask = { at: Date.now(), code: 'TIMEOUT', eng: 'neural', artist: 'g:Kore', text: 'adhura jawab', lockKey: 'jH1' }; };
+    mk(); is(AWAAZ.answer('theek hai, alarm 7 baje laga do') === null,
+      '🩺 K6.3 (F104 ILAAJ): "theek hai, alarm 7 baje laga do" = HUKUM, jawab nahi (alarm gum nahi hoga)');
+    mk(); is(AWAAZ.answer('ok mera balance check karo') === null, '🩺 K6.3: "ok mera balance check karo" hijack nahi hua');
+    mk(); is(AWAAZ.answer('abhi mausam kaisa hai?') === null, '🩺 K6.3: sawal ("?") jawab nahi samjha jata');
+    mk(); is(AWAAZ.answer('youtube par gaana chalao') === null, '🩺 K6.3: hukum ka lafz (youtube/gaana) → hijack nahi');
+    mk(); is(AWAAZ.answer('dobara koshish').act === 'retry', '🩺 K6.3: asal jawab "dobara koshish" abhi bhi samjha jata hai');
+    mk(); is(AWAAZ.answer('chup raho').act === 'silent', '🩺 K6.3: asal jawab "chup raho" abhi bhi samjha jata hai');
+    mk(); is(AWAAZ.answer('haan edge se bolo').act === 'once', '🩺 K6.3: asal jawab "haan edge se bolo" abhi bhi samjha jata hai');
+    mk(); is(AWAAZ.answer('hamesha edge se bola karo').act === 'always', '🩺 K6.3: "hamesha …" → pasand badalti hai');
+    AWAAZ.ask = null;
+    is(AWAAZ.answerOk('haan') === true && AWAAZ.answerOk('dobara koshish karo') === true, 'K6.3: answerOk — chhote saaf jawab qabool');
+    is(AWAAZ.answerOk('x'.repeat(41)) === false, 'K6.3: answerOk — 40 se lamba message jawab nahi', 'ANSWER_MAX=' + AWAAZ.ANSWER_MAX);
+    is(AWAAZ.answerOk('timer 5 minute ka laga do') === false, 'K6.3: answerOk — number wala message jawab nahi');
+    is(AWAAZ.answerOk('kya haal hai؟') === false, 'K6.3: answerOk — Urdu sawal ka nishaan (؟) bhi pakda jata hai');
+  }
+  {
+    /* ── K6.4 (F106): "sirf ab … se bolo" → engine AUR awaaz ── */
+    const { w, AWAAZ } = makeWorld({ settings: { artist: 'g:Kore', edgeVoice: 'ur-PK-UzmaNeural', edgeTTS: true } });
+    w.addBubble = () => {}; w.toast = () => {}; w.pushLog = () => {};
+    AWAAZ.ask = { at: Date.now(), code: 'TIMEOUT', eng: 'neural', artist: 'g:Kore', text: 'adhura jawab', lockKey: 'jO1' };
+    const r = AWAAZ.answer('haan edge se bolo');
+    const msg = AWAAZ.applyAnswer(r);
+    is(!!r && r.act === 'once' && AWAAZ.onceArtist && AWAAZ.onceArtist.eng === 'edge' && AWAAZ.onceArtist.voice === 'ur-PK-UzmaNeural',
+      '🩺 K6.4 (F106 ILAAJ): "sirf ab" mein AWAAZ bhi sath jati hai (sirf engine nahi)',
+      JSON.stringify(AWAAZ.onceArtist || null).slice(0, 80));
+    is(AWAAZ.edgeVoice() === 'ur-PK-UzmaNeural' && /bol rahi hoon/.test(msg),
+      '🩺 K6.4: Edge waade ki hui awaaz (Uzma) par bola — jo likha woh kiya', AWAAZ.edgeVoice());
+    AWAAZ.stop(); AWAAZ.ask = null; AWAAZ.hush = false;
+    AWAAZ.speak('aam jawab', {});
+    is(AWAAZ.onceArtist === null, '🩺 K6.4: agle AAM jawab par "sirf ab" ki pasand khud saaf (chipkti nahi)');
+    AWAAZ.stop();
+  }
+  {
+    /* ── K6.5 (F107): strict + TOO_LONG = dead-end tha; ab usi artist par tukre ── */
+    const { w, AWAAZ, state } = makeWorld({ settings: { artist: 'g:Kore', neuralMaxChars: 200 } });
+    w.addBubble = () => {}; w.toast = () => {}; w.pushLog = () => {};
+    /* har jumla ALAG — warna clip cache wahi tukra dohra deta (test ka maqsad gum) */
+    let long = '';
+    for (let li = 0; li < 14; li++) long += 'Jumla number ' + (li + 1) + ' mein bilkul alag baat likhi gayi hai taake har tukra nayi request bane. ';
+    AWAAZ.speak(long, { lockKey: 'jL1' });
+    await wait(120);
+    is(AWAAZ.longSplits === 1 && state.gcalls.length > 1,
+      '🩺 K6.5 (F107 ILAAJ): hadd se lamba text USI artist par tukron mein bola (dead-end khatam)',
+      'splits=' + AWAAZ.longSplits + ' requests=' + state.gcalls.length);
+    is(AWAAZ.engine === 'neural' && state.deviceSaid.length === 0 && AWAAZ.ask === null,
+      '🩺 K6.5: artist wahi raha (Edge/phone nahi), koi sawal nahi — awaaz nikalti hai');
+    AWAAZ.stop();
+    const { AWAAZ: A2, state: s2 } = makeWorld({ settings: { artist: 'g:Kore', neuralMaxChars: 1400 } });
+    A2.speak('Chhota jawab.', { lockKey: 'jL2' });
+    await wait(40);
+    is(A2.longSplits === 0 && s2.gcalls.length === 1, '🩺 K6.5: chhote text par tukre NAHI (bekar request nahi)', 'g=' + s2.gcalls.length);
+    A2.stop();
+  }
+  {
+    /* ── K6.6 (F108): Edge ki awaaz ka saboot ── */
+    const { w, AWAAZ, EDGE_TTS } = makeWorld({ settings: { artist: 'auto' } });
+    is(w.ARTIST.edgeOk('ur-PK-UzmaNeural') === true, '🩺 K6.6: qanooni Edge id qabool');
+    is(w.ARTIST.edgeOk('garbage') === false && w.ARTIST.edgeOk('') === false, '🩺 K6.6 (F108 ILAAJ): ghalat/khaali Edge id reject');
+    const bad = w.ARTIST.parse('edge:garbage');
+    is(w.ARTIST.edgeOk(bad.voice) === true,
+      '🩺 K6.6: ghalat id → qanooni pasand (har tukra nakam hone se bacha)', 'voice=' + bad.voice);
+    is(w.ARTIST.parse('edge:ur-PK-AsadNeural').voice === 'ur-PK-AsadNeural', '🩺 K6.6: sahi id waisi hi rehti hai (pasand zaya nahi)');
+    is(w.ARTIST.parse('neural').eng === 'neural' && w.ARTIST.parse('gemini').eng === 'neural',
+      '🩺 K6.6 (F113 ILAAJ): purana naam "neural"/"gemini" bhi pasand samjha jata hai (chup-chaap AUTO nahi)');
+    w.settings.artist = 'neural'; w.settings.gVoice = 'Zephyr';
+    is(w.ARTIST.cur().strict === true && w.ARTIST.cur().voice === 'Zephyr',
+      '🩺 K6.6 (F113): "neural" se 🔒 strict + aap ki Gemini awaaz (qanoon gum nahi hua)', JSON.stringify(w.ARTIST.cur()).slice(0, 70));
+  }
+  {
+    /* ── K6.7 (F105): muddat ka ek hi saboot ── */
+    const { w, AWAAZ } = makeWorld({ settings: { artist: 'g:Kore' } });
+    AWAAZ.ask = { at: Date.now(), code: 'TIMEOUT', eng: 'neural', artist: 'g:Kore', text: 'x', lockKey: 'jA1' };
+    is(AWAAZ.askLive() === true, '🩺 K6.7: taaza sawal zinda');
+    AWAAZ.ask.at = Date.now() - (AWAAZ.ASK_MS + 1000);
+    is(AWAAZ.askLive() === false && AWAAZ.answer('haan bolo') === null,
+      '🩺 K6.7 (F105 ILAAJ): BAASI sawal par amal nahi hota (answer() khud muddat dekhta hai)');
+    AWAAZ.ask = null; is(AWAAZ.askLive() === false, 'K6.7: koi sawal nahi to askLive false');
+  }
+  {
+    /* ── K6.8 (F110/F111): ARTIST DOCTOR — har awaaz ka haal, bina network ── */
+    const { w, AWAAZ, state } = makeWorld({ settings: { artist: 'fish', fishKey: 'fk_test_key_123456', fishOn: true }, native: true });
+    w.addBubble = () => {}; w.toast = () => {}; w.pushLog = () => {};
+    const L = AWAAZ.artistDoctor();
+    is(Array.isArray(L) && L.length >= 16, '🩺 K6.8 (F110 ILAAJ): ARTIST DOCTOR report deta hai', L.length + ' lines');
+    is(/^🩺 ARTIST DOCTOR/.test(L[0]), '🩺 K6.8: report ka sar-naam + waqt');
+    const txt = L.join('\n');
+    is(/Aap ki pasand/.test(txt) && /🔒 SIRF yahi bolegi/.test(txt), '🩺 K6.8: aap ki pasand + strict ka sach');
+    is(/Nakami policy/.test(txt) && /poochho/.test(txt), '🩺 K6.8: nakami ki policy darj');
+    is(/🐟 FISH/.test(txt) && /🎭 GEMINI/.test(txt) && /🌊 EDGE/.test(txt) && /📱 PHONE/.test(txt),
+      '🩺 K6.8: charon artist ka alag-alag muaina');
+    is(/Hisab \(is session\)/.test(txt) && /Nateeja/.test(txt), '🩺 K6.8: session ka hisaab + nateeja');
+    is(state.calls.length === 0, '🩺 K6.8: doctor NE koi network request NAHI bheji (offline bhi chalta hai)', 'calls=' + state.calls.length);
+    AWAAZ.lat.fish = 640; AWAAZ.fishSpoke = 3; AWAAZ.artistFails = 2; AWAAZ.asks = 1;
+    const L2 = AWAAZ.artistDoctor().join('\n');
+    is(/640ms/.test(L2) && /boli: 3 dafa/.test(L2) && /nakam 2/.test(L2) && /ijazat maangi 1/.test(L2),
+      '🩺 K6.8 (F111 ILAAJ): latency + ginti doctor mein dikhti hai (andaza nahi, aankre)');
+    AWAAZ.ttsDay = () => 99;
+    is(/QUOTA_DAY/.test(AWAAZ.artistDoctor().join('\n')), '🩺 K6.8: Gemini ka roz ka quota doctor mein saaf');
+    AWAAZ.stop();
+  }
+  {
+    /* ── K6.8: doctor AUTO mode ka sach bhi bolta hai ── */
+    const { w, AWAAZ } = makeWorld({ settings: { artist: 'auto' } });
+    w.addBubble = () => {}; w.toast = () => {}; w.pushLog = () => {};
+    const t = AWAAZ.artistDoctor().join('\n');
+    is(/🤖 AUTO/.test(t) && /Nateeja/.test(t), '🩺 K6.8: AUTO par doctor jhoot nahi bolta (machine chunegi + kaun tayyar hai)');
+    is(typeof AWAAZ.status().lat === 'number' && typeof AWAAZ.status().askLive === 'boolean',
+      '🩺 K6.8: status() mein latency + sawal ki zindagi (PANEL/doctor ek hi saboot se)');
+  }
+  {
+    /* ── K6.8: phone ki awaaz ka hisaab (deviceSpoke pehle maujood hi nahi tha) ── */
+    const { w, AWAAZ, state } = makeWorld({ settings: { artist: 'device' } });
+    w.addBubble = () => {}; w.toast = () => {}; w.pushLog = () => {};
+    AWAAZ.speak('phone ki awaaz ka tajurba', { lockKey: 'jP1' });
+    await wait(30);
+    is(AWAAZ.deviceSpoke === 1 && state.deviceSaid.length === 1,
+      '🩺 K6.8: phone ki awaaz bhi ginti mein (doctor pehle andaza lagata)', 'deviceSpoke=' + AWAAZ.deviceSpoke);
+    AWAAZ.stop();
+  }
+  {
+    /* ── regression: "koi bhi" ijazat par ladder + sach (v5.15.0 ka wada barqarar) ── */
+    const { w, AWAAZ, state } = fishWorld({
+      settings: { artist: 'fish', artistFail: 'koi_bhi' },
+      reply: { status: 429, b64: '', ctype: '', err: 'rate' }
+    });
+    const bubbles = []; w.addBubble = (who, t) => bubbles.push(String(t)); w.toast = () => {}; w.pushLog = () => {};
+    AWAAZ.STRICT_RETRY = 0;
+    AWAAZ.speak('koi bhi policy', { lockKey: 'jK1' });
+    await wait(120);
+    is(AWAAZ.switched >= 1 && AWAAZ.allowed >= 1 && bubbles.some(b => /ijazat se doosri awaaz/.test(b)),
+      '🩺 regression: "koi bhi" par ladder chalti hai magar SACH + ginti ke sath (chup-chaap nahi)',
+      'switched=' + AWAAZ.switched + ' bubbles=' + bubbles.length);
+    AWAAZ.stop();
+  }
+
   console.log('\n\x1b[1m\x1b[35m══════════════════════════════════════════════════════════\x1b[0m');
   if (fail === 0) console.log('\x1b[1m\x1b[32m✅ SAB TEST PASS — ' + pass + '/' + pass + '\x1b[0m');
   else console.log('\x1b[1m\x1b[31m❌ ' + fail + ' TEST FAIL — ' + pass + '/' + (pass + fail) + ' pass\x1b[0m');

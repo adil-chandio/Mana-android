@@ -1536,14 +1536,14 @@ Here's a thinking process:
       '👁️ KAAN report mein HAAL (JS) + HAAL (Kotlin) + roko ki ginti nazar aati hai');
 
     /* ── version qanoon ── */
-    is(/appVersion\(\): String = "5\.15\.0-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1 &&
-       MA.indexOf('5.13.0-native') === -1 && MA.indexOf('5.14.0-native') === -1,
-      '🩹 BONUS — appVersion() ka purana jhoot qatl (v5.15.0 barqarar)');
-    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.15.0') > 0 &&
-       /versionCode 80/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')) &&
-       /versionName "5\.15\.0"/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')) &&
-       fs.readFileSync(path.join(ROOT, 'public/sw.js'), 'utf8').indexOf('maya-v5.15.0') > 0,
-      '🏷️ poore app mein VERSION v5.15.0 (cache saaf, splash saaf, APK saaf)');
+    is(/appVersion\(\): String = "5\.16\.0-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1 &&
+       MA.indexOf('5.13.0-native') === -1 && MA.indexOf('5.14.0-native') === -1 && MA.indexOf('5.15.0-native') === -1,
+      '🩹 BONUS — appVersion() ka purana jhoot qatl (v5.16.0 barqarar)');
+    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.16.0') > 0 &&
+       /versionCode 81/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')) &&
+       /versionName "5\.16\.0"/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')) &&
+       fs.readFileSync(path.join(ROOT, 'public/sw.js'), 'utf8').indexOf('maya-v5.16.0') > 0,
+      '🏷️ poore app mein VERSION v5.16.0 (cache saaf, splash saaf, APK saaf)');
     is(HTML.indexOf('5.8.0') === -1, 'kahi purana 5.8.0 version nazar nahi aata');
 
     /* ── v5.9.1 hotfix — doctor ka jhoota button ab ASAL hai ── */
@@ -2313,12 +2313,12 @@ Here's a thinking process:
 
     /* ── 🔖 version bump + mirror discipline ── */
     const VER = (GR.match(/versionName "([^"]+)"/) || [])[1] || '';
-    is(/versionCode 80/.test(GR) && VER === '5.15.0' &&
-       /"version": "5\.15\.0"/.test(PK) && /maya-v5\.15\.0/.test(SW) &&
-       /5\.15\.0-native/.test(MA) && /MAYA v5\.15\.0/.test(MA) &&
+    is(/versionCode 81/.test(GR) && VER === '5.16.0' &&
+       /"version": "5\.16\.0"/.test(PK) && /maya-v5\.16\.0/.test(SW) &&
+       /5\.16\.0-native/.test(MA) && /MAYA v5\.16\.0/.test(MA) &&
        IH.indexOf('var MAYA_VER = "' + VER + '"') > 0 && IH.indexOf('PERSONAL AI v' + VER) > 0 &&
-       /MAYA_NAAM = "\\uD83C\\uDF99\\uFE0F MERI AWAAZ"/.test(IH),
-      '🔖 v5.15.0 (vc80) ka bump har jagah + JS ka MAYA_VER gradle ke versionName se MILTA hai + naam 🎙️ MERI AWAAZ');
+       /MAYA_NAAM = "\\uD83E\\uDE7A ARTIST DOCTOR"/.test(IH),
+      '🔖 v5.16.0 (vc81) ka bump har jagah + JS ka MAYA_VER gradle ke versionName se MILTA hai + naam 🩺 ARTIST DOCTOR');
     is(PUB.indexOf('pushNativePrefs') > 0 && PUB.indexOf('sWakeLang') > 0 &&
        PUB.indexOf('HAAL (Kotlin)') > 0,
       '🪞 public/ mirror tazaa hai (npm run build) — assets aur web ek jaise');
@@ -3896,9 +3896,9 @@ Here's a thinking process:
       'K5.1: DEFAULTS mein artist + artistFail (poochho) + artistWarm — nayi settings ka ghar');
 
     /* ── F. Version + docs (Qanoon 9) ── */
-    is(/versionCode 80/.test(GR39) && /versionName "5\.15\.0"/.test(GR39) &&
-       /MAYA v5\.15\.0/.test(MA39) && /MERI AWAAZ/.test(MA39),
-      '🔖 v5.15.0 (vc80) 🎙️ MERI AWAAZ ka bump — gradle + native toast');
+    is(/v5\.15\.0/.test(fs.readFileSync(path.join(ROOT, 'docs/FORENSIC-MERI-AWAAZ.md'), 'utf8')) &&
+       /🎙️ MERI AWAAZ/.test(IH39) && /onlyArtist/.test(IH39),
+      '🔖 v5.15.0 🎙️ MERI AWAAZ ka record + qanoon v5.16.0 mein bhi ZINDA (regression nahi hua)');
     const FR39 = fs.readFileSync(path.join(ROOT, 'docs/FORENSIC-MERI-AWAAZ.md'), 'utf8');
     let ids39 = 0; for (let n = 84; n <= 101; n++) if (FR39.indexOf('F' + n) >= 0) ids39++;
     is(ids39 === 18, '🔬 F84–F101 (18 flaws) forensic doc mein saboot (line numbers) ke sath darj hain', ids39 + '/18');
@@ -3912,6 +3912,156 @@ Here's a thinking process:
        /ADHOORA/i.test(RP39) && /kya bhejein/i.test(RP39),
       '📱 Qanoon 9: v5.15.0 ki aam-zubaan report — kya naya, PASS/FAIL tajurbe, kya adhoora, fail par kya bhejein, version pehchaan');
   }
+  /* ═══ 40. 🩺 v5.16.0 ARTIST DOCTOR — K6 ke taale (F102–F113) ═══
+     Behavioral saboot tools/test-voice-engine.js Section 20 mein hain (asli AWAAZ jsdom mein
+     CHALA kar). Yahan source/structure + UI + PANEL + docs + version ke taale hain — taake
+     koi chup-chaap policy ko dobara dead na kar de ya hijack guard dheela na kar de. */
+  head('40. 🩺 ARTIST DOCTOR — policies ka amal, hijack guard, doctor (K6.1–K6.9)');
+  {
+    const IH40 = HTML;
+    const MA40 = fs.readFileSync(path.join(ROOT, 'app/src/main/java/com/maya/ai/MainActivity.kt'), 'utf8');
+    const GR40 = fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8');
+    /* code ke tukre (slices) — taake har branch ka apna muaina ho */
+    const __af40 = IH40.slice(IH40.indexOf('artistFail: function (code, c, text, cb, done) {'),
+                              IH40.indexOf('/* sach batao — jhoot nahi'));
+    const __dobara = __af40.slice(__af40.indexOf('if (pol === "dobara") {'), __af40.indexOf('if (pol === "chup") {'));
+    const __chup = __af40.slice(__af40.indexOf('if (pol === "chup") {'), __af40.indexOf('if (pol === "koi_bhi"'));
+    const __ans40 = IH40.slice(IH40.indexOf('answer: function (txt) {'), IH40.indexOf('applyAnswer: function (r) {'));
+    const __aa40 = IH40.slice(IH40.indexOf('applyAnswer: function (r) {'), IH40.indexOf('/* namoona / ek dafa'));
+    const __oa40 = IH40.slice(IH40.indexOf('onlyArtist: function (c, text, cb, gen, done) {'),
+                              IH40.indexOf('artistFail: function (code, c, text, cb, done) {'));
+    const __doc40 = IH40.slice(IH40.indexOf('artistDoctor: function () {'), IH40.indexOf('🩺 AWAAZ DOCTOR — "3 nayi keys'));
+    const __parse40 = IH40.slice(IH40.indexOf('parse: function (id) {'), IH40.indexOf('/* purani settings → artist id'));
+    const __lb40 = IH40.slice(IH40.indexOf('lockBegin: function (key) {'), IH40.indexOf('lockEnd:'));
+
+    /* ── A. K6.1 — "🔁 dobara" policy ka ASAL amal (F102: dead option) ── */
+    is(/POL_RETRY: 1, POL_RETRY_DELAY: 2500, polRetries: 0,/.test(IH40) &&
+       /silentFails: 0, longSplits: 0, lastAuditionAt: 0,/.test(IH40),
+      '🩺 K6.1: policy retry ka budget + ginti ke aankre maujood (POL_RETRY/DELAY/polRetries/silentFails/longSplits)');
+    is(__dobara.length > 200 && __af40.indexOf('if (pol === "dobara") {') < __af40.indexOf('if (pol === "koi_bhi"'),
+      '🩺 K6.1 (F102 ILAAJ): "dobara" ka APNA branch hai — ladder wali ijazat se PEHLE (dead option zinda)');
+    is(/!AWAAZ\.PERMANENT\[code\] && AWAAZ\.polRetries < AWAAZ\.POL_RETRY/.test(__dobara),
+      'K6.1: dobara koshish SIRF non-permanent rukawat par + budget ke andar (zaya retry nahi)');
+    is(/cbR\.forceEngine = c\.mode;/.test(__dobara) && __dobara.indexOf('useEdge(') < 0 &&
+       __dobara.indexOf('usePollen(') < 0 && __dobara.indexOf('useDevice(') < 0,
+      '🔑 K6.1: dobara koshish USI artist par (forceEngine = c.mode) — koi ladder tier nahi');
+    is(/if \(g2 !== AWAAZ\.gen\) return;/.test(__dobara) && /AWAAZ\.hush = false; AWAAZ\.hushKey = "";/.test(__dobara),
+      'K6.1: retry gen-guard ke sath (ruka hua jawab zinda nahi hota) + apni hush se khud nahi rukta');
+    is(__dobara.indexOf('AWAAZ.ask = {') < 0,
+      '🔑 K6.1: "dobara" policy par ijazat ka SAWAL nahi banta (aap ne "poochho mat" kaha tha)');
+    is(/AWAAZ\.polRetries = 0;/.test(__lb40),
+      'K6.1: har naye jawab par retry ka budget tazaa (lockBegin) — purana hisab chipka nahi rehta');
+
+    /* ── B. K6.2 — "🤫 chup" policy sach mein chup (F103) ── */
+    is(__chup.length > 100 && /AWAAZ\.silentFails\+\+;/.test(__chup),
+      '🩺 K6.2 (F103 ILAAJ): "chup" ka APNA branch + ginti (silentFails) — sach chhupa nahi');
+    is(__chup.indexOf('addBubble') < 0 && __chup.indexOf('toast(') < 0,
+      '🔑 K6.2: chup policy par NA bubble NA toast (jo kaha woh kiya)');
+    is(__chup.indexOf('AWAAZ.ask = {') < 0,
+      '🔑 K6.2: chup policy par sawal NAHI banta (yani hijack ka darwaza bhi band)');
+    is(/AWAAZ\.hush = true;/.test(__chup) && /pushLog/.test(__chup),
+      'K6.2: baqi tukre bhi chup (hush) + debug log mein sach darj');
+
+    /* ── C. K6.3/K6.7 — hijack guard + muddat ka ek saboot (F104/F105) ── */
+    is(/answerOk: function \(t\) \{/.test(IH40) && /ANSWER_MAX: 40,/.test(IH40) && /CMD_RE: \/\(/.test(IH40),
+      '🩺 K6.3 (F104 ILAAJ): answerOk() guard + ANSWER_MAX + CMD_RE (hukum ki pehchaan)');
+    is(/t\.length > AWAAZ\.ANSWER_MAX/.test(IH40) && IH40.indexOf('/[?\\u061F]/') > 0 &&
+       IH40.indexOf('/[0-9\\u06F0-\\u06F9]/') > 0 && /AWAAZ\.CMD_RE\.test\(t\)/.test(IH40),
+      '🔑 K6.3: guard ki chaar shartein — lambai · sawal (?/؟) · number (0-9/۰-۹) · hukum ka lafz');
+    is(/alarm\|timer\|reminder/.test(IH40) && /balance\|mausam/.test(IH40) && /kitna\|kaise\|kahan\|kaun\|kab/.test(IH40),
+      'K6.3: CMD_RE mein asal hukum ke lafz (alarm/timer/balance/mausam/kitna/kaise/kaun/kab)');
+    is(/askLive: function \(\) \{/.test(IH40) && /AWAAZ\.ASK_MS/.test(IH40.slice(IH40.indexOf('askLive: function'), IH40.indexOf('askLive: function') + 300)),
+      '🩺 K6.7 (F105 ILAAJ): askLive() — muddat ka ek hi saboot (har caller ke liye)');
+    is(/if \(!AWAAZ\.askLive\(\) \|\| !AWAAZ\.answerOk\(t\)\) return null;/.test(__ans40),
+      '🔑 K6.3/K6.7: answer() pehle muddat + guard dekhta hai (baasi sawal ya naya hukum → null)');
+    is(/act: "retry"/.test(__ans40) && /act: "silent"/.test(__ans40) && /act: "always"/.test(__ans40) && /act: "once"/.test(__ans40),
+      'K6.3: jawab ke chaaron amal barqarar (retry / silent / always / once) — pehchaan nahi badli');
+    is(/AWAAZ\.ask && \(\(Date\.now\(\) - AWAAZ\.ask\.at\) < AWAAZ\.ASK_MS\)/.test(IH40) &&
+       /AWAAZ\.ask = null;\s+\/\* koi doosra hukm tha/.test(IH40),
+      '🔑 K6.3: handleUserText ka purana wada barqarar — jawab na ho to ask bhool kar HUKUM chalta hai');
+
+    /* ── D. K6.4 — "sirf ab" mein awaaz bhi (F106) ── */
+    is(/cb\.forceEngine = A1\.eng; cb\.once = true; AWAAZ\.onceArtist = A1;/.test(__aa40),
+      '🩺 K6.4 (F106 ILAAJ): "sirf ab" par engine AUR waada ki hui awaaz dono sath jate hain');
+    is(/if \(!cb\.audition && !cb\.once\) AWAAZ\.onceArtist = null;/.test(IH40),
+      '🔑 K6.4: ek-dafa pasand usi jawab bhar — aam jawab par khud saaf (chipkti nahi)');
+
+    /* ── E. K6.5 — strict TOO_LONG ka dead-end khatam (F107) ── */
+    is(/if \(blk === "TOO_LONG"\) \{/.test(__oa40) && /AWAAZ\.chunks\(text, mx\)/.test(__oa40) &&
+       /AWAAZ\.longSplits\+\+;/.test(__oa40),
+      '🩺 K6.5 (F107 ILAAJ): strict mein lamba text USI artist par tukron mein (dead-end khatam)');
+    is(/AWAAZ\.neural\(parts\[pi\+\+\], nextPart, fail\);/.test(__oa40) && /if \(gen !== AWAAZ\.gen\) return;/.test(__oa40),
+      'K6.5: tukre sequentially + gen guard (ruka hua jawab dobara zinda nahi hota)');
+    is(__oa40.indexOf('useEdge(') < 0 && __oa40.indexOf('usePollen(') < 0 && __oa40.indexOf('useDevice(') < 0,
+      '🔑 K6.5: naya split code bhi ladder tier NAHI bulata (strict ka qanoon barqarar)');
+    is(/var mx = Math\.max\(200, \(AWAAZ\.cfg\(\)\.maxChars \| 0\) - 40\)/.test(__oa40),
+      'K6.5: tukron ki hadd maxChars se tay hoti hai (hard-code nahi)');
+
+    /* ── F. K6.6 — Edge id ka saboot + purane engine naam (F108/F113) ── */
+    is(/edgeOk: function \(v\) \{/.test(IH40) && /\^\[a-z\]\{2\}-\[A-Za-z\]\{2,4\}-\[A-Za-z\]\+Neural\$/.test(IH40),
+      '🩺 K6.6 (F108 ILAAJ): ARTIST.edgeOk() — list ya Microsoft ka qanooni naam, andaza nahi');
+    is(/if \(v && !ARTIST\.edgeOk\(v\)\) v = "";/.test(__parse40),
+      'K6.6: ghalat Edge id parse mein hi pakdi jati hai (har tukra nakam hone se pehle)');
+    is(/if \(i === "neural" \|\| i === "gemini"\) return ARTIST\.parse\("g:" \+ String\(s\.gVoice \|\| "Kore"\)\);/.test(__parse40),
+      '🩺 K6.6 (F113 ILAAJ): purana engine naam "neural"/"gemini" bhi pasand hai (chup-chaap AUTO nahi)');
+    is(__parse40.indexOf('i === "neural"') > 0 && __parse40.indexOf('i === "neural"') < __parse40.lastIndexOf('return { id: "auto"'),
+      '🔑 K6.6 (F113): F113 ki mapping AUTO fallback se PEHLE hai (warna qanoon gum ho jata)');
+
+    /* ── G. K6.8 — 🩺 ARTIST DOCTOR (F109–F111) ── */
+    is(/artistDoctor: function \(\) \{/.test(IH40) && __doc40.length > 2000,
+      '🩺 K6.8 (F110 ILAAJ): AWAAZ.artistDoctor() maujood (per-artist muaina — pehle tha hi nahi)',
+      __doc40.length + ' chars');
+    is(/🩺 ARTIST DOCTOR/.test(__doc40) && /Aap ki pasand/.test(__doc40) && /Nakami policy/.test(__doc40) &&
+       /Hisab \(is session\)/.test(__doc40) && /Nateeja/.test(__doc40),
+      'K6.8: doctor ka sar-naam + pasand + policy + session hisab + nateeja');
+    is(/🐟 FISH — /.test(__doc40) && /🎭 GEMINI — /.test(__doc40) && /🌊 EDGE — /.test(__doc40) && /📱 PHONE — /.test(__doc40),
+      'K6.8: charon artist ka alag muaina (sirf Gemini keys ka doctor nahi)');
+    is(__doc40.indexOf('XMLHttpRequest') < 0 && __doc40.indexOf('AWAAZ.get(') < 0 &&
+       __doc40.indexOf('AWAAZ.post(') < 0 && __doc40.indexOf('fetch(') < 0 && __doc40.indexOf('.doctor(') < 0,
+      '🔑 K6.8: doctor koi NETWORK request nahi bhejta (offline chalta hai, quota nahi jalata)');
+    is(/AWAAZ\.lat\.fish/.test(__doc40) && /num\(st\.lat\)/.test(__doc40) && /pehla tukra/.test(__doc40),
+      '🩺 K6.8 (F111 ILAAJ): doctor latency dikhata hai (pehla tukra kitni ms mein)');
+    is(/AWAAZ\.ttsDay\(\)/.test(__doc40) && /AWAAZ\.TTS_DAY_MAX/.test(__doc40) && /QUOTA_DAY/.test(__doc40),
+      'K6.8: doctor Gemini ka roz ka quota + rukawat ka code sach batata hai');
+    is(/num\(AWAAZ\.spoke \|\| 0\)/.test(__doc40) && !/neuralSpoke/.test(IH40),
+      '🔑 K6.8: doctor ASAL counter (AWAAZ.spoke) istemal karta hai — phantom field ka jhoot nahi');
+    is(/AWAAZ\.lat\[String\(AWAAZ\.engine\)\] = AWAAZ\.audioAt - AWAAZ\.tStart;/.test(IH40) &&
+       /lat: \{ neural: 0, fish: 0, edge: 0, device: 0 \}/.test(IH40),
+      '🩺 K6.8 (F111): latency onplay par engine-wise darj hoti hai (andaza nahi, saboot)');
+    is(/askLive: AWAAZ\.askLive\(\)/.test(IH40) && /silentFails: AWAAZ\.silentFails/.test(IH40) &&
+       /longSplits: AWAAZ\.longSplits/.test(IH40),
+      'K6.8: status() mein naye aankre (askLive/silentFails/longSplits) — PANEL aur doctor ek hi saboot se');
+    is(/deviceSpoke: 0,/.test(IH40) && (IH40.match(/AWAAZ\.deviceSpoke\+\+/g) || []).length === 2,
+      '🩺 K6.8 (F109): phone ki awaaz bhi ginti mein — dono raaste (native bridge + synth)',
+      (IH40.match(/AWAAZ\.deviceSpoke\+\+/g) || []).length + ' jagah');
+    is(/id="artistDocBtn"/.test(IH40) && /class="ui-pre" id="artistDocOut"/.test(IH40),
+      'K6.8: UI mein doctor ka button + output (wahi .ui-pre convention jo FISH/AWAAZ doctor ka hai)');
+    is(/window\.awaazArtistDoctor = function \(\)/.test(IH40) && /AWAAZ\.artistDoctor\(\)/.test(IH40) &&
+       /\$\("#artistDocBtn"\)/.test(IH40),
+      '🔑 K6.8: button waqai doctor ko bulata hai (F84 wali saza nahi — decoration nahi)');
+
+    /* ── H. PANEL + docs + version ── */
+    is(/policy retry /.test(IH40) && /chup /.test(IH40) && /lambe tukre /.test(IH40) &&
+       /pehla tukra /.test(IH40) && /🎙️ MERI AWAAZ: /.test(IH40),
+      'K6.9: PANEL mein K6 ke aankre (policy retry · chup · lambe tukre · pehla tukra) + purana MERI AWAAZ hisab');
+    is(/versionCode 81/.test(GR40) && /versionName "5\.16\.0"/.test(GR40) &&
+       /MAYA v5\.16\.0/.test(MA40) && /ARTIST DOCTOR/.test(MA40),
+      '🔖 v5.16.0 (vc81) 🩺 ARTIST DOCTOR ka bump — gradle + native toast');
+    const FD40 = fs.readFileSync(path.join(ROOT, 'docs/FORENSIC-AWAAZ-DOCTOR.md'), 'utf8');
+    let ids40 = 0; for (let n = 102; n <= 113; n++) if (FD40.indexOf('F' + n) >= 0) ids40++;
+    is(ids40 === 12, '🔬 F102–F113 (12 flaws) forensic doc mein saboot (line numbers) ke sath darj hain', ids40 + '/12');
+    is(/K6\.1/.test(FD40) && /K6\.9/.test(FD40) && /dead/i.test(FD40) && /hijack/.test(FD40),
+      '🔬 forensic doc mein asal mujrim darj: dead options + hijack + dead-end + plan (K6.1–K6.9)');
+    const FX40 = fs.readFileSync(path.join(ROOT, 'docs/FIX-v5.16.0-artist-doctor.md'), 'utf8');
+    is(/K6\.1/.test(FX40) && /K6\.9/.test(FX40) && /F102/.test(FX40) && /F113/.test(FX40) && /adhoora/i.test(FX40),
+      '📄 v5.16.0 ka amal-record: K6.1–K6.9, F102–F113 ka mapping, aur imaandari (kya adhoora hai)');
+    const RP40 = fs.readFileSync(path.join(ROOT, 'docs/REPORT-v5.16.0-aam-zubaan.md'), 'utf8');
+    is(/PASS/.test(RP40) && /FAIL/.test(RP40) && /5\.16\.0/.test(RP40) && /81/.test(RP40) &&
+       /ADHOORA|adhoora/i.test(RP40) && /kya bhejein/i.test(RP40),
+      '📱 Qanoon 9: v5.16.0 ki aam-zubaan report — kya naya, PASS/FAIL tajurbe, kya adhoora, fail par kya bhejein, version pehchaan');
+  }
+
+
 
 
 
