@@ -1,0 +1,86 @@
+name: Release MAYA APK
+
+# Version ke naam par PUBLIC release + APK (download link bina login ke chalta hai)
+# Chalane ka tareeqa:  Actions → "Release MAYA APK" → Run workflow → tag (jaise v5.16.0) → branch
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (jaise v5.16.0)'
+        required: true
+        default: 'v5.16.0'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Code checkout
+        uses: actions/checkout@v4
+
+      - name: 2. Java 17 setup
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 3. Gradle 8.7 setup
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
+
+      - name: 4. APK BUILD
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      # 🔬 release se pehle saboot: APK ke andar wahi code hai jo repo mein test hua
+      - name: 5. APK VERIFY
+        id: verify
+        run: |
+          set -e
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          VER=$(grep -oP 'versionName "\K[^"]+' app/build.gradle)
+          VC=$(grep -oP 'versionCode \K[0-9]+' app/build.gradle)
+          echo "versionName=$VER" >> "$GITHUB_OUTPUT"
+          echo "versionCode=$VC" >> "$GITHUB_OUTPUT"
+          echo "size=$(stat -c%s "$APK")" >> "$GITHUB_OUTPUT"
+          echo "sha=$(sha256sum "$APK" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          mkdir -p /tmp/apkx && cd /tmp/apkx && unzip -o -q "$GITHUB_WORKSPACE/$APK" 'assets/web/index.html' 'assets/web/sw.js' && cd "$GITHUB_WORKSPACE"
+          cmp -s /tmp/apkx/assets/web/index.html public/index.html || { echo "❌ APK ka web code repo se milta nahi"; exit 1; }
+          cmp -s /tmp/apkx/assets/web/sw.js public/sw.js || { echo "❌ APK ka sw.js repo se milta nahi"; exit 1; }
+          grep -q "MAYA_VER = \"$VER\"" /tmp/apkx/assets/web/index.html || { echo "❌ MAYA_VER $VER APK mein nahi"; exit 1; }
+          grep -q "maya-v$VER" /tmp/apkx/assets/web/sw.js || { echo "❌ SW cache maya-v$VER APK mein nahi"; exit 1; }
+          echo "✅ APK verified: v$VER (vc$VC) — web code byte-identical, version + SW cache andar maujood"
+
+      - name: 6. Release banayo + APK upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag }}
+        run: |
+          VER="${{ steps.verify.outputs.versionName }}"
+          VC="${{ steps.verify.outputs.versionCode }}"
+          SIZE="${{ steps.verify.outputs.size }}"
+          SHA="${{ steps.verify.outputs.sha }}"
+          NAAM=$(grep -oP 'MAYA_NAAM = "\K[^"]+' public/index.html | head -1)
+          cp app/build/outputs/apk/debug/app-debug.apk "MAYA-${TAG}-vc${VC}.apk"
+          NOTES="MAYA ${TAG} (versionCode ${VC})
+
+          | | |
+          |---|---|
+          | Version | v${VER} |
+          | Naam | ${NAAM} |
+          | Size | ${SIZE} bytes |
+          | sha256 | \`${SHA}\` |
+          | Commit | ${GITHUB_SHA:0:7} |
+          | APK verify | web code byte-identical + version/SW cache andar maujood ✅ |
+
+          **Install:** APK download karo → kholo → *Install anyway* (Play Protect warning apne hi code par aati hai).
+          **Report (aam zubaan):** docs/REPORT-${VER}-aam-zubaan.md — kya naya, PASS/FAIL tajurbe, kya adhoora."
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "MAYA ${TAG} (vc${VC})" \
+            --notes "$NOTES"
+          gh release upload "$TAG" "MAYA-${TAG}-vc${VC}.apk" --clobber
+          gh release edit "$TAG" --notes "$NOTES" >/dev/null 2>&1 || true
+          echo "🔗 https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/MAYA-${TAG}-vc${VC}.apk"

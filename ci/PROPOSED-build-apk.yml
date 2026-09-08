@@ -1,0 +1,98 @@
+name: Build MAYA APK
+
+# Har push par automatically APK ban jayegi — ya manually "Run workflow" se
+on: [push, workflow_dispatch]
+
+# Release par APK upload ke liye (public download link)
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Code checkout
+        uses: actions/checkout@v4
+
+      - name: 2. Java 17 setup
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 3. Gradle 8.7 setup
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
+
+      - name: 4. APK BUILD (3-6 minute)
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      # 🔬 APK ki ASAL jaanch — "ban gayi" kaafi nahi, andar wahi code hona chahiye jo test hua.
+      # Ye step FAIL par build rok deta hai, taake ghalat/purani APK kabhi ship na ho.
+      - name: 5. APK VERIFY (version + code andar hai?)
+        id: verify
+        run: |
+          set -e
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          VER=$(grep -oP 'versionName "\K[^"]+' app/build.gradle)
+          VC=$(grep -oP 'versionCode \K[0-9]+' app/build.gradle)
+          echo "versionName=$VER" >> "$GITHUB_OUTPUT"
+          echo "versionCode=$VC" >> "$GITHUB_OUTPUT"
+          SIZE=$(stat -c%s "$APK")
+          SHA=$(sha256sum "$APK" | cut -d' ' -f1)
+          echo "size=$SIZE" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "📦 APK: $SIZE bytes · sha256: $SHA"
+          # 1) APK ke andar wahi web code hai jo repo mein hai?
+          mkdir -p /tmp/apkx && cd /tmp/apkx && unzip -o -q "$GITHUB_WORKSPACE/$APK" 'assets/web/index.html' 'assets/web/sw.js' && cd "$GITHUB_WORKSPACE"
+          cmp -s /tmp/apkx/assets/web/index.html public/index.html || { echo "❌ APK ka index.html repo se MILTA NAHI"; exit 1; }
+          cmp -s /tmp/apkx/assets/web/sw.js public/sw.js || { echo "❌ APK ka sw.js repo se MILTA NAHI"; exit 1; }
+          echo "✅ APK ke andar wahi index.html + sw.js hai jo test hua (byte-identical)"
+          # 2) version pehchaan APK ke andar
+          grep -q "MAYA_VER = \"$VER\"" /tmp/apkx/assets/web/index.html || { echo "❌ APK mein MAYA_VER $VER nahi"; exit 1; }
+          grep -q "maya-v$VER" /tmp/apkx/assets/web/sw.js || { echo "❌ APK mein SW cache maya-v$VER nahi"; exit 1; }
+          echo "✅ APK ke andar MAYA_VER=$VER + SW cache maya-v$VER"
+          # 3) is version ka naya feature waqai APK mein gaya?
+          grep -q "artistDoctor: function" /tmp/apkx/assets/web/index.html || { echo "❌ artistDoctor APK mein nahi"; exit 1; }
+          grep -q "answerOk: function" /tmp/apkx/assets/web/index.html || { echo "❌ answerOk (hijack guard) APK mein nahi"; exit 1; }
+          echo "✅ v5.16.0 ke features (artistDoctor + hijack guard) APK ke andar maujood"
+          # 4) native version
+          grep -q "$VER-native" app/src/main/java/com/maya/ai/MainActivity.kt || { echo "❌ Kotlin appVersion $VER-native nahi"; exit 1; }
+          echo "✅ Kotlin appVersion = $VER-native · versionCode = $VC"
+
+      - name: 6. APK upload (CI artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: MAYA-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      # 🔗 Public download link: hamesha ek hi URL rahe (login ki zaroorat nahi — repo public hai)
+      - name: 7. GitHub Release — MAYA-latest.apk (public link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ steps.verify.outputs.versionName }}"
+          VC="${{ steps.verify.outputs.versionCode }}"
+          SIZE="${{ steps.verify.outputs.size }}"
+          SHA="${{ steps.verify.outputs.sha }}"
+          cp app/build/outputs/apk/debug/app-debug.apk MAYA-latest.apk
+          NOTES="**Sab se taza APK — har push par khud-ba-khud update hoti hai.**
+
+          | | |
+          |---|---|
+          | Version | v$VER (versionCode $VC) |
+          | Size | $SIZE bytes |
+          | sha256 | \`$SHA\` |
+          | Commit | ${GITHUB_SHA:0:7} |
+          | Tests | node tools/test-*.js — sab GREEN hona zaroori hai (CI build tab hi pass hota hai) |
+
+          **Install:** APK download karo → kholo → *Install anyway* (Play Protect warning apne hi code par aati hai).
+          Purani version par se update ho jayegi (signature same, versionCode bara hai)."
+          gh release view latest >/dev/null 2>&1 || gh release create latest \
+            --target "$GITHUB_SHA" \
+            --title "MAYA — sab se taza APK (auto-update)" \
+            --notes "$NOTES"
+          gh release upload latest MAYA-latest.apk --clobber
+          gh release edit latest --notes "$NOTES" >/dev/null 2>&1 || true
+          echo "🔗 https://github.com/${GITHUB_REPOSITORY}/releases/download/latest/MAYA-latest.apk"

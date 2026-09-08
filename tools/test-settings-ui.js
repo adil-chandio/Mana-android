@@ -295,6 +295,124 @@ setTimeout(function () {
   try { doc.getElementById('saveSettings').click(); } catch (e) {}
   is(win.settings.gfMode === false, 'Gender female par GF mode khud band (aur wajah batai gayi)');
 
+  /* 🕸️ P6 KHUD-MUKHTAR — poori page boot kar ke (sirf source nahi, ASAL dom) */
+  section('12. \uD83D\uDD78\uFE0F KHUD-MUKHTAR (P6) BOOT');
+  is(!!win.KHUD, '🕸️ KHUD module poori app ke boot par zinda (koi script nahi toota)');
+  is(win.FLAGS.DEF.khud === false, '🔑 khud default OFF — pehle sabit ho, phir chale (Qanoon 1)');
+  is(!!doc.getElementById('labKhud'), 'LAB mein 🕸️ KHUD-MUKHTAR ka switch maujood');
+  is(doc.getElementById('labKhud').checked === false, '   → aur shuru mein band dikhta hai (jhooti halat nahi)');
+  is(!!doc.getElementById('labKhudReport') && !!doc.getElementById('labKhudDry') && !!doc.getElementById('labHaal'),
+     'teen button: HAAL report · DRY-RUN · ABHI KA HAAL');
+  /* switch ON → asli rawaiya */
+  win.FLAGS.set('khud', true);
+  doc.getElementById('labKhud').checked = true;
+  doc.getElementById('labKhud').dispatchEvent(new win.Event('change'));
+  is(win.KHUD.timer !== null, '🔑 switch ON → KHUD ki jhonk chalu (aur purani 6-min chatter band)');
+  is(doc.getElementById('labKhudReport').textContent.indexOf('KHUD-MUKHTAR') > 0, 'button ka label saaf hai');
+  doc.getElementById('labKhudReport').click();
+  var out = doc.getElementById('labOut').textContent;
+  is(out.indexOf('KHUD-MUKHTAR') > 0 && out.indexOf('KHAMOSH GHANTE') > 0 && out.indexOf('SURKH') > 0,
+     '🕸️ report chalti hai — qanoon apne andar likha (andhi khud-mukhtari nahi)');
+  doc.getElementById('labKhudDry').click();
+  is(doc.getElementById('labOut').textContent.indexOf('DRY-RUN') > 0, '⚗️ DRY-RUN chalta hai (karega kuch nahi)');
+  doc.getElementById('labHaal').click();
+  is(doc.getElementById('labOut').textContent.indexOf('ABHI KA HAAL') > 0, '👁️ HAAL button abhi ka haal dikhata hai');
+  is(win.KHUD.HAAL.context().indexOf('ABHI KA HAAL') > 0, '🧠 dimaag ko HAAL ja raha hai (prompt line)');
+  win.FLAGS.set('khud', false);
+  doc.getElementById('labKhud').checked = false;
+  doc.getElementById('labKhud').dispatchEvent(new win.Event('change'));
+  is(win.KHUD.timer === null && win.KHUD.HAAL.context() === '', '🔒 switch OFF → timer murda, prompt saaf (Qanoon 1)');
+
+  /* 🗣️ v5.10.1 — ON-DEVICE LANGUAGE ka panel (aap ki video wala bug) */
+  section('13. \uD83D\uDDE3\uFE0F ON-DEVICE PANEL (v5.10.1)');
+  is(!!doc.getElementById('labOnDeviceBox'), '🆕 panel ka apna ghar hai (labOut ke bharose nahi)');
+  var oldSrc = srcAll.slice(srcAll.indexOf('var lod = $("#labOnDevice")'), srcAll.indexOf('function onDevicePanel'));
+  is(oldSrc.indexOf('KAAN.onDevice()') > 0 && oldSrc.indexOf('openSettingNamed') < 0,
+     '🔑 button ab pehle PHONE KI FEHRIST mangta hai (screen ka naam poochhe bagair kholna khatam)');
+  doc.getElementById('labOnDevice').click();
+  var box = doc.getElementById('labOnDeviceBox');
+  is(box.style.display === 'block' && box.textContent.indexOf('purani hai') > 0,
+     '🔒 bina bridge (purani APK) → imaandari: "ye APK purani hai" + likha hua raasta');
+  /* ab ASLI APK jaisa: bridge maujood — aap ka phone (Google Go, Gboard Go, AiAi nahi) */
+  win.MayaBridge = {
+    onDeviceMap: function () {
+      return JSON.stringify({ sdk: 33, aiai: false, goog: false, ondevice: false, using: 'default',
+        svc: 'com.google.android.apps.searchlite/x',
+        srv: [{ pkg: 'com.google.android.apps.searchlite', label: 'Google Go', comp: 'a/b' }],
+        kb: ['com.google.android.inputmethod.latin.go'], asst: 'Google Go' });
+    },
+    openSettingNamed: function (k) { win.__opened = k; return k === 'voiceservices' ? 'com.android.settings/.Settings$VoiceInputSettingsActivity' : null; },
+    openSetting: function () { return false; }
+  };
+  doc.getElementById('labOnDevice').click();
+  is(box.textContent.indexOf('GBOARD GO') > 0 && box.textContent.indexOf('Google Go') > 0,
+     '📋 panel phone ki ASLI fehrist dikhata hai (keyboard + assistant ka naam)');
+  is(box.textContent.indexOf('Digital assistant') > 0 && box.textContent.indexOf('HAL NAHI HOTA') > 0,
+     '🛑 video ka sabak likha hua: assistant wali screen se ye masla hal NAHI hota');
+  var pbtns = box.querySelectorAll('button');
+  is(pbtns.length >= 4, 'har darwaze ka apna ASLI button', pbtns.length + ' button');
+  var voc = null;
+  for (var bi = 0; bi < pbtns.length; bi++) if (pbtns[bi].textContent.indexOf('Voice input') > 0) voc = pbtns[bi];
+  is(!!voc, '🎙️ voice-input darwaze ka button maujood');
+  if (voc) {
+    voc.click();
+    is(win.__opened === 'voiceservices', '🔑 button ne wahi darwaza maanga (koi andhi chain nahi)');
+    is(doc.getElementById('labOut').textContent.indexOf('VoiceInputSettingsActivity') > 0,
+       '🤝 jo screen khuli us ka NAAM likha gaya — "jo screen khuli us mein dhoondo" wala jhoot khatam');
+  }
+  var gd = null;
+  for (var gi = 0; gi < pbtns.length; gi++) if (pbtns[gi].textContent.indexOf('Gboard Go') > 0) gd = pbtns[gi];
+  if (gd) {
+    win.__opened = null;
+    gd.click();
+    is(win.__opened === 'gboardvoice', '   → Gboard Go ka button bhi SAHI darwaza maangta hai');
+    var lo = doc.getElementById('labOut').textContent;
+    is(lo.indexOf('is phone par wo screen maujood nahi') > 0 && lo.indexOf('On-screen keyboard') > 0,
+       '🤝 screen na khuli to JHOOT nahi bolta: saaf "maujood nahi" + manual raasta MEHFOOZ (toast 2 sec mein urr jata hai)');
+  }
+
+  /* 🛑 v5.10.2 — ghalat (assistant) screen par ab jhoota mashwara NAHI.
+     Aap ka saboot: "✅ Jo screen khuli: com.android.settings/.Settings$ManageAssistActivity
+     ☝️ Us mein dhoondo: Voice typing → Faster voice typing …" */
+  section('14. \uD83D\uDED1 ASSISTANT SCREEN PAR SACH (v5.10.2)');
+  win.MayaBridge = {
+    onDeviceMap: function () {
+      return JSON.stringify({ sdk: 33, aiai: false, goog: false, ondevice: false, using: 'default',
+        svc: 'com.google.android.tts/.SpeechRecognitionService',
+        srv: [{ pkg: 'com.google.android.tts', label: 'Speech Recognition and Synthesis', comp: 'a/b' }],
+        kb: ['com.google.android.inputmethod.latin'], asst: 'Google Go', play: true });
+    },
+    openSettingNamed: function (k) {
+      win.__opened = k;
+      if (k === 'voiceservices') return 'com.android.settings/.Settings$ManageAssistActivity';
+      if (k === 'gboardvoice') return 'com.google.android.inputmethod.latin/.VoiceSettingsActivity';
+      if (String(k).indexOf('appinfo:') === 0) return 'com.android.settings/.Settings$AppDetailsActivity';
+      return null;
+    }
+  };
+  doc.getElementById('labOnDevice').click();
+  var box2 = doc.getElementById('labOnDeviceBox'), out = doc.getElementById('labOut');
+  var bs = box2.querySelectorAll('button'), voc2 = null, gb2 = null, ai2 = null, q;
+  for (q = 0; q < bs.length; q++) {
+    var tt = bs[q].textContent;
+    if (tt.indexOf('Voice input') > 0) voc2 = bs[q];
+    else if (tt.indexOf('Voice typing settings') > 0) gb2 = bs[q];
+    else if (tt.indexOf('app-info') > 0) ai2 = bs[q];
+  }
+  is(!!voc2 && !!gb2 && !!ai2, '🆕 teeno darwaze bane (voice input / Gboard voice typing / app-info)');
+  voc2.click();
+  is(win.__opened === 'voiceservices', '   → button ne wahi darwaza maanga (koi andhi chain nahi)');
+  is(out.textContent.indexOf('ManageAssistActivity') > 0 && out.textContent.indexOf('HOTA HI NAHI') > 0,
+     '🛑 OEM ne assistant screen thons di to JS KHUD pehchan kar saaf kehta hai (Kotlin block ka doosra qila)');
+  is(out.textContent.indexOf('Us mein dhoondo: Voice typing') === -1,
+     '🔑🆕 ghalat screen par "Voice typing dhoondo" wala jhoota mashwara KHATAM (aap ka pakda hua bug)');
+  gb2.click();
+  is(out.textContent.indexOf('VoiceSettingsActivity') > 0 && out.textContent.indexOf('Faster voice typing') > 0,
+     '✅ sahi screen par wahi mashwara jo us screen par SACH hai (har darwaze ka apna hint)');
+  ai2.click();
+  is(out.textContent.indexOf('AppDetailsActivity') > 0 && out.textContent.indexOf('Clear data') > 0,
+     '📦 app-info ka apna hint: "Clear data NAHI karna" (warna pack urr jate hain)');
+
   done();
 }, 400);
 

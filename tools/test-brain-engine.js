@@ -71,6 +71,24 @@ function makeWorld(opts = {}) {
   w.resolveModels = async () => w.MODEL_CACHE.names;
   w.reply = (t) => state.replies.push(t);
 
+  /* 🛡️ J1 (v5.12.0) — askAI ab JAWAB referee ko chhoota hai: sochne ka WATCHDOG
+     (mark/clear) aur GENERATION token (thinkGen), taake watchdog ke reset ke baad
+     purana jawab na bolaa jaye. Asli JAWAB index.html mein askAI se PEHLE defined
+     hai; is naqli duniya mein wahi hisaab chhote stub se. Yahan sab askAI(false)
+     hote hain is liye `bol` (awaz) khaali hai — reply ki ginti NAHI badalti. */
+  w.JAWAB = {
+    thinkGen: 0,
+    at: { listen: 0, think: 0, speak: 0 },
+    n: { err: 0, reListen: 0, breaks: 0, watchdog: 0, thinkReset: 0, speakReset: 0, ignore: 0 },
+    noMatchStreak: 0, netStreak: 0, clientStreak: 0, retryN: 0, retryT: 0,
+    lastErr: 0, lastWhy: '',
+    mark: function (k) { this.at[k] = Date.now(); },
+    clear: function (k) { this.at[k] = 0; },
+    age: function (k) { return this.at[k] ? (Date.now() - this.at[k]) : 0; },
+    bol: function () {},
+    hearAgain: function () {}
+  };
+
   /* naqli fetch */
   const plan = opts.plan || [{ status: 200, body: okBody('theek hai') }];
   let n = 0;
@@ -80,13 +98,28 @@ function makeWorld(opts = {}) {
     const r = typeof plan === 'function' ? plan(state.fetches.length, state) : (plan[n] || plan[plan.length - 1]);
     n++;
     if (r.throw) throw new Error(r.throw);
-    return {
+    const res = {
       ok: r.status >= 200 && r.status < 300,
       status: r.status,
       json: async () => r.body,
       text: async () => JSON.stringify(r.body || {}),
       clone() { return this; }
     };
+    /* ⚡ J3 (v5.13.0 / F63) — dimaag ab STREAM karta hai: `:streamGenerateContent?alt=sse`
+       par jawab SSE tukron mein aata hai aur geminiTry usi ko wapas generateContent ki
+       shakl deta hai. Naqli reader plan ke `body` ko ek SSE event bana kar deta hai
+       (ya plan `sse: [...]` de to wahi tukre) — taake ASLI raftar wala raasta bhi
+       yahan naapa ja sake, sirf purana raasta nahi. */
+    if (/streamGenerateContent/.test(String(url))) {
+      const chunks = r.sse || ['data: ' + JSON.stringify(r.body || {}) + '\n\n'];
+      let i = 0;
+      res.body = {
+        getReader: () => ({
+          read: async () => (i < chunks.length ? { done: false, value: chunks[i++] } : { done: true, value: '' })
+        })
+      };
+    }
+    return res;
   };
 
   /* naqli XMLHttpRequest — BRAIN POOL isi se baat karta hai */

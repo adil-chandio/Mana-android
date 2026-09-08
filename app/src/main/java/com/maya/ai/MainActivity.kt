@@ -29,6 +29,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.AlarmClock
 import android.speech.RecognitionListener
+import android.speech.RecognitionService
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
@@ -78,6 +79,12 @@ class MainActivity : AppCompatActivity() {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private var recognizer: SpeechRecognizer? = null
+    /* 🔬 v5.10.3 (F05) — app ka mic asal mein CHALU hai ya nahi. WakeWordService
+       ka stale-pause watchdog isi se poochhta hai: pehle wo 60s baad AANKH BAND
+       kar ke pause azad kar deta tha (aur mic jang shuru). Ab 10s + ye check. */
+    @Volatile private var appMicOn = false
+
+    fun appMicBusy(): Boolean = appMicOn
 
     /* ================= LIFECYCLE ================= */
 
@@ -122,7 +129,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.9.1 • SUKOON + doctor ka [ON-DEVICE] ab ASLI button hai", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.16.0 • 🩺 ARTIST DOCTOR: policies ka asal amal (dobara/chup) · naya hukum hijack nahi hota · har awaaz ka muaina ek jagah", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -163,10 +170,50 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        appMicOn = false
+        try { WakeWordService.resumeFromApp() } catch (e: Exception) {}   /* 🔬 F01 */
         instance = null
         stopRecognizer()
         try { tts?.stop(); tts?.shutdown() } catch (e: Exception) {}
         super.onDestroy()
+    }
+
+    /* 🧭 1.12 (F41) — PEHLE MainActivity mein onResume/onPause THE HI NAHI.
+       Nateeja: app wapas aane par JS aur Kotlin ka HAAL alag reh sakta tha (JS:
+       KHALI, Kotlin: APP_SUN) aur wake chup-chaap band reh jati; aur screen band
+       hone par WebView apna kaam poora jaari rakhta (battery).
+       Ab: resume par WebView wapas + HAAL resync + wake ki sehat ka check;
+       pause par WebView background — magar JS TIMERS ZINDA (pauseTimers() JAAN
+       BOOJH kar nahi: us se heartbeat aur wake reports dono mar jate). */
+    override fun onResume() {
+        super.onResume()
+        try { webView.onResume() } catch (e: Exception) {}
+        handleOpenRequest(intent)
+        try {
+            evalAsyncPublic("window.SUKOON && window.SUKOON.resync && window.SUKOON.resync();" +
+                            "window.__wakeHealth && window.__wakeHealth();")
+        } catch (e: Exception) {}
+    }
+
+    override fun onPause() {
+        try { webView.onPause() } catch (e: Exception) {}
+        super.onPause()
+    }
+
+    /* 🧭 1.10 (F35) — wake notification ke "Ijazat do" button ka darwaza.
+       (SINGLE_TOP par framework khud setIntent() karta hai, is liye onNewIntent
+       override karne ki zaroorat nahi — onResume kaafi hai.) */
+    private fun handleOpenRequest(i: Intent?) {
+        val w = try { i?.getStringExtra("maya_open") } catch (e: Exception) { null } ?: return
+        try { i?.removeExtra("maya_open") } catch (e: Exception) {}
+        if (w == "appinfo") {
+            try {
+                val si = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:$packageName"))
+                si.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(si)
+            } catch (e: Exception) {}
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -260,6 +307,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun stopRecognizer() {
         try { recognizer?.destroy(); recognizer = null } catch (e: Exception) {}
+        appMicOn = false
+        /* 🔬 v5.10.3 (F01) — pauseForApp() ki WAPSI. Pehle `resumeFromApp()` poori
+           codebase mein KAHIN call nahi hoti thi (sirf 60s ka stale-watchdog
+           bachata tha): har SUNO ke baad wake ek poore minute ke liye MURDA, aur
+           us dauran har 700ms ek skip-report = 67 dafa "sulah: app ka mic" spam
+           jis ne KAAN ka 40-entry log bhar kar asal tareekh mita di thi. */
+        try { WakeWordService.resumeFromApp() } catch (e: Exception) {}
     }
 
     /* ================= JS BRIDGE ================= */
@@ -267,14 +321,64 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.9.1-native"
+        fun appVersion(): String = "5.16.0-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
-           KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
-           ko poochhti hai. Isi se awaaz-katna + mic-larai dono khatam hain. */
+           KHALI | BOL_RAHI | APP_SUN | SOCH_RAHI — WakeWordService har mic-darwaze par
+           isi ko poochhti hai. Isi se awaaz-katna + mic-larai dono khatam hain.
+           🎵 v5.14.0 K2.2: SOCH_RAHI = jawab socha ja raha hai (tool/stream), awaaz
+           abhi shuru nahi hui — is mudat mein bhi wake ka mic BAND rehta hai. */
         @JavascriptInterface
         fun setHaal(h: String) {
             try { WakeWordService.applyHaal(h) } catch (e: Exception) {}
+        }
+
+        /* 🧭 v5.11.0 (1.2 / F02) — HAAL ab LEVEL-TRIGGERED hai, sirf edge par nahi.
+           PEHLE HAAL tab hi jata tha jab BADAL jaye: ek call kho gaya (WebView
+           reload, JS exception, screen off) to Kotlin ka haal hamesha ke liye purana
+           reh jata aur wake par daimi pabandi lag jati. Ab JS har 10s heartbeat
+           bhejta hai; 3 heartbeat gayab = Kotlin khud KHALI. */
+        @JavascriptInterface
+        fun wakeBeat(h: String): String {
+            return try { WakeWordService.heartbeat(h); "ok" } catch (e: Exception) { "err" }
+        }
+
+        /* 🧭 1.2 — WebView reload / boot / app wapsi par poora resync + sehat ka darwaza */
+        @JavascriptInterface
+        fun wakeResync(h: String): String {
+            return try {
+                WakeWordService.resyncHaal(h)
+                WakeWordService.healthKick()
+                "ok"
+            } catch (e: Exception) { "err" }
+        }
+
+        /* 🔬 v5.10.3 (F04) — KOTLIN KA SACH. Panel pehle sirf JS ka haal dikhata
+           tha aur "HAAL: KHALI" likh kar humein galat raaste par bhejta tha jabke
+           asli mujrim `pausedByApp=true` tha. Ab dono taraf ka haal nazar aata hai
+           aur JS/Kotlin beech ka MISMATCH pakda jata hai. */
+        /* 🎛️ J2.3 (v5.12.5) — BAAT-CHEET MODE ka darwaza. JS batata hai ke
+           "Maya" wala darwaza khula hai (true) ya band (false); us dauran wake
+           service apna mic BAND rakhti hai. Nateeja: ek turn mein mic EK dafa
+           khulta hai (pehle wake + app = do) aur wake ke baad 400ms ki race (F56)
+           khud khatam. Mudat (90s) + heartbeat sirf safety net hain. */
+        @JavascriptInterface
+        fun talk(on: Boolean) {
+            try { WakeWordService.talkMode(on) } catch (e: Exception) {}
+        }
+
+        @JavascriptInterface
+        fun wakeState(): String {
+            return try { WakeWordService.stateJson() } catch (e: Exception) { "{\"err\":1}" }
+        }
+
+        /* 🔬 v5.10.3 (F25) — native ring buffer. UI mare hue daur ke waqiat bhi
+           yahan mehfooz rehte hain aur app khulte hi ek dafa mein JS ko mil jate
+           hain. Isi se `suna 0` ka ambiguity khatam: ab pata chalta hai ke
+           recognizer ne suna tha magar report zaya hui, ya suna hi nahi tha. */
+        @JavascriptInterface
+        fun wakeEvents(): String {
+            return try { WakeWordService.drainEvents() } catch (e: Exception) { "[]" }
         }
 
         /* v4.0.1: index.html boot-guard ye call karta hai — ab native alive flag true hota hai */
@@ -348,7 +452,12 @@ class MainActivity : AppCompatActivity() {
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                     requestMicPermission()
-                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(7)")
+                    /* 🛡️ J1.4 (F44) — PEHLE code 7 bhejte the. AOSP mein 7 = NO_MATCH
+                       ("samajh nahi aaya") hai; IJAZAT ka code 9 =
+                       ERROR_INSUFFICIENT_PERMISSIONS. Galat code par JS "dobara boliye"
+                       ka loop chalati thi — jabke asal masla ijazat hai, jo dobara
+                       bolne se kabhi theek nahi hoti. */
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(9)")
                     return@runOnUiThread
                 }
                 if (!SpeechRecognizer.isRecognitionAvailable(this@MainActivity)) {
@@ -360,6 +469,7 @@ class MainActivity : AppCompatActivity() {
                    apna mic chhor degi (do recognizer kabhi ek saath nahi chal sakte —
                    wahi jang v5.8.0 tak har tap-to-speak ko mar okat deti thi). */
                 try { WakeWordService.pauseForApp() } catch (e: Exception) {}
+                appMicOn = true
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(
                         RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -373,55 +483,99 @@ class MainActivity : AppCompatActivity() {
                        ("Funk Taka" -> "اس لاوا فنک" ki yehi wajah thi.) */
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 6)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                    putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 700)
+                    /* 🛡️ J1.4 (F48) — EK line mein DO galtiyan:
+                       (a) key GHALAT: hum "android.speech.extra.SPEECH_INPUT_..." likhte
+                           the, AOSP ki asal key "android.speech.extras.SPEECH_INPUT_..."
+                           hai (PLURAL "extras"). Yani 700ms ka setting KABHI parha hi
+                           nahi gaya — chup-chaap be-asar.
+                       (b) value Int thi, aur recognition service getLongExtra() se
+                           parhti hai — Int hota to bhi ignore ho jata.
+                       Ab sarkari constant + Long value. (Imaandari: Google ki service
+                       isay ignore bhi kar sakti hai — ⚡ J3 RAFTAR PANEL isi ko NAAP
+                       karta hai: NAAP ke `brain` / `first` (pehli awaaz) / `done`
+                       number batate hain ke 600 ms ka asar hua ya nahi.) */
+                    putExtra(
+                        RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
+                        /* ⚡ J3 (F66) — 700 ms → 600 ms kiya tha (har turn par 100 ms bachat).
+                           🎵 v5.14.0 K2.5 (F76) — wapas 700 ms, aur YEHI sahi tha: user
+                           jumle ke beech saans leta / sochta hai aur 600 ms par recognition
+                           session KHTAM ho jata tha → adhoora transcript → "Maya samajh
+                           nahi rahi, ek hi baat bar bar bolni parti hai". 100 ms ki qeemat
+                           adhoore jumle se kahin kam hai. Wake path (WakeWordService)
+                           600 ms par qaim hai — wake word chhota hota hai, wahan tezi chahiye.
+                           Minimum 300 ms barqarar; asar RAFTAR PANEL naapega (NAAP). */
+                        700L
+                    )
                 }
-                recognizer = makeRecognizer().apply {
-                    setRecognitionListener(object : RecognitionListener {
-                        override fun onReadyForSpeech(params: Bundle?) {}
-                        override fun onBeginningOfSpeech() {}
-                        private var rmsTick = 0
-                        override fun onRmsChanged(rmsdB: Float) {
-                            rmsTick++
-                            if (rmsTick % 4 == 0) evalAsync("window.__nativeRms && window.__nativeRms(" + rmsdB + ")")
-                        }
-                        override fun onBufferReceived(buffer: ByteArray?) {}
-                        override fun onEndOfSpeech() { evalAsync("window.__nativePartial && window.__nativePartial('')") }
-                        override fun onError(error: Int) {
-                            evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error)")
-                        }
-                        override fun onResults(results: Bundle?) {
-                            /* 🎙️ Android 3-5 andaze deta hai. Pehle sirf pehla liya jata tha
-                               aur baqi phenk diye jate the — isi liye "Monarch" -> "منار" ban
-                               jata tha. Ab SAARE andaze JS ko jate hain; SUNO un mein se wo
-                               chunta hai jismein jaane-pehchane naam sab se zyada hon. */
-                            val all = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                                ?: arrayListOf()
-                            val text = all.firstOrNull() ?: ""
-                            val conf = try {
-                                results?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
-                            } catch (e: Exception) { null }
-                            val arr = JSONArray()
-                            for (i in 0 until minOf(all.size, 6)) {
-                                /* har andaze ke sath uska yaqeen (0..1). Pehle ye kabhi
-                                   parha hi nahi jata tha — ab SUNO isay bhi dekhta hai. */
-                                val o = JSONObject()
-                                o.put("t", all[i])
-                                if (conf != null && i < conf.size) o.put("c", conf[i].toDouble())
-                                arr.put(o)
+                /* 🛡️ J1.4 (F49) — PEHLE yahan koi try/catch NAHI tha. makeRecognizer()
+                   ka aakhri rasta `SpeechRecognizer.createSpeechRecognizer(this)` bina
+                   guard ke hai; kuch OEM/Android-Go par ye IllegalStateException ya
+                   NoSuchMethodError phenkta hai → app CRASH, ya JS ka `listening` flag
+                   hamesha ke liye phansa (mic button ULTA kaam karta, wake DAIMI ignore).
+                   Ab: dono taraf safai + JS ko code 5 (jo bol kar batata hai). */
+                try {
+                    recognizer = makeRecognizer().apply {
+                        setRecognitionListener(object : RecognitionListener {
+                            override fun onReadyForSpeech(params: Bundle?) {}
+                            override fun onBeginningOfSpeech() {}
+                            private var rmsTick = 0
+                            override fun onRmsChanged(rmsdB: Float) {
+                                rmsTick++
+                                if (rmsTick % 4 == 0) evalAsync("window.__nativeRms && window.__nativeRms(" + rmsdB + ")")
                             }
-                            evalAsync(
-                                "window.__nativeSpeech && window.__nativeSpeech('" + jsEscape(text) +
-                                "','" + jsEscape(arr.toString()) + "')"
-                            )
-                        }
-                        override fun onPartialResults(partialResults: Bundle?) {
-                            val pt = partialResults
-                                ?.getStringArrayList("android.speech.extra.RESULTS")?.firstOrNull() ?: ""
-                            if (pt.isNotBlank()) evalAsync("window.__nativePartial && window.__nativePartial('" + jsEscape(pt) + "')")
-                        }
-                        override fun onEvent(eventType: Int, params: Bundle?) {}
-                    })
-                    startListening(intent)
+                            override fun onBufferReceived(buffer: ByteArray?) {}
+                            override fun onEndOfSpeech() { evalAsync("window.__nativePartial && window.__nativePartial('')") }
+                            override fun onError(error: Int) {
+                                /* 🔬 v5.10.3 (F01) — app ka mic khatam: wake ko foran wapas
+                                   bulao. Pehle ye rasta KHALI tha; wake 60s tak soti rehti thi. */
+                                appMicOn = false
+                                try { WakeWordService.resumeFromApp() } catch (e: Exception) {}
+                                evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error)")
+                            }
+                            override fun onResults(results: Bundle?) {
+                                /* 🔬 v5.10.3 (F01) — nateeja mil gaya, mic khali: wake wapas */
+                                appMicOn = false
+                                try { WakeWordService.resumeFromApp() } catch (e: Exception) {}
+                                /* 🎙️ Android 3-5 andaze deta hai. Pehle sirf pehla liya jata tha
+                                   aur baqi phenk diye jate the — isi liye "Monarch" -> "منار" ban
+                                   jata tha. Ab SAARE andaze JS ko jate hain; SUNO un mein se wo
+                                   chunta hai jismein jaane-pehchane naam sab se zyada hon. */
+                                val all = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                                    ?: arrayListOf()
+                                val text = all.firstOrNull() ?: ""
+                                val conf = try {
+                                    results?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
+                                } catch (e: Exception) { null }
+                                val arr = JSONArray()
+                                for (i in 0 until minOf(all.size, 6)) {
+                                    /* har andaze ke sath uska yaqeen (0..1). Pehle ye kabhi
+                                       parha hi nahi jata tha — ab SUNO isay bhi dekhta hai. */
+                                    val o = JSONObject()
+                                    o.put("t", all[i])
+                                    if (conf != null && i < conf.size) o.put("c", conf[i].toDouble())
+                                    arr.put(o)
+                                }
+                                evalAsync(
+                                    "window.__nativeSpeech && window.__nativeSpeech('" + jsEscape(text) +
+                                    "','" + jsEscape(arr.toString()) + "')"
+                                )
+                            }
+                            override fun onPartialResults(partialResults: Bundle?) {
+                                val pt = partialResults
+                                    ?.getStringArrayList("android.speech.extra.RESULTS")?.firstOrNull() ?: ""
+                                if (pt.isNotBlank()) evalAsync("window.__nativePartial && window.__nativePartial('" + jsEscape(pt) + "')")
+                            }
+                            override fun onEvent(eventType: Int, params: Bundle?) {}
+                        })
+                        startListening(intent)
+                    }
+                } catch (e: Throwable) {
+                    appMicOn = false
+                    try { stopRecognizer() } catch (e2: Exception) {}
+                    try { WakeWordService.resumeFromApp() } catch (e2: Exception) {}
+                    evalAsync(
+                        "window.__nativeSpeechErr && window.__nativeSpeechErr(5)"
+                    )
                 }
             }
         }
@@ -559,10 +713,23 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        /** YouTube v2 — innertube JSON + consent cookie fallback (pakka videoId) */
-        @JavascriptInterface
-        fun ytSearch(query: String): String {
-            // 1) Innertube ANDROID client — JSON, reliable
+        /* ═══════════ 🎵 v5.14.0 K3.1 (F79) — YouTube ka ASLI DIMAAG ═══════════
+           PEHLE: `ytSearch()` regex se PEHLA videoId uthata tha — na title dekha,
+           na duration, na ye ke wo Shorts/reel hai. Natija: "acha sa gaana lagao"
+           par search ke top wali wahi salon purani TikTok-nama 15-second clip, aur
+           har dafa WAHI (kyunke yaad nahi rehta tha ke kya chal chuka).
+           AB: `ytSearchList()` FEHRIST deta hai (id + title + duration + channel);
+           faisla JS ka GANA module karta hai (Shorts rad, chhoti clip rad, dobara
+           wahi gaana rad, naam na mile to andaza nahi — poochho).
+           Purani APK-par-JS / purana JS-par-APK dono ke liye `ytSearch()` barqarar. */
+        private val ytVidRe = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"")
+        private val ytTitleRe = Regex("\"(?:title|headline)\":\\{\"runs\":\\[\\{\"text\":\"((?:[^\"\\\\]|\\\\.)*)\"")
+        private val ytTitleSimpleRe = Regex("\"title\":\\{\"simpleText\":\"((?:[^\"\\\\]|\\\\.)*)\"")
+        private val ytOwnerRe = Regex("\"(?:ownerText|longBylineText|shortBylineText)\":\\{\"runs\":\\[\\{\"text\":\"((?:[^\"\\\\]|\\\\.)*)\"")
+        private val ytLenRe = Regex("\"lengthText\":\\{[^\\[]{0,400}?\"simpleText\":\"([0-9]{1,3}:[0-9]{2}(?::[0-9]{2})?)\"")
+
+        /** Innertube ANDROID client — poora raw JSON (isi mein title/duration bhi hai) */
+        private fun ytInnertube(query: String): String? {
             try {
                 val conn = URL("https://www.youtube.com/youtubei/v1/search?prettyPrint=false")
                     .openConnection() as HttpURLConnection
@@ -577,10 +744,12 @@ class MainActivity : AppCompatActivity() {
                 conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                 val txt = conn.inputStream.bufferedReader().use { it.readText() }
                 conn.disconnect()
-                val m = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"").find(txt)
-                if (m != null) return m.groupValues[1]
-            } catch (e: Exception) {}
-            // 2) HTML + CONSENT cookie
+                return if (txt.isNotEmpty()) txt else null
+            } catch (e: Exception) { return null }
+        }
+
+        /** HTML + CONSENT cookie fallback — ytInitialData isi page mein hota hai */
+        private fun ytHtml(query: String): String? {
             try {
                 val conn = URL("https://www.youtube.com/results?search_query=" + URLEncoder.encode(query, "UTF-8"))
                     .openConnection() as HttpURLConnection
@@ -592,10 +761,87 @@ class MainActivity : AppCompatActivity() {
                 conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
                 val html = conn.inputStream.bufferedReader().use { it.readText() }
                 conn.disconnect()
-                val m = Regex("\"videoId\":\"([a-zA-Z0-9_-]{11})\"").find(html)
-                if (m != null) return m.groupValues[1]
-            } catch (e: Exception) {}
+                return if (html.isNotEmpty()) html else null
+            } catch (e: Exception) { return null }
+        }
+
+        /** "3:45" / "1:02:10" → second (na mile to -1) */
+        private fun ytSec(t: String): Int {
+            val p = t.split(":")
+            return try {
+                when (p.size) {
+                    2 -> p[0].toInt() * 60 + p[1].toInt()
+                    3 -> p[0].toInt() * 3600 + p[1].toInt() * 60 + p[2].toInt()
+                    else -> -1
+                }
+            } catch (e: Exception) { -1 }
+        }
+
+        /** JSON string ke andar ke escapes kholna (title user ko dikhana hota hai) */
+        private fun ytUnesc(raw: String): String {
+            if (raw.isEmpty()) return ""
+            return try { JSONArray("[\"" + raw + "\"]").optString(0, "") } catch (e: Exception) { raw }
+        }
+
+        /** raw text se video-umeedwar nikaalo — Shorts/reel aur chhoti clips chhor kar */
+        private fun ytParse(txt: String, lim: Int, seen: MutableSet<String>, out: JSONArray) {
+            for (m in ytVidRe.findAll(txt)) {
+                if (out.length() >= lim) return
+                val id = m.groupValues[1]
+                if (!seen.add(id)) continue
+                val from = maxOf(0, m.range.first - 300)
+                val to = minOf(txt.length, m.range.last + 3000)
+                val ctx = txt.substring(from, to)
+                /* khidki AGLE videoId tak: doosre renderer ka title/length chipak na jaye */
+                val selfAt = m.range.first - from
+                val nextAt = ytVidRe.find(ctx, selfAt + 12)?.range?.first ?: ctx.length
+                val win = ctx.substring(0, minOf(ctx.length, maxOf(selfAt + 11, nextAt)))
+                if (win.contains("reelItemRenderer") || win.contains("shortsLockupViewModel") ||
+                    win.contains("reelPlayerHeaderRenderer") || win.contains("\"reel\"")) continue
+                val lenM = ytLenRe.find(win)
+                val sec = if (lenM != null) ytSec(lenM.groupValues[1]) else -1
+                if (sec in 1..45) continue          /* 45 second se chhoti = gaana nahi */
+                val tRaw = (ytTitleRe.find(win) ?: ytTitleSimpleRe.find(win))?.groupValues?.get(1) ?: ""
+                val title = ytUnesc(tRaw)
+                if (title.isEmpty()) continue       /* title nahi = video renderer nahi (playlist/channel/ad) */
+                val chRaw = ytOwnerRe.find(win)?.groupValues?.get(1) ?: ""
+                try {
+                    val o = JSONObject()
+                    o.put("id", id)
+                    o.put("title", title)
+                    o.put("sec", sec)
+                    o.put("ch", ytUnesc(chRaw))
+                    out.put(o)
+                } catch (e: Exception) {}
+            }
+        }
+
+        /** YouTube v2 — pehla pakka videoId (purana rasta, compatibility ke liye barqarar) */
+        @JavascriptInterface
+        fun ytSearch(query: String): String {
+            ytInnertube(query)?.let { t -> ytVidRe.find(t)?.let { return it.groupValues[1] } }
+            ytHtml(query)?.let { t -> ytVidRe.find(t)?.let { return it.groupValues[1] } }
             return ""
+        }
+
+        /**
+         * 🎵 K3.1 — gaane ki FEHRIST: [{id,title,sec,ch}, …] (JSON array string).
+         * JS ka GANA isi par faisla karta hai. Kuch na mile to "[]" (crash nahi).
+         */
+        @JavascriptInterface
+        fun ytSearchList(query: String, max: Int): String {
+            val lim = if (max in 1..20) max else 8
+            val out = JSONArray()
+            try {
+                val seen = HashSet<String>()
+                val a = ytInnertube(query)
+                if (a != null) ytParse(a, lim, seen, out)
+                if (out.length() < lim) {
+                    val b = ytHtml(query)
+                    if (b != null) ytParse(b, lim, seen, out)
+                }
+            } catch (e: Throwable) {}
+            return out.toString()
         }
 
         /** CONTACTS ENGINE (Phase 5) */
@@ -1226,9 +1472,12 @@ class MainActivity : AppCompatActivity() {
                         || svc.contains("systemui", true))
 
                 var onDev = false
-                if (Build.VERSION.SDK_INT >= 31) {
+                /* API 33+ (method se pehle maujood nahi). `catch (Exception)`
+                   NoSuchMethodError ko NAHI pakadta (wo Error hai) — is liye
+                   Throwable, warna API 31/32 phone par bridge crash karta. */
+                if (Build.VERSION.SDK_INT >= 33) {
                     onDev = try { SpeechRecognizer.isOnDeviceRecognitionAvailable(this@MainActivity) }
-                            catch (e: Exception) { false }
+                            catch (e: Throwable) { false }
                 }
                 o.put("ondevice", onDev)
                 o.put("using", lastRecognizerKind)
@@ -1266,46 +1515,270 @@ class MainActivity : AppCompatActivity() {
             catch (e: Exception) { "{\"ok\":false,\"why\":\"" + (e.message ?: "?") + "\"}" }
         }
 
+        /* ═══════════════════════════════════════════════════════════════
+           🗣️ v5.10.1 — SETTINGS KA RAASTA: andhi chain khatam.
+
+           User ki video ne pakda: 🗣️ ON-DEVICE LANGUAGE dabaya to phone ki
+           "Digital assistant app" screen khul gayi (Google Go / Ella / None) —
+           jahan offline speech ki koi cheez hi NAHI hoti.
+
+           Wajah (code se, andaza nahi):
+             tries = [ Gboard VoiceSettingsActivity,
+                       Settings.ACTION_VOICE_INPUT_SETTINGS,
+                       Settings.ACTION_SETTINGS ]
+             har try par startActivity() aur foran `return true`        // ← ANDHA
+
+           Do chhed the:
+           1. startActivity sirf ActivityNotFoundException par rukta hai. Kai OEM
+              (Android Go / Infinix / itel) Settings screens ACTION_VOICE_INPUT_
+              SETTINGS ko apni "Digital assistant" screen par alias kar dete hain —
+              intent CHAL jata hai, magar GALAT screen khulti hai. Aur hum khushi
+              khushi `return true` kar dete the.
+           2. Pehla qadam Gboard ka component tha — Android 11+ ki PACKAGE
+              VISIBILITY ke qanoon se wo package humein DIKHTA hi nahi tha
+              (manifest mein <queries> tha hi nahi), is liye wo hamesha fail hota.
+
+           Ilaj:
+           • go() — pehle POOCHHO ke is intent ko kaun kholega (queryIntentActivities),
+             phir us component ko EXPLICIT set kar ke chalao. Screen ka NAAM wapas
+             jata hai — JS ab jhoot nahi bol sakta ke "ye screen khul gayi".
+           • onDeviceMap() — phone par SACH MEIN kya maujood hai ( RecognitionService
+             ki poori fehrist, keyboard, assistant ) JS ko dikhao, taake panel sirf
+             ASLI darwaze ke button banaye. Andaza nahi — fehrist.
+           • <queries> manifest mein — ab Gboard/Google app nazar aate hain.
+           ═══════════════════════════════════════════════════════════════ */
+
+        /**
+         * Screen kholo — magar PEHLE poochh kar ke use kaun kholta hai.
+         * Wapas: khulne wali activity ka naam (ya null = kuch na khula).
+         *
+         * v5.10.2: `blocked` — kuch phones par OEM ne ACTION_VOICE_INPUT_SETTINGS
+         * ko "Digital assistant" screen par alias kar diya hota hai (aap ke phone
+         * par: com.android.settings/.Settings$ManageAssistActivity). Sirf NAAM
+         * batana kaafi NAHI tha — wo screen KHOLNI hi nahi chahiye, kyunki us
+         * mein zubaan ka pack hota hi nahi. Is liye: khulne wali screen ka naam
+         * kisi blocked lafz se milta ho to use CHHOR do (null) aur seedhi ka agla
+         * rung azmao.
+         */
+        private fun go(i: Intent, vararg blocked: String): String? {
+            return try {
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                val pm = packageManager
+                if (i.component == null) {
+                    val list = try { pm.queryIntentActivities(i, 0) } catch (e: Exception) { emptyList() }
+                    val ri = list.firstOrNull() ?: return null
+                    i.setClassName(ri.activityInfo.packageName, ri.activityInfo.name)
+                } else {
+                    val cn = i.component ?: return null
+                    val exists = try {
+                        pm.getActivityInfo(cn, 0); true
+                    } catch (e: Exception) { false }
+                    if (!exists) return null
+                }
+                val cn = i.component ?: return null
+                val flat = cn.flattenToShortString()
+                if (blocked.isNotEmpty()) {
+                    val low = flat.lowercase()
+                    for (bb in blocked) if (bb.isNotEmpty() && low.contains(bb.lowercase())) return null
+                }
+                startActivity(i)
+                flat
+            } catch (e: Exception) { null }
+        }
+
+        private fun act(action: String, pkg: String? = null): Intent {
+            val i = Intent(action)
+            if (pkg != null) i.`package` = pkg
+            return i
+        }
+
+        private fun comp(pkg: String, cls: String): Intent =
+            Intent().setComponent(android.content.ComponentName(pkg, cls))
+
         /** Zaroori settings ke seedhe darwaze (menu mein bhatakna khatam) */
         @JavascriptInterface
-        fun openSetting(which: String): Boolean {
-            /* v5.9.1 — ON-DEVICE zubaan ka asli darwaza. Doctor ka text "[ON-DEVICE]
-               dabao" kehta tha magar aisa button kahin THA HI NAHI (sirf likha tha) —
-               user dhoondhta reh jata. Ab ASLI button ye chain kholta hai:
-               1. Gboard → Voice typing (wahan "Faster/Offline speech recognition"
-                  mein zubaan download hoti hai — Android 13/14 ka reliable raasta)
-               2. Voice-input picker
-               3. aam Settings */
-            if (which == "ondevice") {
-                val tries = listOf(
-                    Intent().setComponent(android.content.ComponentName(
-                        "com.google.android.inputmethod.latin",
-                        "com.google.android.apps.inputmethod.latin.voiceime.settings.VoiceSettingsActivity")),
-                    Intent(Settings.ACTION_VOICE_INPUT_SETTINGS),
-                    Intent(Settings.ACTION_SETTINGS)
-                )
-                for (i in tries) {
-                    try { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return true }
-                    catch (e: Exception) {}
-                }
-                return false
+        fun openSetting(which: String): Boolean = openSettingNamed(which) != null
+
+        /** Wahi darwaza, magar ab ye batata hai ke KHALI screen khuli — jhoot nahi */
+        @JavascriptInterface
+        fun openSettingNamed(which: String): String? {
+            val GBOARD = "com.google.android.inputmethod.latin"
+            val GBOARD_GO = "com.google.android.inputmethod.latin.go"
+            val VOICE_IME = "com.google.android.apps.inputmethod.latin.voiceime.settings.VoiceSettingsActivity"
+            val GSPEECH = "com.google.android.tts"          // Speech Services by Google
+
+            /* v5.10.2: JS ab phone ki fehlist se KHUD darwaza chunti hai —
+               "appinfo:<pkg>" = us app ki info screen, "market:<pkg>" = Play Store.
+               Aap ke phone jaise halat mein yehi kaam aata hai: speech service
+               maujood hai magar poori Google app nahi. */
+            if (which.startsWith("appinfo:")) {
+                val pkg = which.substring(8)
+                if (pkg.isEmpty()) return null
+                return go(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg")))
             }
-            return try {
-                val act = when (which) {
-                    "voice" -> Settings.ACTION_VOICE_INPUT_SETTINGS
-                    "tts" -> "com.android.settings.TTS_SETTINGS"
-                    "input" -> Settings.ACTION_INPUT_METHOD_SETTINGS
-                    "battery" -> Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
-                    else -> Settings.ACTION_SETTINGS
-                }
-                startActivity(Intent(act).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                true
-            } catch (e: Exception) {
+            if (which.startsWith("market:")) {
+                val pkg = which.substring(7)
+                if (pkg.isEmpty()) return null
+                return go(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$pkg")))
+                    ?: go(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$pkg")))
+            }
+
+            return when (which) {
+                /* 🗣️ zubaan pack download karne ki screen (Gboard → Voice typing) */
+                "ondevice", "gboardvoice" ->
+                    go(comp(GBOARD, VOICE_IME))
+                        ?: go(comp(GBOARD_GO, VOICE_IME))
+                        ?: go(act(Settings.ACTION_VOICE_INPUT_SETTINGS), "assist")
+                        ?: go(act(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                        ?: go(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$GSPEECH")))
+                        ?: go(act(Settings.ACTION_SETTINGS))
+
+                /* ⌨️ keyboard ki aam settings */
+                "gboard" ->
+                    go(act(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                        ?: go(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$GBOARD")))
+                        ?: go(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$GBOARD_GO")))
+
+                /* 🎙️ speech services — TTS + default voice input */
+                "voiceservices" ->
+                    go(act("com.android.settings.TTS_SETTINGS"))
+                        ?: go(act(Settings.ACTION_VOICE_INPUT_SETTINGS), "assist")
+                        ?: go(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$GSPEECH")))
+                        ?: go(act(Settings.ACTION_SETTINGS))
+
+                /* 🤖 digital assistant (ab SIRF tab jab user KHUD ye maange).
+                   NOTE: "ACTION_ASSISTANT_SETTINGS" jaisa koi PUBLIC Settings
+                   constant hai hi nahi (v5.10.1 ki pehli CI isi par tooti), is liye AOSP ka
+                   asal action string literal se — literal hamesha compile hota hai,
+                   aur phone par na mile to go() saaf null wapas karta hai. */
+                "assistant" ->
+                    go(act("android.settings.MANAGE_DEFAULT_APPS_SETTINGS"))
+                        ?: go(act(Settings.ACTION_VOICE_INPUT_SETTINGS))
+                        ?: go(act(Settings.ACTION_SETTINGS))
+
+                "voice" ->
+                    go(act(Settings.ACTION_VOICE_INPUT_SETTINGS), "assist")
+                        ?: go(act("com.android.settings.TTS_SETTINGS"))
+                "tts" ->
+                    go(act("com.android.settings.TTS_SETTINGS"))
+                        ?: go(act(Settings.ACTION_SETTINGS))
+                "input" ->
+                    go(act(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                        ?: go(act(Settings.ACTION_SETTINGS))
+                "battery" ->
+                    go(act(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        ?: go(act(Settings.ACTION_SETTINGS))
+                else -> go(act(Settings.ACTION_SETTINGS))
+            }
+        }
+
+        /**
+         * 🗣️ ON-DEVICE MAP (v5.10.1+, v5.10.2 mein `play` bhi) — "andaza karo ke phone mein kya hoga" khatam.
+         * Ye phone par SACH MEIN maujood cheezon ki FEHRIST deta hai:
+         *   srv  : RecognitionService ki poori list (naam + component) — wahi
+         *          queryIntentServices jo makeRecognizer() ki seerhi istemal karti hai
+         *   aiai : Android System Intelligence (on-device ka ghar)
+         *   goog : poori Google app (Speech Recognition & Synthesis)
+         *   kb   : keyboard (Gboard / Gboard Go)
+         *   asst : default digital assistant ka NAAM (video wala saboot)
+         * JS isi se panel banata hai — sirf ASLI darwazon ke button.
+         */
+        @JavascriptInterface
+        fun onDeviceMap(): String {
+            val o = JSONObject()
+            try {
+                val pm = packageManager
+                o.put("sdk", Build.VERSION.SDK_INT)
+
+                /* 1. speech recognition services — Android inhein khud visible rakhta hai */
+                val srv = JSONArray()
+                var goog = false
+                var aiai = false
                 try {
-                    startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    true
-                } catch (e2: Exception) { false }
+                    val list = pm.queryIntentServices(
+                        Intent(RecognitionService.SERVICE_INTERFACE), 0
+                    )
+                    for (ri in list) {
+                        val si = ri.serviceInfo ?: continue
+                        val label = try { ri.loadLabel(pm).toString() } catch (e: Exception) { si.packageName }
+                        val one = JSONObject()
+                        one.put("pkg", si.packageName)
+                        one.put("label", label)
+                        one.put("comp", si.packageName + "/" + si.name)
+                        srv.put(one)
+                        if (si.packageName.contains("googlequicksearchbox")) goog = true
+                        if (si.packageName.contains("as.oss") || si.packageName.contains("AiAi") ||
+                            si.packageName.contains("systemintelligence")
+                        ) aiai = true
+                    }
+                } catch (e: Exception) {}
+                o.put("srv", srv)
+                o.put("goog", goog)
+                o.put("aiai", aiai)
+
+                /* 2. on-device recognizer — API 33+ (pehle ye method maujood hi
+                      nahi: API 31/32 par NoSuchMethodError phenkta, jo Exception
+                      NAHI hota → is liye guard 33 aur catch Throwable).
+                      `this` MayaBridge hai, Context nahi → this@MainActivity. */
+                var onDev = false
+                if (Build.VERSION.SDK_INT >= 33) {
+                    onDev = try { SpeechRecognizer.isOnDeviceRecognitionAvailable(this@MainActivity) }
+                    catch (e: Throwable) { false }
+                }
+                o.put("ondevice", onDev)
+
+                /* 3. phone ka default voice-input service */
+                o.put("svc", try {
+                    Settings.Secure.getString(contentResolver, "voice_recognition_service") ?: ""
+                } catch (e: Exception) { "" })
+
+                /* 4. keyboard — <queries> ke baad ab ye NAZAR aata hai (pehle andha tha) */
+                val kb = JSONArray()
+                val pkgs = listOf(
+                    "com.google.android.inputmethod.latin",          // Gboard
+                    "com.google.android.inputmethod.latin.go",   // Gboard Go
+                    "com.google.android.apps.searchlite",        // Google Go / Search Lite
+                    "com.google.android.googlequicksearchbox",   // poori Google app
+                    "com.google.android.tts"                     // Speech by Google
+                )
+                for (pkg in pkgs) {
+                    try {
+                        val ai = pm.getApplicationInfo(pkg, 0)
+                        if (ai.enabled) kb.put(pkg)
+                    } catch (e: Exception) {}
+                }
+                o.put("kb", kb)
+
+                /* 4b. Play Store — "market:" darwaza isi par chalta hai. Android Go
+                       par aam tor par hota hai, magar andaza nahi: poochh lo. */
+                var play = false
+                try {
+                    val pi = pm.getPackageInfo("com.android.vending", 0)
+                    play = pi.applicationInfo != null && pi.applicationInfo.enabled
+                } catch (e: Exception) { play = false }
+                o.put("play", play)
+
+                /* 5. default ASSISTANT ka NAAM — video isi ka saboot thi */
+                var asst = ""
+                try {
+                    val ai = Intent(Intent.ACTION_ASSIST).addCategory(Intent.CATEGORY_DEFAULT)
+                    val ri = pm.resolveActivity(ai, PackageManager.MATCH_DEFAULT_ONLY)
+                    val pkg = ri?.activityInfo?.packageName
+                    if (pkg != null) {
+                        asst = try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }
+                               catch (e: Exception) { pkg }
+                    }
+                } catch (e: Exception) {}
+                if (asst.isEmpty()) {
+                    try {
+                        asst = Settings.Secure.getString(contentResolver, "assistant") ?: ""
+                    } catch (e: Exception) {}
+                }
+                o.put("asst", asst)
+            } catch (e: Exception) {
+                try { o.put("err", e.message ?: "?") } catch (e2: Exception) {}
             }
+            return o.toString()
         }
 
         /** v5.7.0 — wake word ki zubaan JS se service tak pohanchane ke liye */
@@ -1331,6 +1804,22 @@ class MainActivity : AppCompatActivity() {
 
     fun evalAsyncPublic(js: String) { evalAsync(js) }
 
+    /* 🔬 v5.10.3 (F27) — murda WebView par JS thonsna band.
+       `webViewAlive` flag PEHLE SE maujood tha (markAlive + onPageFinished), magar
+       evalAsync usay dekhta hi nahi tha — is liye WakeWordService ko lagta tha ke
+       report pohanch gayi, halanke WebView khatam ho chuka hota tha. Ab delivery
+       ka SABOOT milta hai (sent/dropped counters panel par nazar aate hain). */
+    fun evalPublicOk(js: String): Boolean {
+        return try {
+            if (!webViewAlive) {
+                false
+            } else {
+                evalAsync(js)
+                true
+            }
+        } catch (e: Exception) { false }
+    }
+
     private fun prefs() = getSharedPreferences("maya", Context.MODE_PRIVATE)
 
     private fun evalAsync(js: String) {
@@ -1354,13 +1843,18 @@ class MainActivity : AppCompatActivity() {
     var lastRecognizerKind: String = "-"
 
     fun makeRecognizer(): SpeechRecognizer {
-        if (Build.VERSION.SDK_INT >= 31) {
+        /* v5.10.2: guard 31 se 33 kiya. isOnDeviceRecognitionAvailable /
+           createOnDeviceSpeechRecognizer API 33 se hain — Android 12/12L (31/32)
+           par ye call NoSuchMethodError phenkti hai, jo Error hai Exception NAHI,
+           is liye purana `catch (Exception)` use pakadta hi nahi tha: SUNO dabate
+           hi app crash. Teen jagah (yahan + micDoctor + onDeviceMap) ab 33 + Throwable. */
+        if (Build.VERSION.SDK_INT >= 33) {
             try {
                 if (SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {
                     lastRecognizerKind = "on-device"
                     return SpeechRecognizer.createOnDeviceSpeechRecognizer(this)
                 }
-            } catch (e: Exception) {}
+            } catch (e: Throwable) {}
         }
         try {
             val cn = android.content.ComponentName(

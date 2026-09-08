@@ -1,9 +1,373 @@
 # 🤖 MAYA — Personal AI Assistant
 
-**Version 5.9.0 "SUKOON" — 0-Budget Build • Android APK + Web PWA**
+**Version 5.13.0 "RAFTAR" — 0-Budget Build • Android APK + Web PWA**
 
 MAYA = aap ka apna JARVIS — voice controlled AI assistant (Gemini brain),
 ab **asli Android app** (APK) ki soorat mein, native superpowers ke saath:
+
+## ⚡ v5.13.0 — "RAFTAR" *(J3: jawab foran + screen ka pakka jawab)*
+
+Aap ki do shikayatein: *"yeh slow boht reply derhi ha… instant reply aye fastly"* aur
+*"Maya kabhi screen par ache se dekh Rahi ha or jawab derhi ha Kabhi pooch rha hun to jawab hi
+nhi derhi."* Microscope se **8 flaws** mile (F59–F66) — saboot ke sath
+[`docs/FIX-v5.13.0-raftar.md`](docs/FIX-v5.13.0-raftar.md) mein.
+
+| 🔑 | Cheez | Ilaj |
+|---|---|---|
+| **J3.1** | **DIMAAG KA STREAM** — `:streamGenerateContent?alt=sse`; **pehla jumla bante hi awaaz**, baqi jumle queue (`AWAAZ.speak` chain, ek doosre ko kaatte nahi) | F63: pehle **poora** jawab (1.5–4s) aata tha, phir awaaz; screen wale sawal mein 2 round trip = 3–8s |
+| **J3.2** | **3 pehre**: `HOLD` 40 harf (tool-step ka preamble chup-chaap phenka, `rearm`) · **kill-switch** 2 strikes par session bhar streaming OFF · watchdog `thinkGen` guard | Stream ki wajah se jawab **kabhi** nahi marna chahiye; beech mein awaaz nahi kaatni |
+| **J3.3** | **AWAAZ KA FAST BUDGET** `AWAAZ.FAST = 1800ms` — asli awaaz (`audioAt`, audio ke `onplay` se) na baji to foran **Edge → phone**; `fastTrips` ginti | F64/F50: network tier atke to 25s tak **dead air** (jawab mojood, awaaz gayab) |
+| **J3.4** | **👁️ NAZAR default ON** (LAB switch ab kill-switch) | F59: `nazar: false` tha — tool hamesha *"NAZAR band hai"* kehta, screen ka jawab hi nahi aata tha |
+| **J3.5** | **`NAZAR.lookRetry(90, 160)`** — pehla dump khali to **doosri koshish**; phir bhi khali to `ok:false` + **bolne layak `say`** | F60: ek hi koshish; screen transition par `items: []` → `done:true, count:0` → dimaag ke paas batane ko kuch nahi (chup ya andaza) |
+| **J3.6** | **system prompt ki poori tool fehrist** (screen/camera/files/torch/volume/brightness/namaz/diary/skill) + **QANOON**: *"screen ka sawal → PEHLE `read_screen`; tool nakam ho to us ki note batao — chup mat raho, andaza mat lagao"* | F61: 33 tools declare the, prompt sirf **9** ka naam leta tha — NAZAR ka zikr hi nahi (kabhi dekhti thi, kabhi nahi) |
+| **J3.7** | **`needsTools()` hamesha `AMAL.actionRe()`** (+ ACTION_WORDS mein screen alfaaz, + `read_screen` ke 6 naye trigger jumle) | F62: poori trigger fehrist sirf `poolTools` ON (default OFF) par chalti thi → "screen par kya hai" router mein hi nahi tha |
+| **J3.8** | **⚡ RAFTAR PANEL** (NAAP.report ke andar): `pehli awaaz` p50/p90 · `stream N/M` · aakhri jawab ka breakdown (pehla harf / pehli awaaz / kul / tukre) · fast-budget trips · **NAZAR ka hisaab** | F58/F65: raftar **napi** hi nahi jati thi — "tez ho gaya" sirf ehsaas tha, saboot nahi |
+| **J3.9** | Silence **700ms → 600ms** (dono Kotlin path), minimum 300ms barqarar | F66: har turn par 100ms ka intezaar |
+| **J3.10** | `reply(text, wasVoice, link, **opts**)` — `noSpeak` par bubble + history darj, dobara bolna **nahi** | Warna `AWAAZ.stop()` chal-ti awaaz kaat deta aur poora jawab **dobara** sunai deta |
+
+⚖️ **Imaandari:** forensic ke do andaze badle — TTS budget **800ms → 1800ms** (800ms par har
+jawab Edge par girta, yaani malik ki chuni hui **neural** awaaz ka tarkheeb), aur prompt ka bojh
+**kam** karne ke bajaye us mein 33 tools ka zikr **add** hua (screen ki jarrh prompt ka chhota
+hona nahi, NAZAR ka **zikr na hona** thi). `MAX_LENGTH_MILLIS=15000L` nahi lagaya (J1 ka 12s
+watchdog pehle se hai). Streaming **sirf Gemini** par — backup dimaag purane raaste chalte hain.
+
+🧪 **+55 test** (1320 → **1375**): lab **Section 36** — wiring locks + `RAFTAR` aur `NAZAR` ko
+jsdom mein **chalaa kar** parakha (jumla kaatna, Urdu `۔؟`, SSE tukre, HOLD, kill-switch, rearm,
+abort, doosri koshish, `say` ki imaandari).
+
+✅ **CI GREEN** — [run 34186455021](https://github.com/adil-chandio/Mana-android/actions/runs/34186455021) ·
+**MAYA-APK 3,237,726 bytes** (+11,829) · **1375/1375 test**
+
+📄 **Ek parcha:** [`docs/REPORT-v5.13.0-aam-zubaan.md`](docs/REPORT-v5.13.0-aam-zubaan.md) · 📖 tafseel: [`docs/FIX-v5.13.0-raftar.md`](docs/FIX-v5.13.0-raftar.md)
+
+---
+
+## 🎛️ v5.12.5 — "MIC NAZAR" *(J2: mic ka haal hamesha nazar)*
+
+Aap ki shikayat: *"mic par on off horha ha jo ke irritating ha… mujhe pata hi nhi chalna mic on
+hua ha ya nhi."* Ilaj: **MIC HAAL BAR** (saabit patti, har tab par) + **wake ka zinda level**
+Kotlin se + **BAAT-CHEET MODE** (ek turn = ek mic).
+
+| 🔑 | Cheez | Ilaj |
+|---|---|---|
+| **J2.1** | **MIC HAAL BAR** — 7 state, 7 rang, **lafz** + zinda level: `👂 WAKE SUN RAHI (pehra/kaan khula)` · `🚪 BAAT-CHEET (Ns)` · `🎤 AAP BOLEIN` · `🧠 SOCH RAHI (Xs)` · `🔊 BOL RAHI` · `⚠️ MASLA: wajah` · `💤 WAKE BAND` | F52: mic ka haal **nazar hi nahi aata** tha (4px bar sirf app-mic par, wake ka koi nishan nahi) |
+| **J2.2** | Wake ka **ZINDA LEVEL** har 300ms (`__wakeLevel`, mode 1 = pehra · mode 2 = recognizer ka `onRmsChanged`, jo pehle **khaali** tha) | F57: wake ka dB Kotlin se JS tak **jata hi nahi** tha — "wake zinda hai?" ka saboot nahi |
+| **J2.3** | **BAAT-CHEET MODE** (default ON + LAB switch): darwaza khula → `WakeState.talkUntil` → `haalBlock()` wake ka mic **rok** deta hai | F56 + churn: har turn par mic **do dafa** khulta (wake + app) aur wake ke baad 400ms ki **andhi race** |
+| **J2.4** | **Imaandar line** UI mein (LAB row + bar ka title + `HAALBAR.SACH`) | Jhoot nahi: system mic-nishan cloud-wake se jhilmilata rahega, **SAABIT** sirf Phase 4 (offline KWS) mein |
+| **J2.5** | Gate ka **90s reopen** sirf darwaza **band** par | `restart()` pehle `haalBlock()` se poochta hai → baat-cheet beech mein nahi tootti |
+| **J2.6** | **Safety net**: `TALK_EXP_MS 90s` + JS heartbeat gayab = mode **khud** khatam (`selfFixes` ginti panel par) | JS/WebView mar jaye to wake **daimi** band na rahe |
+| **J2.7** | Bar **jhoot nahi bolta**: level 1.2s se purana = taaza nahi, **6s** se purana = ⚠️ surkh *"WAKE sun nahi rahi"* | Pehle `wake ON` likha hota tha magar wake murda ho to koi nishan nahi |
+| **J2.8** | Panel par 4 nayi lines: 🎛️ MIC HAAL · 🛠️ level (Kotlin) · 🚪 BAAT-CHEET (turn N) · 🛡️ JAWAB | v5.12.0 ke referee ka hisab sirf log mein chhupa tha |
+| **J2.9** | **Version ka ek ghar** (`MAYA_VER`) — header subtitle + toast + log; test-lock **gradle ke `versionName`** se milaan karta hai | Header ka subtitle **v5.10.2** par jam gaya tha (app apni pehchaan ka jhoot bolti thi) |
+
+⚖️ **Imaandari:** J2 ne mic ka cycle **aadha** kiya hai, **khatam nahi** — system mic-dot
+SAABIT sirf **Phase 4 (offline KWS)** mein hoga. **Raftar abhi wahi hai** (J3).
+
+🧪 **+39 test** (1281 → **1320**): lab **Section 35** (23 wiring locks) + **Section 35b**
+(16 — bar ko jsdom mein **chalaa kar** parakha: saat halatein, level ka hisab, darwaza reconcile).
+
+📄 **Ek parcha:** [`docs/REPORT-v5.12.5-aam-zubaan.md`](docs/REPORT-v5.12.5-aam-zubaan.md) · 📖 tafseel: [`docs/FIX-v5.12.5-mic-nazar.md`](docs/FIX-v5.12.5-mic-nazar.md)
+
+---
+
+## 🛡️ v5.12.0 — "JAWAB PAKKA" *(J1: jawab ka loop pakka)*
+
+Aap ki shikayat: *"kabhi bolta hun to reply nahi aata… aur mujhe pata hi nahi chalta mic on hua
+ya nahi."* Iska forensic [`docs/FORENSIC-JAWAB-LOOP.md`](docs/FORENSIC-JAWAB-LOOP.md) mein hai
+(F44–F58); J1 un flaws ka ilaj karta hai jo jawab ko **chup-chaap** maar dete the.
+
+Naya module: **`JAWAB`** — jawab ka referee (`public/index.html`, `reply()` se pehle).
+
+| 🔑 | Cheez | Ilaj |
+|---|---|---|
+| **J1.1** | Teen **watchdog** (har 2s) | F46: sunna **12s** · sochna **40s** · bolna **20s + 110ms/harf** (adaptive). Pehle ek flag phans jaye to jawab ka loop **daimi** murda, mic button **ulta** kaam karta, wake **ignore** |
+| **J1.2** | `thinkGen` — **generation token** | F46: watchdog ne jawab rad kar diya ho to purana jawab aa bhi jaye to **bola nahi jata** (warna do jawab ek sath) |
+| **J1.3** | AOSP ke **poore 1..15** error code + har code ka **apna amal** | F44/F45: pehle `7` ka matlab **"Mic permission nahi"** likha tha (AOSP mein 7 = **NO_MATCH**, ijazat = **9**), 8..15 ke liye sirf `"Voice error"`, aur nakami ke baad mic **dobara khulta hi nahi** tha |
+| **J1.4** | Kotlin: ijazat par code **9**, silence extra ki **sahi chaabi** (`…extras…` plural) + **`700L`**, aur `listen()` par **`try/catch(Throwable)`** | F44/F48/F49: pehle code 7 bheja jata tha; raw key `"android.speech.extra.…"` + **Int** thi → 700ms **kabhi be-asar**; recognizer na bane to **crash** ya phansa flag |
+| **J1.5** | Kam-yaqeen sunai ab `reply()` ke **poore** raste se | F47: pehle `AWAAZ.speak()` seedha (SUKOON bypass → wake apni awaaz par khul sakti thi) aur `return` ke baad mic dobara nahi khulta tha |
+| **J1.6** | **Circuit breaker** (latch) | F45+ (amal mein mila): 25s ke andar 6 nakam koshishein → ruk kar **bol kar** khabar + darwaza band (pehle be-inteha, chup-chaap) |
+| **J1.7** | Wake ignore ki **wajah** | F53: pehle chup-chaap `return`. Ab KAAN log + status par (`🙉 Sun nahi sakti: …`), aur flag phansa ho to **khud ilaaj** kar ke usi lamhe sunna |
+| **J1.8** | Dimaag fail par **bol kar** khabar | F54: pehle sirf toast (awaaz wale user ko screen dekhe bina kuch pata nahi chalta tha) |
+| **J1.9** | Darwaza jawab **SHURU** par tazaa | F55: pehle sirf jawab ke baad → dimaag + lambi awaaz = darwaza beech mein band, baat-cheet khatam |
+
+⚖️ **Imaandari (plan se do barikiyan badlin):** THINK **40s** (plan 25s tha — dimaag ki seedhi
+qanooni taur par 25s se zyada le sakti hai) aur SPEAK **adaptive** (plan saabit 60s tha — 1400
+harf ka jawab ~100s bolta hai, 60s par kaatna jawab ka qatl hota). Silence extra ki qeemat
+**700ms barqarar** — 600ms J3 ka faisla hai, **naap** ke baad.
+
+🧪 **+40 test** (1241 → **1281**): lab **Section 34** (19 wiring locks), **Section 34b**
+(20 — referee ko **chalaa kar** parakha), Section 24 mein +1 (wake ignore referee se poochta hai).
+
+📄 **Ek parcha:** [`docs/REPORT-v5.12.0-aam-zubaan.md`](docs/REPORT-v5.12.0-aam-zubaan.md) · 📖 tafseel: [`docs/FIX-v5.12.0-jawab-pakka.md`](docs/FIX-v5.12.0-jawab-pakka.md)
+
+---
+
+## 🛡️ v5.11.0 — "WAKE MAZBOOT" *(Phase 1: robustness · 12 badlaav)*
+
+Phase 0 ne wake ko **zinda** kiya; Phase 1 usay **mazboot** karta hai — shor, mic ki larai,
+app band hone, aur "halat phans jane" ke khilaf. Naya feature koi nahi, har badlaav forensic
+ke ek flaw ka ilaj.
+
+| 🧭 | Cheez | Ilaj |
+|---|---|---|
+| **1.1** | Halat ka **ek ghar**: `WakeState.kt` | F02: `haal`/`pausedByApp`/`lastBolAt` + JS ki copy — char jagah bikhri halat, **kisi ki mudat nahi**. Ab har halat ka `owner` + `since` + **expiry** (sulah 8s · app-mic 30s · bolna 20s). `haalBlock()` **pehle mudat** dekhta hai, phir pabandi |
+| **1.2** | HAAL **level-triggered** + heartbeat | F06: JS `sunEnd`/`bolEnd` par **FORCE-send** (dedup bypass), boot par `SUKOON.resync()`, har **10s heartbeat** (`wakeBeat`) → 3 heartbeat gayab = Kotlin **khud KHALI**. Naya `wakeResync` bridge |
+| **1.3** | **Farsh ab calibration se banta hai** | F15: pehle farsh **pehle sample par latch** hota tha aur sirf neeche ja sakta tha → `awaaz 77dB farsh 62dB` = chokhat 76dB, **chillane par bhi wake na khulti**. Ab **800ms calibration** (≥3 saaf frame), farsh **dono taraf** adapt (neeche 0.10 / upar 0.005), clamp **20..50dB**, chokhat par **absolute cap 72dB** |
+| **1.4** | Gate ka **CPU spin khatam** | F16: `if (n <= 0) continue` = read-error par **100% CPU infinite spin**. Ab `n<0` par **5-strike → mic tazaa**, `n==0` par **8ms sleep**, pehre ki **90s umar** |
+| **1.5** | `stopGate()` ki **race** | F17: pehle sirf flag band hota (join nahi, release nahi) aur **har exit** par `actuallyStart()` post hota — chahe gate app ki sulah mein band hui ho → error 3/8. Ab `join(250)` + release, aur exit **wajah** dekhta hai (`voice` → recognizer, `stop` → kuch nahi, `life/blocked/read` → `restart(200)`) |
+| **1.6** | **Wake ka apna recognizer** | F13: wake ka recognizer **Activity** ke context se banta tha — Activity mari to chupke se `default` par gir jata, aur `lastRecognizerKind` shared hone se doctor bhi jhoot bolta. Ab `makeWakeRecognizer()` (service context): yaad-kiya-hua → on-device (API 33+) → fehrist ka pehla qabil → default. Jo **chala** usay prefs mein yaad (**self-healing**); 4 lagatar nakami par bhool kar agla |
+| **1.7** | Wake **session shaping** | F14: wake intent mein silence/minimum-length **kuch nahi** tha → lambi sessions disconnect (err 11). Ab `COMPLETE_SILENCE=700ms`, `MINIMUM_LENGTH=300ms` |
+| **1.8** | **Session vs KUL** nakami | F19: `errStreak` sirf result/err8 par reset hota tha → panel ka "lagatar 15" adhoora sach (starts=7). Ab har **kamyab session** (`onReadyForSpeech`) par saaf + `errTotal` alag |
+| **1.9** | Foreground ka **jhoot** + mic ijazat | F29/F35: `startAsForeground()` ka `catch (Exception) {}` chup-chaap nigal jata → ab `record("fgs")` + `alive=false` + notification **"⚠️ wake beemar"**. Mic ijazat na ho to **loop shuru hi nahi** (`loopHeld`), ijazat milte hi **khud** shuru |
+| **1.10** | Notification par **seedha darwaza** | F35: `onError(9)` par notification action **"Ijazat do"** → `handleOpenRequest()` → app-info screen (blind intent-chain nahi) |
+| **1.11** | **Calibration window** ka ehtram | F42: window ke dauran **na trigger na farsh latch**; `read()==0/negative` frame farsh ko **chhoota hi nahi**; adhoora calibration **report** hota hai (`frame N (calibration adhoora)`) |
+| **1.12** | `onResume`/`onPause` | F41: MainActivity mein ye **the hi nahi**. Ab resume par WebView wapas + HAAL resync + `__wakeHealth()`; pause par WebView background — **`pauseTimers()` JAAN BOOJH kar nahi** (warna heartbeat + reports mar jate). Naya `listening` flag: sehat ka darwaza mic par hamla nahi karta jab recognizer chal raha ho |
+
+**Panel ki nayi lines:** `🧭 WAKE STATE` (owner · umar · heartbeat · JS beats) · `🎧 PEHRA`
+(gate · mic sun raha · farsh · chokhat · calibration · pehre ki ginti) · `🔧 khud-sudhaar N dafa` ·
+`⛔ wake RUKI (ijazat)` · `⚠️ foreground service nahi bani` · `wake ka recognizer` / `app ka
+recognizer` **alag alag**.
+
+🧪 **+41 test** (1193 → **1234**) — lab **Section 32** (Phase 1 ke wiring locks). Teen purane
+locks **sudhare** gaye: wo purane buggy rawaiye ko lock kar rahe the (`rec.release→actuallyStart`
+within 140 chars, `over > 14.0`, `while (gateOn && running)`).
+
+### 📱 v5.11.0 — AAM ZUBAAN MEIN
+
+📄 **Ek parcha (tick ✅ lagane layak):** [`docs/REPORT-v5.11.0-aam-zubaan.md`](docs/REPORT-v5.11.0-aam-zubaan.md)
+· tafseel: [`docs/FIX-v5.11.0-wake-mazboot.md`](docs/FIX-v5.11.0-wake-mazboot.md)
+
+| Aap ko kya farq dikhega | Kaise check karein | ✅ PASS | ❌ FAIL |
+|---|---|---|---|
+| Wake ki halat **khud sudhar** jati hai | 1 minute app khuli chhod dein → panel | `🔧 khud-sudhaar` **0-2** | ginti lagatar barhe |
+| Shor wale kamre mein wake | TV chalu karke 10 dafa "Maya" | **≥8** SUNO, farsh **≤50dB** | ≤5, ya farsh 62dB |
+| Jhooti wake nahi | 1 ghanta TV, koi na bole | **≤1** false wake | bar bar khud SUNO |
+| Battery/garmi par lagam | 12 minute chalu chhoden | `error 3/8` **nahi** | har 12 min clash |
+| Mic ijazat ka sach | Ijazat wapas le kar WAKE ON | Switch khud OFF + notification **⚠️ wake beemar** + **"Ijazat do"** | switch ON ka jhoot |
+| Ijazat wapas dete hi | "Ijazat do" → ijazat dein → wapas | **≤45s** mein wake khud chalu | app dobara kholni pare |
+| App wapsi par haal milta hai | Recent se swipe → 1 min baad kholein | JS aur Kotlin ka haal **ek jaisa**, `heartbeat N` barhta | MISMATCH / `heartbeat 0` |
+
+**Version ki pehchaan:** boot toast `MAYA v5.11.0 • 🛡️ WAKE MAZBOOT…` (Kotlin **aur** JS dono
+se; JS wala `native: 5.11.0-native` bhi dikhata hai) · panel ki nayi lines `🧭 WAKE STATE` +
+`🎧 PEHRA` · versionCode **75**. In mein se ek bhi na ho → APK purani hai.
+
+---
+
+## 🏅 v5.10.3 — "WAKE ZINDA" *(Phase 0 + native instrument · forensic ka pehra ilaj)*
+
+Forensic ne 43 flaws pakde the; is release ne **wo teen zanjeerein kaati** jo wake ko *murda* kar
+rahi thin — aur sath mein wo **instrument** banaya jo ab mareez ke sath nahi marta.
+
+| ⛓️ | Zanjeer | Ilaj |
+|---|---|---|
+| **A** | Wake har SUNO ke baad **60 second murda** (`roka 67`) | `resumeFromApp()` ab **4 jagah CALL** hoti hai (`stopRecognizer`, `onError`, `onResults`, `onDestroy`) — pehle **0** thi. Stale-pause 60s → **10s** + `appMicBusy()` check (blind release khatam). Blocked poll 700ms → **3s**, skip reports **rate-limited (15s, `x N` ginti ke sath)** → KAAN ka 40-entry log ab kachre se nahi bharta |
+| **B** | `err 11` lagatar 15 — har 1.2s cloud par hamla | Har code ka **apna backoff** (10/11/12/13) + `errStreak` se escalation **x1→x16** + **30s cap** + 3 nakami par `resetRecognizer()` + 5 par **CIRCUIT OPEN** → `report("dead")` + toast. `error 9` (permission) par hammer band. ⚠ user ka wake switch **kabhi khud off nahi** (P9 wada barqarar) |
+| **C** | Wake ki zubaan `ur-PK` + settings service tak pohanchti hi na thin | Nayi setting **`wakeLang`** (default **en-IN**) — STT/TTS apni jagah Urdu rahenge. LAB mein `👂 WAKE KI ZUBAAN` select. **`pushNativePrefs()`** ab har `saveSettings()` par chalti hai (pehle sirf wake-toggle par — isi liye sahih fix bhi "kaam nahi kiya" lagta). Aur `wakeService()` ka jawab ab **parha** jata hai: ijazat na ho to switch OFF + saaf toast (pehle switch **jhoot** bolta tha) |
+
+**🔬 NATIVE INSTRUMENT** (F25/F27/F04) — *"instrument mareez ke sath na mare"*:
+
+* Har waqia **PEHLE Kotlin** ke ring buffer (60) mein darj hota hai, phir UI ko jata hai → `wakeEvents()` bridge + `KAAN.flushNative()`. Is liye **screen-off / app-swipe daur ke waqiat bhi** mil jate hain, aur `suna 0` ka ambiguity khatam (pehle pata hi nahi chalta tha ke recognizer behra tha ya report raste mein giri thi).
+* `evalPublicOk()` ab maujood `webViewAlive` flag ko **asal mein** check karta hai → delivery ka hisab (`bheje N · GIRE N`).
+* `wakeState()` bridge → panel mein **`HAAL (JS)` aur `HAAL (Kotlin)` dono**, sath mein **`⚠️ MISMATCH`** line (yehi line is poore bug ko 2 second mein pakad leti), `service: ZINDA/MURDA`, `wake zubaan`, `recognizer`, `gate`, `farsh`, `KOTLIN ginti`, `☠️ CIRCUIT OPEN` + `💡 ILAJ`.
+* `ERRNAME` ab **1..15** poori (pehle 10..15 ghayab → panel `err 11 — ?` chhapta tha) + naya `ERRFIX` (har code ka **rasta**, sirf naam nahi).
+* F18: 12-min watchdog ab gate chalu hote hue recognizer mic par **nahi** thons ta.
+
+🧪 **+40 test** (1153 → **1193**) — lab Section 30 (wiring locks) + Section 31/31b (📱 Qanoon 9 + ek-parcha report). Naya usool: **har lock WIRING par, declaration par nahi** (F01 ka sabaq: `resumeFromApp()` *likhi* hui thi is liye purane 1153 tests GREEN the, magar *call* kahin nahi hoti thi). 4 purane asserts sudhare — wo buggy behaviour ko lock kar rahe the (`wake_lang = settings.stt`, `> 60000`, `8 -> {`, `HAAL        : `).
+
+### 📱 AAM ZUBAAN MEIN — kya naya hua aur kaise parakhna hai
+
+Poora hisab (8 badlaav + 9 test + "kya abhi bhi adhoora hai") release doc ke **📱 RELEASE REPORT**
+hisse mein hai. Chhota khulasa:
+
+| Aap ko kya farq dikhega | Kaise check karein | ✅ PASS |
+|---|---|---|
+| SUNO ke baad wake **foran** wapas (pehle 1 minute murda) | SUNO dabao → bolo → chhodo → turant "Maya" bolo | ~1s mein chime / "Ji Boss?" |
+| Wake ki zubaan **English (India)** (baat-cheet Urdu hi rahegi) | Settings STT = Urdu, SAVE, wake ko haath na lagao → LAB panel | `wake zubaan : en-IN` |
+| Settings badlo to **foran** lagu (wake OFF-ON ki zaroorat nahi) | Upar wala test hi | wahi |
+| Mic ki ijazat na ho to switch **jhoot nahi bolta** | Mic permission OFF kar ke wake ON karo | Switch khud OFF + "mic ki ijazat chahiye" |
+| Internet toote to **khabar** milti hai (chup-chaap marna band) | Airplane mode 5 minute | Toast + panel par `☠️ CIRCUIT OPEN` + `💡 ILAJ` |
+| Panel ab **sach** bolta hai | LAB → 👂 WAKE WORD KA HAAL | `HAAL (JS)` **aur** `HAAL (Kotlin)` dono + `delivery: bheje N · GIRE N` |
+| Log ki tareekh wapas | 5 minute baat karo → panel | Mixed waqiat, ek hi line 67 dafa nahi |
+
+**Version ki pehchaan:** boot par toast `MAYA v5.10.3 • 👂 WAKE ZINDA…` · LAB mein naya select
+`👂 WAKE KI ZUBAAN` · panel ki nayi line `HAAL (Kotlin):`. In mein se ek bhi na ho → APK purani hai.
+
+### ⚖️ Qanoon 9 (naya) — har version ke baad ye hisab **lazmi** hai
+
+Aap ki farmaish: *"har naye version… hum ko batana hai last mein ke isme kya naya add hua aur usko
+kaise check karna hai, test kaise karna hai."* Ab ye `docs/AMAL-WORKFLOW.md` ka **Qanoon 9** hai,
+uska farma **HISSA M** mein hai, aur **test-lock** lag gaya hai (lab Section 31): kisi release doc
+mein `📱 RELEASE REPORT` + "PASS ka nishaan" + "FAIL ka nishaan" + "kya adhoora hai" + "version ki
+pehchaan" na ho to tests **FAIL** honge.
+
+📄 **Ek parcha (phone mein rakhne layak, tick ✅ lagane layak):** [`docs/REPORT-v5.10.3-aam-zubaan.md`](docs/REPORT-v5.10.3-aam-zubaan.md) — kya naya hua, kaise parakhna hai, kya adhoora hai, nakami par kya bhejein, version ki pehchaan.
+
+📖 [`docs/FIX-v5.10.3-wake-zinda.md`](docs/FIX-v5.10.3-wake-zinda.md) · forensic: [`docs/FORENSIC-WAKE-WORD.md`](docs/FORENSIC-WAKE-WORD.md)
+
+**Ab kya:** ~~Phase 1~~ ✅ (v5.11.0) → ~~J1~~ ✅ (v5.12.0) → ~~J2~~ ✅ (v5.12.5) → ~~J3~~ ✅ (v5.13.0) → **J4 "SAAF AWAAZ" (neeche)** → Phase 2 (WAKE DOCTOR v2 + live notification + dBFS calibration) → **Phase 2.5 auto-update** (F43 · *faisla: GitHub ya apna server*) → Phase 3 (wake ka dimaag Kotlin mein) → Phase 4 (offline KWS engine).
+
+---
+
+## 🔬 NAYA FORENSIC — "JAWAB LOOP" (F44–F58) + STRUCTURE (J1–J4)
+
+Aap ki shikayat: *"kabhi bolta hun to reply nahi aata, mic on/off irritating hai, pata hi nahi
+chalta mic on hua ya nahi, jaldi sune jaldi bole."* Iska **microscope** ho gaya —
+[`docs/FORENSIC-JAWAB-LOOP.md`](docs/FORENSIC-JAWAB-LOOP.md) mein **15 naye flaws (F44–F58)**
+saboot (file:line) ke sath, aur **4 phase ka structure**:
+
+| Phase | Version | Naam | Kya theek hoga |
+|---|---|---|---|
+| **J1** ✅ | v5.12.0 | **JAWAB PAKKA** | har nakami **bol kar** bataye, koi deadlock nahi (3 watchdog: listen 12s · think **40s** · speak **20s+110ms/harf**), galat error-matn theek, nakami ke baad mic **khud dobara**, darwaza lambe jawab mein band na ho |
+| **J2** ✅ | v5.12.5 | **MIC NAZAR** | hamesha nazar aane wali **MIC HAAL BAR** (**7** state, 7 rang, text ke sath) + wake pehre ka **live level** (pehra + recognizer) + **conversation mode** (ek turn = ek mic open → cycle aadha) |
+| **J3** ✅ | v5.13.0 | **RAFTAR** | dimaag ki **streaming** (pehla jumla foran) + awaaz ka **1800ms fast budget** (dead air khatam) + silence **600L** + **RAFTAR PANEL** (pehli awaaz ke ms — saboot) + **SCREEN PAKKI** (NAZAR default ON, doosri koshish, prompt ka qanoon) |
+| **J4** | v5.13.5 | **SAAF AWAAZ** | Urdu rate/pitch tuning, jumla-ba-jumla prosody, awaaz tez/dheemi setting |
+
+⚖️ **Imaandari:** Android ka **system mic-dot jhilmilana** cloud-wake (Google ASR) ke sath poori
+tarah khatam **nahi** ho sakta — J2 usay **kam** karega aur UI mein saaf batayega; poori tarah
+**saabit** mic sirf **Phase 4 (offline KWS)** mein.
+
+🧪 Structure doc par **+7 test-locks** (lab Section 33) → 1241/1241 GREEN.
+**J1 mukammal (v5.12.0)** → 1281/1281 · **J2 mukammal (v5.12.5)** → 1320/1320 ·
+**J3 mukammal (v5.13.0)** → **1375/1375 GREEN**.
+Agla: **J4 "SAAF AWAAZ"** (Urdu rate/pitch, jumla-ba-jumla prosody, awaaz ki sehat ka doctor).
+
+---
+
+## 🔬 WAKE WORD FORENSIC — **42 flaws** (2 pass), STRUCTURE v2 tayyar *(analysis · koi code nahi badla)*
+
+Aap ka KAAN panel diagnostic (`suna 0 · JAAGI 0 · nakami 8 · mic chala 7 · aakhri err 11 · roka 67 · HAAL: KHALI`)
+aur `WakeWordService.kt` (493) + `MicKit.kt` (191) + `MainActivity.kt` (1880) + `index.html` (10691)
++ Manifest/gradle/BootReceiver ka **do pass** mein line-by-line post-mortem. Pass 1 se **teen zanjeerein** nikleen:
+
+| ⛓️ | Zanjeer | Asal wajah (saboot ke sath) |
+|---|---|---|
+| **A** | Wake har SUNO ke baad **60 second murda** | `pauseForApp()` (`MainActivity.kt:363`) ki wapsi **kahin nahi** — `grep -rn resumeFromApp` = 0 external call sites. Sirf 60s ka stale-watchdog bachata hai. `roka 67` ≈ 47s × 1.4 skip/second |
+| **B** | Recognizer **kuch sunta hi nahi** (`err 11` lagatar 15) | error 11 (`ERROR_SERVER_DISCONNECTED`) par backoff `else -> 1200L` — **koi escalation nahi**, koi circuit-breaker nahi, koi alert nahi. Har 1.2s cloud par naya hamla = beemari ko feed karna. Sath: wake ki zubaan `ur-PK` (`wake_lang = settings.stt`, `index.html:9592`) — aur hamara apna DOCTOR kehta hai ke Urdu decoder "مایا" ko "ہے" parhta hai |
+| **C** | Gate **chillane par** khulta hai (`awaaz 77dB farsh 62dB`) | `floorDb` pehle sample par **latch** aur sirf neeche ja sakta hai (`WakeWordService.kt:263-265`) → chokhat 76 dB. Ulta latch ho to har sarsarahat par cloud session |
+
+Aur **instrument ne jhoot bola**: panel ka `HAAL: KHALI` JS ka haal tha, jabke Kotlin mein
+`pausedByApp = true` phansa tha — do darwaze, ek bhi source-of-truth nahi. `ERRNAME` mein
+10..15 maujood hi nahi, is liye panel "?" chhapta tha.
+
+**Faisla (buniyadi):** wake word ko *cloud ASR* se karwana ghalat shape hai — do recognizer ek hi
+service par ladte hain. Next level = **apna PCM (MicKit) → local keyword engine (Vosk-grammar /
+Porcupine / sherpa-onnx)** — offline, aur Zanjeer A+B ka wajood hi khatam. Options matrix +
+migration plan (LAB flag `wakeEngine: asr|kws|auto`, ASR fallback barqarar) doc mein hai.
+
+**🔬 PASS 2** (platform + delivery pipeline) ne 18 aur flaws pakde — jinmein se teen pass 1 se bhi zyada bunyadi hain:
+
+| 🔴 | Naya flaw | Saboot |
+|---|---|---|
+| **F25** | WebView murda ho to wake ka nateeja **phenk diya jata hai** — `lastHeardOffline` ek *dead variable* hai. Screen band / app swipe = wake ka poora maqsad bekaar. Aur counters bhi usi WebView mein rehte hain, is liye `suna 0` **ambiguous** tha | `WakeWordService.kt:365-377`, `:182-187` |
+| **F33** | Wake ka **dimaag JS mein** hai (`__wakeHeard`: matching, DARWAZA, chime, `setTimeout(startListening)`) — yani uski zindagi ek UI component ke haath mein jise Android kabhi bhi maar sakta hai; background mein JS throttle bhi hota hai | `index.html:8626-8685` |
+| **F26/F36** | `BootReceiver` **khokhla** (start-line commented: "SAFE MODE v2.12.1") aur service marne ke baad zinda karne wala **koi nahi** — `WakeWordService.start` ka akela live call site JS bridge hai. Reboot ke baad wake tab tak OFF jab tak app na kholein | `BootReceiver.kt:14`; grep = 1 live site |
+| **F38** | **Pref drift** — `wake_lang`/`mic_zoom`/`mic_near`/`sukoon` **sirf wake-toggle par** Kotlin ko jate hain (`setWakeService` akela push point). Settings badalne se service ko khabar nahi → *ye kisi bhi fix ko "kaam nahi kiya" dikhane wala trap hai* | `index.html:9589-9595` |
+
+Aur: `evalAsync` maujood `webViewAlive` flag ko check nahi karta (F27) · `speakLocal()`/`launchApp()` **dead code** hain — yani safe-mode ke purze likhe the, wire nahi kiye gaye (F28) · `startAsForeground()` ka `catch {}` Android 14 ki FGS nakami nigal jata hai (F29) · `WAKE_LOCK` declared magar **0 istemal** → Doze mein engine so jata hai (F30) · notification *"MAYA hamesha sun rahi hai"* har halat mein **jhoot** bolti hai (F31) · `onPause`/`onResume` overrides hi nahi (F41) · concurrent capture mein gate **silence** padh kar floor latch kar leta hai (F42).
+
+**🌟 North Star (§14):** 12 qabil-e-paimaish wade (W1-W12) — screen band 10/10, app swipe 10/10, reboot ke baad khud chalu, airplane mode mein bhi, aur *koi bhi nakami UI mare tab bhi log mein*. Plus 10 engineering usool jo is forensic se nikle (jaise: "instrument mareez ke sath na mare", "har pause ka resume usi file mein nazar aaye", "dead code ya wire karo ya mitao").
+
+**Structure v2 (§15):** Phase 0 hotfix `v5.10.3` (**10** badlaav: resume wiring, 10s stale, 3s poll + rate-limited
+skip, error 10-13 backoff, ERRNAME 1..15, `wakeLang` alag, watchdog `gateOn` guard, circuit-open alert,
+**+ F38 pref-push + F39 switch ka jhoot**) → Phase 1 robustness `v5.11.0` (WakeState single-source-of-truth, HAAL heartbeat/resync, gate
+calibration, read-error guard, wake ka apna recognizer, session-shaping extras) → Phase 2
+observability `v5.11.1` (`wakeState()` bridge, HAAL JS+Kotlin dono, WAKE DOCTOR v2, persisted history)
+→ **Phase 3 `v5.12.0` — wake ka dimaag Kotlin mein** (native matching + chime + `launchApp`,
+boot autostart, service heartbeat, screen-off wake — F25/F26/F28/F33/F36/F37 ka ilaj) → Phase 4 engine swap `v6.0.0` (offline KWS).
+Har phase ke acceptance criteria, test-locks (wiring par, declaration par nahi — F01 ka sabaq),
+10 device tests aur numeric targets doc mein hain.
+
+🧪 Forensic ke waqt tests **1153/1153** the (koi code change nahi hua tha) — **v5.10.3** mein
+Phase 0 implement hua aur +40 locks ke sath **1193/1193** ho gaye (upar dekhein).
+
+📖 [`docs/FORENSIC-WAKE-WORD.md`](docs/FORENSIC-WAKE-WORD.md)
+
+---
+
+## 🛑 v5.10.2 — ghalat screen ab **KHULTI HI NAHI** *(hotfix · aap ke panel ka doosra saboot)*
+
+v5.10.1 ne button ko **bolna** sikhaya (screen ka naam batata tha). Aap ne panel chala kar jo
+bheja, us ne ek chhed aur pakda:
+
+```
+✅ Jo screen khuli: com.android.settings/.Settings$ManageAssistActivity
+☝️ Us mein dhoondo: Voice typing → Faster voice typing → Offline speech recognition
+```
+
+Yaani **"Digital assistant" screen phir bhi khuli**, aur hum ne us par *Voice typing* dhoondne ko
+keh diya. Naam batana **aadha** ilaj tha.
+
+| Kya | Ilaj |
+|---|---|
+| OEM ne `ACTION_VOICE_INPUT_SETTINGS` ko assistant screen par alias kiya | `go(i, vararg blocked)` — naam `assist` se mile to screen **kholta hi nahi**, agla rung azmata hai (teeno voice rungs par block; `assistant` darwaza jaan boojh kar khula) |
+| Panel **apni hi fehrist se takra** gaya: `com.google.android.tts` (Speech Recognition and Synthesis) maujood tha, magar hum sirf "poori Google app" dekhte the → *"pehle install karo"* | Ab `srv` fehlist se pehchante hain → `✅ Google ka speech service` ki alag line, aur mashwara halat ke hisaab se (ek service ho to *"wahi default hai, chunne ki zaroorat NAHI"*) |
+| `🤝 SACH: offline wake mumkin NAHI` — **jhoota dar** | Speech service maujood ho to pack download **ho sakta hai** (Gboard typing offline chalegi). Magar **jhooti umeed bhi nahi**: Maya ki WAKE abhi online hai (`EXTRA_PREFER_OFFLINE` istemal nahi karti) — saaf likha |
+| `Languages &amp; input` (kuch render paths par `&` bigadta tha) | Apne matn se nanga `&` hataya → `Languages aur input` |
+| Darwaze badle to mashwara purana raha | **Har darwaze ka apna HINT** + naye darwaze: `appinfo:<pkg>`, `market:<pkg>` (Play Store — sirf jab `onDeviceMap` kahe ke Play Store maujood hai) |
+| **🛡️ Purana chhupa crash:** `makeRecognizer()` ka guard `>= 31`, magar `isOnDeviceRecognitionAvailable` **API 33** se hai. Android 12/12L par `NoSuchMethodError` (Error hai, Exception nahi → `catch (Exception)` pakadta hi na tha) | Guard `33` + `catch (Throwable)` — teeno jagah. **Android 12 par SUNO dabate hi app crash hoti thi** |
+
+🧪 **+30 test** (1123 → **1153**) — lab Section 29a–d (+24) aur settings-ui Section 14 (+6).
+
+📖 [`docs/FIX-v5.10.2-assistant-screen-band.md`](docs/FIX-v5.10.2-assistant-screen-band.md)
+
+---
+
+## 🗣️ v5.10.1 — ON-DEVICE LANGUAGE ka rasta theek: **andaza nahi, phone ki asli fehlist** *(hotfix · aap ki video ne pakda)*
+
+Aap ne 🗣️ **ON-DEVICE LANGUAGE** dabaya → phone ki **"Digital assistant app"** screen khul gayi
+(`None · Ella · Google Go`) — jahan offline speech ki **koi cheez hi nahi hoti**. Pakda sahi.
+
+| Chhed (code se sabit) | Nateeja |
+|---|---|
+| `for (i in tries) { startActivity(i); return true }` — **ANDHI chain**. `startActivity` sirf *ActivityNotFound* par rukta hai, aur kai OEM (Android Go/Infinix/itel) `ACTION_VOICE_INPUT_SETTINGS` ko **apni "Digital assistant" screen par alias** kar dete hain | Intent chal jata → `return true` → hum khush, aap **galat screen** par |
+| Manifest mein **`<queries>` tha hi nahi** → Android 11+ ki package-visibility se Gboard/Google app **dikhte hi nahi the** | Pehla qadam hamesha fail · 🩺 DOCTOR hamesha *"Speech by Google: nahi"* ka **jhoot** bolta (chahe install ho) |
+
+**Ilaj:** `<queries>` (aankhein wapas) · `go()` — screen khud khole se **pehle poochhta** hai aur
+**kaun si screen khuli us ka naam** wapas karta hai (`openSettingNamed`) · `onDeviceMap()` — phone par
+**sach mein maujood** RecognitionService/keyboard/assistant ki fehlist · panel sirf **ASLI darwazon** ke
+button banata hai (Gboard nahi → us ka jhoota button bhi nahi) · assistant screen ab seedhi se **bahar**.
+
+**Aur aap ke phone ka sach:** default assistant **Google Go** = Android Go/lite build — aam tor par na
+**AiAi** hota hai na **poori Google app**, yani offline zubaan pack **download hone ki jagah hi nahi**.
+Panel ab ye **saaf keh deta hai** (jhooti umeed nahi): wake **online** chalegi, behtar ke STT
+`English (India)` rakho (Urdu decoder "مایا" ko "ہے" parh leta hai).
+
+🧪 **+42 test** (1081 → **1123**) — lab Section 28 (Kotlin + JS locks, +31) aur settings-ui Section 13 (asli DOM mein panel + button, +11). CI ne 3 Kotlin compile errors pakde — theek kiye, unhein test mein **lock** kar diya (28d), aur ab CI **✅ GREEN** (run 33663584197 — APK ban gayi).
+
+📖 [`docs/FIX-v5.10.1-ondevice-rasta.md`](docs/FIX-v5.10.1-ondevice-rasta.md) *(v5.10.2 mein ghalat screen khulna hi BAND — upar dekhein)*
+
+---
+
+## 🕸️ v5.10.0 — KHUD-MUKHTAR: Maya ab khud NOTICE karti hai *(P6 · switch default OFF)*
+
+**Bay-maqsad shor khatam. Ab har khud-ba-khud baat ki WAJAH hoti hai — aur har wajah ka hisab.**
+
+Pehle `proactive: true` ka matlab tha: **har 6 minute ek RANDOM jumla** (`PRO_LINES` mein se),
+na waqt dekhta tha na battery, raat 3 baje bhi. Doosri taraf teen cheezein maujood thin magar
+**kabhi istemal na huin**: 📜 LEDGER (har amal ka roznamcha), 🤝 HAQEEQAT ka `state:"typed"`
+(matn likha gaya, BHEJA nahi gaya), aur battery/waqt/net ka pata.
+
+| Sutoon | Kya karta hai | Jadbahad |
+|---|---|---|
+| 👁️ **HAAL** | Abhi ka haal (~40 token) har turn dimaag ko: `dopahar 15:30 · battery 12% · 4G · aakhri amal: brightness_control 30% (5 min pehle)` | Pehle dimaag ANDHA tha — battery 12% par bhi "brightness 100 kar di" keh deta. Qanoon: **jo HAAL mein NAHI, wo ijaad mat karo** |
+| 🛡️ **BUDGET** | 6 khud-ba-khud baatein/din · do ke darmiyan 45 min · **raat 12 se subah 7 KHAMOSH** · bol/sun rahi ho to chup · battery <10% (charge na ho) to sirf zaroori · har rule 20/din | Har ROK **darj** hoti hai (`roki: khamosh-ghante 3 · farq 2 · hadd 1`) — andhi khud-mukhtari nahi |
+| 🧠 **AADAT** | LEDGER khud parh kar: `(tool + arg bucket + ghanta)` **≥4 dafa AUR ≥3 alag din** → tajweez card | *"Pichle 4 din se aap ~15:10 par brightness 20-29% karte ho. Roz KHUD kar dun?"* — **sirf 🟢 SABZ tools**, ek waqt mein EK tajweez, **NAHI = dobara kabhi nahi** |
+| 📌 **ADHOORA** | `state:"typed"` wale amal jinke baad **AUTO-SEND ✓ na aaya**, 10 min se purane → *"wo kaam adhoora reh gaya tha, ab bhejun?"* | Rozana ek se zyada nahi. `__autoSent` hook tasdeeq karta hai → **bheja hua message adhoora NAHI** |
+| ⚗️ **DRY-RUN** | *"abhi karti to kya"* — poora hisab, chalta KUCH NAHI | Naya switch dekhne ka mehfooz tareeqa |
+
+🚫 **Qanoon 2:** khud-mukhtar amal **kabhi 🔴 SURKH ya 🟡 ZARD nahi** — na call, na SMS, na WhatsApp.
+Test saare 36 tools par lagta hai: 🟢 16 ijazat ke sath, baqi 20 **rad**.
+Aur agar localStorage mein herapheri ho jaye to bhi `run()` tier dobara jaanchta hai.
+
+🧪 **106 naye test** (94 lab + 12 boot) — inhone module ke **3 asli bug** pakde: charge hote hue
+battery-guard, `Math.round` bucket (jis se 20% aur 25% ALAG aadatain ban kar shart kabhi poori
+na hoti), aur `can()` ki tarteeb (budget khatam par bhi "45 min baad" ka jhoota waada).
+
+📖 [`docs/RELEASE-v5.10.0.md`](docs/RELEASE-v5.10.0.md) · usool: [`docs/KHUD-MUKHTAR-ARCHITECTURE.md`](docs/KHUD-MUKHTAR-ARCHITECTURE.md) · plan: [`docs/P6-KHUD-MUKHTAR-PLAN.md`](docs/P6-KHUD-MUKHTAR-PLAN.md) *(v5.10.1 mein 🗣️ ON-DEVICE ka rasta bhi theek hua)*
+
+🧪 **1081 test** (975 → 1081)
+
+---
 
 ## 🎚️ v5.9.0 — SUKOON: awaaz kabhi nahi kategi · mic-larai khatam *(P9 · v5.9.1 mein 🗣️ ON-DEVICE LANGUAGE ka asli button bhi)*
 

@@ -96,6 +96,37 @@ Aap ke "haan chal raha hai" ke bagair **agla phase shuru nahi hoga.**
 
 ---
 
+### ⚖️ Qanoon 9 — HAR VERSION KE AAKHIR MEIN: "KYA NAYA HUA + KAISE PARAKHNA HAI"
+
+> **Aap ki farmaish (2026-09-03):** *"har naye version, naye improvement jab bhi karein, hum ko
+> batana hai last mein ke isme kya naya add hua aur usko kaise check karna hai, test kaise karna hai."*
+
+Ye ab **qanoon** hai, mashwara nahi. Har release ke aakhri qadam par (CI green hone ke BAAD,
+chat jawab se PEHLE) **HISSA M ka farma** poora bhar kar dena lazmi hai:
+
+1. **Kya naya hua** — aam zubaan mein, code ke naam/file ke naam ke bagair. User ko *farq*
+   nazar aana chahiye, *implementation* nahi.
+2. **Kaise check karein** — har nayi cheez ka apna test: kadam 1-2-3, **PASS ka nishaan**, aur
+   **FAIL ka nishaan** (ye sab se zaroori hai — "check karo" ke bagair natija andaza ban jata hai).
+3. **Kya abhi bhi adhoora hai** — imaandari se. Jo cheez is release mein theek NAHI hui, uska
+   naam aur uska phase. (Jhooti tasalli se bara koi nuqsan nahi.)
+4. **Agar kaam na kare to kya bhejein** — report ka exact tareeqa (kaun sa panel, kaun sa button,
+   kya copy karna hai).
+5. **Version ki pehchaan** — user ko kaise pata chale ke nayi APK asal mein lag gayi (boot toast,
+   `appVersion()`, panel ki koi nayi line).
+
+**Do jagah ye report likhi jayegi:**
+* `docs/FIX-<version>-<naam>.md` (ya `RELEASE-<version>.md`) ke andar **"## 📱 RELEASE REPORT"**
+  heading se — taake hamesha ke liye darj rahe.
+* Chat ke aakhri jawab mein — chhota, table ki shakl mein.
+
+*(Note: HISSA K ke audit mein "Qanoon 8 (naya)" lafz commit+push discipline ke liye istemal
+hua tha — is liye ye **QANOON 9** hai, takraav se bachne ko.)*
+
+**Ye qanoon test-lock bhi hai** (`tools/test-lab-engine.js`, Section 31): agar release doc mein
+`## 📱 RELEASE REPORT` heading na ho, ya us mein "PASS ka nishaan" na ho, to tests **FAIL** honge.
+
+
 # HISSA C — NAYA DHANCHA (code kahan rahega)
 
 Sab kuch usi `index.html` mein rahega *(single-file app hai — service worker aur
@@ -635,3 +666,47 @@ farmaish ne kar diya**, aur 3 aur nikal aaye. Isi liye workflow mein **SHADOW MO
 mukammal lagti hai, asal imtihan istemal hai.
 
 **Kul chhed: 18. Sab plan mein shamil.**
+
+---
+
+# HISSA M — 📱 RELEASE REPORT ka FARMA (har version ke baad lazmi bharna hai)
+
+Qanoon 9 ka amal. Is farma ko copy kar ke har `docs/FIX-*.md` / `docs/RELEASE-*.md` ke aakhir
+mein chipkayein, aur chat ke jawab mein iska chhota roop dein.
+
+```markdown
+## 📱 RELEASE REPORT — v<version> "<naam>"
+
+### 1. Kya naya hua (aam zubaan — code ke naam ke bagair)
+| # | Aap ko kya farq dikhega | Pehle | Ab |
+|---|---|---|---|
+| 1 | … | … | … |
+
+### 2. Kaise check karein (har cheez ka apna test)
+| Test | Kadam (1-2-3) | ✅ PASS ka nishaan | ❌ FAIL ka nishaan |
+|---|---|---|---|
+| T1 | … | … | … |
+
+### 3. Kya abhi bhi adhoora hai (imaandari)
+* … (kaun sa flaw, kis phase mein theek hoga)
+
+### 4. Agar kaam na kare — ye bhejein
+* LAB → <panel ka naam> → poora text copy → yahan paste
+* Sath mein: phone ka naam, Android version, aur kya kar rahe the
+
+### 5. Version ki pehchaan (nayi APK lagi ya nahi)
+* Boot par toast: `MAYA v<version> • …`
+* LAB → <kahan> par: `<pehchaan ki line>`
+```
+
+**Bharne ke usool:**
+
+* Hissa 1 mein **file ka naam, function ka naam, flaw-code (F01 waghera) NAHI** — wo sab doc ke
+  upar wale hisson mein hota hai. Yahan sirf *"aap ki zindagi mein kya badla"*.
+* Hissa 2 ka har test **≤4 kadam** ka ho aur **ek nazar** mein natija dikhe (panel ki koi line,
+  koi toast, koi awaaz). Aisa test na likhein jiske liye adb ya logcat chahiye.
+* Hissa 2 mein **FAIL ka nishaan** likhna lazmi hai — warna user ko pata hi nahi chalega ke
+  cheez tooti hui hai (aur hum andhere mein guess karte rahenge).
+* Hissa 3 **khali nahi ho sakta** — koi release mukammal nahi hoti. Jo adhoora hai wo likhein.
+* Hissa 5 ke bagair user purani APK par naye fix ko azmata rahega aur humein "kaam nahi kiya"
+  kahega — ye v5.10.x ka barha hua sabak hai.

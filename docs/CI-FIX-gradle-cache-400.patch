@@ -1,0 +1,59 @@
+# ⚠️ OPTIONAL HARDENING — ye v5.10.1 ki nakami ki WAJAH NAHI thi.
+# Asal wajah: Kotlin ke 3 compile errors (Unresolved reference x2 + Type mismatch),
+# jo theek ho chuke hain aur Section 28d mein lock hain.
+# 'Restore Gradle distribution 8.7 failed: Cache service responded with 400'
+# sirf ek WARNING tha (gradle phir bhi chala) — maine use ghalat samjha.
+# Is patch ka faida sirf ye hai ke build ka poora log ARTIFACT ban jata,
+# taake agli nakami ki wajah 2 minute mein mil jaye.
+# Lagane ka tareeqa: .github/workflows/build-apk.yml mein ye changes khud karein
+# (Arena ke App ke paas 'workflows' permission nahi, is liye wo push nahi kar sakta).
+--- a/.github/workflows/build-apk.yml
++++ b/.github/workflows/build-apk.yml
+@@
+-      - name: 3. Gradle 8.7 setup
++      # ⚠️ v5.10.1 ka sabak: 2 Sep 2026 ko GitHub ka cache service 400 dene
++      # laga → "Restore Gradle distribution 8.7 failed" → gradle binary hi
++      # na aayi → step "APK BUILD" 2 SECOND mein exit 1. Aur run ka log bhi
++      # download na ho saka (results blob EOF). Andhere mein teer na chalana
++      # pare, is liye: setup-gradle optional + ZIP fallback + log artifact.
++      - name: 3. Gradle 8.7 setup (cache se, warna ZIP se)
++        continue-on-error: true
+         uses: gradle/actions/setup-gradle@v3
+         with:
+           gradle-version: '8.7'
+ 
+-      - name: 4. APK BUILD (3-6 minute)
+-        run: gradle assembleDebug --no-daemon --stacktrace
++      - name: 4. Gradle ka INTEKAN (saboot ke sath)
++        run: |
++          set -x
++          if ! command -v gradle >/dev/null 2>&1; then
++            echo "::warning::setup-gradle kaam na gaya — Gradle 8.7 ZIP se khud utar rahe hain"
++            mkdir -p "$HOME/.local"
++            curl -fsSL --retry 3 -o /tmp/gradle-8.7-bin.zip \
++              https://services.gradle.org/distributions/gradle-8.7-bin.zip
++            unzip -q /tmp/gradle-8.7-bin.zip -d "$HOME/.local"
++            echo "$HOME/.local/gradle-8.7/bin" >> "$GITHUB_PATH"
++          fi
++          command -v gradle
++          gradle --version
++
++      - name: 5. APK BUILD (3-6 minute)
++        run: |
++          set -o pipefail
++          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build-log.txt
++
++      - name: 6. Build ka LOG (agar build toote to wajah yahan milegi)
++        if: always()
++        uses: actions/upload-artifact@v4
++        with:
++          name: BUILD-LOG
++          path: build-log.txt
++          if-no-files-found: ignore
+ 
+-      - name: 5. APK upload (download ke liye)
++      - name: 7. APK upload (download ke liye)
+         uses: actions/upload-artifact@v4
+         with:
+           name: MAYA-APK
+           path: app/build/outputs/apk/debug/app-debug.apk

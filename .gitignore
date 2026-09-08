@@ -9,3 +9,6 @@ captures/
 .externalNativeBuild/
 .cxx/
 node_modules/
+
+# CI: build ka log (ghalti se commit na ho)
+build-log.txt
