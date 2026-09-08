@@ -599,7 +599,7 @@ nav{padding:8px 10px 10px}
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.14.0 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.15.0 ✨</small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -994,7 +994,12 @@ nav{padding:8px 10px 10px}
               <option value="en-US">English (US)</option>
             </select>
           </div>
+          <div class="ui-field">
+            <div class="ui-label">🎙️ MERI AWAAZ — kaun bolegi?</div>
+            <div id="artistChip" class="ui-hint">🤖 AUTO — machine chunegi</div>
+          </div>
           <div id="artistGrid" class="ui-chipgrid"></div>
+          <div id="artistPolicy" class="ui-chipgrid"></div>
           <div class="ui-field">
             <div class="ui-label">TTS VOICE (system engine)</div>
             <select class="ui-input ui-select" id="sVoice"><option value="">Auto (engine default)</option></select>
@@ -1341,7 +1346,7 @@ try { document.getElementById("dbgBadge").textContent = "v5.10.2 OK \u2713"; } c
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
 /* ---------- SETTINGS (v1 migration ke saath) ---------- */
-var DEFAULTS = { name:"Sir", apikey:"", groqKey:"", ghKey:"", cerebrasKey:"", mistralKey:"", orKey:"", nvidiaKey:"", zaiKey:"", llm7Key:"", ttsKey:"", voiceEngine:"auto", gVoice:"Kore", voiceMood:"auto", neuralWifiOnly:false, neuralMaxChars:1400, edgeTTS:true, edgeVoice:"", fishKey:"", fishVoice:"", fishVoiceName:"", fishTemp:0.35, fishOn:true, trustMode:false, wakeDoor:15, micZoom:0.8, micNear:true, ttsModel:"", city:"Hyderabad", wakeLang:"en-IN", stt:"ur-PK", tts:"ur-PK", rate:1.0, pitch:1.05, voiceName:"", voiceArtist:"maya", model:"auto", autoListen:false, voiceOn:true, wakeWord:false, turbo:true, notifSpeak:false, batteryAlert:true, gender:"male", phone:"", musicApp:"youtube", favSong:"", ytChannel:"", assistName:"Maya", gfMode:false, persona:"maya", remember:true, convoMode:false, lang:"roman-ur", proactive:false, theme:"obsidian", accent:"#FF7A1A", radius:18, fontScale:1, edgeGlow:false };
+var DEFAULTS = { name:"Sir", apikey:"", groqKey:"", ghKey:"", cerebrasKey:"", mistralKey:"", orKey:"", nvidiaKey:"", zaiKey:"", llm7Key:"", ttsKey:"", voiceEngine:"auto", gVoice:"Kore", voiceMood:"auto", neuralWifiOnly:false, neuralMaxChars:1400, edgeTTS:true, edgeVoice:"", fishKey:"", fishVoice:"", fishVoiceName:"", fishTemp:0.35, fishOn:true, trustMode:false, wakeDoor:15, micZoom:0.8, micNear:true, ttsModel:"", city:"Hyderabad", wakeLang:"en-IN", stt:"ur-PK", tts:"ur-PK", rate:1.0, pitch:1.05, voiceName:"", voiceArtist:"maya", model:"auto", autoListen:false, voiceOn:true, wakeWord:false, turbo:true, notifSpeak:false, batteryAlert:true, gender:"male", phone:"", musicApp:"youtube", favSong:"", ytChannel:"", assistName:"Maya", gfMode:false, persona:"maya", remember:true, convoMode:false, lang:"roman-ur", proactive:false, theme:"obsidian", accent:"#FF7A1A", radius:18, fontScale:1, edgeGlow:false, artist:"", artistFail:"poochho", artistWarm:true };
 var settings = Object.assign({}, DEFAULTS);
 try {
   var s1 = JSON.parse(localStorage.getItem("maya_settings") || "null");
@@ -1360,11 +1365,35 @@ function pushNativePrefs(){
   try { if (window.MayaBridge.setPrefString) {
     window.MayaBridge.setPrefString('wake_lang', settings.wakeLang || 'en-IN');
     window.MayaBridge.setPrefString('mic_zoom', String(settings.micZoom === undefined ? 0.8 : settings.micZoom));
+    /* 🎙️ v5.15.0 K5.7 (F88) — awaaz ki pasand bhi Kotlin mein mehfooz: WebView ka data
+       ya cache saaf ho jaye to bhi aap ka chuna hua artist zinda rehta hai */
+    var AK = ["artist", "artistFail", "voiceEngine", "gVoice", "fishVoice", "fishVoiceName", "edgeVoice", "voiceName", "tts"], ai, av;
+    for (ai = 0; ai < AK.length; ai++) {
+      av = settings[AK[ai]];
+      if (av === undefined || av === null) av = "";
+      window.MayaBridge.setPrefString("awaaz_" + AK[ai], String(av));
+    }
   } } catch(e){}
   try { if (window.MayaBridge.setPref) {
     if (typeof FLAGS !== "undefined" && FLAGS && FLAGS.on) window.MayaBridge.setPref('sukoon', FLAGS.on('sukoon'));
     window.MayaBridge.setPref('mic_near', settings.micNear !== false);
   } } catch(e){}
+}
+
+/* 🎙️ K5.7 — Kotlin prefs se awaaz ki pasand WAPAS lao (sirf jagah khali ho to;
+   localStorage ki taaza pasand ko kabhi purani pref se dabaya nahi jata) */
+function pullNativePrefs(){
+  if (typeof NATIVE === "undefined" || !NATIVE || !window.MayaBridge || !window.MayaBridge.getPrefString) return;
+  var KEYS = ["artist", "artistFail", "voiceEngine", "gVoice", "fishVoice", "fishVoiceName", "edgeVoice", "voiceName", "tts"], i, v, cur;
+  try {
+    for (i = 0; i < KEYS.length; i++) {
+      v = String(window.MayaBridge.getPrefString("awaaz_" + KEYS[i]) || "");
+      if (!v) continue;
+      cur = settings[KEYS[i]];
+      if (cur === undefined || cur === "" || cur === null) settings[KEYS[i]] = v;
+    }
+    try { saveSettings(); } catch (e) {}
+  } catch (e) {}
 }
 
 /* ---------- MEMORY ---------- */
@@ -1614,13 +1643,10 @@ var VOICE_ARTISTS = {
   aoede:  { name: "🎶 AOODEE — breezy", geminiVoice: "Aoede", sample: "Hi! Aoede here, light and breezy!" }
 };
 
-function currentArtist(text) {
-  var id = settings.voiceArtist || "maya";
-  if (id !== "auto" && VOICE_ARTISTS[id] && VOICE_ARTISTS[id].geminiVoice) return VOICE_ARTISTS[id];
-  if (/[\u0600-\u06FF]/.test(text)) return VOICE_ARTISTS.maya;
-  if (/[\u0900-\u097F]/.test(text)) return VOICE_ARTISTS.maya;
-  return VOICE_ARTISTS.maya;
-}
+/* 🎙️ v5.15.0 (F85) — `currentArtist(text)` YAHAN THA aur poore repo mein is ka KOI
+   CALLER NAHI tha: yaani #artistGrid ki pasand likhi jati thi magar kabhi parhi nahi
+   jati thi (toast "Voice: X ✓" jhoot bolta tha). Ab pasand ka wahid darwaza ARTIST hai
+   (AWAAZ.cfg() isi se banta hai) aur purana voiceArtist id ARTIST.parse() mein ZINDA hai. */
 
 /* ═══════════════════════════════════════════════════════════════════════════
    🎙️  AWAAZ ENGINE v6  —  MAYA ki awaaz ka WAHID rasta   (app v4.2.0)
@@ -2934,10 +2960,17 @@ var RAFTAR = {
        takrane se bache), khali transcript kitni dafa aaya, aur gaane ka record. ── */
     try {
       if (typeof AWAAZ !== "undefined" && AWAAZ) {
+        var __A = (typeof ARTIST !== "undefined" && ARTIST) ? ARTIST.cur() : { n: "?", strict: false };
         out += "\n  🎵 EK AWAAZ: artist badla " + (AWAAZ.switched || 0) + " dafa · TTS aaj " +
                (AWAAZ.ttsDay ? AWAAZ.ttsDay() : 0) + "/" + (AWAAZ.TTS_DAY_MAX || 0) +
                " (session " + (AWAAZ.ttsReq || 0) + ") · pehle se mangwaye " + (AWAAZ.preheats || 0) +
                " · lock " + ((AWAAZ.lock && AWAAZ.lock.engine) || "\u2014");
+        /* 🎙️ v5.15.0 K5 — MERI AWAAZ ka hisaab: pasand, strict, retry, ijazat ka sawal */
+        out += "\n  🎙️ MERI AWAAZ: " + (__A.n || "?") + (__A.strict ? " 🔒 (sirf yahi)" : " 🤖 (auto)") +
+               " · boli " + (AWAAZ.engine || "-") + " · retry " + (AWAAZ.artistRetries || 0) +
+               " · nakam " + (AWAAZ.artistFails || 0) + " · ijazat maangi " + (AWAAZ.asks || 0) +
+               " · sach bataya " + (AWAAZ.tells || 0) +
+               ((typeof FISH !== "undefined" && FISH && FISH.cacheHits) ? (" · Fish cache hit " + FISH.cacheHits) : "");
       }
     } catch (e) {}
     try {
@@ -2955,6 +2988,177 @@ var RAFTAR = {
         " dafa diya · jawab MAX_TOKENS par kata " + (DIMAAG.maxTok || 0) + " dafa";
     } catch (e) {}
     return out;
+  }
+};
+
+/* ═════════════════════════════════════════════════════════════════════════
+   🎙️ v5.15.0 MERI AWAAZ — ARTIST: aap ki pasand ka WAHID darwaza (K5.1)
+   ---------------------------------------------------------------------------
+   F84-F88 ka ilaaj. PEHLE: #artistGrid → settings.voiceArtist likhta tha, magar us
+   setting ko parhne wala currentArtist() poore repo mein kahin CALL hi nahi hota tha
+   — yaani artist picker sirf DECORATION tha aur toast "Voice: ZEPHYR ✓" jhoot bolta
+   tha; asal awaaz kisi doosri, chhupi hui setting (gVoice) se chalti thi.
+   AB: EK object — { id, n, eng, voice, strict } — aur AWAAZ.cfg() ISI se banta hai.
+   QANOON: eng !== "auto" → STRICT → sirf wahi engine + wahi voice. Koi seerhi nahi,
+   koi timeout hijack nahi, quota/cooldown par chup-chaap artist change nahi.
+   id ka tarjuma:  g:<GeminiVoice> | fish | edge[:<voice>] | device | auto | off
+   ═════════════════════════════════════════════════════════════════════════ */
+var ARTIST = {
+  VER: 1,
+  BADGE: { neural: "\uD83C\uDFAD", fish: "\uD83D\uDC1F", edge: "\uD83C\uDF0A", device: "\uD83D\uDCF1", auto: "\uD83E\uDD16", off: "\uD83D\uDD07" },
+  s: function () { return (typeof settings === "object" && settings) ? settings : {}; },
+
+  geminiOk: function (v) {
+    if (typeof GEMINI_VOICES === "undefined") return true;
+    for (var i = 0; i < GEMINI_VOICES.length; i++) if (GEMINI_VOICES[i].id === v) return true;
+    return false;
+  },
+
+  /* id → { id, n, eng, voice } */
+  parse: function (id) {
+    var s = ARTIST.s(), i = String(id == null ? "" : id).trim(), v;
+    if (!i || i === "auto") return { id: "auto", n: "\uD83E\uDD16 AUTO \u2014 machine chune", eng: "auto", voice: "" };
+    if (i === "off") return { id: "off", n: "\uD83D\uDD07 BAND \u2014 koi awaaz nahi", eng: "off", voice: "" };
+    if (i === "fish") return { id: "fish", n: "\uD83D\uDC1F FISH \u2014 " + String(s.fishVoiceName || s.fishVoice || "aap ki pasand"), eng: "fish", voice: String(s.fishVoice || "") };
+    if (i === "device") return { id: "device", n: "\uD83D\uDCF1 PHONE \u2014 " + String(s.tts || "ur-PK"), eng: "device", voice: String(s.voiceName || "") };
+    if (i === "edge" || i.indexOf("edge:") === 0) {
+      v = (i.indexOf("edge:") === 0) ? i.slice(5) : String(s.edgeVoice || "");
+      if (!v && typeof EDGE_TTS !== "undefined" && EDGE_TTS && EDGE_TTS.pick) { try { v = EDGE_TTS.pick(); } catch (e) {} }
+      return { id: v ? ("edge:" + v) : "edge", n: "\uD83C\uDF0A EDGE \u2014 " + String(v || "Urdu"), eng: "edge", voice: String(v || "") };
+    }
+    if (i.indexOf("g:") === 0) {
+      v = i.slice(2);
+      if (!ARTIST.geminiOk(v)) v = String(s.gVoice || "Kore");
+      return { id: "g:" + v, n: "\uD83C\uDFAD GEMINI \u2014 " + v, eng: "neural", voice: v };
+    }
+    /* purane #artistGrid ka id (maya/zephyr/leda/…) — v5.15.0 mein ZINDA (F85 ka ilaaj) */
+    if (typeof VOICE_ARTISTS !== "undefined" && VOICE_ARTISTS && VOICE_ARTISTS[i] && VOICE_ARTISTS[i].geminiVoice) {
+      v = VOICE_ARTISTS[i].geminiVoice;
+      return { id: "g:" + v, n: String(VOICE_ARTISTS[i].name || ("\uD83C\uDFAD " + v)), eng: "neural", voice: v };
+    }
+    return { id: "auto", n: "\uD83E\uDD16 AUTO \u2014 machine chune", eng: "auto", voice: "" };
+  },
+
+  /* purani settings → artist id (koi pasand zaya na ho — F86/F87) */
+  legacyId: function () {
+    var s = ARTIST.s(), e = String(s.voiceEngine || "").trim(), a = String(s.voiceArtist || "").trim();
+    if (e === "off") return "off";
+    if (e === "fish") return "fish";
+    if (e === "device") return "device";
+    if (e === "edge") return String(s.edgeVoice || "") ? ("edge:" + s.edgeVoice) : "edge";
+    if (e === "neural") return "g:" + String(s.gVoice || "Kore");
+    /* jo card aap ne dabaya tha — ab wahi qanoon hai. MAGAR "maya" DEFAULTS mein pehle
+       se likha aata hai (voiceArtist:"maya"), is liye wo click ka saboot NAHI: us se har
+       user ko zabardasti strict Gemini bana dete. Sirf asli pasand (zephyr/charon/…) */
+    if (a && a !== "auto" && a !== "maya") return a;
+    return "auto";
+  },
+
+  cur: function () {
+    var s = ARTIST.s();
+    var id = String(s.artist == null ? "" : s.artist).trim() || ARTIST.legacyId();
+    var A = ARTIST.parse(id);
+    A.strict = (A.eng !== "auto" && A.eng !== "off");   /* pasand chuni = machine ka iktiyar SIFR */
+    A.from = String(s.artist || "").trim() ? "artist" : "legacy";
+    return A;
+  },
+
+  /* doosri awaaz ka MASHWARA — sirf tab jab aap khud ijazat dein (K5.3) */
+  alt: function (eng) {
+    var s = ARTIST.s();
+    if (eng === "edge") return ARTIST.parse("device");
+    if (eng === "device") return null;
+    return String(s.edgeVoice || "") ? ARTIST.parse("edge:" + s.edgeVoice) : ARTIST.parse("edge");
+  },
+
+  /* 🎙️ K5.1 — advanced knobs (engine dropdown / Gemini voice / Fish / Edge / phone) badlein
+     to artist UN SE dobara ban jaye. Warna wahi purani F86 wali khami dohra jati: ek
+     control badla, doosra chalta raha. Grid aur settings form — dono ek hi sach par late hain. */
+  syncFromKnobs: function () {
+    var s = ARTIST.s(), A = ARTIST.parse(ARTIST.legacyId());
+    if (A.id !== String(s.artist || "")) {
+      s.artist = A.id;
+      try { if (typeof saveSettings === "function") saveSettings(); } catch (e) {}
+      try { ARTIST.warm(A.eng); } catch (e) {}
+      try { if (typeof renderArtists === "function") renderArtists(); } catch (e) {}
+      try { if (typeof paintArtistChip === "function") paintArtistChip(); } catch (e) {}
+      try { if (typeof pushLog === "function") pushLog("ARTIST: knobs se ham-ahang \u2192 " + A.id); } catch (e) {}
+    }
+    return ARTIST.cur();
+  },
+
+  /* 🎙️ K5.4 — raftar artist BADAL kar nahi, TAYYARI se aati hai */
+  warm: function (eng) {
+    ARTIST.warmed = String(eng || "");
+    ARTIST.warmAt = (new Date()).getTime();
+    try {
+      if (eng === "edge" && typeof EDGE_TTS !== "undefined" && EDGE_TTS && EDGE_TTS.load) EDGE_TTS.load(function () {});
+      if (eng === "fish" && typeof FISH !== "undefined" && FISH && FISH.warm) FISH.warm();
+      if (eng === "device" && typeof loadVoices === "function") loadVoices();
+      /* neural: jaan-boojh kar koi network warm-up NAHI — Gemini ka roz ka quota pyara hai */
+    } catch (e) {}
+    return ARTIST.warmed;
+  },
+  warmed: "", warmAt: 0,
+
+  set: function (id, quiet) {
+    var A = ARTIST.parse(id), s = ARTIST.s();
+    s.artist = A.id;
+    /* engine ke advanced knobs bhi ham-ahang — settings jhoot na dikhaein */
+    if (A.eng === "neural" && A.voice) s.gVoice = A.voice;
+    if (A.eng === "edge" && A.voice) s.edgeVoice = A.voice;
+    s.voiceEngine = A.eng;                       /* auto | neural | fish | edge | device | off */
+    s.voiceOn = (A.eng !== "off");
+    try { if (typeof saveSettings === "function") saveSettings(); } catch (e) {}
+    try { ARTIST.warm(A.eng); } catch (e) {}
+    try { if (typeof AWAAZ !== "undefined" && AWAAZ) { AWAAZ.hush = false; AWAAZ.hushKey = ""; AWAAZ.ask = null; } } catch (e) {}
+    if (!quiet) {
+      try { if (typeof toast === "function") toast((A.eng === "auto") ? "\uD83E\uDD16 AUTO \u2014 ab machine chunegi" : ("\uD83C\uDF99\uFE0F Ab SIRF " + A.n + " bolegi")); } catch (e) {}
+      try { if (typeof pushLog === "function") pushLog("ARTIST: pasand badli \u2192 " + A.id); } catch (e) {}
+    }
+    try { if (typeof renderArtists === "function") renderArtists(); } catch (e) {}
+    try { if (typeof paintArtistChip === "function") paintArtistChip(); } catch (e) {}
+    return A;
+  },
+
+  /* app khulte hi: purani pasand ZINDA karo + chune hue engine ko garam karo */
+  boot: function () {
+    var s = ARTIST.s(), A = ARTIST.cur();
+    if (!String(s.artist || "").trim() && A.eng !== "auto") {
+      s.artist = A.id;                     /* ab pasand explicit + mehfooz (F87) */
+      try { if (typeof saveSettings === "function") saveSettings(); } catch (e) {}
+      try { if (typeof toast === "function") toast("\uD83C\uDF99\uFE0F Aap ki pasand (" + A.n + ") ab QANOON hai \u2014 sirf wahi bolegi"); } catch (e) {}
+    }
+    if (s.artistWarm !== false) { try { ARTIST.warm(A.eng); } catch (e) {} }
+    return A;
+  },
+
+  /* grid ke liye poori fehrist: sab engine, sab awaazein (K5.6) */
+  list: function () {
+    var out = [], i, v;
+    out.push(ARTIST.parse("auto"));
+    if (typeof GEMINI_VOICES !== "undefined") {
+      for (i = 0; i < GEMINI_VOICES.length; i++) {
+        v = GEMINI_VOICES[i];
+        out.push({ id: "g:" + v.id, n: "\uD83C\uDFAD " + (v.label || v.id), eng: "neural", voice: v.id });
+      }
+    }
+    out.push(ARTIST.parse("fish"));
+    if (typeof EDGE_TTS !== "undefined" && EDGE_TTS && EDGE_TTS.VOICES) {
+      for (i = 0; i < EDGE_TTS.VOICES.length; i++) {
+        v = EDGE_TTS.VOICES[i];
+        out.push({ id: "edge:" + v.id, n: "\uD83C\uDF0A " + v.id, eng: "edge", voice: v.id });
+      }
+    } else { out.push(ARTIST.parse("edge")); }
+    out.push(ARTIST.parse("device"));
+    return out;
+  },
+
+  /* namoona: isi artist par ek chhota jumla (K5.6) */
+  sample: function (id) {
+    var A = ARTIST.parse(id);
+    try { if (typeof AWAAZ !== "undefined" && AWAAZ && AWAAZ.speakOnce) AWAAZ.speakOnce(A.id, A.n.split("\u2014")[0] + ". Assalam-o-alaikum, main Maya hoon \u2014 ab sirf main hi bolungi."); } catch (e) {}
+    return A.n;
   }
 };
 
@@ -3018,14 +3222,23 @@ var AWAAZ = {
   /* ---------- settings ka ek hi tarjuma ---------- */
   cfg: function () {
     var s = (typeof settings === "object" && settings) ? settings : {};
-    var mode = s.voiceEngine || "auto";
+    /* 🎙️ K5.1 (F84-F88) — engine + voice ka faisla AB ARTIST karta hai (aap ki pasand).
+       PEHLE: sirf s.voiceEngine dekha jata tha aur mode "neural" ki speak() mein koi
+       shakh hi nahi thi (F89) — Gemini chunne par bhi Fish bol parti thi. */
+    var A = (typeof ARTIST !== "undefined" && ARTIST && ARTIST.cur) ? ARTIST.cur() : null;
+    var mode = A ? A.eng : (s.voiceEngine || "auto");
     if (s.voiceOn === false) mode = "off";
+    if (s.voiceEngine === "off") mode = "off";
     return {
-      on: s.voiceOn !== false,
+      on: s.voiceOn !== false && mode !== "off",
       mode: mode,                    /* auto | neural | fish | edge | device | off */
+      strict: !!(A && A.strict && mode !== "off"),   /* 🎙️ K5.2 — pasand = qanoon */
+      artist: A ? A.id : String(s.voiceEngine || "auto"),
+      artistName: A ? A.n : "",
+      artistVoice: A ? String(A.voice || "") : "",
       key: AWAAZ.keyAt(AWAAZ.ki),
       keys: AWAAZ.keyList(),
-      voice: s.gVoice || "Kore",
+      voice: (A && A.eng === "neural" && A.voice) ? A.voice : (s.gVoice || "Kore"),
       mood: s.voiceMood || "auto",
       wifiOnly: s.neuralWifiOnly === true,
       maxChars: +(s.neuralMaxChars || 1400),
@@ -3188,6 +3401,10 @@ var AWAAZ = {
 
   /* ---------- awaaz + mood ---------- */
   voiceId: function () {
+    /* 🎙️ K5.6 — namoona (audition) ya "sirf ab" wali pasand: isi dafa ye voice */
+    try {
+      if (AWAAZ.onceArtist && AWAAZ.onceArtist.eng === "neural" && AWAAZ.onceArtist.voice) return AWAAZ.onceArtist.voice;
+    } catch (e) {}
     var want = AWAAZ.cfg().voice;
     for (var i = 0; i < GEMINI_VOICES.length; i++) if (GEMINI_VOICES[i].id === want) return want;
     return "Kore";
@@ -3335,6 +3552,11 @@ var AWAAZ = {
   modelOrder: function () {
     var first = AWAAZ.model || (typeof settings === "object" && settings ? settings.ttsModel : "") || "";
     var list = [], i;
+    /* 🎙️ K5.5 (F96) — strict jawab mein MODEL bhi ek hi: model badla = awaaz badli.
+       Auto mode mein purana rawaiya barqarar (jo chale wahi yaad). */
+    try {
+      if (AWAAZ.lock && AWAAZ.lock.key && AWAAZ.lockMatch && AWAAZ.lock.model && AWAAZ.cfg().strict) return [AWAAZ.lock.model];
+    } catch (e) {}
     if (first) list.push(first);
     for (i = 0; i < AWAAZ.MODELS.length; i++) if (AWAAZ.MODELS[i] !== first) list.push(AWAAZ.MODELS[i]);
     return list;
@@ -3441,6 +3663,13 @@ var AWAAZ = {
   neural: function (text, onDone, onFail) {
     var gen = AWAAZ.gen;
     var voice = AWAAZ.voiceId(), mood = AWAAZ.moodId();
+    /* 🎙️ K5.5 (F96) — strict jawab ka model pehle hi tukre par tay: baad mein dropModel
+       ki wajah se awaaz ka lehja na badle */
+    try {
+      if (AWAAZ.lock && AWAAZ.lock.key && AWAAZ.lockMatch && !AWAAZ.lock.model && AWAAZ.cfg().strict) {
+        AWAAZ.lock.model = AWAAZ.modelOrder()[0] || "";
+      }
+    } catch (e) {}
     var list = AWAAZ.chunkPlan(text);
     if (!list.length) { onDone(); return; }
 
@@ -3511,7 +3740,7 @@ var AWAAZ = {
     if (typeof edgeTTS_speak !== "function") { onFail("MODEL"); return; }
     var gen = AWAAZ.gen;
     var s = (typeof settings === "object" && settings) ? settings : {};
-    var v = EDGE_TTS.pick();
+    var v = AWAAZ.edgeVoice();      /* 🎙️ K5.5 (F95) — jawab bhar EK HI Edge awaaz */
     AWAAZ.edgeVoiceUsed = v;
     var spoken = (typeof BOLI !== "undefined") ? BOLI.say(text, EDGE_TTS.langOf(v)) : text;
     edgeTTS_speak(spoken, v, EDGE_TTS.langOf(v), EDGE_TTS.rateStr(s.rate), EDGE_TTS.pitchStr(s.pitch),
@@ -3560,8 +3789,176 @@ var AWAAZ = {
     if (e && AWAAZ.lock && AWAAZ.lock.key && AWAAZ.lockMatch) {
       if (AWAAZ.lock.engine && AWAAZ.lock.engine !== e) AWAAZ.switched++;
       AWAAZ.lock.engine = e;
+      /* 🎙️ K5.5 — lock ab artist ka hai: engine + voice + artist id (sirf tier nahi) */
+      try {
+        var __c = AWAAZ.cfg();
+        AWAAZ.lock.artist = __c.artist || "";
+        if (e === "neural") AWAAZ.lock.voice = AWAAZ.voiceId();
+        else if (e === "edge") AWAAZ.lock.voice = AWAAZ.edgeVoiceUsed || __c.artistVoice || "";
+        else AWAAZ.lock.voice = __c.artistVoice || "";
+      } catch (e2) {}
     }
     AWAAZ.engine = e; AWAAZ.paint();
+  },
+
+  /* ═══ 🎙️ v5.15.0 MERI AWAAZ — K5.2 + K5.3: STRICT artist aur nakami ki imaandari ═══
+     QANOON: aap ne artist chuna → SIRF wahi engine, SIRF wahi voice.
+     Machine khud doosri awaaz NAHI lagati: na timeout par (F90/F91), na quota par
+     (F92), na health gate par (F93). Nakami par: ① usi artist par retry,
+     ② sach batao (WHY code ke insani matlab ke sath), ③ IJAZAT maango. */
+  STRICT_RETRY: 2,
+  ASK_MS: 90000,
+  ask: null,              /* { at, code, eng, artist, text, lockKey } */
+  onceArtist: null,       /* 🎙️ K5.6 — namoona / "sirf ab" wali ek-dafa pasand */
+  asks: 0, tells: 0, artistRetries: 0, artistFails: 0, allowed: 0,
+  hush: false, hushKey: "",
+  PERMANENT: { KEY_MISSING: 1, KEY_BAD: 1, QUOTA: 1, QUOTA_DAY: 1, OFFLINE: 1,
+               MOBILE_DATA: 1, TOO_LONG: 1, DEVICE_MODE: 1, OFF: 1, BROWSER: 1 },
+
+  /* 🎙️ K5.5 (F95) — Edge ki awaaz: jawab bhar EK HI (har tukre par dobara pick nahi) */
+  edgeVoice: function () {
+    var v = "", c, s = (typeof settings === "object" && settings) ? settings : {};
+    /* 🎙️ K5.6 — namoona / "sirf ab": isi dafa ye Edge awaaz */
+    try { if (AWAAZ.onceArtist && AWAAZ.onceArtist.eng === "edge" && AWAAZ.onceArtist.voice) return AWAAZ.onceArtist.voice; } catch (e) {}
+    try { if (AWAAZ.lock && AWAAZ.lock.key && AWAAZ.lockMatch && AWAAZ.lock.voice) return AWAAZ.lock.voice; } catch (e) {}
+    c = AWAAZ.cfg();
+    v = String((c.mode === "edge" && c.artistVoice) ? c.artistVoice : "") || String(s.edgeVoice || "");
+    if (!v && typeof EDGE_TTS !== "undefined" && EDGE_TTS && EDGE_TTS.pick) { try { v = EDGE_TTS.pick(); } catch (e) {} }
+    try { if (AWAAZ.lock && AWAAZ.lock.key && AWAAZ.lockMatch) AWAAZ.lock.voice = String(v || ""); } catch (e) {}
+    return v;
+  },
+
+  /* SIRF aap ka chuna hua artist — koi seerhi nahi (F89-F93, F99 ka khatma) */
+  onlyArtist: function (c, text, cb, gen, done) {
+    var tries = 0;
+    function fail(code) {
+      if (gen !== AWAAZ.gen) return;
+      code = code || AWAAZ.err || "NETWORK";
+      AWAAZ.artistFails++;
+      if (!AWAAZ.PERMANENT[code] && tries < AWAAZ.STRICT_RETRY) {
+        tries++; AWAAZ.artistRetries++;
+        try { if (typeof pushLog === "function") pushLog("ARTIST: " + (c.artistName || c.artist) + " — " + code + ", USI par dobara koshish (" + tries + "/" + AWAAZ.STRICT_RETRY + ")"); } catch (e) {}
+        setTimeout(function () { if (gen === AWAAZ.gen) run(); }, 350 * tries);
+        return;
+      }
+      AWAAZ.artistFail(code, c, text, cb, done);
+    }
+    function run() {
+      if (gen !== AWAAZ.gen) return;
+      var e = cb.forceEngine || c.mode;
+      AWAAZ.note("");
+      AWAAZ.setEngine(e);
+      if (cb.onStart) cb.onStart(e);
+      if (e === "device") { AWAAZ.device(text, done); return; }
+      if (e === "fish") {
+        if (!AWAAZ.fishReady()) { fail((typeof FISH !== "undefined" && FISH && FISH.block) ? (FISH.block() || "MODEL") : "MODEL"); return; }
+        AWAAZ.fish(text, done, fail); return;
+      }
+      if (e === "edge") {
+        if (!AWAAZ.edgeReady()) { fail("BRIDGE"); return; }
+        AWAAZ.edge(text, done, fail); return;
+      }
+      var blk = AWAAZ.blockReason(text);
+      if (blk) { fail(blk); return; }
+      AWAAZ.neural(text, done, fail);
+    }
+    run();
+  },
+
+  /* artist nakaam → policy (settings.artistFail): poochho | dobara | koi_bhi | chup */
+  artistFail: function (code, c, text, cb, done) {
+    var s = (typeof settings === "object" && settings) ? settings : {};
+    var pol = String(s.artistFail || "poochho");
+    AWAAZ.note(code);
+    try { if (typeof pushLog === "function") pushLog("ARTIST: " + (c.artistName || c.artist) + " NAAKAM (" + code + ") — policy: " + pol); } catch (e) {}
+    if (cb && cb.audition) {                       /* namoona: sawal nahi, sirf sach */
+      try { if (typeof toast === "function") toast("\uD83C\uDF99\uFE0F " + (c.artistName || "") + " nahi bol saki: " + (AWAAZ.why(code) || code)); } catch (e) {}
+      if (done) done(); else if (cb.onDone) cb.onDone();
+      return;
+    }
+    if (pol === "koi_bhi" || (cb && cb.forceAuto)) {
+      /* aap ne PEHLE hi ijazat de rakhi hai → purani seerhi, magar sach + ginti ke sath */
+      AWAAZ.switched++; AWAAZ.allowed++;
+      try { AWAAZ.lock.engine = ""; } catch (e) {}
+      AWAAZ.tellSwitch(code, c);
+      var cb2 = {}, k;
+      for (k in cb) if (Object.prototype.hasOwnProperty.call(cb, k)) cb2[k] = cb[k];
+      cb2.forceAuto = true; cb2.chain = true; cb2.forceEngine = "";
+      AWAAZ.speak(text, cb2);
+      return;
+    }
+    /* poochho / dobara / chup → koi doosri awaaz NAHI. Sach likho, jawab screen par hai */
+    AWAAZ.ask = { at: Date.now(), code: code, eng: c.mode, artist: c.artist,
+                  text: String(text || ""), lockKey: (cb && cb.lockKey) || "" };
+    AWAAZ.asks++;
+    AWAAZ.hush = true; AWAAZ.hushKey = (cb && cb.lockKey) || "";   /* baqi tukron par sawal dobara nahi */
+    AWAAZ.tellFail(code, c, pol === "poochho");
+    if (done) done(); else if (cb && cb.onDone) cb.onDone();
+  },
+
+  /* sach batao — jhoot nahi, chup-chaap artist change nahi (F100) */
+  tellFail: function (code, c, withAsk) {
+    var nm = (c && (c.artistName || c.artist)) || "Aap ki chuni hui awaaz";
+    var q = "\uD83C\uDF99\uFE0F " + nm + " abhi nahi bol saki \u2014 " + (AWAAZ.why(code) || ("Error: " + code)) + ". Jawab screen par likha hua hai.";
+    var alt = (typeof ARTIST !== "undefined" && ARTIST && ARTIST.alt) ? ARTIST.alt(c && c.mode) : null;
+    if (withAsk) {
+      q += alt ? (" Kya karun? Boliye ya likhiye: \u2460 \"dobara koshish\"  \u2461 \"sirf ab " + alt.n + " se bolo\"  \u2462 \"hamesha " + alt.n + "\"  \u2463 \"chup raho\"")
+               : " Kya karun? \u2460 \"dobara koshish\"  \u2463 \"chup raho\"";
+      try { if (typeof KAAN !== "undefined" && KAAN && KAAN.DARWAZA && KAAN.DARWAZA.open) KAAN.DARWAZA.open(); } catch (e) {}
+    }
+    AWAAZ.tells++;
+    try { if (typeof addBubble === "function") addBubble("ai", q); } catch (e) {}
+    try { if (typeof toast === "function") toast("\uD83C\uDF99\uFE0F " + nm + " nahi bol saki: " + (AWAAZ.why(code) || code)); } catch (e) {}
+    return q;
+  },
+
+  tellSwitch: function (code, c) {
+    var nm = (c && (c.artistName || c.artist)) || "Aap ki awaaz";
+    var q = "\uD83C\uDF99\uFE0F " + nm + " nakaam (" + (AWAAZ.why(code) || code) + ") \u2014 aap ki ijazat se doosri awaaz par ja rahi hoon.";
+    AWAAZ.tells++;
+    try { if (typeof addBubble === "function") addBubble("ai", q); } catch (e) {}
+    try { if (typeof pushLog === "function") pushLog("ARTIST: ijazat se switch — " + code); } catch (e) {}
+    return q;
+  },
+
+  /* aap ka jawab samjho (K5.3) */
+  answer: function (txt) {
+    var a = AWAAZ.ask; if (!a) return null;
+    var t = String(txt || "").toLowerCase().trim(); if (!t) return null;
+    var alt = (typeof ARTIST !== "undefined" && ARTIST && ARTIST.alt) ? ARTIST.alt(a.eng) : null;
+    if (/(dobara|koshish|retry|phir se|again|ek aur bar)/.test(t)) return { act: "retry" };
+    if (/(chup|khamosh|nahi bol|silent|bas likho|sirf likho)/.test(t)) return { act: "silent" };
+    if (!alt) return null;
+    if (/(hamesha|always|permanent|sab se|set kar|badal do)/.test(t)) return { act: "always", id: alt.id, n: alt.n };
+    if (/(haan|ji|ok|theek|bolo|bolun|abhi|ek dafa|sirf ab|edge|fish|gemini|phone|device|awaz|awaaz)/.test(t)) return { act: "once", id: alt.id, n: alt.n };
+    return null;
+  },
+  applyAnswer: function (r) {
+    var a = AWAAZ.ask || {}, txt = String(a.text || "");
+    AWAAZ.ask = null; AWAAZ.hush = false; AWAAZ.hushKey = "";
+    if (!r) return "";
+    if (r.act === "silent") { try { if (typeof toast === "function") toast("\uD83E\uDD2B Theek hai \u2014 sirf likhungi"); } catch (e) {} return "\uD83E\uDD2B Theek hai, ab sirf likhungi."; }
+    if (r.act === "always") { try { if (typeof ARTIST !== "undefined") ARTIST.set(r.id); } catch (e) {} }
+    if (!txt) { try { if (typeof toast === "function") toast("\uD83C\uDF99\uFE0F Jawab screen par likha hua hai"); } catch (e) {} return ""; }
+    var cb = { lockKey: a.lockKey || "" };
+    if (r.act === "once") { try { cb.forceEngine = ARTIST.parse(r.id).eng; } catch (e) {} }
+    try { AWAAZ.speak(txt, cb); } catch (e) {}
+    return (r.act === "retry") ? "\uD83C\uDF99\uFE0F Dobara koshish kar rahi hoon\u2026" : ("\uD83C\uDF99\uFE0F " + (r.n || "") + " se bol rahi hoon\u2026");
+  },
+
+  /* namoona / ek dafa kisi artist se bulwao (grid ka "sunein" button) */
+  speakOnce: function (id, text) {
+    if (typeof ARTIST === "undefined" || !ARTIST) return false;
+    var A = ARTIST.parse(id);
+    AWAAZ.stop(); AWAAZ.gen++;
+    AWAAZ.onceArtist = A;             /* 🎙️ isi dafa: wahi voice (settings chhede baghair) */
+    var c = AWAAZ.cfg();
+    c.mode = (A.eng === "auto" || A.eng === "off") ? "neural" : A.eng;
+    c.strict = true; c.on = true; c.artist = A.id; c.artistName = A.n; c.artistVoice = String(A.voice || "");
+    if (A.eng === "neural" && A.voice) c.voice = A.voice;
+    AWAAZ.hush = false; AWAAZ.lockMatch = false;
+    AWAAZ.onlyArtist(c, String(text || "Assalam-o-alaikum, main Maya hoon."), { audition: true }, AWAAZ.gen, function () {});
+    return true;
   },
 
   /* ---------- badge + settings ka live status ---------- */
@@ -3587,6 +3984,13 @@ var AWAAZ = {
     /* 🎵 K1.1 — is speak() ka lockKey jawab ke lock se milta hai? (setEngine isi se
        faisla karta hai ke lock/engine ya artist-switch ginti update karni hai) */
     AWAAZ.lockMatch = !!(cb.lockKey && AWAAZ.lock.key === cb.lockKey);
+    if (!cb.audition) AWAAZ.onceArtist = null;   /* 🎙️ namoone ki pasand aage na chale */
+    /* 🎙️ K5.3 — is jawab ki awaaz ruk chuki (artist nakaam + sawal poocha ja chuka):
+       baqi tukron par NA koi doosri awaaz chalao NA sawal dobaro. Jawab screen par hai. */
+    if (AWAAZ.hush && AWAAZ.hushKey && cb.lockKey && AWAAZ.hushKey === cb.lockKey) {
+      if (cb.onDone) cb.onDone();
+      return;
+    }
     var c = AWAAZ.cfg();
     text = String(text || "").trim();
     if (!text) { if (cb.onDone) cb.onDone(); return; }
@@ -3596,7 +4000,10 @@ var AWAAZ = {
        intezaar chhorro — Edge, phir phone. Khamoshi sab se buri hai. */
     AWAAZ.tStart = (new Date()).getTime();
     var fastForced = AWAAZ.fastForced; AWAAZ.fastForced = "";
-    if (AWAAZ.FAST && c.on && c.mode !== "off" && !fastForced) {
+    /* 🎙️ K5.2 (F90/F91/F99) — STRICT pasand par FAST hijack ka koi haq nahi: 1800ms
+       ka timer aap ki awaaz ko KAAT kar Edge/device par phenk deta tha. Ab nahi. */
+    if (c.strict) fastForced = "";
+    if (AWAAZ.FAST && c.on && c.mode !== "off" && !fastForced && !c.strict) {
       try { if (AWAAZ.fastTo) clearTimeout(AWAAZ.fastTo); } catch (e) {}
       AWAAZ.fastTo = setTimeout(function () {
         AWAAZ.fastTo = null;
@@ -3626,6 +4033,11 @@ var AWAAZ = {
     }
 
     if (!c.on || c.mode === "off") { AWAAZ.setEngine("off"); done(); return; }
+
+    /* 🎙️ K5.2 — STRICT: aap ne khud artist chuna hai → SIRF wahi engine + wahi voice.
+       Neeche wali poori seerhi (Fish → Gemini → Edge → muft → phone) sirf AUTO ke liye hai.
+       Ye hi wo qanoon hai jo "khud ba khud voice change" ko jarr se khatam karta hai. */
+    if (c.strict && !cb.forceAuto) { AWAAZ.onlyArtist(c, text, cb, gen, done); return; }
 
     /* ⚡ J3 (F64) — fast budget ne kaha tha "ab seedha tez tier": 🐟/🎭/🌸 chhodo */
     if (fastForced === "device") { AWAAZ.note(""); useDevice(); return; }
@@ -3748,8 +4160,13 @@ var AWAAZ = {
   ttsReq: 0,                             /* is session ki Gemini TTS requests */
   TTS_DAY_MAX: 12,                       /* 🎵 K1.6 (F69) free tier ~15/din — hadd se pehle Edge */
   preheats: 0,                           /* 🎵 K1.4 (F70) kitne tukre pehle se mangwaye */
-  lockBegin: function (key) { AWAAZ.lock = { key: String(key || ""), engine: "", at: Date.now() }; },
-  lockEnd: function () { AWAAZ.lock = { key: "", engine: "", at: 0 }; },
+  lockBegin: function (key) {
+    /* 🎙️ K5.5 (F97/F98) — lock ab ARTIST lock hai: engine + voice + model + artist id.
+       hush bhi yahan saaf: naye jawab par purani nakami ka saaya na rahe */
+    AWAAZ.lock = { key: String(key || ""), engine: "", voice: "", model: "", artist: "", at: Date.now() };
+    AWAAZ.hush = false; AWAAZ.hushKey = "";
+  },
+  lockEnd: function () { AWAAZ.lock = { key: "", engine: "", voice: "", model: "", artist: "", at: 0 }; },
   ttsDay: function () {
     try {
       var d = new Date().toISOString().slice(0, 10);
@@ -3767,22 +4184,32 @@ var AWAAZ = {
     } catch (e) {}
   },
   preheat: function (text) {
-    /* 🎵 K1.4 (F70) — pichla tukra bolte waqt AGLE tukre ki awaaz peeche se mangwa lo:
-       tukron ke beech ka network gap khatam. Sirf Gemini neural par (us ka cache hai,
-       aur fetchClip udti hui request share karta hai = extra request NAHI banti) */
+    /* 🎵 K1.4 (F70) + 🎙️ K5.4 — agle tukre ki awaaz PEHLE se mangwa lo: tukron ke beech
+       ka network gap khatam. v5.14.0 mein ye SIRF Gemini par tha; ab AAP KE CHUNE HUE
+       artist par hota hai (Fish ka apna cache, Edge ki voices garam) — kyunke raftaar
+       artist badal kar nahi, TAYYARI se aani chahiye (F90/F91 ka asal ilaaj). */
     try {
-      if (AWAAZ.lock.engine !== "neural") return 0;
-      var t = String(text || "");
-      if (!t || AWAAZ.blockReason(t)) return 0;
-      var list = AWAAZ.chunkPlan(t), i, n = 0;
-      for (i = 0; i < list.length && n < 2; i++) {
-        if (list[i].length < 8) continue;
-        AWAAZ.fetchClip(list[i], {
-          voice: AWAAZ.voiceId(), mood: AWAAZ.moodId(),
-          model: AWAAZ.modelOrder()[0],
-          prompt: AWAAZ.prompt(list[i], AWAAZ.moodId())
-        }, function () {}, function () {});
-        n++;
+      var eng = AWAAZ.lock.engine, t = String(text || ""), i, n = 0;
+      if (!t || !eng) return 0;
+      if (eng === "neural") {
+        if (AWAAZ.blockReason(t)) return 0;
+        var list = AWAAZ.chunkPlan(t);
+        for (i = 0; i < list.length && n < 2; i++) {
+          if (list[i].length < 8) continue;
+          AWAAZ.fetchClip(list[i], {
+            voice: AWAAZ.voiceId(), mood: AWAAZ.moodId(),
+            model: AWAAZ.modelOrder()[0],
+            prompt: AWAAZ.prompt(list[i], AWAAZ.moodId())
+          }, function () {}, function () {});
+          n++;
+        }
+      } else if (eng === "fish" && typeof FISH !== "undefined" && FISH && FISH.preheat) {
+        n = FISH.preheat(t, AWAAZ.moodId()) || 0;
+      } else if (eng === "edge" && typeof EDGE_TTS !== "undefined" && EDGE_TTS && EDGE_TTS.load) {
+        EDGE_TTS.load(function () {});       /* voices list garam — clip nahi (WS stream hai) */
+        return 0;
+      } else {
+        return 0;                            /* device: mangwane ko kuch hai hi nahi */
       }
       if (n) AWAAZ.preheats++;
       return n;
@@ -3826,7 +4253,10 @@ var AWAAZ = {
       edgeOn: c.edge,
       edgeReady: AWAAZ.edgeReady(),
       edgeNative: (typeof EDGE_TTS === "object" && EDGE_TTS) ? EDGE_TTS.native() : false,
-      edgeVoice: (typeof EDGE_TTS === "object" && EDGE_TTS) ? EDGE_TTS.pick() : "",
+      edgeVoice: AWAAZ.edgeVoice(),                 /* 🎙️ K5.5 — pasand/lock wali awaaz */
+      artist: c.artist, artistName: c.artistName, strict: !!c.strict,
+      artistRetries: AWAAZ.artistRetries, artistFails: AWAAZ.artistFails,
+      asks: AWAAZ.asks, tells: AWAAZ.tells, hush: !!AWAAZ.hush,
       edgeSpoke: AWAAZ.edgeSpoke,
       fish: (typeof FISH === "object" && FISH) ? FISH.status() : null,
       fishSpoke: AWAAZ.fishSpoke,
@@ -4452,6 +4882,46 @@ var FISH = {
   cool: 0,            /* 429 / 402 ke baad thori der haath na lagao */
   COOL: 300000,
   lib: null,          /* awaaz ki library (jab mangwai jaye) */
+  /* 🎙️ K5.4 (F90/F91/F94) — Fish ka apna chhota cache + preheat.
+     Fish be-hisaab hai, magar har tukre ka network round-trip jawab mein gap dalta tha;
+     aur gap dekh kar purana FAST hijack artist badal deta tha. Ab gap hi nahi, is liye
+     artist badalne ki zaroorat bhi nahi.
+     Cache SIRF preheat se bharta hai (aam speak par nahi) — taake purane rawaiye par koi
+     asar na pare aur koi dohraya hua jumla galti se purani clip na bol de. */
+  CACHE_MAX: 6, cache: {}, cacheOrder: [], cacheHits: 0, warmAt: 0, warmVerdict: "",
+  ckey: function (t, mood) { return FISH.voice() + "|" + String(mood || "") + "|" + String(t || "").slice(0, 500); },
+  cacheGet: function (k) { return Object.prototype.hasOwnProperty.call(FISH.cache, k) ? FISH.cache[k] : null; },
+  cachePut: function (k, b64) {
+    if (!b64) return false;
+    FISH.cache[k] = b64; FISH.cacheOrder.push(k);
+    while (FISH.cacheOrder.length > FISH.CACHE_MAX) { delete FISH.cache[FISH.cacheOrder.shift()]; }
+    return true;
+  },
+  /* sasta warm-up: haqeeqat ka pata (key/bridge/rate) — koi request NAHI */
+  warm: function () {
+    FISH.warmAt = Date.now();
+    try { FISH.warmVerdict = FISH.block() || "OK"; } catch (e) { FISH.warmVerdict = "ERR"; }
+    return FISH.warmVerdict;
+  },
+  /* agle tukre ki clip peeche se mangwa lo (AWAAZ.preheat isi ko bulata hai) */
+  preheat: function (text, mood) {
+    if (!FISH.ready()) return 0;
+    var list, n = 0;
+    try { list = AWAAZ.chunks(String(text || ""), FISH.MAXCHARS); } catch (e) { return 0; }
+    function go(k, chunk) {
+      FISH.req("POST", FISH.API, FISH.headers(), FISH.body(chunk, mood), function (status, b64) {
+        if (status === 200 && b64) FISH.cachePut(k, b64);
+      });
+    }
+    for (var i = 0; i < (list || []).length && n < 1; i++) {
+      if (!list[i] || list[i].length < 8) continue;
+      var k = FISH.ckey(list[i], mood);
+      if (FISH.cacheGet(k)) continue;
+      go(k, list[i]); n++;
+    }
+    return n;
+  },
+
   loadLib: function () {
     if (FISH.lib) return FISH.lib;
     try {
@@ -4679,6 +5149,13 @@ var FISH = {
       if (gen !== AWAAZ.gen) return;
       if (idx >= list.length) { FISH.spoke++; onDone(); return; }
       var t0 = Date.now();
+      /* 🎙️ K5.4 — preheat ki hui clip maujood? Seedha bajao: network gap = 0 */
+      var kk = FISH.ckey(list[idx], mood), hit = FISH.cacheGet(kk);
+      if (hit) {
+        FISH.cacheHits++; delete FISH.cache[kk];
+        FISH.play(hit, gen, function () { one(idx + 1); }, function (cc) { onFail(cc); });
+        return;
+      }
       FISH.req("POST", FISH.API, FISH.headers(), FISH.body(list[idx], mood), function (status, b64, ctype, err) {
         if (gen !== AWAAZ.gen) return;
         FISH.lastHttp = status;
@@ -5594,6 +6071,24 @@ function handleUserText(text, wasVoice){
   try { if (typeof HAQEEQAT !== "undefined") HAQEEQAT.clear(); } catch (e) {}
   try { if (typeof TRACE !== "undefined") TRACE.start(); } catch (e) {}
   if (typeof NAAP !== "undefined") NAAP.start(wasVoice ? "voice" : "text");   /* 📊 P0 */
+
+  /* 🎙️ v5.15.0 K5.3 — AWAAZ NAAKAM THI aur Maya ne IJAZAT maangi thi
+     ("dobara / sirf ab Edge se / hamesha Edge / chup raho"). Jawab yahan samjha jata hai.
+     Hijack NAHI: ye koi doosra hukm hua to sawal bhool kar pehle wahi kaam hoga. */
+  try {
+    if (typeof AWAAZ !== "undefined" && AWAAZ && AWAAZ.ask && ((Date.now() - AWAAZ.ask.at) < AWAAZ.ASK_MS)) {
+      var _aa = AWAAZ.answer(stripped);
+      if (_aa) {
+        var _am = AWAAZ.applyAnswer(_aa);
+        try { NAAP.mark("brain"); } catch (e) {}
+        if (_am) reply(_am, wasVoice, null, { noSpeak: true });
+        return;
+      }
+      AWAAZ.ask = null;                   /* koi doosra hukm tha — sawal bhool gayi */
+    } else if (typeof AWAAZ !== "undefined" && AWAAZ && AWAAZ.ask) {
+      AWAAZ.ask = null;                   /* muddat khatam */
+    }
+  } catch (e) {}
 
   /* 🎵 v5.14.0 K3.2 (F82) — GAANA POOCHA THA: "kaunsa gaana ya artist?" ke jawab mein
      aaya hua naam dimaag ke chakkar ke bagair seedha chalao. Hijack NAHI karte agar
@@ -10751,6 +11246,9 @@ var SETFORM = {
     SETFORM.apply();                      /* 3. asraat + gender check */
     saveSettings();                       /* 4. mehfooz karo */
     SETFORM.load();                       /* 5. ab form dobara likho */
+    /* 🎙️ 6. v5.15.0 K5.1 — form ke knobs se artist ham-ahang: engine/awaaz badli to
+       AWAAZ.cfg() foran wahi uthaye (purani khami: form badla, engine kuch aur chala) */
+    try { if (typeof ARTIST !== "undefined" && ARTIST.syncFromKnobs) ARTIST.syncFromKnobs(); } catch (e) {}
 
     if (wakeWas !== !!settings.wakeWord) { try { setWakeService(!!settings.wakeWord); } catch (e) {} }
     if (moved) toast("Ye " + moved + " key thi — sahi khane mein rakh di ✓");
@@ -11328,15 +11826,72 @@ function brandTips(){
   } catch(e){}
 }); })($("#autoSendBtn"));
 
+/* 🎙️ v5.15.0 K5.6 — PEHLE ye grid sirf DECORATION tha: selectArtist → settings.voiceArtist
+   likhta tha, magar us setting ko parhne wala currentArtist() kahin call hi nahi hota tha
+   (F84/F85) — aur toast "Voice: X ✓" jhoot bolta tha. AB: har card ARTIST.set() se ASAL
+   engine + voice badalta hai (strict = qanoon), "🔊" usi artist ka namoona bolta hai, aur
+   neeche policy chips hain: nakami par Maya kya kare (poochho / dobara / koi bhi / chup). */
 function renderArtists() {
-  var host = $("#artistGrid"); if (!host) return; var html = "";
-  Object.keys(VOICE_ARTISTS).forEach(function(id) {
-    var a = VOICE_ARTISTS[id]; var sel = (settings.voiceArtist || "maya") === id;
-    html += "<button onclick=\"selectArtist('" + id + "')\" style=\"" + (sel ? "background:linear-gradient(135deg,#22d3ee,#a78bfa);color:#0a0f1a;font-weight:700;" : "background:var(--glass);border:1px solid var(--line);color:var(--text);") + "border-radius:8px;padding:8px 6px;font-size:10px;cursor:pointer;border:none;text-align:center;line-height:1.3\">" + a.name + "</button>";
-  });
+  var host = $("#artistGrid"); if (!host) return;
+  var cur = (typeof ARTIST !== "undefined") ? ARTIST.cur() : { id: "auto" };
+  var list = (typeof ARTIST !== "undefined") ? ARTIST.list() : [];
+  var html = "", i, a, sel, sty, aid;
+  for (i = 0; i < list.length; i++) {
+    a = list[i]; sel = (cur.id === a.id); aid = String(a.id).replace(/'/g, "");
+    sty = sel ? "background:linear-gradient(135deg,#22d3ee,#a78bfa);color:#0a0f1a;font-weight:700;" : "";
+    html += "<button type=\"button\" onclick=\"selectArtist('" + aid + "')\" style=\"" + sty + "\">" +
+            (sel ? "✅ " : "") + esc(a.n) + "</button>";
+    if (a.eng !== "auto" && a.eng !== "off") {
+      html += "<button type=\"button\" title=\"namoona sunein\" onclick=\"artistSample('" + aid + "')\" style=\"opacity:.8\">🔊</button>";
+    }
+  }
+  host.innerHTML = html;
+  try { renderArtistPolicy(); } catch (e) {}
+  try { paintArtistChip(); } catch (e) {}
+}
+
+/* nakami par kya kare — aap ka qanoon (settings.artistFail) */
+function renderArtistPolicy() {
+  var host = $("#artistPolicy"); if (!host) return;
+  var pol = String((typeof settings === "object" && settings ? settings.artistFail : "") || "poochho");
+  var opts = [["poochho", "🙋 Poochho (mashwara)"], ["dobara", "🔁 Sirf dobara koshish"],
+              ["koi_bhi", "🔀 Koi bhi (ijazat pehle)"], ["chup", "🤫 Chup — sirf likho"]];
+  var html = "<div style=\"width:100%;opacity:.85;font-size:12px\">Agar chuni hui awaaz NAAKAM ho jaye to Maya kya kare?</div>", i;
+  for (i = 0; i < opts.length; i++) {
+    html += "<button type=\"button\" onclick=\"setArtistFail('" + opts[i][0] + "')\" style=\"" +
+            (pol === opts[i][0] ? "background:linear-gradient(135deg,#22d3ee,#a78bfa);color:#0a0f1a;font-weight:700;" : "") +
+            "\">" + (pol === opts[i][0] ? "✅ " : "") + opts[i][1] + "</button>";
+  }
   host.innerHTML = html;
 }
-window.selectArtist = function(id) { settings.voiceArtist = id; saveSettings(); renderArtists(); toast("Voice: " + VOICE_ARTISTS[id].name.split("—")[0].trim()); };
+window.setArtistFail = function (p) {
+  settings.artistFail = p; saveSettings();
+  try { renderArtistPolicy(); } catch (e) {}
+  toast(p === "poochho" ? "🙋 Ab Maya ijazat maangegi — chup-chaap artist nahi badlegi"
+      : p === "chup"   ? "🤫 Awaaz nakaam hui to sirf likhegi"
+      : p === "koi_bhi"? "🔀 Zaroorat par doosri awaaz chalegi (aap ki pehle se ijazat)"
+      : "🔁 Sirf usi artist par dobara koshish karegi");
+};
+window.artistSample = function (id) {
+  try { ARTIST.sample(id); } catch (e) { toast("🔊 namoona nahi chal saka"); }
+};
+/* 🔑 SACH: ab pasand WAQAI badalti hai (engine + voice + strict), aur toast wahi kehta hai */
+window.selectArtist = function (id) {
+  try { ARTIST.set(id); } catch (e) { toast("artist set nahi ho saka"); }
+};
+
+/* 🎙️ K5.6 — hamesha nazar rahe: kaun bolegi, strict hai ya nahi, abhi kaun boli */
+function paintArtistChip() {
+  var el = $("#artistChip"); if (!el) return;
+  var A = (typeof ARTIST !== "undefined") ? ARTIST.cur() : { n: "?", eng: "auto", strict: false };
+  var last = (typeof AWAAZ !== "undefined") ? String(AWAAZ.engine || "-") : "-";
+  var sw = (typeof AWAAZ !== "undefined") ? (AWAAZ.switched || 0) : 0;
+  el.innerHTML = A.strict
+    ? ("🔒 <b>" + esc(A.n) + "</b> — SIRF yahi bolegi (machine khud artist nahi chunti)")
+    : ("🤖 <b>AUTO</b> — machine chunegi (🐟 Fish → 🎭 Gemini → 🌊 Edge → 📱 phone)");
+  el.innerHTML += " · abhi boli: <b>" + esc(last) + "</b>" + (sw ? (" · artist badla: " + sw) : "");
+  el.className = "ui-hint" + (A.strict ? " ok" : "");
+}
 
 
 function setWakeService(on){
@@ -11685,6 +12240,8 @@ function paintAwaaz(){
     if (el) {
       var line;
       if (!settings.voiceOn || st.mode === "off") line = "🔇 Maya khamosh hai";
+      else if (st.strict) line = "🔒 <b>" + st.artistName + "</b> — SIRF yahi bolegi (machine khud artist nahi badlegi)" +
+                                 (st.block ? " · abhi rukawat: " + st.why : "");
       else if (st.mode === "device") line = "📱 Phone ki awaaz — 0 data, foran";
       else if (st.ready) line = "🎭 Gemini neural tayyar — <b>" + st.voice + "</b> · " + st.mood + " · " + st.liveKeys + "/" + st.keys + " key zinda";
       else if (st.keyless) line = "🌸 Muft neural awaaz chalegi — " + st.why + (st.cooldown ? " (" + st.cooldown + "s)" : "");
@@ -11733,7 +12290,13 @@ renderCmds(""); renderFacts(); loadSettingsForm(); paintQuick(); setOrb("idle");
 fillWeatherChip();
 setInterval(fillWeatherChip, 1800000);
 populateVoiceSelect();
+/* 🎙️ v5.15.0 K5.7 (F88) — pasand mehfooz: pehle Kotlin prefs se bahal (WebView ka data
+   saaf ho jaye to bhi aap ki awaaz wapas), phir purani settings ka migration, phir chune
+   hue engine ka warm-up (K5.4: raftar tayyari se aati hai, artist badal kar nahi) */
+try { pullNativePrefs(); } catch (e) {}
+try { if (typeof ARTIST !== "undefined") ARTIST.boot(); } catch (e) {}
 renderArtists();
+try { paintArtistChip(); } catch (e) {}
 setTimeout(consolidateMemory, 4000);
 if (NATIVE && settings.wakeWord) setTimeout(function(){ try { setWakeService(true); } catch(e){} }, 1500);
 /* 🔬 v5.10.3 (F25) — app khulte hi Kotlin ka native buffer JS mein utaar lo:
@@ -11762,7 +12325,7 @@ setInterval(function(){ try { HAALBAR.tick(); } catch (e) {} }, 250);
    jhoot bolti thi, aur user ko "APK purani hai ya nayi" ka faisla karne mein
    dhoka hota tha. Ab toast, log aur header teeno ek hi constant se bante hain, aur
    test-lock gradle ke versionName se milaan karta hai (Section 35). */
-var MAYA_VER = "5.14.0", MAYA_NAAM = "\uD83C\uDFB5 EK AWAAZ";
+var MAYA_VER = "5.15.0", MAYA_NAAM = "\uD83C\uDF99\uFE0F MERI AWAAZ";
 try {
   var _st = document.querySelector("#subTitle");
   if (_st) _st.textContent = "PERSONAL AI v" + MAYA_VER + " \u2728";
