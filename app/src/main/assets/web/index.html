@@ -599,7 +599,7 @@ nav{padding:8px 10px 10px}
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.12.5 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.13.0 ✨</small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -1382,13 +1382,21 @@ var _fileIndex = [];
 var replyCache = {};
 try { replyCache = JSON.parse(localStorage.getItem("maya_cache") || "{}"); } catch(e){}
 function cacheKey(t){ return String(t).toLowerCase().replace(/[^a-z0-9\u0600-\u06FF\u0900-\u097F ]/g, "").replace(/\s+/g, " ").trim(); }
-var ACTION_WORDS = /(alarm|timer|reminder|call|phone|whatsapp|message|sms|open|khol|chalao|play|baja|download|file|pdf|photo|screenshot|search|khojo|dhoond|wiki|wikipedia|fetch|yaad rakh|diary|battery|mausam|weather|share|youtube|google|average|nikalo|calculate|convert|kitna|kitne)/i;
+/* ⚡ J3 (F62): 'screen|dekh|dikh|nazar|parho|button|camera|torch|volume|brightness|namaz'
+   PEHLE is regex mein NAHI the — "screen par kya hai" par tools bante hi nahi the. */
+var ACTION_WORDS = /(alarm|timer|reminder|call|phone|whatsapp|message|sms|open|khol|chalao|play|baja|download|file|pdf|photo|screenshot|search|khojo|dhoond|wiki|wikipedia|fetch|yaad rakh|diary|battery|mausam|weather|share|youtube|google|average|nikalo|calculate|convert|kitna|kitne|screen|dekh|dikh|nazar|parho|button|camera|torch|volume|brightness|namaz|ijazat|skill)/i;
 /* Purani ACTION_WORDS regex haath se likhi thi aur 33 mein se 12 tools use
    NAZAR HI NAHI AATE the (brightness/torch/volume/reminder/namaz…). Ab har
    tool apne trigger khud deta hai — AMAL.TRIGGERS — aur regex UNHI se banti hai. */
 function needsTools(t){
+  /* ⚡ J3 (F62) — PEHLE poori trigger fehlist (AMAL.TRIGGERS, 33 tools) sirf tab
+     chalti thi jab LAB ka `poolTools` ON ho — default OFF. Nateeja: "screen par kya
+     hai" jaise sawal purani ACTION_WORDS mein na aate → need=false → fallback dimaag
+     ko "tools available nahi" ka note chala jata aur NAZAR ka zikr hi na hota.
+     Ab DETECTION hamesha AMAL se; `poolTools` sirf "tools har provider ko bhejo"
+     wale alag faisle ke liye bacha hai (BRAIN.plan). */
   try {
-    if (typeof AMAL === "object" && AMAL && FLAGS.on("poolTools")) return AMAL.actionRe().test(t);
+    if (typeof AMAL === "object" && AMAL && AMAL.actionRe) return AMAL.actionRe().test(t);
   } catch (e) {}
   return ACTION_WORDS.test(t);
 }
@@ -1713,7 +1721,11 @@ var SCHEMA = {
 /* ───────────────────────── 🧪 FLAGS — har nayi cheez ek switch ke peeche ───── */
 var FLAGS = {
   KEY: "maya_flags",
-  DEF: { naap: true, saaf: false, malik: false, poolTools: false, suno: false, sach: false, boli: false, ijazat: false, bijli: false, aankh: false, nazar: false, sukoon: true, talk: true, khud: false }   /* 🎛️ J2.3: talk (baat-cheet) default ON — malik ka faisla */,  /* naap + sukoon default ON (bay-zarar / bugfix) · khud (P6) default OFF — pehle sabit ho, phir chale */
+  /* ⚡ J3 (F59): `nazar` ab default ON — pehle OFF tha, is liye read_screen tool
+     hamesha "NAZAR band hai" kehta tha (screen ka jawab hi nahi aata tha). LAB ka
+     switch ab kill-switch hai.  ⚡ J3 (F63): `raftar` = dimaag ka jawab stream
+     karna (pehla jumla aate hi bolna) — default ON, nakami par khud band ho jata hai. */
+  DEF: { naap: true, saaf: false, malik: false, poolTools: false, suno: false, sach: false, boli: false, ijazat: false, bijli: false, aankh: false, nazar: true, sukoon: true, talk: true, raftar: true, khud: false }   /* 🎛️ J2.3: talk (baat-cheet) default ON — malik ka faisla */,  /* naap + sukoon default ON (bay-zarar / bugfix) · khud (P6) default OFF — pehle sabit ho, phir chale */
   v: null,
   load: function () {
     if (FLAGS.v) return FLAGS.v;
@@ -1744,7 +1756,8 @@ var FLAGS = {
 /* ───────────────────────── 📊 NAAP — har turn ka waqt ───────────────────────
    Bina is ke "teiz ho gaya" sirf ehsaas hai. Ab number honge.
    Marks: heard(STT khatam) · brain(dimaag ka jawab) · tool(pehla amal) ·
-          voice(pehli awaaz) · done
+          first(⚡ J3: PEHLI AWAAZ baji — raftar ka sab se ahem number) ·
+          voice · done · stream(jawab tukron mein aaya tha)
    (CHHED 1 aur 7) */
 var NAAP = {
   KEY: "maya_naap",
@@ -1786,6 +1799,7 @@ var NAAP = {
       if (info.tool) c.tool = String(info.tool).slice(0, 24);
       if (info.err) c.err = String(info.err).slice(0, 24);
       if (info.saaf) c.saaf = info.saaf | 0;          /* kitne harf soch ke kate */
+      if (info.stream) c.stream = 1;                  /* ⚡ J3: jawab stream hua tha */
     }
     NAAP.hist.push(c);
     if (NAAP.hist.length > NAAP.MAX) NAAP.hist = NAAP.hist.slice(-NAAP.MAX);
@@ -1817,7 +1831,9 @@ var NAAP = {
     }
     return {
       turns: NAAP.hist.length,
+      streams: (function () { var n = 0, i; for (i = 0; i < NAAP.hist.length; i++) if (NAAP.hist[i].stream) n++; return n; })(),
       brain: { p50: NAAP.pct(NAAP.col("brain"), 50), p90: NAAP.pct(NAAP.col("brain"), 90) },
+      first: { p50: NAAP.pct(NAAP.col("first"), 50), p90: NAAP.pct(NAAP.col("first"), 90) },   /* ⚡ J3: pehli awaaz */
       tool:  { p50: NAAP.pct(NAAP.col("tool"), 50),  p90: NAAP.pct(NAAP.col("tool"), 90) },
       voice: { p50: NAAP.pct(NAAP.col("voice"), 50), p90: NAAP.pct(NAAP.col("voice"), 90) },
       done:  { p50: NAAP.pct(NAAP.col("done"), 50),  p90: NAAP.pct(NAAP.col("done"), 90) },
@@ -1835,6 +1851,8 @@ var NAAP = {
     out.push("");
     out.push("               p50        p90");
     out.push("  dimaag    " + NAAP.ms(s.brain.p50) + "  " + NAAP.ms(s.brain.p90));
+    /* ⚡ J3 (F65) — sab se ahem number: PEHLI AWAAZ kitni der mein baji */
+    if (s.first.p50) out.push("  pehli awaaz " + NAAP.ms(s.first.p50) + " " + NAAP.ms(s.first.p90) + "   (stream " + s.streams + "/" + s.turns + ")");
     if (s.tool.p50)  out.push("  tool      " + NAAP.ms(s.tool.p50) + "  " + NAAP.ms(s.tool.p90));
     if (s.voice.p50) out.push("  awaaz     " + NAAP.ms(s.voice.p50) + "  " + NAAP.ms(s.voice.p90));
     out.push("  kul       " + NAAP.ms(s.done.p50) + "  " + NAAP.ms(s.done.p90));
@@ -1847,6 +1865,12 @@ var NAAP = {
     for (k in s.brains) if (Object.prototype.hasOwnProperty.call(s.brains, k)) out.push("    " + k + " × " + s.brains[k]);
     out.push("  AWAAZ:");
     for (k in s.engines) if (Object.prototype.hasOwnProperty.call(s.engines, k)) out.push("    " + k + " × " + s.engines[k]);
+    /* ⚡ J3 (F65) — RAFTAR PANEL: stream ka haal, fast-budget trips, NAZAR ka hisaab */
+    try {
+      out.push("");
+      out.push("── ⚡ RAFTAR ──");
+      if (typeof RAFTAR !== "undefined" && RAFTAR && RAFTAR.line) out.push("  " + RAFTAR.line().split("\n").join("\n  "));
+    } catch (e) {}
     return out.join("\n");
   },
   ms: function (n) {
@@ -2579,6 +2603,302 @@ var BOLI = {
   last: null
 };
 
+/* ═════════════════════════════════════════════════════════════════
+   ⚡  RAFTAR  —  jawab FORAN bolna shuru (stream + jumla-dar-jumla awaaz)
+                                                    (J3 · v5.13.0 · F63/F65)
+   ---------------------------------------------------------------------------
+   PEHLE: dimaag ka POORA jawab (maxOutputTokens 280) ek sath aata tha, phir
+   AWAAZ chalti thi — har turn par 1.5 se 4 second ka khamosh intezaar. Screen
+   wale sawal mein do round trip (functionCall + jawab) = 3-8 second. Malik ki
+   shikayat bilkul theek thi: "slow boht reply derhi ha".
+
+   AB: `streamGenerateContent?alt=sse` se jawab TUKRON mein aata hai. RAFTAR
+   jumlay kaat kar ek-ek kar ke bolta hai:
+       pehla jumla (~40 harf)  -> foran awaaz (aksar 0.6-1.2s mein)
+       baqi jumlay queue mein  -> pichla tukra khatam hote hi agla
+   Awaaz ki SEERHI wahi purani hai (🐟 Fish → 🎭 Gemini → 🌊 Edge → 🌸 Pollen →
+   📱 phone): awaaz ki quality par koi samjhota NAHI, sirf intezaar kata gaya
+   (malik ka faisla: neural/behtar awaaz, device-first budget nahi).
+
+   Teen pehre (jawab kabhi stream ki wajah se nahi marna chahiye):
+     1. HOLD (40 harf) — pehle harf roke jate hain. Agar ye tool-step nikla
+        (functionCall) to preamble chup-chaap phenk diya jata hai (`rearm`),
+        awaaz beech mein kaati hi nahi jati.
+     2. KILL-SWITCH — stream 2 dafa nakaam to session bhar streaming OFF; jawab
+        purane saabit raaste (generateContent) se aata rahega.
+     3. GENERATION guard — J1 ka watchdog (thinkGen) beech mein jawab rad kar de
+        to purane jawab ki awaaz foran band: do jawab ek sath nahi.
+   ═════════════════════════════════════════════════════════════════ */
+var RAFTAR = {
+  VER: 1,
+  HOLD: 40,           /* itne harf aane tak bolo mat — tool-step ka pata chal jaye */
+  SENT_MAX: 240,      /* ek tukra is se bara ho to kaat do (warna bolna der se shuru) */
+  END: ".!?\u06D4\u061F",   /* jumla khatam karne wale nishan (Urdu ۔ ؟ shamil) */
+  MAX_STRIKES: 2,
+  strikes: 0,
+  dead: false,        /* session ka kill-switch */
+  lastKill: "",
+  last: null,         /* aakhri jawab ki raftar (report ke liye) */
+
+  /* chal-ti hui stream ka haal */
+  active: false, gen: 0, buf: "", q: [], busy: false, fin: false,
+  fedChars: 0, spokeChars: 0, pieces: 0,
+  myGen: 0, wasVoice: false, t0: 0, tFirst: 0, tVoice: 0, msTotal: 0,
+
+  /* ── streaming chalani hai ya nahi? ── */
+  live: function () {
+    if (RAFTAR.dead) return false;
+    try { if (typeof FLAGS === "undefined" || !FLAGS.on("raftar")) return false; } catch (e) { return false; }
+    try { if (typeof navigator !== "undefined" && navigator.onLine === false) return false; } catch (e) {}
+    return true;
+  },
+
+  /* ── nakami darj karo; had se zyada ho to streaming band ── */
+  strike: function (why) {
+    RAFTAR.strikes++;
+    try { if (typeof pushLog === "function") pushLog("RAFTAR: strike " + RAFTAR.strikes + " (" + (why || "?") + ")"); } catch (e) {}
+    if (RAFTAR.strikes >= RAFTAR.MAX_STRIKES) RAFTAR.kill(why);
+  },
+  kill: function (why) {
+    RAFTAR.dead = true;
+    RAFTAR.lastKill = String(why || "");
+    try { if (typeof pushLog === "function") pushLog("RAFTAR: streaming BAND (" + RAFTAR.lastKill + ") — jawab ab purane saabit raaste se aayenge"); } catch (e) {}
+  },
+  ok: function () { RAFTAR.strikes = 0; },
+  revive: function () { RAFTAR.dead = false; RAFTAR.strikes = 0; RAFTAR.lastKill = ""; },
+
+  /* ═══ SAAF TUKRE (koi side-effect nahi — lab mein inhi ko naapa jata hai) ═══ */
+
+  /* SSE chunk -> events + bacha hua adhura buffer */
+  sse: function (chunk, rest) {
+    var buf = String(rest == null ? "" : rest) + String(chunk == null ? "" : chunk);
+    var lines = buf.split("\n"), tail = lines.pop(), events = [], i, ln;
+    for (i = 0; i < lines.length; i++) {
+      ln = lines[i].replace(/\r$/, "").replace(/^\s+/, "");
+      if (!ln || ln.indexOf("data:") !== 0) continue;
+      ln = ln.slice(5).replace(/^\s+/, "");
+      if (!ln || ln === "[DONE]") continue;
+      try { events.push(JSON.parse(ln)); } catch (e) { /* adhura JSON — phenk do */ }
+    }
+    return { events: events, rest: tail || "" };
+  },
+
+  /* ek stream event se matn aur functionCall alag karo */
+  partsOf: function (ev) {
+    var out = { text: "", calls: [], parts: [] }, ps = [], i, p;
+    try {
+      ps = (ev && ev.candidates && ev.candidates[0] && ev.candidates[0].content &&
+            ev.candidates[0].content.parts) || [];
+    } catch (e) { ps = []; }
+    for (i = 0; i < ps.length; i++) {
+      p = ps[i] || {};
+      if (typeof p.text === "string" && p.text) { out.text += p.text; out.parts.push({ text: p.text }); }
+      if (p.functionCall) { out.calls.push(p.functionCall); out.parts.push({ functionCall: p.functionCall }); }
+    }
+    return out;
+  },
+
+  /* buffer se bolne layak jumlay kaato; bacha hua hissa wapas
+     final=true -> sab kuch bol do (stream khatam) */
+  split: function (buf, final) {
+    var str = String(buf == null ? "" : buf), pieces = [], i, ch, first = -1, last = -1, cutAt, head, sp;
+    if (final === true) { if (str.trim()) pieces.push(str.trim()); return { pieces: pieces, rest: "" }; }
+    /* aakhri harf par faisla nahi karte: us ke baad space aana zaroori hai
+       (warna "1.5" jaisi cheez beech mein kat jati) */
+    for (i = 0; i < str.length - 1; i++) {
+      ch = str.charAt(i);
+      if (RAFTAR.END.indexOf(ch) >= 0 && /\s/.test(str.charAt(i + 1))) {
+        if (first < 0) first = i + 1;
+        last = i + 1;
+      }
+    }
+    if (last < 0) {
+      /* koi poora jumla nahi mila — bohat lamba ho gaya to kaat do */
+      if (str.length >= RAFTAR.SENT_MAX) {
+        sp = str.lastIndexOf(" ", RAFTAR.SENT_MAX);
+        if (sp < 40) sp = RAFTAR.SENT_MAX;
+        head = str.slice(0, sp).trim();
+        return { pieces: head ? [head] : [], rest: str.slice(sp).replace(/^\s+/, "") };
+      }
+      return { pieces: [], rest: str };
+    }
+    /* pehla jumla chhota rakho = awaaz jaldi shuru; warna ek sath zyada bolo
+       (kam request = Gemini TTS ka roz ka quota bachta hai) */
+    cutAt = (last - first > RAFTAR.SENT_MAX) ? first : last;
+    head = str.slice(0, cutAt).trim();
+    if (head) pieces.push(head);
+    /* bacha hua hissa: shuru ki khaali jagah hata do (agle tukre mein jur jaye) */
+    return { pieces: pieces, rest: str.slice(cutAt).replace(/^\s+/, "") };
+  },
+
+  /* ═══ CHALNE WALA HISSA (awaaz se jurra hua) ═══ */
+
+  begin: function (wasVoice, myGen) {
+    RAFTAR.gen++;
+    RAFTAR.active = true; RAFTAR.buf = ""; RAFTAR.q = []; RAFTAR.busy = false; RAFTAR.fin = false;
+    RAFTAR.fedChars = 0; RAFTAR.spokeChars = 0; RAFTAR.pieces = 0;
+    RAFTAR.wasVoice = !!wasVoice; RAFTAR.myGen = myGen || 0;
+    RAFTAR.t0 = (new Date()).getTime(); RAFTAR.tFirst = 0; RAFTAR.tVoice = 0; RAFTAR.msTotal = 0;
+    return RAFTAR.gen;
+  },
+
+  /* dimaag ka ek tukra aaya */
+  feed: function (delta) {
+    if (!RAFTAR.active) return;
+    var d = String(delta == null ? "" : delta);
+    if (!d) return;
+    RAFTAR.fedChars += d.length;
+    RAFTAR.buf += d;
+    if (!RAFTAR.tFirst) {
+      /* PEHLA HARF = dimaag ne jawab dena shuru kar diya (asli raftar yahi hai) */
+      RAFTAR.tFirst = (new Date()).getTime();
+      try { if (typeof NAAP !== "undefined") { NAAP.mark("brain"); NAAP.mark("first"); if (NAAP.cur) NAAP.cur.stream = 1; } } catch (e) {}
+      try { if (typeof thinking !== "undefined") thinking = false; } catch (e) {}
+      try { if (typeof JAWAB !== "undefined") JAWAB.clear("think"); } catch (e) {}
+      try { if (typeof setOrb === "function") setOrb("speaking"); } catch (e) {}
+    }
+    try { if (typeof interimEl !== "undefined" && interimEl) interimEl.textContent = "\uD83D\uDCAD " + RAFTAR.buf.slice(-90); } catch (e) {}
+    if (RAFTAR.buf.length < RAFTAR.HOLD) return;      /* pehla tukra HOLD tak roko */
+    RAFTAR.cut(false);
+  },
+
+  cut: function (final) {
+    var r = RAFTAR.split(RAFTAR.buf, final === true), i;
+    RAFTAR.buf = r.rest;
+    for (i = 0; i < r.pieces.length; i++) RAFTAR.enqueue(r.pieces[i]);
+    if (final === true) RAFTAR.fin = true;
+    if (!RAFTAR.busy) RAFTAR.pump();
+  },
+
+  enqueue: function (piece) {
+    var t = String(piece == null ? "" : piece).trim();
+    if (!t) return;
+    try { if (typeof cleanSpeech === "function") { var c = cleanSpeech(t); if (c && String(c).trim()) t = String(c).trim(); } } catch (e) {}
+    if (!t) return;
+    RAFTAR.q.push(t);
+    RAFTAR.pieces++;
+  },
+
+  /* stream khatam: bacha hua matn bhi bol do */
+  finish: function () {
+    if (!RAFTAR.active) return;
+    RAFTAR.cut(true);
+    if (!RAFTAR.q.length && !RAFTAR.busy) RAFTAR.endSpeak();
+  },
+
+  /* ek tukra bolna shuru */
+  pump: function () {
+    if (RAFTAR.busy || !RAFTAR.active) return;
+    /* J1 ka watchdog ye jawab rad kar chuka? -> chup ho jao */
+    try {
+      if (RAFTAR.myGen && typeof JAWAB !== "undefined" && JAWAB.thinkGen !== RAFTAR.myGen) { RAFTAR.abort(); return; }
+    } catch (e) {}
+    if (!RAFTAR.q.length) { if (RAFTAR.fin) RAFTAR.endSpeak(); return; }
+    var piece = RAFTAR.q.shift(), g = RAFTAR.gen, budget = 0;
+    if (!piece || !piece.trim()) { RAFTAR.pump(); return; }
+    if (typeof AWAAZ === "undefined" || !AWAAZ || typeof AWAAZ.speak !== "function") { RAFTAR.busy = false; RAFTAR.q = []; return; }
+    RAFTAR.busy = true;
+    RAFTAR.spokeChars += piece.length;
+    try { budget = JAWAB.SPEAK_BASE + JAWAB.SPEAK_PER_CHAR * piece.length; } catch (e) {}
+    try {
+      AWAAZ.speak(piece, {
+        onStart: function (eng) {
+          if (g !== RAFTAR.gen) return;
+          try { speaking = true; } catch (e) {}
+          try { if (typeof setOrb === "function") setOrb("speaking"); } catch (e) {}
+          try { if (typeof SUKOON !== "undefined") SUKOON.bolStart(); } catch (e) {}
+          try { JAWAB.mark("speak", budget); } catch (e) {}
+          if (!RAFTAR.tVoice) {
+            RAFTAR.tVoice = (new Date()).getTime();
+            try {
+              if (typeof NAAP !== "undefined") {
+                NAAP.mark("first"); NAAP.mark("voice");
+                if (NAAP.cur) { NAAP.cur.engine = eng || (typeof AWAAZ !== "undefined" ? AWAAZ.engine : ""); NAAP.cur.stream = 1; }
+              }
+            } catch (e) {}
+          }
+        },
+        onDone: function () {
+          if (g !== RAFTAR.gen) return;
+          RAFTAR.busy = false;
+          try { JAWAB.mark("speak", budget); } catch (e) {}   /* agle tukre ka budget fresh */
+          RAFTAR.pump();
+        }
+      });
+    } catch (e) { RAFTAR.busy = false; RAFTAR.pump(); }
+  },
+
+  /* tool-step nikla: preamble phenko, magar stream ZINDA rakho (asli jawab bhi
+     tukron mein hi bolein ge) */
+  rearm: function () {
+    if (RAFTAR.busy) { try { AWAAZ.stop(); } catch (e) {} }
+    RAFTAR.busy = false; RAFTAR.q = []; RAFTAR.buf = "";
+    RAFTAR.spokeChars = 0; RAFTAR.pieces = 0; RAFTAR.tVoice = 0;
+    RAFTAR.gen++;
+    RAFTAR.active = true;
+    try { if (typeof speaking !== "undefined") speaking = false; } catch (e) {}
+    try { if (typeof SUKOON !== "undefined") SUKOON.bolEnd(); } catch (e) {}
+    try { if (typeof interimEl !== "undefined" && interimEl) interimEl.textContent = ""; } catch (e) {}
+  },
+
+  /* poori stream rad (jawab nahi aaya / watchdog ne maar diya) */
+  abort: function () {
+    RAFTAR.gen++;
+    /* spokeChars bhi saaf: askAI isi se faisla karta hai ke jawab RAFTAR bol chuka
+       hai ya purane raaste (reply → speak) ko bolna chahiye */
+    RAFTAR.spokeChars = 0;
+    RAFTAR.active = false; RAFTAR.fin = false; RAFTAR.q = []; RAFTAR.buf = "";
+    if (RAFTAR.busy) { try { AWAAZ.stop(); } catch (e) {} }
+    RAFTAR.busy = false;
+    try { if (typeof speaking !== "undefined") speaking = false; } catch (e) {}
+    try { if (typeof SUKOON !== "undefined") SUKOON.bolEnd(); } catch (e) {}
+    try { if (typeof interimEl !== "undefined" && interimEl) interimEl.textContent = ""; } catch (e) {}
+  },
+
+  /* sab bol chuke: hisaab darj karo aur mic wapas kholo */
+  endSpeak: function () {
+    if (!RAFTAR.active) return;
+    RAFTAR.active = false;
+    RAFTAR.msTotal = (new Date()).getTime() - RAFTAR.t0;
+    RAFTAR.last = {
+      first: RAFTAR.tFirst ? (RAFTAR.tFirst - RAFTAR.t0) : 0,
+      voice: RAFTAR.tVoice ? (RAFTAR.tVoice - RAFTAR.t0) : 0,
+      total: RAFTAR.msTotal,
+      pieces: RAFTAR.pieces,
+      chars: RAFTAR.spokeChars
+    };
+    try { speaking = false; } catch (e) {}
+    try { if (typeof SUKOON !== "undefined") SUKOON.bolEnd(); } catch (e) {}
+    try { if (typeof setOrb === "function") setOrb("idle"); } catch (e) {}
+    try { if (typeof JAWAB !== "undefined") JAWAB.clear("speak"); } catch (e) {}
+    try { if (typeof interimEl !== "undefined" && interimEl) interimEl.textContent = ""; } catch (e) {}
+    try {
+      if (typeof NAAP !== "undefined") {
+        NAAP.end({ engine: (typeof AWAAZ !== "undefined" ? AWAAZ.engine : ""), stream: 1 });
+      }
+    } catch (e) {}
+    try { if (typeof afterSpeak === "function") afterSpeak(RAFTAR.wasVoice); } catch (e) {}
+  },
+
+  /* ── RAFTAR report (NAAP.report mein jurti hai — F65) ── */
+  line: function () {
+    var out = "", L = RAFTAR.last;
+    if (RAFTAR.dead) out += "stream BAND (" + RAFTAR.lastKill + ")";
+    else {
+      try { out += FLAGS.on("raftar") ? "stream ON" : "stream OFF (LAB)"; } catch (e) { out += "stream ?"; }
+    }
+    out += " · strikes " + RAFTAR.strikes + "/" + RAFTAR.MAX_STRIKES;
+    if (L) out += "\n  aakhri jawab: pehla harf " + L.first + "ms · pehli awaaz " + L.voice +
+                  "ms · kul " + L.total + "ms · " + L.pieces + " tukre";
+    try {
+      if (typeof AWAAZ !== "undefined" && AWAAZ) out += "\n  awaaz ka fast-budget trip: " + (AWAAZ.fastTrips || 0) +
+        " (" + (AWAAZ.FAST || 0) + "ms)";
+    } catch (e) {}
+    try { if (typeof NAZAR !== "undefined" && NAZAR && NAZAR.line) out += "\n  👁️ NAZAR: " + NAZAR.line(); } catch (e) {}
+    return out;
+  }
+};
+
 var AWAAZ = {
   VER: 7,
   API: "https://generativelanguage.googleapis.com/v1beta/models/",
@@ -2598,6 +2918,22 @@ var AWAAZ = {
   POLLEN_COOL: 600000,
   CACHE_MAX: 12,       /* aakhri itni clips yaad rakho */
   TIMEOUT: 25000,
+
+  /* ⚡ J3 (F64) — FAST BUDGET. PEHLE seerhi ki har network tier (🐟 Fish → 🎭 Gemini
+     → 🌊 Edge → 🌸 Pollen) apna poora timeout (25s tak) le sakti thi: jawab mojood
+     hota magar user ko KHAMOSHI sunti parti. Ab: itni der mein asli awaaz na baji
+     to foran agli (tez) tier — Edge, aur Edge bhi atke to phone ki apni awaaz.
+     Awaaz ki quality ka tarkheeb barqarar: sirf ATKA hua network chhoda jata hai. */
+  FAST: 1800,          /* ms — itni der mein ASLI awaaz baje, warna tez tier.
+                          (Forensic ka andaaza 800ms tha; magar Gemini neural TTS ka
+                          pehla clip 1-2s leta hai — 800ms par har dafa Edge par girte
+                          aur malik ki chuni hui neural awaaz ka tarkheeb hota. 1800ms
+                          = neural ko poora mauqa, phir bhi dead-air sirf 1.8s.) */
+  fastTo: null,        /* chal-ta hua fast-budget timer */
+  fastForced: "",      /* "edge" ya "device" — agli speak seedha isi se shuru */
+  fastTrips: 0,        /* kitni dafa fast budget ne bachaya (RAFTAR report) */
+  audioAt: 0,          /* asli awaaz baji kis waqt (play() mein darj hota hai) */
+  tStart: 0,           /* is speak() ka aghaaz */
   COOLDOWN: 90000,     /* 429 ke baad itni der Gemini ko haath na lagao */
 
   audio: null,         /* abhi bajta hua <audio> */
@@ -3028,6 +3364,8 @@ var AWAAZ = {
     var a;
     try { a = new Audio(); } catch (e) { onErr("AUDIO_BLOCKED"); return; }
     AWAAZ.audio = a;
+    /* ⚡ J3 (F64) — "awaaz sach much baji" ka saboot: fast budget isi ko dekhta hai */
+    a.onplay = function () { if (gen === AWAAZ.gen) AWAAZ.audioAt = (new Date()).getTime(); };
     a.onended = function () { if (gen === AWAAZ.gen) onEnd(); };
     a.onerror = function () { if (gen === AWAAZ.gen) onErr("AUDIO_BLOCKED"); };
     a.src = url;
@@ -3168,6 +3506,27 @@ var AWAAZ = {
     text = String(text || "").trim();
     if (!text) { if (cb.onDone) cb.onDone(); return; }
 
+    /* ⚡ J3 (F64) — FAST BUDGET ka pehra: agar itni der mein ASLI awaaz na baji
+       (AWAAZ.audioAt) aur hum abhi bhi kisi network tier par hain, to beech ka
+       intezaar chhorro — Edge, phir phone. Khamoshi sab se buri hai. */
+    AWAAZ.tStart = (new Date()).getTime();
+    var fastForced = AWAAZ.fastForced; AWAAZ.fastForced = "";
+    if (AWAAZ.FAST && c.on && c.mode !== "off" && !fastForced) {
+      try { if (AWAAZ.fastTo) clearTimeout(AWAAZ.fastTo); } catch (e) {}
+      AWAAZ.fastTo = setTimeout(function () {
+        AWAAZ.fastTo = null;
+        if (gen !== AWAAZ.gen || finished) return;
+        if (AWAAZ.audioAt && AWAAZ.audioAt >= AWAAZ.tStart) return;   /* bolna shuru ho chuka */
+        var eng = AWAAZ.engine;
+        if (eng === "device" || eng === "off") return;                 /* zaten aakhri tier */
+        AWAAZ.fastTrips++;
+        try { if (typeof pushLog === "function") pushLog("RAFTAR: " + AWAAZ.FAST + "ms mein awaaz na baji (" + eng + ") — tez tier par"); } catch (e) {}
+        AWAAZ.fastForced = (eng === "edge") ? "device" : "edge";
+        AWAAZ.stop();                 /* in-flight network TTS rad (gen badal gaya) */
+        AWAAZ.speak(text, cb);        /* dobara — ab seedha tez tier se */
+      }, AWAAZ.FAST);
+    }
+
     var finished = false;
     function done() {
       if (finished || gen !== AWAAZ.gen) return;
@@ -3182,6 +3541,10 @@ var AWAAZ = {
     }
 
     if (!c.on || c.mode === "off") { AWAAZ.setEngine("off"); done(); return; }
+
+    /* ⚡ J3 (F64) — fast budget ne kaha tha "ab seedha tez tier": 🐟/🎭/🌸 chhodo */
+    if (fastForced === "device") { AWAAZ.note(""); useDevice(); return; }
+    if (fastForced === "edge")   { AWAAZ.note(""); useEdge("FAST"); return; }
 
     /* ─── SEERHI: 1) Gemini neural   2) EDGE (be-hisaab)   3) muft neural   4) phone ───
        Har teh apni nakami agli teh ko de deti hai — khamoshi kabhi nahi hoti.
@@ -3254,6 +3617,8 @@ var AWAAZ = {
   stop: function () {
     AWAAZ.gen++;
     AWAAZ.deviceDone = null;
+    /* ⚡ J3 (F64): purana fast-budget timer murda kar do */
+    try { if (AWAAZ.fastTo) { clearTimeout(AWAAZ.fastTo); AWAAZ.fastTo = null; } } catch (e) {}
     try { if (AWAAZ.audio) { AWAAZ.audio.pause(); AWAAZ.audio.onended = null; AWAAZ.audio.onerror = null; AWAAZ.audio = null; } } catch (e) {}
     for (var i = 0; i < AWAAZ.xhrs.length; i++) { try { AWAAZ.xhrs[i].abort(); } catch (e) {} }
     AWAAZ.xhrs = [];
@@ -4802,7 +5167,7 @@ var HAALBAR = {
   }
 };
 
-function reply(text, wasVoice, link){
+function reply(text, wasVoice, link, opts){
   /* 🛡️ J1 (F55) — darwaza jawab SHURU hote hi refresh. PEHLE sirf jawab ke BAAD
      (afterSpeak) refresh hota tha: dimaag + lambi awaaz mil kar 15s le lein to
      darwaza BEECH mein band ho jata aur baat-cheet achanak khatam — user ko
@@ -4816,6 +5181,10 @@ function reply(text, wasVoice, link){
   try { if (typeof HAQEEQAT !== "undefined") text = HAQEEQAT.check(text); } catch (e) {}
   addBubble("ai", text, link);
   chatHist.push({ role:"model", text:text }); persistChat();
+  /* ⚡ J3 (F63) — RAFTAR pehle hi jumla-dar-jumla bol chuka hai (ya bol raha hai).
+     Ab dobara bolna = AWAAZ.stop() chal-ti awaaz ko kaat deta aur DO jawab sunai
+     dete. Is liye `noSpeak` par sirf bubble + history darj hota hai. */
+  if (opts && opts.noSpeak) { try { JAWAB.clear("think"); } catch (e) {} return; }
   speak(text, wasVoice);
 }
 
@@ -5445,7 +5814,12 @@ function sysPrompt(){
     "- Battery -> battery_status\n" +
     "- Zaroori cheez (birthday, appointment, pasand, kisi ka naam, kaam) -> khud save_memory use karo, 'yaad rakhna' bole na bole\n" +
     "- Yaad karna ho -> recall_memory\n" +
+    "- 👁️ SCREEN ka sawal ('screen par kya hai', 'kya dikh raha hai', 'kaunse button hain', 'ye screen parho') -> PEHLE read_screen call karo, PHIR us ke bheje hue data se jawab do. Screen ke baare mein apni taraf se ANDAZA bilkul mat lagao\n" +
+    "- 📷 Saamne ki cheez/tasveer ('ye dekho', 'ye kya hai', 'is bill ko parho') -> see_camera; gallery/screenshot -> see_image\n" +
+    "- 📁 Files/downloads -> list_files, open_file, share_file · 💡 roshni -> brightness_control · 🔦 torch -> torch_control · 🔊 awaaz -> volume_control · 🕌 namaz ke waqt -> prayer_times · 📔 roznamcha -> diary_search / diary_write · 🧭 naya tareeqa seekhna -> create_skill · 🔎 net -> web_search / wiki_search / web_fetch\n" +
+    "- 🔔 Notification -> notify · 💬 message parhna/jawab -> read_messages / reply_message\n" +
     "Tool use karne ke baad ek chhoti friendly line mein confirm karo. Jo tools se mumkin nahi, wo bRIEFLY bata do.\n" +
+    "QANOON (tool nakam ho): agar tool ka jawab done:false ho ya us mein note/say ho, to WAHI baat user ko saaf Roman Urdu mein bata do (maslan 'NAZAR ki ijazat band hai, Settings se ON karo') — CHUP mat raho, jhoot mat bolo, aur na hi apni taraf se screen/phone ka haal gharr lo.\n" +
     "RULES: (1) Reply SPOKEN ALOUD hoti hai — 1-3 jumlay, 60 words se kam (detail na maangi jaye to). (2) Plain spoken text: koi markdown, list, asterisk, emoji nahi. (3) User ki language aur script mein jawab: Urdu script -> Urdu script, Roman Urdu -> Roman Urdu, English -> English. (4) Kaam aksar tools se karo, sirf baat mat karo. (4b) Calculations, lists, data-parse, conversion -> run_javascript mein khud code likh kar chalao. (4c) Live info (rates, news, koi bhi site) -> web_fetch. (4d) Roznamcha: diary_write/diary_search. (4e) Messages: read_messages/reply_message/schedule_message. (4f) Namaz: prayer_times. (4g) Phone: torch_control/volume_control/brightness_control. (5) Kaun ho? MAYA, " + settings.name + " ki personal AI — mohabbat se 0 budget par bani.";
   if (_activeSkill) p += "\n\u2699\uFE0F ACTIVE SKILL: " + _activeSkill.name + " — " + _activeSkill.prompt;
   if (customSkills.length) p += "\nCUSTOM SKILLS available: " + customSkills.map(function(s){ return s.name; }).join(", ");
@@ -5806,12 +6180,18 @@ async function execTool(name, args){
     } else if (name === "recall_memory") {
       out = { facts: facts.slice(0, 15), total: facts.length };
     } else if (name === "read_screen") {
+      /* ⚡ J3 (F59/F60/F61) — teen ilaj ek jagah:
+         (1) LAB ka `nazar` switch ab default ON hai (pehle OFF = hamesha inkaar);
+         (2) `lookRetry` = khali dump par doosri koshish, phir SAAF nakami;
+         (3) har nakami mein `say` = bolne layak line, taake dimaag CHUP na rahe
+             aur na hi screen ka andaza ghare (sysPrompt ka QANOON isi ko kehta hai). */
       if (typeof NAZAR === "undefined" || !FLAGS.on("nazar")) {
-        out = { done: false, note: "NAZAR band hai \u2014 Settings > LAB > 👁️ NAZAR ON karo" };
+        out = { done: false, note: "NAZAR band hai \u2014 Settings > LAB > 👁️ NAZAR ON karo",
+                say: "Screen parhna (NAZAR) abhi band hai. Settings mein LAB kholo aur NAZAR ON kar do, phir main screen parh kar bataungi." };
       } else {
-        var nz = NAZAR.look(90);
+        var nz = NAZAR.lookRetry(90, NAZAR.RETRY_MAX);
         out = nz.ok ? { done: true, app: nz.app, count: nz.items.length, screen: NAZAR.forBrain(nz) }
-                    : { done: false, note: nz.why };
+                    : { done: false, note: nz.why, say: nz.say || NAZAR.say(nz.why) };
       }
     } else if (name === "see_camera" || name === "see_image") {
       var vr = AANKH.ask(args.question || args.q || "", name === "see_image" ? "gallery" : "camera");
@@ -6509,6 +6889,66 @@ async function geminiChat(){
 }
 geminiChat.keyErr = false;
 
+/* ⚡ J3 (F63) — STREAMING koshish: `:streamGenerateContent?alt=sse`.
+   Har SSE event ka matn `onDelta` ko diya jata hai (RAFTAR usay jumla bana kar
+   foran bolta hai); functionCall tukre jama hote hain. Aakhir mein WAHI shakl
+   lautate hain jo generateContent deta hai — {candidates:[{content:{parts:[…]}}]}
+   — taake geminiTry ka baqi code (tool loop, SAAF, error classify) na badle.
+   Nakami ki sooratein:
+     { ok:false, nostream:true }  -> purane WebView mein body reader nahi (kill)
+     { ok:false, status:4xx/5xx } -> error body wapas (DIMAAG.classify khud samjhega)
+     { ok:false, status:0 }       -> network hi nahi chala                          */
+async function geminiStream(m, body, onDelta){
+  var url = "https://generativelanguage.googleapis.com/v1beta/models/" + m +
+            ":streamGenerateContent?alt=sse&key=" + encodeURIComponent(settings.apikey);
+  var res, reader, rest = "", text = "", calls = [], finish = "", decoder = null, i;
+  try {
+    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch (e) {
+    return { ok: false, status: 0, data: {}, err: String(e && e.message || e).slice(0, 60) };
+  }
+  if (!res.ok) {
+    var d = {};
+    try { d = await res.json(); } catch (e) { d = {}; }
+    return { ok: false, status: res.status, data: d };
+  }
+  if (!res.body || typeof res.body.getReader !== "function") return { ok: false, nostream: true, status: 200, data: {} };
+  reader = res.body.getReader();
+  try { if (typeof TextDecoder === "function") decoder = new TextDecoder("utf-8"); } catch (e) { decoder = null; }
+  for (;;) {
+    var rd = await reader.read();
+    if (!rd || rd.done) break;
+    var str = "";
+    if (rd.value) {
+      /* pehle string dekho (kuch polyfill/naqli reader string dete hain), phir bytes */
+      if (typeof rd.value === "string") str = rd.value;
+      else if (decoder) { try { str = decoder.decode(rd.value, { stream: true }); } catch (e) { str = ""; } }
+    }
+    if (!str) continue;
+    var parsed = RAFTAR.sse(str, rest);
+    rest = parsed.rest;
+    for (i = 0; i < parsed.events.length; i++) {
+      var got = RAFTAR.partsOf(parsed.events[i]);
+      if (got.text) {
+        text += got.text;
+        if (onDelta) { try { onDelta(got.text); } catch (e) {} }
+      }
+      if (got.calls.length) calls = calls.concat(got.calls);
+      try {
+        var fr = parsed.events[i].candidates && parsed.events[i].candidates[0] && parsed.events[i].candidates[0].finishReason;
+        if (fr) finish = String(fr);
+      } catch (e) {}
+    }
+  }
+  var finalParts = [], q;
+  if (text) finalParts.push({ text: text });
+  for (q = 0; q < calls.length; q++) finalParts.push({ functionCall: calls[q] });
+  return {
+    ok: true, status: 200, text: text, calls: calls,
+    data: { candidates: [{ content: { parts: finalParts }, finishReason: finish || (calls.length ? "" : "STOP") }] }
+  };
+}
+
 /* Ek model par ek koshish. plain = true -> koi tool nahi, sirf aakhri sawal. */
 async function geminiTry(m, plain){
   var url = "https://generativelanguage.googleapis.com/v1beta/models/" + m + ":generateContent?key=" + encodeURIComponent(settings.apikey);
@@ -6526,12 +6966,26 @@ async function geminiTry(m, plain){
     if (/2\.5|gemini-3/.test(m)) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
     if (!plain && step < maxSteps) body.tools = [{ functionDeclarations: TOOL_DECLS }];
 
-    var res, data = {};
+    var res, data = {}, st = null, useStream = false;
     DIMAAG.calls++;
-    try {
-      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    } catch (e) { DIMAAG.log("GEMINI/" + m, "NETWORK", String(e && e.message || e).slice(0, 60)); return { code: "NETWORK" }; }
-    try { data = await res.json(); } catch (e) { data = {}; }
+    /* ⚡ J3 (F63) — pehle STREAMING: jawab tukron mein aata rahe, RAFTAR pehla
+       jumla aate hi bolna shuru kar de (1.5-4s ka khamosh intezaar khatam).
+       Streaming kabhi jawab ki qeemat par nahi: reader na ho to kill-switch,
+       network/empty par strike — aur usi step par purana generateContent chalta hai. */
+    if (!plain && typeof RAFTAR !== "undefined" && RAFTAR && RAFTAR.live()) {
+      useStream = true;
+      try { st = await geminiStream(m, body, function (delta) { try { RAFTAR.feed(delta); } catch (e) {} }); }
+      catch (e) { st = { ok: false, status: 0, data: {} }; }
+      if (st && st.nostream) { RAFTAR.kill("body reader nahi"); st = null; useStream = false; }
+      else if (st && !st.ok && !st.status) { RAFTAR.strike("NETWORK"); try { RAFTAR.abort(); } catch (e) {} }
+    }
+    if (st) { res = { ok: st.ok, status: st.status || 200 }; data = st.data || {}; }
+    else {
+      try {
+        res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      } catch (e) { DIMAAG.log("GEMINI/" + m, "NETWORK", String(e && e.message || e).slice(0, 60)); return { code: "NETWORK" }; }
+      try { data = await res.json(); } catch (e) { data = {}; }
+    }
 
     if (!res.ok) {
       var code = DIMAAG.classify(res.status, data);
@@ -6552,6 +7006,10 @@ async function geminiTry(m, plain){
     var fnCalls = parts.filter(function (p) { return p.functionCall; });
     if (fnCalls.length && step < maxSteps) {
       geminiChat.toolsUsed = true;
+      /* ⚡ J3 — ye tool-step tha: jo preamble stream mein aaya tha wo phenko
+         (HOLD isi liye hai), magar stream ZINDA rakho — ASLI jawab bhi tukron
+         mein hi bolein ge. Screen wale sawal mein raftar ka faida barqarar. */
+      if (useStream) { try { RAFTAR.rearm(); } catch (e) {} }
       contents.push({ role: "model", parts: parts });
       for (var fc = 0; fc < fnCalls.length; fc++) {
         var name = fnCalls[fc].functionCall.name;
@@ -6566,9 +7024,14 @@ async function geminiTry(m, plain){
     }
     var out = parts.map(function (p) { return p.text || ""; }).join("").trim();
     if (out && typeof SAAF !== "undefined") out = SAAF.usable(out);      /* 🧹 P1 */
-    if (out) return { text: out };
+    if (out) {
+      /* ⚡ J3 — stream chal gaya: strikes saaf (kill-switch ki naubat nahi) */
+      if (useStream) { try { RAFTAR.ok(); } catch (e) {} }
+      return { text: out };
+    }
     /* khali jawab: aksar MAX_TOKENS soch mein khatam — thora sa aur maango */
     var fr = String((cand && cand.finishReason) || "");
+    if (useStream) { try { RAFTAR.strike("EMPTY"); RAFTAR.abort(); } catch (e) {} }
     DIMAAG.log("GEMINI/" + m, "EMPTY", fr || "no parts");
     return { code: "EMPTY", info: fr };
   }
@@ -6594,6 +7057,21 @@ var NAZAR = {
   MAXITEMS: 40,          /* dimaag ko itne se zyada element bhejna bekaar hai */
   MAXLABEL: 52,
   last: null,
+
+  /* ⚡ J3 (F60/F65) — NAZAR ka apna hisaab. PEHLE screen parhne ki kamyabi/nakami
+     kahin darj nahi hoti thi, is liye "kabhi dekhti hai kabhi nahi" ka saboot nahi
+     milta tha. Ab har koshish gini jati hai aur RAFTAR report mein dikhti hai. */
+  n: { look: 0, ok: 0, empty: 0, retry: 0, fail: 0, ms: 0, lastMs: 0, items: 0 },
+  RETRY_MAX: 160,        /* doosri koshish mein zyada element maango */
+  say: function (why) {
+    /* nakami ki soorat mein BOLNE layak line — dimaag isay chhupa na sake (F61) */
+    var w = String(why || "");
+    if (/APK/i.test(w)) return "Screen parhna sirf MAYA ki APK mein chalta hai — browser mein nahi.";
+    if (/accessibility|ijazat/i.test(w)) return "Screen parhne ki ijazat (Accessibility) band lagti hai. Settings mein MAYA NAZAR service chalu karo, phir poocho.";
+    if (/khali|nazar nahi/i.test(w)) return "Maine screen parhne ki koshish ki magar kuch nazar nahi aaya — ho sakta hai screen badal rahi ho. Ek dafa phir poocho.";
+    if (/kharab/i.test(w)) return "Screen ka jawab theek nahi aaya — ek dafa phir koshish karti hoon.";
+    return "Screen abhi nahi parh saki: " + (w || "wajah maloom nahi");
+  },
 
   can: function () {
     try { return !!(typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge.uiDump); }
@@ -6671,6 +7149,54 @@ var NAZAR = {
     };
     NAZAR.last = res;
     return res;
+  },
+
+  /* ⚡ J3 (F60) — PEHLE sirf EK koshish hoti thi. Screen transition ya sust
+     accessibility service par pehla dump KHALI aa jata tha (items: []) aur tool
+     `count: 0` ke sath `done: true` bhej deta — dimaag ke paas batane ko kuch na
+     hota, is liye wo ya chup ho jata ya andaza laga deta ("kabhi jawab hi nahi
+     deti"). Ab: pehla dump khali -> foran doosri koshish zyada elementon ke sath;
+     phir bhi khali -> SAAF nakami (ok:false) + bolne layak `say`. */
+  lookRetry: function (first, second) {
+    var t0 = (new Date()).getTime();
+    NAZAR.n.look++;
+    var a = NAZAR.look(first || 90);
+    if (a.ok && a.items && a.items.length) { NAZAR.tally(a, t0); return a; }
+    if (!a.ok) NAZAR.n.fail++;
+    else NAZAR.n.empty++;
+    NAZAR.n.retry++;
+    var b = NAZAR.look(second || NAZAR.RETRY_MAX);
+    if (b.ok && b.items && b.items.length) { NAZAR.tally(b, t0); return b; }
+    /* dono koshishein khali — ab jhoot nahi, SAAF nakami */
+    if (!b.ok && !/khali|nazar nahi/.test(b.why || "")) {
+      NAZAR.n.fail++;
+      /* har nakami mein `say` = bolne layak line (F61: dimaag chup na rahe) */
+      if (!b.say) b.say = NAZAR.say(b.why);
+      return b;
+    }
+    NAZAR.n.empty++;
+    NAZAR.last = null;
+    return {
+      ok: false, empty: true,
+      why: "screen parhne ki dono koshishein khali rahin — screen par kuch nazar nahi aaya",
+      say: NAZAR.say("khali"),
+      at: (new Date()).getTime()
+    };
+  },
+  tally: function (r, t0) {
+    NAZAR.n.ok++;
+    NAZAR.n.lastMs = (new Date()).getTime() - (t0 || (new Date()).getTime());
+    NAZAR.n.ms += NAZAR.n.lastMs;
+    NAZAR.n.items = (r && r.items ? r.items.length : 0);
+  },
+  /* RAFTAR report ke liye ek line */
+  line: function () {
+    var n = NAZAR.n;
+    var avg = n.ok ? Math.round(n.ms / n.ok) : 0;
+    return "koshish " + n.look + " · kamyab " + n.ok + " · khali " + n.empty +
+           " · doosri koshish " + n.retry + " · nakaam " + n.fail +
+           (avg ? (" · " + avg + "ms") : "") +
+           (NAZAR.can() ? "" : " · (bridge NAHI — sirf APK)");
   },
 
   ICON: { input: "\u270F\uFE0F", btn: "\uD83D\uDD18", toggle: "\u2611\uFE0F", scroll: "\u2195\uFE0F", text: "\u00B7" },
@@ -7495,7 +8021,8 @@ var AMAL = {
     notify:             ["notification", "notify", "screen par dikha"],
     see_camera:         ["ye dekho", "yeh dekho", "ye kya hai", "camera khol", "photo khincho", "is bill", "ye likha", "parh kar batao", "dekh kar batao", "ye dawa"],
     see_image:          ["gallery", "gallary", "screenshot", "gallery wali", "photo dekho"],
-    read_screen:        ["screen par kya", "kya dikh raha", "screen dekho", "screen parho", "kaunse button", "screen par abhi"]
+    /* ⚡ J3 (F62): sirf 6 jumle the — "screen par", "ye screen" waghera chhoot jate the */
+    read_screen:        ["screen par kya", "kya dikh raha", "screen dekho", "screen parho", "kaunse button", "screen par abhi", "screen par", "is screen", "ye screen", "screen kya", "screen dikha", "parh kar batao screen"]
   },
   _re: null,
   actionRe: function () {
@@ -7556,6 +8083,8 @@ async function askAI(wasVoice){
      reply NA ho (warna DO jawab ek sath). */
   var myGen = ++JAWAB.thinkGen;
   try { JAWAB.mark("think"); } catch (e) {}
+  /* ⚡ J3 (F63) — RAFTAR tayyar: dimaag ka pehla tukra aate hi jumla bol dega */
+  try { if (typeof RAFTAR !== "undefined" && RAFTAR) RAFTAR.begin(wasVoice, myGen); } catch (e) {}
   geminiChat.keyErr = false;
   geminiChat.toolsUsed = false;
 
@@ -7586,15 +8115,28 @@ async function askAI(wasVoice){
     /* 🛡️ J1 (F46) — watchdog is jawab ko RAD kar chuka? phir na bolao */
     if (myGen !== JAWAB.thinkGen) {
       askAI._retried = false;
+      try { RAFTAR.abort(); } catch (e) {}
       try { pushLog("JAWAB: purana jawab rad — watchdog pehle hi bata chuka"); } catch (e) {}
       try { DIMAAG.log("JAWAB", "STALE", "watchdog reset ke baad aaya, rad"); } catch (e) {}
       return;
     }
     if (lu && !geminiChat.toolsUsed && out.length < 400) cachePut(cacheKey(lu), out);
-    reply(out, wasVoice);
+    /* ⚡ J3 (F63) — RAFTAR ne jumla-dar-jumla bol diya? To reply sirf bubble +
+       history darj kare (noSpeak) — warna AWAAZ.stop() chal-ti awaaz kaat deta
+       aur poora jawab DOBARA sunai deta. */
+    var streamed = false;
+    try { streamed = !!(RAFTAR.active && RAFTAR.spokeChars > 0); } catch (e) {}
+    if (streamed) {
+      try { RAFTAR.finish(); } catch (e) {}
+      reply(out, wasVoice, null, { noSpeak: true });
+    } else {
+      try { RAFTAR.abort(); } catch (e) {}
+      reply(out, wasVoice);
+    }
     return;
   }
   thinking = false; setOrb("idle");
+  try { if (typeof RAFTAR !== "undefined") RAFTAR.abort(); } catch (e) {}
   try { JAWAB.clear("think"); } catch (e) {}
 
   var code = DIMAAG.verdict() || DIMAAG.lastCode;
@@ -10720,22 +11262,22 @@ setInterval(function(){ try { HAALBAR.tick(); } catch (e) {} }, 250);
    jhoot bolti thi, aur user ko "APK purani hai ya nayi" ka faisla karne mein
    dhoka hota tha. Ab toast, log aur header teeno ek hi constant se bante hain, aur
    test-lock gradle ke versionName se milaan karta hai (Section 35). */
-var MAYA_VER = "5.12.5", MAYA_NAAM = "\uD83C\uDF9B\uFE0F MIC NAZAR";
+var MAYA_VER = "5.13.0", MAYA_NAAM = "\u26A1\uFE0F RAFTAR";
 try {
   var _st = document.querySelector("#subTitle");
   if (_st) _st.textContent = "PERSONAL AI v" + MAYA_VER + " \u2728";
 } catch (e) {}
-/* 🏷️ v5.12.5 — VERSION KI PEHCHAAN, ab JS taraf se bhi: toast + log line.
+/* 🏷️ v5.13.0 — VERSION KI PEHCHAAN, ab JS taraf se bhi: toast + log line.
    (v5.10.3 ka toast Kotlin mein tha — MainActivity.onCreate; wo barqarar hai.
    Ye JS toast ISLIYE naya hai ke APK aur web-asset ka version ALAG ho sakta hai:
    purani APK + naya web-asset, ya ulta. Ab dono ek hi line mein nazar aate hain —
-   "native: 5.12.5-native" ke baghair web-asset ka bharosa andaza hai.) */
+   "native: 5.13.0-native" ke baghair web-asset ka bharosa andaza hai.) */
 if (NATIVE) setTimeout(function(){
   try {
     var nv = "?";
     try { if (window.MayaBridge && window.MayaBridge.appVersion) nv = window.MayaBridge.appVersion(); } catch(e){}
     var v = "MAYA v" + MAYA_VER + " \u2022 " + MAYA_NAAM +
-            " \u2014 mic ka haal hamesha nazar + wake ka zinda level + baat-cheet mode";
+            " \u2014 jawab tukron mein (pehla jumla foran) + screen ka pakka jawab";
     toast(v);
     pushLog(v + "   (native: " + nv + ")");
   } catch(e){}

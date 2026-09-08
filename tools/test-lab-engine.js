@@ -1531,14 +1531,14 @@ Here's a thinking process:
       '👁️ KAAN report mein HAAL (JS) + HAAL (Kotlin) + roko ki ginti nazar aati hai');
 
     /* ── version qanoon ── */
-    is(/appVersion\(\): String = "5\.12\.5-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1 &&
-       MA.indexOf('5.11.0-native') === -1,
-      '🩹 BONUS — appVersion() ka purana 4.3.0 jhoot bhi ab qatl (v5.12.5 barqarar)');
-    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.12.5') > 0 &&
-       /versionCode 77/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')) &&
-       /versionName "5\.12\.5"/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')) &&
-       fs.readFileSync(path.join(ROOT, 'public/sw.js'), 'utf8').indexOf('maya-v5.12.5') > 0,
-      '🏷️ poore app mein VERSION v5.12.5 (cache saaf, splash saaf, APK saaf)');
+    is(/appVersion\(\): String = "5\.13\.0-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1 &&
+       MA.indexOf('5.12.5-native') === -1,
+      '🩹 BONUS — appVersion() ka purana 4.3.0 jhoot bhi ab qatl (v5.13.0 barqarar)');
+    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.13.0') > 0 &&
+       /versionCode 78/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')) &&
+       /versionName "5\.13\.0"/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')) &&
+       fs.readFileSync(path.join(ROOT, 'public/sw.js'), 'utf8').indexOf('maya-v5.13.0') > 0,
+      '🏷️ poore app mein VERSION v5.13.0 (cache saaf, splash saaf, APK saaf)');
     is(HTML.indexOf('5.8.0') === -1, 'kahi purana 5.8.0 version nazar nahi aata');
 
     /* ── v5.9.1 hotfix — doctor ka jhoota button ab ASAL hai ── */
@@ -1868,10 +1868,17 @@ Here's a thinking process:
       w2.LEDGER.push('message_contact', { name: 'Ali', text: 'late ho jaunga' }, { ok: true, state: 'typed' }, undefined);
       const l2 = w2.LEDGER.load(); l2[l2.length - 1].t = NOW - 20 * 60000;
       is(w2.KHUD.tick(NOW).kind === 'adhoora', '📌 adhoora kaam sab se pehle (asli kaam pada hai)');
-      /* 🤫 Maya bol rahi hai → chup */
+      /* 🤫 Maya bol rahi hai → chup
+         ⚠️ IMAANDARI (J3 ke waqt pakda gaya): ye lock GHANTE par nirbhar tha —
+         kworld() `MAYA_V4.lastInteract = Date.now()` rakhta hai aur tick ka `idle`
+         branch `NOW - lastInteract > 3h` par chalta hai. Sandbox ka clock 15:30 se
+         3 ghante se zyada peeche ho to idle branch BHI can() bulata, busyBlocked 2
+         ho jata aur test jhoota FAIL deta (asal rawaiya theek tha). Ab lastInteract
+         ko NOW par pin kar diya — naap sirf "bolte waqt chup" ka hota hai. */
       const w3 = kworld({ khud: true });
       w3.LEDGER.push('message_contact', { name: 'Ali', text: 'x' }, { ok: true, state: 'typed' }, undefined);
       const l3 = w3.LEDGER.load(); l3[l3.length - 1].t = NOW - 20 * 60000;
+      w3.MAYA_V4.lastInteract = NOW;
       w3.SUKOON = { haal: 'BOL_RAHI' };
       is(w3.KHUD.tick(NOW) === null && w3.KHUD.BUDGET.load().busyBlocked === 1, '🤫 bolte/sunte waqt KHUD kuch nahi (P9 ka ehteram)');
       /* 🔇 khamosh ghante */
@@ -2301,11 +2308,11 @@ Here's a thinking process:
 
     /* ── 🔖 version bump + mirror discipline ── */
     const VER = (GR.match(/versionName "([^"]+)"/) || [])[1] || '';
-    is(/versionCode 77/.test(GR) && VER === '5.12.5' &&
-       /"version": "5\.12\.5"/.test(PK) && /maya-v5\.12\.5/.test(SW) &&
-       /5\.12\.5-native/.test(MA) && /MAYA v5\.12\.5/.test(MA) &&
+    is(/versionCode 78/.test(GR) && VER === '5.13.0' &&
+       /"version": "5\.13\.0"/.test(PK) && /maya-v5\.13\.0/.test(SW) &&
+       /5\.13\.0-native/.test(MA) && /MAYA v5\.13\.0/.test(MA) &&
        IH.indexOf('var MAYA_VER = "' + VER + '"') > 0 && IH.indexOf('PERSONAL AI v' + VER) > 0,
-      '🔖 v5.12.5 ka bump har jagah + JS ka MAYA_VER gradle ke versionName se MILTA hai (header ka subtitle ab jam nahi ho sakta)');
+      '🔖 v5.13.0 ka bump har jagah + JS ka MAYA_VER gradle ke versionName se MILTA hai (header ka subtitle ab jam nahi ho sakta)');
     is(PUB.indexOf('pushNativePrefs') > 0 && PUB.indexOf('sWakeLang') > 0 &&
        PUB.indexOf('HAAL (Kotlin)') > 0,
       '🪞 public/ mirror tazaa hai (npm run build) — assets aur web ek jaise');
@@ -2457,9 +2464,9 @@ Here's a thinking process:
       '🧭 1.6: panel ab WAKE ka aur APP ka recognizer ALAG batata hai (pehle ek shared jhoot tha)');
 
     /* ── 1.7 (F14) wake session shaping ── */
-    is(/EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 700L/.test(WS) &&
+    is(/EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 600L/.test(WS) &&
        /EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 300L/.test(WS),
-      '🧭 1.7 (F14): wake session ki shaping — 700ms khamoshi = khatam, 300ms = kam az kam (lambi session → err 11 band)');
+      '🧭 1.7 (F14) + ⚡J3 (F66): wake session ki shaping — 600ms khamoshi = khatam (pehle 700ms), 300ms = kam az kam');
 
     /* ── 1.8 (F19) session vs KUL nakami ── */
     is(/private var errStreak: Int/.test(WS) && /get\(\) = WakeState\.errStreak/.test(WS) &&
@@ -2594,7 +2601,7 @@ Here's a thinking process:
     /* ── dimaag fail par awaaz (F54) + darwaza (F55) ── */
     is(/if \(wasVoice\) \{\s*\n\s*try \{\s*\n\s*JAWAB\.bol\("Dimaag se rabta nahi ho saka/.test(HTML),
       '📢 F54: retry ka intezar ab BOL kar bataya jata hai (pehle sirf toast — awaaz wala andhera)');
-    const RI = HTML.indexOf('function reply(text, wasVoice, link){');
+    const RI = HTML.indexOf('function reply(text, wasVoice, link, opts){');
     is(RI > 0 && HTML.slice(RI, RI + 520).indexOf('KAAN.DARWAZA.open()') > 0,
       '🚪 F55: darwaza jawab SHURU par tazaa — lamba jawab baat-cheet ko beech mein nahi todta');
 
@@ -2602,9 +2609,9 @@ Here's a thinking process:
     is(/window\.__nativeSpeechErr\(9\)/.test(MA) && MA.indexOf('__nativeSpeechErr(7)') === -1,
       '🔐 F44: Kotlin ijazat ke liye code 9 bhejta hai (pehle 7 = "samajh nahi aaya" — JS galat loop chalati thi)');
     is(/RecognizerIntent\.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS/.test(MA) &&
-       /\n\s*700L\s*\n/.test(MA) &&
+       /\n\s*600L\s*\n/.test(MA) && MA.indexOf('700L') === -1 &&
        MA.indexOf('"android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS"') === -1,
-      '🔑 F48: silence extra ab SARKARI chaabi (plural "extras") + Long se jata hai — pehle chup-chaap be-asar tha');
+      '🔑 F48 + ⚡J3 (F66): silence extra SARKARI chaabi se + Long, aur ab 600L (har turn par 100ms ki bachat)');
     const LI = MA.indexOf('fun listen(lang: String)');
     const LE = MA.indexOf('fun stopListen()', LI);           /* listen() ki asal hadd */
     is(LI > 0 && LE > LI && MA.slice(LI, LE).indexOf('} catch (e: Throwable) {') > 0 &&
@@ -2632,7 +2639,7 @@ Here's a thinking process:
   head('34b. 🧪 JAWAB ka AMAL — asli waqt mein chal kar (watchdog + faislay + breaker)');
   {
     const JA = HTML.indexOf('var JAWAB = {');
-    const JB = HTML.indexOf('function reply(text, wasVoice, link){');
+    const JB = HTML.indexOf('function reply(text, wasVoice, link, opts){');
     is(JA > 0 && JB > JA, '🔬 JAWAB ka poora module index.html se alag nikala ja saka');
     const JSRC = HTML.slice(JA, JB);
     const sleep = (ms) => new Promise(function (r) { setTimeout(r, ms); });
@@ -2881,7 +2888,7 @@ Here's a thinking process:
   head('35b. 🧪 HAALBAR ka AMAL — saat halatein, level ka hisab, baat-cheet ka darwaza');
   {
     const HA = HTML.indexOf('var HAALBAR = {');
-    const HB = HTML.indexOf('function reply(text, wasVoice, link){');
+    const HB = HTML.indexOf('function reply(text, wasVoice, link, opts){');
     is(HA > 0 && HB > HA, '🔬 HAALBAR ka poora module index.html se alag nikala ja saka');
     const HSRC = HTML.slice(HA, HB);
     const sleep = (ms) => new Promise(function (r) { setTimeout(r, ms); });
@@ -2956,6 +2963,201 @@ Here's a thinking process:
       is(/MIC HAAL BAR/.test(H.report()) && /wake level/.test(H.report()),
         '📊 report() panel ke liye ek line mein poora hisab deta hai', H.report().slice(0, 60) + '…'); }
   }
+
+  /* ═══ 36. ⚡ v5.13.0 "RAFTAR" — J3 ke taale (F59–F66) ═══════════════════════
+     Malik ki do shikayatein: (1) "slow boht reply derhi ha — instant reply aye
+     fastly", (2) "Maya kabhi screen par ache se dekh rahi hai aur jawab de rahi
+     hai, kabhi pooch raha hun to jawab hi nahi deti".
+     Ye locks dono ilaj bandhte hain:
+       A — SCREEN PAKKI: NAZAR default ON (F59), doosri koshish (F60), prompt ka
+           QANOON + poori tool fehrist (F61), needsTools bina poolTools qaid (F62)
+       B — RAFTAR: dimaag ka stream + jumla-dar-jumla awaaz + kill-switch (F63)
+       C — awaaz ka fast budget (F64), pehli-awaaz ki naap (F65), 600ms silence (F66)
+       D — RAFTAR aur NAZAR ko CHALA kar parakhna (sirf wiring nahi)            */
+  head('36. ⚡ v5.13.0 — RAFTAR: jawab foran + screen ka pakka jawab');
+  {
+    const MA = fs.readFileSync(path.join(ROOT, 'app/src/main/java/com/maya/ai/MainActivity.kt'), 'utf8');
+    const WS = fs.readFileSync(path.join(ROOT, 'app/src/main/java/com/maya/ai/WakeWordService.kt'), 'utf8');
+
+    /* ── A. SCREEN PAKKI (F59–F62) ── */
+    is(/nazar: true/.test(HTML) && HTML.indexOf('nazar: false') === -1,
+      '👁️ F59: NAZAR ab DEFAULT ON — pehle LAB switch OFF tha is liye read_screen hamesha "NAZAR band hai" kehta tha');
+    is(/raftar: true/.test(HTML) && /RAFTAR\.live\(\)/.test(HTML),
+      '⚡ F63: RAFTAR ka apna LAB switch (default ON) — malik chahe to band kar sake');
+    is(/lookRetry: function/.test(HTML) && /NAZAR\.lookRetry\(90, NAZAR\.RETRY_MAX\)/.test(HTML),
+      '🩹 F60: read_screen ab DO koshish karta hai (pehla dump khali to doosra, 160 element)');
+    is(/say: function \(why\)/.test(HTML) && /say: nz\.say \|\| NAZAR\.say\(nz\.why\)/.test(HTML),
+      '🗣️ F61: har nakami mein BOLNE layak line (say) jati hai — dimaag chup nahi reh sakta');
+    is(/n: \{ look: 0, ok: 0, empty: 0, retry: 0, fail: 0/.test(HTML),
+      '🧮 F65: NAZAR ka apna hisaab (koshish/kamyab/khali/retry/nakaam)');
+    const SPA = HTML.indexOf('function sysPrompt(){');
+    const SP = HTML.slice(SPA, SPA + 5000);
+    is(/read_screen/.test(SP) && /see_camera/.test(SP) && /list_files/.test(SP) && /prayer_times/.test(SP),
+      '📜 F61: system prompt ab screen/camera/files/namaz tools ka ZIKR karta hai (pehle 33 mein se sirf 9 the)');
+    is(/PEHLE read_screen call karo/.test(SP) && /ANDAZA bilkul mat lagao/.test(SP),
+      '📜 F61: prompt ka hukm — screen ka sawal ho to PEHLE read_screen, andaza kabhi nahi');
+    is(/QANOON \(tool nakam ho\)/.test(SP) && /CHUP mat raho/.test(SP),
+      '📜 F61: prompt ka QANOON — tool nakam ho to us ki note user ko batao, chup mat raho');
+    const NTA = HTML.indexOf('function needsTools(t){');
+    const NT = HTML.slice(NTA, NTA + 1000);
+    is(/FLAGS\.on\("poolTools"\)\) return AMAL/.test(NT) === false && /AMAL\.actionRe\(\)\.test\(t\)/.test(NT),
+      '🧭 F62: needsTools ab HAMESHA poori trigger fehrist (AMAL) se — poolTools ki qaid khatam');
+    is(/screen\|dekh\|dikh\|nazar\|parho/.test(HTML),
+      '🧭 F62: purani ACTION_WORDS mein bhi screen ke alfaaz (fallback mehfooz)');
+    is(/"screen par", "is screen", "ye screen"/.test(HTML),
+      '🧭 F62: AMAL.TRIGGERS.read_screen mein mazeed jumle ("screen par", "ye screen"…)');
+
+    /* ── B. RAFTAR: stream + jumla-dar-jumla awaaz (F63) ── */
+    is(/streamGenerateContent\?alt=sse/.test(HTML) && /getReader/.test(HTML),
+      '⚡ F63: dimaag ka jawab STREAM hota hai (:streamGenerateContent?alt=sse + body reader)');
+    is(/async function geminiStream\(m, body, onDelta\)/.test(HTML) && /nostream: true/.test(HTML),
+      '⚡ F63: geminiStream() SSE ko generateContent jaisi shakl deta hai (baqi code badla nahi)');
+    is(/RAFTAR\.feed\(delta\)/.test(HTML) && /RAFTAR\.rearm\(\)/.test(HTML) && /RAFTAR\.strike\("EMPTY"\)/.test(HTML),
+      '⚡ F63: geminiTry stream ko RAFTAR se jorta hai (feed · tool-step rearm · EMPTY strike)');
+    is(/HOLD: 40/.test(HTML) && /MAX_STRIKES: 2/.test(HTML) && /kill: function/.test(HTML),
+      '🛡️ F63: HOLD (40 harf) + kill-switch (2 strikes) — stream kabhi jawab maar nahi sakta');
+    is(/function reply\(text, wasVoice, link, opts\)/.test(HTML) && /opts\.noSpeak/.test(HTML),
+      '🔇 F63: reply() ka noSpeak — RAFTAR bol chuka ho to jawab DOBARA nahi bolta');
+    is(/RAFTAR\.begin\(wasVoice, myGen\)/.test(HTML) && /noSpeak: true/.test(HTML),
+      '🔗 F63: askAI RAFTAR ko begin/finish karta hai aur watchdog ki generation bhi deta hai');
+
+    /* ── C. fast budget (F64) + naap (F65) + silence (F66) ── */
+    is(/FAST: 1800/.test(HTML) && /fastTrips/.test(HTML) && /fastForced/.test(HTML),
+      '⏱️ F64: AWAAZ ka FAST BUDGET (1800ms) — network tier atke to Edge, phir phone (dead air khatam)');
+    is(/a\.onplay = function/.test(HTML) && /AWAAZ\.audioAt/.test(HTML),
+      '⏱️ F64: "asli awaaz baji" ka saboot audio ke onplay se aata hai (andaza nahi)');
+    is(/first: \{ p50: NAAP\.pct\(NAAP\.col\("first"\)/.test(HTML) && /pehli awaaz/.test(HTML),
+      '📊 F65: NAAP ab PEHLI AWAAZ ka waqt naapta hai aur report mein p50/p90 dikhata hai');
+    is(/if \(info\.stream\) c\.stream = 1;/.test(HTML) && /⚡ RAFTAR/.test(HTML),
+      '📊 F65: har turn darj karta hai ke jawab stream hua tha + RAFTAR PANEL report mein');
+    /* (WakeWordService mein 700L abhi bhi EK jagah hai — error 6/7 ka backoff delay,
+       silence se us ka koi taluq nahi; is liye sirf MA par "koi 700L nahi" ka taala) */
+    is(MA.indexOf('600L') > 0 && MA.indexOf('700L') === -1 &&
+       /EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 600L/.test(WS),
+      '🎙️ F66: mic ki khamoshi 700ms → 600ms (dono Kotlin path) — har turn par 100ms bachat');
+
+    /* ── D1. RAFTAR ka AMAL (jsdom mein chalaa kar) ── */
+    const w = world({});
+    const R = w.RAFTAR;
+    is(typeof R === 'object' && R.VER === 1, '⚡ RAFTAR module index.html se alag nikal kar chalta hai');
+    let sp = R.split('Ji boss. Main theek hoon. Aap sunao?', false);
+    is(sp.pieces.length === 1 && sp.pieces[0] === 'Ji boss. Main theek hoon.' && sp.rest === 'Aap sunao?',
+      '✂️ jumla kaatna: poore jumle bolne ko milte hain, adhoora hissa bacha rehta hai', JSON.stringify(sp.pieces));
+    is(R.split('Aap sunao?', true).pieces[0] === 'Aap sunao?' && R.split('', true).pieces.length === 0,
+      '✂️ final=true → bacha hua matn bhi bol diya jata hai (kuch chhoota nahi)');
+    is(R.split('chhota tukra', false).pieces.length === 0,
+      '✂️ bina poore jumle ke tukra nahi kata jata (awaaz beech mein nahi tootti)');
+    const big = R.split(new Array(320).join('a'), false);
+    is(big.pieces.length === 1 && big.pieces[0].length <= R.SENT_MAX && big.rest.length > 0,
+      '✂️ SENT_MAX: bohat lamba tukra kaat diya jata hai (warna bolna der se shuru)', big.pieces[0].length + ' harf');
+    const ur = R.split('سلام۔ آپ کیسے ہیں؟ مزید بات', false);
+    is(ur.pieces[0] === 'سلام۔ آپ کیسے ہیں؟' && ur.rest === 'مزید بات',
+      '✂️ Urdu ke nishan (۔ ؟) bhi jumla kaatte hain', ur.pieces[0]);
+
+    const ev = { candidates: [{ content: { parts: [{ text: 'Ji boss.' }] } }] };
+    const s1 = R.sse('data: ' + JSON.stringify(ev) + '\n\ndata: {adhoora', '');
+    is(s1.events.length === 1 && s1.events[0].candidates[0].content.parts[0].text === 'Ji boss.',
+      '📡 SSE: poora event parse hua');
+    is(s1.rest === 'data: {adhoora', '📡 SSE: adhuri line agle tukre ke liye mehfooz (stream tootta nahi)');
+    is(R.sse('data: {kharab\n\n', '').events.length === 0, '📡 SSE: kharab JSON par crash nahi — chup-chaap skip');
+    let s2 = R.sse('da', ''); s2 = R.sse('ta: ' + JSON.stringify(ev) + '\n\n', s2.rest);
+    is(s2.events.length === 1, '📡 SSE: event do tukron mein bikhra ho to bhi jur jata hai');
+    const po = R.partsOf({ candidates: [{ content: { parts: [{ text: 'dekhti hoon' }, { functionCall: { name: 'read_screen', args: {} } }] } }] });
+    is(po.text === 'dekhti hoon' && po.calls.length === 1 && po.calls[0].name === 'read_screen' && po.parts.length === 2,
+      '🧩 partsOf: matn aur functionCall alag — tool-step pehchana ja sakta hai');
+
+    is(R.live() === true, '⚡ raftar default ON → stream chalega');
+    w.FLAGS.set('raftar', false);
+    is(R.live() === false, '🎛️ LAB switch OFF → purana saabit raasta (malik ka ikhtiyar)');
+    w.FLAGS.set('raftar', true);
+    R.strike('NETWORK');
+    is(R.dead === false && R.strikes === 1, '🛡️ ek nakami par stream abhi zinda (foran darpana nahi)');
+    R.strike('EMPTY');
+    is(R.dead === true && R.live() === false,
+      '🛡️ KILL-SWITCH: 2 nakamiyan → session bhar streaming OFF (jawab purane raaste se, khamoshi nahi)');
+    R.revive();
+    is(R.dead === false && R.live() === true, '🔧 revive: LAB se dobara chalu ho sakta hai');
+
+    /* bolne ka amal — naqli AWAAZ ke sath */
+    const w2 = world({});
+    w2.__spoke = [];
+    w2.AWAAZ = { engine: 'test', stop: function () {}, speak: function (t, cb) {
+      w2.__spoke.push(String(t));
+      if (cb && cb.onStart) cb.onStart('test');
+      if (cb && cb.onDone) cb.onDone();
+    } };
+    const R2 = w2.RAFTAR;
+    R2.begin(true, 0);
+    R2.feed('Ji boss.');
+    is(w2.__spoke.length === 0 && R2.q.length === 0,
+      '🤫 HOLD: pehle 40 harf ruk kar aate hain — tool-step ka preamble bolne ki naubat hi nahi aati');
+    R2.feed(' Main theek hoon, aur aap ka din kaisa guzar raha hai?');
+    is(w2.__spoke.length >= 1 && w2.__spoke[0] === 'Ji boss.',
+      '🗣️ HOLD ke baad pehla jumla FORAN bola gaya (poore jawab ka intezar nahi)', w2.__spoke[0]);
+    is(R2.spokeChars > 0 && R2.tFirst > 0, '📊 pehle harf aur pehli boli ka waqt darj hua (RAFTAR report)');
+    R2.feed(' Sab accha hai.');
+    R2.finish();
+    is(R2.active === false && w2.__spoke.length >= 3 && /Sab accha hai/.test(w2.__spoke.join(' | ')),
+      '🏁 finish(): bacha hua aakhri jumla bhi bola gaya, phir hisaab band', w2.__spoke.length + ' tukre');
+    is(R2.last && R2.last.pieces >= 3 && typeof R2.last.total === 'number',
+      '📊 aakhri jawab ki raftar darj (tukre + waqt) — RAFTAR.line() isi se banti hai', JSON.stringify(R2.last));
+    is(/stream ON|stream OFF/.test(R2.line()) && /NAZAR/.test(R2.line()),
+      '📊 RAFTAR.line(): stream ka haal + strikes + fast-budget + NAZAR ka hisaab ek jagah');
+
+    R2.begin(false, 0);
+    R2.feed('Main abhi screen parh leti hoon. Ek second ruk jao.');
+    is(w2.__spoke.length >= 4, 'tool-step se pehle preamble bolne laga (jaan-boojh kar roka jayega)');
+    R2.rearm();
+    is(R2.active === true && R2.q.length === 0 && R2.spokeChars === 0 && R2.buf === '',
+      '♻️ rearm: preamble phenka MAGAR stream zinda — asli jawab bhi tukron mein hi bolega');
+    R2.feed('Screen par Chrome khula hai aur do button hain.');
+    R2.finish();
+    is(/Chrome/.test(w2.__spoke.join(' | ')),
+      '👁️ rearm ke baad ASLI jawab bola gaya (screen ka jawab chhoota nahi — yahi F59-F61 ki jaan hai)');
+    R2.begin(false, 0);
+    R2.feed('Aadha jawab aaya tha ke stream toot gaya, ');
+    R2.abort();
+    is(R2.active === false && R2.spokeChars === 0,
+      '🛑 abort: adhoori stream rad — askAI ko pata chale ke jawab PURANE raaste se bolna hai (do jawab nahi)');
+
+    /* ── D2. NAZAR ka AMAL — doosri koshish aur imaandari ── */
+    const w3 = world({});                 /* nazar default ON */
+    const N = w3.NAZAR;
+    w3.NATIVE = true;
+    const dump = (items) => JSON.stringify({ ok: true, pkg: 'com.android.chrome', n: items.length, items: items });
+    let calls = [];
+    w3.MayaBridge = { uiDump: function (max) {
+      calls.push(max);
+      return calls.length === 1 ? dump([])
+        : dump([{ i:0, t:'btn', x:'Search', cx:1, cy:1 }, { i:1, t:'input', x:'URL bar', cx:2, cy:2 }]);
+    } };
+    let nz = N.lookRetry(90, 160);
+    is(nz.ok === true && nz.items.length === 2 && calls.length === 2 && calls[1] === 160 && N.n.retry === 1,
+      '🩹 F60: pehla dump KHALI tha → doosri koshish (160) ne screen parh li', calls.join(' → '));
+    calls = [];
+    w3.MayaBridge.uiDump = function (max) { calls.push(max); return dump([]); };
+    nz = N.lookRetry(90, 160);
+    is(nz.ok === false && nz.empty === true && !!nz.say && N.n.empty >= 2,
+      '🤝 F60: dono koshishein khali → SAAF nakami + bolne layak line (na chup, na andaza)', nz.say);
+    w3.MayaBridge.uiDump = function () { return JSON.stringify({ ok: false, why: 'accessibility band hai' }); };
+    nz = N.lookRetry(90, 160);
+    is(nz.ok === false && /ijazat|Accessibility/.test(nz.say),
+      '🔑 F61: ijazat band ho to say() RAASTA batata hai (sirf technical wajah nahi)', nz.say);
+    is(/koshish/.test(N.line()) && /kamyab/.test(N.line()),
+      '🧮 NAZAR.line(): poora hisaab ek line mein (RAFTAR report isi ko dikhata hai)', N.line());
+    is(/sirf MAYA ki APK/.test(N.say('screen parhna sirf APK mein chalta hai')),
+      '🧭 browser mein screen parhne ka sawal → imaandari (APK wali baat, jhoot nahi)');
+
+    /* ── E. Qanoon 9: parcha + forensic darj ── */
+    const FX = fs.readFileSync(path.join(ROOT, 'docs/FIX-v5.13.0-raftar.md'), 'utf8');
+    let ids = 0;
+    for (let n = 59; n <= 66; n++) if (FX.indexOf('F' + n) > 0) ids++;
+    is(ids === 8, '🔬 J3 ke 8 flaws (F59..F66) plan-doc mein saboot ke sath darj hain', ids + '/8');
+    const RP = fs.readFileSync(path.join(ROOT, 'docs/REPORT-v5.13.0-aam-zubaan.md'), 'utf8');
+    is(/PASS/.test(RP) && /FAIL/.test(RP) && /5\.13\.0/.test(RP),
+      '📱 Qanoon 9: v5.13.0 ki release report — kya naya, kaise parakhna (PASS/FAIL), version pehchaan');
+  }
+
 
     console.log('\n\x1b[1m\x1b[35m══════════════════════════════════════════════════════════\x1b[0m');
     if (fail === 0) console.log('\x1b[1m\x1b[32m✅ SAB TEST PASS — ' + pass + '/' + pass + '\x1b[0m');

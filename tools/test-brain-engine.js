@@ -98,13 +98,28 @@ function makeWorld(opts = {}) {
     const r = typeof plan === 'function' ? plan(state.fetches.length, state) : (plan[n] || plan[plan.length - 1]);
     n++;
     if (r.throw) throw new Error(r.throw);
-    return {
+    const res = {
       ok: r.status >= 200 && r.status < 300,
       status: r.status,
       json: async () => r.body,
       text: async () => JSON.stringify(r.body || {}),
       clone() { return this; }
     };
+    /* ⚡ J3 (v5.13.0 / F63) — dimaag ab STREAM karta hai: `:streamGenerateContent?alt=sse`
+       par jawab SSE tukron mein aata hai aur geminiTry usi ko wapas generateContent ki
+       shakl deta hai. Naqli reader plan ke `body` ko ek SSE event bana kar deta hai
+       (ya plan `sse: [...]` de to wahi tukre) — taake ASLI raftar wala raasta bhi
+       yahan naapa ja sake, sirf purana raasta nahi. */
+    if (/streamGenerateContent/.test(String(url))) {
+      const chunks = r.sse || ['data: ' + JSON.stringify(r.body || {}) + '\n\n'];
+      let i = 0;
+      res.body = {
+        getReader: () => ({
+          read: async () => (i < chunks.length ? { done: false, value: chunks[i++] } : { done: true, value: '' })
+        })
+      };
+    }
+    return res;
   };
 
   /* naqli XMLHttpRequest — BRAIN POOL isi se baat karta hai */

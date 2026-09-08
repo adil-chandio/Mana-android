@@ -1,9 +1,43 @@
 # 🤖 MAYA — Personal AI Assistant
 
-**Version 5.12.5 "MIC NAZAR" — 0-Budget Build • Android APK + Web PWA**
+**Version 5.13.0 "RAFTAR" — 0-Budget Build • Android APK + Web PWA**
 
 MAYA = aap ka apna JARVIS — voice controlled AI assistant (Gemini brain),
 ab **asli Android app** (APK) ki soorat mein, native superpowers ke saath:
+
+## ⚡ v5.13.0 — "RAFTAR" *(J3: jawab foran + screen ka pakka jawab)*
+
+Aap ki do shikayatein: *"yeh slow boht reply derhi ha… instant reply aye fastly"* aur
+*"Maya kabhi screen par ache se dekh Rahi ha or jawab derhi ha Kabhi pooch rha hun to jawab hi
+nhi derhi."* Microscope se **8 flaws** mile (F59–F66) — saboot ke sath
+[`docs/FIX-v5.13.0-raftar.md`](docs/FIX-v5.13.0-raftar.md) mein.
+
+| 🔑 | Cheez | Ilaj |
+|---|---|---|
+| **J3.1** | **DIMAAG KA STREAM** — `:streamGenerateContent?alt=sse`; **pehla jumla bante hi awaaz**, baqi jumle queue (`AWAAZ.speak` chain, ek doosre ko kaatte nahi) | F63: pehle **poora** jawab (1.5–4s) aata tha, phir awaaz; screen wale sawal mein 2 round trip = 3–8s |
+| **J3.2** | **3 pehre**: `HOLD` 40 harf (tool-step ka preamble chup-chaap phenka, `rearm`) · **kill-switch** 2 strikes par session bhar streaming OFF · watchdog `thinkGen` guard | Stream ki wajah se jawab **kabhi** nahi marna chahiye; beech mein awaaz nahi kaatni |
+| **J3.3** | **AWAAZ KA FAST BUDGET** `AWAAZ.FAST = 1800ms` — asli awaaz (`audioAt`, audio ke `onplay` se) na baji to foran **Edge → phone**; `fastTrips` ginti | F64/F50: network tier atke to 25s tak **dead air** (jawab mojood, awaaz gayab) |
+| **J3.4** | **👁️ NAZAR default ON** (LAB switch ab kill-switch) | F59: `nazar: false` tha — tool hamesha *"NAZAR band hai"* kehta, screen ka jawab hi nahi aata tha |
+| **J3.5** | **`NAZAR.lookRetry(90, 160)`** — pehla dump khali to **doosri koshish**; phir bhi khali to `ok:false` + **bolne layak `say`** | F60: ek hi koshish; screen transition par `items: []` → `done:true, count:0` → dimaag ke paas batane ko kuch nahi (chup ya andaza) |
+| **J3.6** | **system prompt ki poori tool fehrist** (screen/camera/files/torch/volume/brightness/namaz/diary/skill) + **QANOON**: *"screen ka sawal → PEHLE `read_screen`; tool nakam ho to us ki note batao — chup mat raho, andaza mat lagao"* | F61: 33 tools declare the, prompt sirf **9** ka naam leta tha — NAZAR ka zikr hi nahi (kabhi dekhti thi, kabhi nahi) |
+| **J3.7** | **`needsTools()` hamesha `AMAL.actionRe()`** (+ ACTION_WORDS mein screen alfaaz, + `read_screen` ke 6 naye trigger jumle) | F62: poori trigger fehrist sirf `poolTools` ON (default OFF) par chalti thi → "screen par kya hai" router mein hi nahi tha |
+| **J3.8** | **⚡ RAFTAR PANEL** (NAAP.report ke andar): `pehli awaaz` p50/p90 · `stream N/M` · aakhri jawab ka breakdown (pehla harf / pehli awaaz / kul / tukre) · fast-budget trips · **NAZAR ka hisaab** | F58/F65: raftar **napi** hi nahi jati thi — "tez ho gaya" sirf ehsaas tha, saboot nahi |
+| **J3.9** | Silence **700ms → 600ms** (dono Kotlin path), minimum 300ms barqarar | F66: har turn par 100ms ka intezaar |
+| **J3.10** | `reply(text, wasVoice, link, **opts**)` — `noSpeak` par bubble + history darj, dobara bolna **nahi** | Warna `AWAAZ.stop()` chal-ti awaaz kaat deta aur poora jawab **dobara** sunai deta |
+
+⚖️ **Imaandari:** forensic ke do andaze badle — TTS budget **800ms → 1800ms** (800ms par har
+jawab Edge par girta, yaani malik ki chuni hui **neural** awaaz ka tarkheeb), aur prompt ka bojh
+**kam** karne ke bajaye us mein 33 tools ka zikr **add** hua (screen ki jarrh prompt ka chhota
+hona nahi, NAZAR ka **zikr na hona** thi). `MAX_LENGTH_MILLIS=15000L` nahi lagaya (J1 ka 12s
+watchdog pehle se hai). Streaming **sirf Gemini** par — backup dimaag purane raaste chalte hain.
+
+🧪 **+55 test** (1320 → **1375**): lab **Section 36** — wiring locks + `RAFTAR` aur `NAZAR` ko
+jsdom mein **chalaa kar** parakha (jumla kaatna, Urdu `۔؟`, SSE tukre, HOLD, kill-switch, rearm,
+abort, doosri koshish, `say` ki imaandari).
+
+📄 **Ek parcha:** [`docs/REPORT-v5.13.0-aam-zubaan.md`](docs/REPORT-v5.13.0-aam-zubaan.md) · 📖 tafseel: [`docs/FIX-v5.13.0-raftar.md`](docs/FIX-v5.13.0-raftar.md)
+
+---
 
 ## 🎛️ v5.12.5 — "MIC NAZAR" *(J2: mic ka haal hamesha nazar)*
 
@@ -167,7 +201,7 @@ pehchaan" na ho to tests **FAIL** honge.
 
 📖 [`docs/FIX-v5.10.3-wake-zinda.md`](docs/FIX-v5.10.3-wake-zinda.md) · forensic: [`docs/FORENSIC-WAKE-WORD.md`](docs/FORENSIC-WAKE-WORD.md)
 
-**Ab kya:** ~~Phase 1~~ ✅ (v5.11.0) → ~~J1~~ ✅ (v5.12.0) → ~~J2~~ ✅ (v5.12.5) → **J3 "RAFTAR" (neeche)** → Phase 2 (WAKE DOCTOR v2 + live notification + dBFS calibration) → **Phase 2.5 auto-update** (F43 · *faisla: GitHub ya apna server*) → Phase 3 (wake ka dimaag Kotlin mein) → Phase 4 (offline KWS engine).
+**Ab kya:** ~~Phase 1~~ ✅ (v5.11.0) → ~~J1~~ ✅ (v5.12.0) → ~~J2~~ ✅ (v5.12.5) → ~~J3~~ ✅ (v5.13.0) → **J4 "SAAF AWAAZ" (neeche)** → Phase 2 (WAKE DOCTOR v2 + live notification + dBFS calibration) → **Phase 2.5 auto-update** (F43 · *faisla: GitHub ya apna server*) → Phase 3 (wake ka dimaag Kotlin mein) → Phase 4 (offline KWS engine).
 
 ---
 
@@ -182,7 +216,7 @@ saboot (file:line) ke sath, aur **4 phase ka structure**:
 |---|---|---|---|
 | **J1** ✅ | v5.12.0 | **JAWAB PAKKA** | har nakami **bol kar** bataye, koi deadlock nahi (3 watchdog: listen 12s · think **40s** · speak **20s+110ms/harf**), galat error-matn theek, nakami ke baad mic **khud dobara**, darwaza lambe jawab mein band na ho |
 | **J2** ✅ | v5.12.5 | **MIC NAZAR** | hamesha nazar aane wali **MIC HAAL BAR** (**7** state, 7 rang, text ke sath) + wake pehre ka **live level** (pehra + recognizer) + **conversation mode** (ek turn = ek mic open → cycle aadha) |
-| **J3** | v5.13.0 | **RAFTAR** | bolna khatam → **~0.6s** mein mic band (Long extras), awaaz **800ms budget** ke sath (dead air khatam), dimaag ki **streaming** (pehla jumla foran), aur **RAFTAR PANEL** (har turn ke ms — saboot) |
+| **J3** ✅ | v5.13.0 | **RAFTAR** | dimaag ki **streaming** (pehla jumla foran) + awaaz ka **1800ms fast budget** (dead air khatam) + silence **600L** + **RAFTAR PANEL** (pehli awaaz ke ms — saboot) + **SCREEN PAKKI** (NAZAR default ON, doosri koshish, prompt ka qanoon) |
 | **J4** | v5.13.5 | **SAAF AWAAZ** | Urdu rate/pitch tuning, jumla-ba-jumla prosody, awaaz tez/dheemi setting |
 
 ⚖️ **Imaandari:** Android ka **system mic-dot jhilmilana** cloud-wake (Google ASR) ke sath poori
@@ -190,8 +224,9 @@ tarah khatam **nahi** ho sakta — J2 usay **kam** karega aur UI mein saaf batay
 **saabit** mic sirf **Phase 4 (offline KWS)** mein.
 
 🧪 Structure doc par **+7 test-locks** (lab Section 33) → 1241/1241 GREEN.
-**J1 mukammal (v5.12.0)** → 1281/1281 · **J2 mukammal (v5.12.5)** → **1320/1320 GREEN**.
-Agla: **J3 "RAFTAR"** (jaldi sune, jaldi bole — streaming + TTS budget + NAAP panel).
+**J1 mukammal (v5.12.0)** → 1281/1281 · **J2 mukammal (v5.12.5)** → 1320/1320 ·
+**J3 mukammal (v5.13.0)** → **1375/1375 GREEN**.
+Agla: **J4 "SAAF AWAAZ"** (Urdu rate/pitch, jumla-ba-jumla prosody, awaaz ki sehat ka doctor).
 
 ---
 

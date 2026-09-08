@@ -303,6 +303,40 @@ kiya. **Raftar J3** mein (streaming, TTS budget, 600L silence). **Awaaz ki barik
 13. Airplane mode ON → awaaz **2 second** ke andar shuru ho (device TTS fast-path) — 4 second dead air nahi.
 14. RAFTAR panel har turn ke numbers dikhaye aur average barqarar rakhe.
 
+#### ✅ J3 ka AMAL — v5.13.0 "RAFTAR" SHIPPED (1375/1375 test GREEN)
+
+Tafseel: [`FIX-v5.13.0-raftar.md`](FIX-v5.13.0-raftar.md) · parcha:
+[`REPORT-v5.13.0-aam-zubaan.md`](REPORT-v5.13.0-aam-zubaan.md)
+
+Naya JS module **`RAFTAR`** (stream + jumla-dar-jumla awaaz + kill-switch), naya
+**`geminiStream()`** (`:streamGenerateContent?alt=sse`), `AWAAZ.FAST` budget,
+`NAAP` mein **`first`** (pehli awaaz) mark, aur **NAZAR** ki pakkaai
+(`lookRetry` + `say` + counters + default ON).
+
+| Plan | Amal | Wajah |
+|---|---|---|
+| J3.1 silence `600L` | **wahi 600L**, dono path (app + wake), minimum `300L` barqarar | har turn par 100ms; chhote jumle na katen |
+| J3.1 `MAX_LENGTH_MILLIS=15000L` | **nahi lagaya** | J1 ka `LISTEN_MAX` (12s) watchdog wahi kaam karta hai; AOSP extras aksar ignore hote hain — teesra pehra bina naap ke churn hai |
+| J3.2 TTS budget **800ms** | **1800ms** (`AWAAZ.FAST`), aur trip par **tier badalta** hai (Edge → phone) | Gemini neural TTS ka pehla clip 1–2s leta hai; 800ms par har jawab Edge par girta = malik ki chuni hui neural awaaz ka tarkheeb. Saboot `audioAt` (audio ke `onplay`) se — andaza nahi |
+| J3.3 STREAMING | **wahi**, magar 3 pehre ke sath: `HOLD` 40 harf, **kill-switch** (2 strikes), tool-step par `rearm` | tool-step ka preamble beech mein bolna = awaaz kaatna; stream ki nakami kabhi jawab ko maar na sake |
+| J3.4 prompt ka bojh kam | **ulta**: prompt mein 33 tools ka zikr **add** hua (~200 token) | screen ka jawab na aane ki jarrh prompt ka chhota hona nahi, **NAZAR ka zikr na hona** tha (F61). Raftar par asar NAAP naapega; zaroorat hui to J4 mein context chhantenge |
+| J3.5 RAFTAR PANEL | **NAAP.report() ke andar** (naya UI nahi): `pehli awaaz p50/p90`, `stream N/M`, aakhri jawab ka breakdown, fast-budget trips, NAZAR ka hisaab | ek hi jagah (LAB → 📊 NAAP), purana hisaab barqarar, naya UI = naya risk |
+| (plan mein na tha) | **SCREEN PAKKI**: `nazar` default ON (F59), `lookRetry` = doosri koshish (F60), prompt ka QANOON + poori tool fehrist (F61), `needsTools` bina `poolTools` qaid (F62) | malik ki doosri shikayat: "kabhi screen par jawab hi nahi deti" — 4 alag sabab mile, chaaron band |
+
+**Acceptance ka haal:**
+* **12** (bolna khatam → 1s mein pehla lafz): streaming se pehla jumla aate hi awaaz;
+  target 0.6–1.5s. **Waada nahi, naap** — RAFTAR panel ka `pehli awaaz` p50 yahi batayega
+  (dimaag ka pehla token + TTS ka pehla clip, dono network par hain).
+* **13** (airplane mode → 2s mein awaaz): `navigator.onLine === false` par AWAAZ seedha
+  **device** tier par jata hai (pehle se), aur dimaag offline/local jawab deta hai ✓.
+* **14** (panel numbers + average): NAAP p50/p90 (120 turn) + RAFTAR ka aakhri-turn breakdown ✓.
+
+**Kya BAQI hai:** streaming **sirf Gemini** par (backup dimaag purane raaste — un par faida kam);
+600L ka asar phone ki Google speech service par nirbhar (panel naapega); **awaaz ki bariki J4**;
+NAZAR abhi sirf **dekhta** hai (tap/click = P7b); mic-dot SAABIT = Phase 4 (offline KWS).
+
+---
+
 ### 🎵 J4 — v5.13.5 "SAAF AWAAZ"
 
 | # | Badlaav |

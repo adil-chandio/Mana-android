@@ -885,8 +885,10 @@ class WakeWordService : Service() {
                    minimum-length KUCH nahi tha (app wale path mein 700ms tha). Is liye
                    wake sessions kabhi kabhi bohat lambi khinchti thin aur
                    SERVER_DISCONNECTED (err 11) par khatam hoti thin. Ab dono path ek
-                   jaise: 700ms khamoshi = session khatam, 300ms = kam az kam bolna. */
-                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 700L)
+                   jaise: khamoshi = session khatam, 300ms = kam az kam bolna.
+                   ⚡ J3 (F66): 700 ms → 600 ms (dono path ek sath) — har turn par
+                   100 ms ki bachat; minimum 300 ms barqarar, chhote jumle kat-te nahi. */
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 600L)
                 putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 300L)
             }
             starts++

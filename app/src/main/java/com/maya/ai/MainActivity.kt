@@ -129,7 +129,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.12.5 • 🎛️ MIC NAZAR: mic ka haal hamesha nazar + wake ka zinda level + baat-cheet mode", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.13.0 • ⚡️ RAFTAR: jawab tukron mein (pehla jumla foran) + screen ka pakka jawab", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -321,7 +321,7 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.12.5-native"
+        fun appVersion(): String = "5.13.0-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
@@ -488,12 +488,17 @@ class MainActivity : AppCompatActivity() {
                            nahi gaya — chup-chaap be-asar.
                        (b) value Int thi, aur recognition service getLongExtra() se
                            parhti hai — Int hota to bhi ignore ho jata.
-                       Ab sarkari constant + 700L. (Imaandari: Google ki service isay
-                       ignore bhi kar sakti hai — J3 RAFTAR PANEL isi ko NAAP kar ke
-                       tay karega ke 600L behtar hai ya nahi.) */
+                       Ab sarkari constant + Long value. (Imaandari: Google ki service
+                       isay ignore bhi kar sakti hai — ⚡ J3 RAFTAR PANEL isi ko NAAP
+                       karta hai: NAAP ke `brain` / `first` (pehli awaaz) / `done`
+                       number batate hain ke 600 ms ka asar hua ya nahi.) */
                     putExtra(
                         RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
-                        700L
+                        /* ⚡ J3 (F66) — purana 700 ms ab 600 ms: bolna khatam hone ke
+                           baad ka intezaar 100 ms kam, HAR turn par. 300 ms minimum
+                           barqarar, is liye chhote jumle kat-te nahi. Asar RAFTAR PANEL
+                           naapega (NAAP: brain → first-awaaz → done). */
+                        600L
                     )
                 }
                 /* 🛡️ J1.4 (F49) — PEHLE yahan koi try/catch NAHI tha. makeRecognizer()
