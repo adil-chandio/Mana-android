@@ -175,3 +175,15 @@ likha hai ke namoona chal rahe jawab ko rok deta hai.
    streaming jawab ka wada (K1.5/F71) toot-ta. Nateeja: bina lock wali ek-dafa speak par sawal
    dohra sakta hai (aam istemal mein har jawab lock ke sath hota hai).
 9. **Naya APK/install zaroori hai** — purane v5.15.0 APK par ye policies dead hi rahengi.
+
+---
+
+## Release record
+
+| | |
+|---|---|
+| Commit | `31d4645` — branch `arena/01a062e9-mana-android` (12 files, +934 / −37) |
+| CI | run `34260153846` ✅ SUCCESS · job `build` |
+| APK | artifact `MAYA-APK` = 3,270,237 bytes (~3.27 MB) |
+| Tests | 1697 GREEN (lab 1044 · voice 397 · brain 155 · settings/CSS 101) |
+| Version | 5.16.0 · vc81 · 🩺 ARTIST DOCTOR · `5.16.0-native` · `maya-v5.16.0` |

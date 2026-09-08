@@ -90,3 +90,6 @@ Command line se: `node tools/test-voice-engine.js` (**397**) + `node tools/test-
 | Tests | **1697/1697 GREEN** — voice **397** (Section 20 = +49) · lab **1044** (Section 40 = +46) · brain 155 · settings/CSS 101 |
 | Docs | `docs/FORENSIC-AWAAZ-DOCTOR.md` (F102–F113) · `docs/FIX-v5.16.0-artist-doctor.md` · ye report |
 | Mirror | `public/index.html` = `app/src/main/assets/web/index.html` (byte-identical) |
+| Git | commit `31d4645` · branch `arena/01a062e9-mana-android` (12 files, +934 / −37) |
+| CI | run [`34260153846`](https://github.com/adil-chandio/Mana-android/actions/runs/34260153846) ✅ **SUCCESS** |
+| APK | artifact `MAYA-APK` = **3,270,237 bytes** (~3.27 MB) — usi CI run se download karein |
