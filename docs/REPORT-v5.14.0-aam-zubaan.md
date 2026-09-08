@@ -115,6 +115,19 @@ Header par: `PERSONAL AI v5.14.0 ✨`. Settings → ⚡ RAFTAR PANEL mein nayi l
 6. Purani APK + naya web-asset (ya ulta) par `ytSearchList` na hone ki surat mein purana `ytSearch`
    fallback chalta hai — behtar chunai ka faida tab nahi milega jab tak APK update na ho.
 
+### 🔬 Release ke baad ka self-review (isi version mein theek hua)
+
+Push ke baad poora K1–K4 dobara parha. Teen asli khamiyan pakdi gayin — teeno theek ho kar
+**taale bhi lag gaye** (lab 937 → **944**, kul **1494**):
+
+* **Soch ke waqt wake ka mic khula reh jata tha.** Ab Maya jab jawab soch rahi ho (ya tool chala rahi ho)
+  wake ka mic bhi usi lamhe band hota hai → "ek baar boli, reply kuch nahi aaya" aur do jawab ka
+  takrao ka aakhri raasta band. *(Tajurba 3 aur 4 mein farq nazar aayega.)*
+* **Kisi aur chhoti awaaz se artist badal sakta tha** (toast jaisi chhoti bol). Ab artist ka taala sirf
+  usi jawab ke haath mein hai jis ne shuru kiya — beech mein koi chup-chaap artist nahi badal sakta.
+* **PANEL ka "pehle se mangwaye N" number jhoot bol sakta tha** (jab kuch mangwaya hi na gaya ho).
+  Ab ginti sirf waqai mangwayi gayi clips ki hoti hai.
+
 ---
 
 ## 4) FAIL ho to kya bhejein
@@ -137,5 +150,5 @@ Header par: `PERSONAL AI v5.14.0 ✨`. Settings → ⚡ RAFTAR PANEL mein nayi l
 | Naam | **🎵 EK AWAAZ** |
 | Service Worker cache | `maya-v5.14.0` |
 | `appVersion()` (native) | `5.14.0-native` |
-| Test | **1487** locks — settings/CSS 101 · voice 294 · brain 155 · lab 937 (Section 37 = 57, Section 38 = 53) — sab GREEN |
+| Test | **1494** locks — settings/CSS 101 · voice 294 · brain 155 · lab 944 (Section 37 = 64, Section 38 = 53) — sab GREEN |
 | Plan/forensic | `docs/FORENSIC-EK-AWAAZ.md` · amal: `docs/FIX-v5.14.0-ek-awaaz.md` |

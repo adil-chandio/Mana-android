@@ -59,7 +59,7 @@
 
 ## 🔒 Test-lock
 
-* **Section 37** (`tools/test-lab-engine.js`) — K1 + K2 ke **57** taale: engine lock ko **CHALA kar** (jsdom mein asal `AWAAZ` source + stub tiers), batching/chain/preheat, roz ka quota, turn lock, SOCH_RAHI, wake gate, `emptyHear`, Kotlin ke source locks (haalBlock/SOCH_EXP_MS/700L-600L).
+* **Section 37** (`tools/test-lab-engine.js`) — K1 + K2 ke **64** taale: engine lock ko **CHALA kar** (jsdom mein asal `AWAAZ` source + stub tiers), batching/chain/preheat, roz ka quota, turn lock, SOCH_RAHI, wake gate, `emptyHear`, Kotlin ke source locks (haalBlock/SOCH_EXP_MS/700L-600L).
 * **Section 38** — K3 + K4 + Qanoon 9 ke **53** taale: `GANA` ko CHALA kar (vague/pick/played-memory/ask), Kotlin `ytSearchList` ke locks, soch ka budget (jsdom mein asal `DIMAAG`), prompt qanoon, PANEL counters, docs.
 * Purane taale jo **jaan-boojh kar** badle (wajah ke sath, chup-chaap nahi):
   * F66 silence locks → **K2.5 (F76)** app=700ms / wake=600ms.
@@ -67,8 +67,29 @@
   * Section 35 ke `finish()/pieces` locks → **HOLD_N** batching ke mutabiq (aur naya taala: "ek harf bhi khoya nahi").
   * Version locks → 5.14.0 / vc79 / 🎵 EK AWAAZ.
 
-**Kul test:** **1487** (settings/CSS 101 · voice 294 · brain 155 · lab **937**) — sab GREEN.
-(v5.13.0 mein 1375 the; +112 naye taale: Section 37 = 57, Section 38 = 53, aur 2 purane locks K1.3 batching ke mutabiq dobara likhe gaye.)
+**Kul test:** **1494** (settings/CSS 101 · voice 294 · brain 155 · lab **944**) — sab GREEN.
+(v5.13.0 mein 1375 the; +119 naye taale: Section 37 = 64, Section 38 = 53, aur 2 purane locks K1.3 batching ke mutabiq dobara likhe gaye.)
+
+## 🔬 Self-review ke baad ki sakhti (release ke baad, isi version mein)
+
+Push ke baad poore K1–K4 ka dobara jaiza liya (jaisa Qanoon kehta hai: "bagair kisi kami galati ke").
+Teen asli khamiyan pakdi gayin aur theek ki gayin — chaaron ka taala bhi laga:
+
+1. **🔴 WakeWordService.onHaal — SOCH_RAHI par wake ka mic khula reh jata tha.**
+   Mic sirf `BOL_RAHI`/`APP_SUN` par band hota tha. Nateeja: jab Maya jawab **soch** rahi hoti
+   (tool/stream), wake ka recognizer chalta rehta → do jawab takra sakte the ("ek baar boli,
+   usne suna hi nahi, reply kuch nahi aaya" — F74/F76 ka aakhri suraagh).
+   Ab: `if (h == "BOL_RAHI" || h == "APP_SUN" || h == "SOCH_RAHI")`. **+5 taale.**
+2. **🟠 AWAAZ.setEngine — koi doosri (bina-lockKey) speak chalte jawab ka artist badal sakti thi.**
+   Lock ka engine sirf usi jawab se badalna chahiye jis ne kunji di thi; warna toast/purane raaste
+   ki ek chhoti awaaz poore jawab ka artist chup-chaap badal deti (F67 ka bacha-kucha raasta).
+   Ab: `AWAAZ.lockMatch` sirf `speak()` ke andar set hota hai aur setEngine sirf tab lock chhuta hai. **+1 taala.**
+3. **🟡 RAFTAR.preheats — ginti jhoot bol sakti thi.**
+   `preheat()` kuch kiye baghair bhi `RAFTAR.preheats++` ho jata tha (Edge/device par), yani NAAP panel
+   mein "pehle se mangwaye N" ka number barh jata jabke koi clip mangwai hi nahi gayi thi.
+   Ab: `preheat()` lotata hai ke kitni clip mangwai (skip par `0`) aur RAFTAR sirf wahi jodta hai.
+
+> In teenon ka matlab: **awaaZ ka artist, mic ka taala, aur hisaab ka number — teeno ab jhoot nahi bolte.**
 
 ## ⚠️ Imaandari (kya adhoora hai)
 

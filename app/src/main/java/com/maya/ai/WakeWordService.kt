@@ -72,6 +72,7 @@ class WakeWordService : Service() {
         val PAUSE_EXP_MS = WakeState.PAUSE_EXP_MS     /* sulah: 8s (mic khali ho to) */
         val APP_SUN_EXP_MS = WakeState.APP_SUN_EXP_MS /* app ka mic: 30s */
         val BOL_EXP_MS = WakeState.BOL_EXP_MS         /* bolna: 20s */
+        val SOCH_EXP_MS = WakeState.SOCH_EXP_MS       /* 🎵 K2.2: soch/turn lock: 60s */
         val HB_MS = WakeState.HB_MS                   /* JS heartbeat: 10s */
         val HB_MISS = WakeState.HB_MISS               /* 3 miss = JS murda → KHALI */
 
@@ -969,7 +970,7 @@ class WakeWordService : Service() {
 
     /* 🎛️ J2.3 — mode ka AMAL: ON = mic isi lamhe chhodo (gate + recognizer),
        OFF = wapas pehre par. onHaal() jaisa hi, magar HAAL ko chhuta nahi —
-       SUKOON ka haal (KHALI/BOL_RAHI/APP_SUN) apni jagah barqarar rehta hai. */
+       SUKOON ka haal (KHALI/BOL_RAHI/APP_SUN/SOCH_RAHI) apni jagah barqarar rehta hai. */
     fun onTalk(on: Boolean) {
         handler.post {
             if (!running) return@post
@@ -1010,7 +1011,11 @@ class WakeWordService : Service() {
     fun onHaal(h: String) {
         handler.post {
             if (!running) return@post
-            if (h == "BOL_RAHI" || h == "APP_SUN") {
+            /* 🎵 v5.14.0 K2.2 (F74) — SOCH_RAHI par bhi wahi hukum: mic ISI LAMHE band.
+               PEHLE ye haal maujood hi nahi tha, is liye jawab sochte ya tool chalate waqt
+               wake ka recognizer chalta rehta tha → do jawab ek sath takra jate the
+               ("ek baar boli, usne suna hi nahi, reply kuch nahi aaya"). */
+            if (h == "BOL_RAHI" || h == "APP_SUN" || h == "SOCH_RAHI") {
                 /* mic ISI LAMHE chhodo — awaaz katna yahi se rukta hai */
                 stopGate()
                 try { sr?.cancel() } catch (e: Exception) {}

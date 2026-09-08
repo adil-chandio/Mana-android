@@ -2832,7 +2832,8 @@ var RAFTAR = {
           try { if (typeof SUKOON !== "undefined") SUKOON.bolStart(); } catch (e) {}
           try { JAWAB.mark("speak", budget); JAWAB.turnTouch(); } catch (e) {}   /* 🎵 K2.1 — turn zinda hai */
           /* 🎵 K1.4 (F70) — agla tukra peeche se mangwao: tukron ke beech ka gap khatam */
-          try { if (RAFTAR.q.length && typeof AWAAZ !== "undefined" && AWAAZ.preheat) { AWAAZ.preheat(RAFTAR.q[0]); RAFTAR.preheats++; } } catch (e) {}
+          /* 🎵 K1.4 (F70) — ginti sirf tab jab waqai clip mangwayi gayi (jhootha number nahi) */
+          try { if (RAFTAR.q.length && typeof AWAAZ !== "undefined" && AWAAZ.preheat) RAFTAR.preheats += (AWAAZ.preheat(RAFTAR.q[0]) || 0); } catch (e) {}
           if (!RAFTAR.tVoice) {
             RAFTAR.tVoice = (new Date()).getTime();
             try {
@@ -3550,10 +3551,13 @@ var AWAAZ = {
     if (code && typeof pushLog === "function") pushLog("AWAAZ: " + code + " — " + AWAAZ.errText);
     AWAAZ.paint();
   },
+  lockMatch: false,       /* 🎵 K1.1 — ye speak() us jawab ki hai jis ka lock laga hai? */
   setEngine: function (e) {
     /* 🎵 K1.1 (F67) — engine lock ka hisaab: is jawab mein pehle se koi tier chal chuki hai
-       aur ab koi DOOSRI chal rahi hai? Gino (NAAP panel mein dikhega) + lock yaad rakho */
-    if (e && AWAAZ.lock && AWAAZ.lock.key) {
+       aur ab koi DOOSRI chal rahi hai? Gino (NAAP panel mein dikhega) + lock yaad rakho.
+       `lockMatch` is liye ke koi AUR speak() (toast/chime/purana raasta) chalte jawab ka
+       lock chup-chaap badal na de — lock sirf usi jawab ka hai jis ne kunji di thi */
+    if (e && AWAAZ.lock && AWAAZ.lock.key && AWAAZ.lockMatch) {
       if (AWAAZ.lock.engine && AWAAZ.lock.engine !== e) AWAAZ.switched++;
       AWAAZ.lock.engine = e;
     }
@@ -3580,6 +3584,9 @@ var AWAAZ = {
       AWAAZ.gen++;
     }
     var gen = AWAAZ.gen;
+    /* 🎵 K1.1 — is speak() ka lockKey jawab ke lock se milta hai? (setEngine isi se
+       faisla karta hai ke lock/engine ya artist-switch ginti update karni hai) */
+    AWAAZ.lockMatch = !!(cb.lockKey && AWAAZ.lock.key === cb.lockKey);
     var c = AWAAZ.cfg();
     text = String(text || "").trim();
     if (!text) { if (cb.onDone) cb.onDone(); return; }
@@ -3764,9 +3771,9 @@ var AWAAZ = {
        tukron ke beech ka network gap khatam. Sirf Gemini neural par (us ka cache hai,
        aur fetchClip udti hui request share karta hai = extra request NAHI banti) */
     try {
-      if (AWAAZ.lock.engine !== "neural") return;
+      if (AWAAZ.lock.engine !== "neural") return 0;
       var t = String(text || "");
-      if (!t || AWAAZ.blockReason(t)) return;
+      if (!t || AWAAZ.blockReason(t)) return 0;
       var list = AWAAZ.chunkPlan(t), i, n = 0;
       for (i = 0; i < list.length && n < 2; i++) {
         if (list[i].length < 8) continue;
@@ -3778,7 +3785,8 @@ var AWAAZ = {
         n++;
       }
       if (n) AWAAZ.preheats++;
-    } catch (e) {}
+      return n;
+    } catch (e) { return 0; }
   },
 
   stop: function () {
@@ -9034,7 +9042,8 @@ var KHUD = {
       /* 🤫 Maya bol rahi hai ya sun rahi hai → beech mein na tokay */
       if (typeof SUKOON !== "undefined" && SUKOON.haal !== "KHALI") {
         s.busyBlocked++; KHUD.BUDGET.save();
-        return { ok: false, why: "Maya abhi " + (SUKOON.haal === "BOL_RAHI" ? "bol rahi hai" : "sun rahi hai") + " — beech mein nahi bolti" };
+        /* 🎵 K2.2 — SOCH_RAHI ka apna matlab (pehle "sun rahi hai" keh deti thi = jhoot) */
+        return { ok: false, why: "Maya abhi " + (SUKOON.haal === "BOL_RAHI" ? "bol rahi hai" : SUKOON.haal === "SOCH_RAHI" ? "jawab soch rahi hai" : "sun rahi hai") + " — beech mein nahi bolti" };
       }
       if (typeof speaking !== "undefined" && speaking) {
         s.busyBlocked++; KHUD.BUDGET.save();
@@ -9710,7 +9719,8 @@ var KHUD = {
    (3) wohi jang error 8 (RECOGNIZER_BUSY) deti thi -> service khud ko maar
        kar AAP KA WAKE SWITCH bhi mita deti thi. Ab err8 = sirf 2s sukoon.
    (4) speaker se Maya ki awaaz VAD ko lagti -> self-wake loop ka khatra.
-   Hal: HAAL — KHALI / BOL_RAHI / APP_SUN — bridge se Kotlin tak, aur
+   Hal: HAAL — KHALI / BOL_RAHI / APP_SUN / SOCH_RAHI (🎵 v5.14.0 K2.2) — bridge se
+        Kotlin tak, aur
    Kotlin ka mic HAAR darwaze par pehle HAAL poochhta hai (restart,
    actuallyStart, VAD gate, watchdog). */
 var SUKOON = {

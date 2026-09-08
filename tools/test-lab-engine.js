@@ -3254,7 +3254,9 @@ Here's a thinking process:
     /* lock ki har tier par seedha raasta */
     [['neural', 'neural'], ['edge', 'edge'], ['device', 'device']].forEach(function (pr) {
       const w = awaazWorld(); const A = w.AWAAZ;
-      A.lockBegin('jX'); A.setEngine(pr[0]); w.__calls = [];
+      A.lockBegin('jX');
+      A.lockMatch = true; A.setEngine(pr[0]); A.lockMatch = false;   /* asal zindagi mein ye speak() ke andar hota hai */
+      w.__calls = [];
       A.speak('usi artist ka tukra', { lockKey: 'jX', chain: true, onStart: function () {}, onDone: function () {} });
       is(w.__calls.join('>') === pr[1],
         '🎵 K1.1: lock "' + pr[0] + '" ho to agle tukre seedha ' + pr[1] + ' par (seerhi nahi)', w.__calls.join('>'));
@@ -3262,18 +3264,19 @@ Here's a thinking process:
 
     /* lock wali tier nakam ho to agli tier — khamoshi nahi */
     const wF = awaazWorld({ fishFail: true }); const AF = wF.AWAAZ;
-    AF.lockBegin('jF'); AF.setEngine('fish'); wF.__calls = [];
+    AF.lockBegin('jF'); AF.lockMatch = true; AF.setEngine('fish'); AF.lockMatch = false; wF.__calls = [];
     AF.speak('fish nakam hone wala hai', { lockKey: 'jF', chain: true, onStart: function () {}, onDone: function () {} });
     is(wF.__calls.indexOf('fish') === 0 && wF.__calls.indexOf('neural') > 0,
       '🎵 K1.1: lock wali tier nakam ho to SEERHI wapas (khamoshi kabhi nahi)', wF.__calls.join('>'));
     const wN = awaazWorld({ neuralFail: true }); const AN = wN.AWAAZ;
-    AN.lockBegin('jN'); AN.setEngine('neural'); wN.__calls = [];
+    AN.lockBegin('jN'); AN.lockMatch = true; AN.setEngine('neural'); AN.lockMatch = false; wN.__calls = [];
     AN.speak('neural nakam hone wala hai', { lockKey: 'jN', chain: true, onStart: function () {}, onDone: function () {} });
     is(wN.__calls.indexOf('edge') > 0, '🎵 K1.1: Gemini nakam → Edge (lock toota magar jawab nahi)', wN.__calls.join('>'));
 
     /* J3 ka fast budget lock se takraata nahi — wo BADLA bhi lock mein darj hota hai */
     const wQ = awaazWorld(); const AQ = wQ.AWAAZ;
-    AQ.lockBegin('jQ'); AQ.setEngine('fish'); AQ.fastForced = 'edge'; wQ.__calls = [];
+    AQ.lockBegin('jQ'); AQ.lockMatch = true; AQ.setEngine('fish'); AQ.lockMatch = false;
+    AQ.fastForced = 'edge'; wQ.__calls = [];
     AQ.speak('fast budget ne kaha tez tier', { lockKey: 'jQ', onStart: function () {}, onDone: function () {} });
     is(wQ.__calls.join('>') === 'STOP>edge' && AQ.lock.engine === 'edge',
       '🎵 K1.2 (F68): fast-budget ka faisla LOCK mein darj — agli jumlon par wapas 🐟 par nahi jhoola',
@@ -3281,7 +3284,7 @@ Here's a thinking process:
 
     /* bina chain (naya jawab) → purana sakht stop barqarar */
     const wS = awaazWorld(); const AS = wS.AWAAZ;
-    AS.lockBegin('jS'); AS.setEngine('fish'); wS.__calls = [];
+    AS.lockBegin('jS'); AS.lockMatch = true; AS.setEngine('fish'); AS.lockMatch = false; wS.__calls = [];
     AS.speak('naya jawab, chain nahi', { lockKey: 'jS', onStart: function () {}, onDone: function () {} });
     is(wS.__calls.indexOf('STOP') === 0,
       '🎵 K1.5: NAYE jawab par sakht stop() barqarar (pichli awaaz dabana zaroori hai)');
@@ -3290,6 +3293,17 @@ Here's a thinking process:
     is(wS.__calls.indexOf('fish') >= 0 && AS.lock.engine === '',
       '🎵 K1.1: lockEnd() ke baad purana artist THONSA nahi jata — naya jawab seerhi se apna artist chunta hai',
       wS.__calls.join('>') + ' lock=' + AS.lock.engine);
+
+    /* 🎵 K1.1 — koi AUR speak() (bina lockKey: toast/purana raasta) chalte jawab ka
+       artist lock chup-chaap badal na de, aur switched ki ginti bhi na barhaye */
+    const wM = awaazWorld(); const AM = wM.AWAAZ;
+    AM.lockBegin('jM');
+    AM.speak(' jawab ka pehla tukra', { lockKey: 'jM', onStart: function () {}, onDone: function () {} });
+    const __eng = AM.lock.engine, __sw = AM.switched;
+    AM.speak('koi doosri cheez bina lock ke', { onStart: function () {}, onDone: function () {} });
+    is(AM.lock.engine === __eng && AM.switched === __sw && AM.lockMatch === false,
+      '🎵 K1.1: bina-lockKey wali speak (toast/purana raasta) chalte jawab ka artist LOCK NAHI badalti',
+      'lock=' + AM.lock.engine + ' switched=' + AM.switched);
 
     /* ── A2. Gemini TTS ka ROZ ka hisaab (F69) ── */
     const wD = awaazWorld(); const AD = wD.AWAAZ;
@@ -3300,7 +3314,7 @@ Here's a thinking process:
       '🎵 K1.6 (F69): 12 request ke baad Gemini TTS BAND (QUOTA_DAY) — free tier ~15/din se pehle Edge pakdo');
     is(JSON.parse(wD.localStorage.getItem('maya_tts_day')).n === 12,
       '🎵 K1.6: roz ka hisaab localStorage mein (app band kar ke kholne par bhi yaad)');
-    AD.lockBegin('jD'); AD.setEngine('neural'); wD.__calls = [];
+    AD.lockBegin('jD'); AD.lockMatch = true; AD.setEngine('neural'); AD.lockMatch = false; wD.__calls = [];
     AD.speak('quota khatam hone ke baad', { lockKey: 'jD', chain: true, onStart: function () {}, onDone: function () {} });
     is(wD.__calls.indexOf('neural') === -1 && wD.__calls.length > 0,
       '🎵 K1.6: quota khatam ho to jawab Gemini TTS par ZID nahi karta — be-hisaab tier (🐟/Edge) par chala jata hai',
@@ -3315,13 +3329,36 @@ Here's a thinking process:
     /* ── A3. preheat: agle tukre ki pehle se mang (F70) ── */
     const wP = awaazWorld(); const AP = wP.AWAAZ;
     let __fetch = 0; AP.fetchClip = function () { __fetch++; };
-    AP.lockBegin('jP'); AP.setEngine('neural');
+    AP.lockBegin('jP'); AP.lockMatch = true; AP.setEngine('neural'); AP.lockMatch = false;
     AP.preheat('ye agla tukra hai jo pehle se mangwaya ja raha hai');
     is(__fetch === 1 && AP.preheats === 1,
       '🎵 K1.4 (F70): Gemini neural par agle tukre ki clip PEHLE se mangwa li (tukron ke beech ka gap khatam)');
-    __fetch = 0; AP.setEngine('edge'); AP.preheat('edge par preheat nahi hona chahiye');
-    is(__fetch === 0, '🎵 K1.4: preheat sirf us tier par jiska cache hai (Edge/device par bekar request nahi)');
+    /* 🎵 K1.1 — artist lock ab sirf speak ke andar banta hai, is liye lockMatch ON karke
+       tier badli (asal zindagi mein RAFTAR ka chunk yehi karta hai) */
+    __fetch = 0; AP.lockMatch = true; AP.setEngine('edge'); AP.lockMatch = false;
+    AP.preheat('edge par preheat nahi hona chahiye');
+    is(__fetch === 0 && AP.preheat('phir se') === 0,
+      '🎵 K1.4: preheat sirf us tier par jiska cache hai (Edge/device par bekar request nahi, aur 0 lotata hai)');
     is(/AWAAZ\.preheat\(RAFTAR\.q\[0\]\)/.test(HTML), '🎵 K1.4: RAFTAR har tukre ke shuru hote hi agla tukra preheat karta hai');
+
+    /* 🎵 K2.2 — WakeWordService.onHaal: SOCH_RAHI par bhi mic TURANT band.
+       PEHLE sirf BOL_RAHI/APP_SUN tha → jawab sochte ya tool chalate waqt wake ka
+       recognizer chalta rehta tha ("ek baar boli, reply kuch nahi aaya" + do jawab
+       ka takrao). Ye is release ka sab se ahem mic taala hai. */
+    const __K = (f) => fs.readFileSync(path.join(ROOT, 'app/src/main/java/com/maya/ai/' + f), 'utf8');
+    const __wss = __K('WakeWordService.kt');
+    is(/if \(h == "BOL_RAHI" \|\| h == "APP_SUN" \|\| h == "SOCH_RAHI"\) \{/.test(__wss),
+      '🎵 K2.2: WakeWordService.onHaal SOCH_RAHI par bhi wake ka mic isi lamhe BAND karta hai');
+    is(!/if \(h == "BOL_RAHI" \|\| h == "APP_SUN"\) \{/.test(__wss),
+      '🎵 K2.2: onHaal ki purani 2-haal wali shart (SOCH ke baghair) kahin nahi bachi');
+    is(/val SOCH_EXP_MS = WakeState\.SOCH_EXP_MS/.test(__wss),
+      '🎵 K2.2: WakeWordService ke saathi mein SOCH ki umar ka hawala (60s) maujood');
+    is(/KHALI \| BOL_RAHI \| APP_SUN \| SOCH_RAHI/.test(__K('MainActivity.kt')),
+      '🎵 K2.2: MainActivity ki setHaal documentation chaaron haal ginta hai');
+    is(/KHALI \/ BOL_RAHI \/ APP_SUN \/ SOCH_RAHI/.test(HTML),
+      '🎵 K2.2: SUKOON ka JS header chaaron haal ginta hai');
+    is(/SUKOON\.haal === "SOCH_RAHI" \? "jawab soch rahi hai"/.test(HTML),
+      '🎵 K2.2: KHUD ka busy-paigham SOCH_RAHI ko sahi naam deta hai (pehle "sun rahi hai" = jhoot)');
 
     /* ── B. RAFTAR: tukron ki batching + lock wiring (CHALA kar) ── */
     function raftarWorld() {

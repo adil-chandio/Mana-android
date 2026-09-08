@@ -324,8 +324,10 @@ class MainActivity : AppCompatActivity() {
         fun appVersion(): String = "5.14.0-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
-           KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
-           ko poochhti hai. Isi se awaaz-katna + mic-larai dono khatam hain. */
+           KHALI | BOL_RAHI | APP_SUN | SOCH_RAHI — WakeWordService har mic-darwaze par
+           isi ko poochhti hai. Isi se awaaz-katna + mic-larai dono khatam hain.
+           🎵 v5.14.0 K2.2: SOCH_RAHI = jawab socha ja raha hai (tool/stream), awaaz
+           abhi shuru nahi hui — is mudat mein bhi wake ka mic BAND rehta hai. */
         @JavascriptInterface
         fun setHaal(h: String) {
             try { WakeWordService.applyHaal(h) } catch (e: Exception) {}
