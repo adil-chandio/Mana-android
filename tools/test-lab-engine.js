@@ -3522,6 +3522,203 @@ Here's a thinking process:
       '🎵 K2.7 (F78) + K3.5 (F83): kam-yaqeen sunai par poochna + HAQEEQAT ka sach — dono ab DEFAULT ON');
   }
 
+  /* ═══ 38. 🎵🧠 v5.14.0 — K3 (gaana + dimaag) + K4 (hisaab) ke taale (F79–F83) ═══
+     Malik ke alfaaz: "yt par jaake acha sa song lagao koi bhi woh TikTok ki salon
+     years purani video lagadeti ha or bar baar Wohi same video … uske andar dimaag
+     NAHI ha sochne ka samjhne ka reasoning mindset".
+     Malik ka faisla: gaana POOCHA jaye — andaza nahi, hardcoded list nahi.      */
+  head('38. 🎵🧠 v5.14.0 — GANA (poochho, chuno, dohrao nahi) + DIMAAG (soch)');
+  {
+    const GANASRC = HTML.slice(HTML.indexOf('var GANA = {'), HTML.indexOf('async function ytPlay(query, opts){'));
+    const DIMSRC = HTML.slice(HTML.indexOf('var DIMAAG = {'), HTML.indexOf('async function geminiChat(){'));
+    const MA38 = fs.readFileSync(path.join(ROOT, 'app/src/main/java/com/maya/ai/MainActivity.kt'), 'utf8');
+    is(GANASRC.length > 800 && DIMSRC.length > 800, '🔬 K3 ke source-slice mil gaye (asal code par test)');
+
+    function ganaWorld() {
+      const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously', url: 'https://appassets.androidplatform.net/' });
+      const w = dom.window;
+      w.pushLog = function () {}; w.$ = () => null; w.NATIVE = false;
+      w.settings = { name: 'Boss', lang: 'roman-ur' };
+      w.__door = 0;
+      w.KAAN = { push: function () {}, DARWAZA: { open: function () { w.__door++; return 6; }, close: function () {}, isOpen: function () { return true; } } };
+      w.eval(GANASRC);
+      return w;
+    }
+    const wG = ganaWorld(); const G = wG.GANA;
+
+    /* ── A. poochho, andaza nahi (F82) ── */
+    is(G.vague('acha sa song lagao koi bhi') === true,
+      '🎵 K3.3 (F82): MALIK ka apna jumla "acha sa song lagao koi bhi" → naam nahi hai → andaza nahi, POOCHEGI');
+    is(G.vague('koi acha gaana lagao') === true && G.vague('kuch bhi baja do') === true,
+      '🎵 K3.3: "koi acha gaana" / "kuch bhi baja do" bhi vague (aam lafz hata kar kuch nahi bachta)');
+    is(G.vague('funk taka') === false && G.vague('atif aslam') === false,
+      '🎵 K3.3: asli naam/artist vague NAHI — foran chalaya jayega (bekar poochh-tach nahi)');
+    is(G.vague('tera yaar hoon') === false,
+      '🎵 K3.3: gaane ka bol ("tera yaar hoon") naam hi hai — isay vague na samjhe');
+    is(G.vague('\u06A9\u0648\u0626\u06CC \u0627\u0686\u06BE\u0627 \u06AF\u0627\u0646\u0627 \u0644\u06AF\u0627\u0624') === true,
+      '🎵 K3.3: Urdu likha ho ("کوئی اچھا گانا لگاؤ") to bhi pehchan leti hai');
+    is(G.core('koi bhi gana chalao').length < 3 && /funk/.test(G.core('funk taka chalao')),
+      '🎵 K3.3: core() aam lafz hata kar ASLI naam bachata hai (isi par faisla)');
+    const askTxt = G.ask('acha sa gaana');
+    is(/Kaunsa gaana ya artist/.test(askTxt) && G.pending !== null && wG.__door === 1,
+      '🎵 K3.3: ask() → sawal + pending (90s) + darwaza khula (jawab foran suna jaye)', askTxt);
+    is(G.asks === 1 && /andaza nahi/.test(GANASRC),
+      '🎵 K3.3: poochhne ki ginti darj (PANEL mein) — chup-chaap andaza lagana qatl');
+    is(G.PENDING_MS === 90000 && /GANA\.followUp\(stripped\)/.test(HTML) &&
+       /AMAL\.guess\(stripped\)/.test(HTML) && /BIJLI\.match\(stripped\)/.test(HTML),
+      '🎵 K3.2 (F82): jawab aaya to seedha chalaya — magar doosra hukm (alarm/app) hijack NAHI hota');
+
+    /* ── B. chunai: Shorts rad, dohrana rad (F79/F80) ── */
+    const SHORT = [{ id: 'aaaaaaaaaaa', title: 'TikTok viral status 15 seconds', sec: 15, ch: 'Clips' }];
+    is(G.pick(SHORT, 'acha gaana') === null && G.shorts > 0,
+      '🎵 K3.1 (F79): 15-second ki clip GAANA NAHI — rad (yahi "TikTok ki salon purani video" thi)');
+    is(G.pick([{ id: 'bbbbbbbbbbb', title: 'Live concert full show', sec: 3000, ch: 'TV' }], 'song') === null,
+      '🎵 K3.1: 25 minute se lamba live/mix bhi rad (gaane ke naam par 1 ghanta nahi thonsna)');
+    const L1 = [
+      { id: 'ccccccccccc', title: 'Some Random Vlog Episode 12', sec: 700, ch: 'Vlogger' },
+      { id: 'ddddddddddd', title: 'Funk Taka (Official Audio)', sec: 252, ch: 'Music Label' }
+    ];
+    let pk = G.pick(L1, 'funk taka');
+    is(pk && pk.id === 'ddddddddddd',
+      '🎵 K3.1: title mein aap ke lafz + 4 minute ki clip → wahi chuni (pehla videoId nahi)', pk && pk.t);
+    pk = G.pick([
+      { id: 'eeeeeeeeeee', title: 'Jeena Official Music Video', sec: 720, ch: 'Films' },
+      { id: 'fffffffffff', title: 'Jeena Full Song', sec: 210, ch: 'Label' }
+    ], 'jeena');
+    is(pk && pk.id === 'fffffffffff',
+      '🎵 K3.1: dono milte-julte hon to 2–8 minute wali clip tarjeeh (12 minute wali nahi)', G.mmss(pk && pk.sec));
+    G.remember({ id: 'fffffffffff', t: 'Jeena Full Song', sec: 210 });
+    is(G.times('fffffffffff') === 1 && G.times('zzzzzzzzzzz') === 0 &&
+       JSON.parse(wG.localStorage.getItem(G.KEY)).length === 1,
+      '🎵 K3.2 (F80): jo gaana chala YAAD rehta hai (localStorage) — bar bar wahi nahi');
+    pk = G.pick([
+      { id: 'fffffffffff', title: 'Jeena Full Song', sec: 210, ch: 'Label' },
+      { id: 'ggggggggggg', title: 'Jeena Remix Version', sec: 230, ch: 'DJ' }
+    ], 'jeena');
+    is(pk && pk.id === 'ggggggggggg',
+      '🎵 K3.2 (F80): dobara maanga to DOOSRA gaana (jo chal chuka us par bara jurmana)', pk && pk.t);
+    pk = G.pick([{ id: 'fffffffffff', title: 'Jeena Full Song', sec: 210, ch: 'Label' }], 'jeena');
+    is(pk && pk.id === 'fffffffffff' && G.repeats > 0,
+      '🎵 K3.2: sirf wahi gaana bacha ho to chup nahi hoti — chala deti hai + dohraya ginti darj');
+    G.played = []; for (let i = 0; i < 90; i++) G.remember({ id: 'id' + i, t: 'g' + i, sec: 200 });
+    is(G.played.length === G.MAXMEM, '🎵 K3.2: yaad-dasht ki hadd ' + G.MAXMEM + ' (be-inteha localStorage nahi)', G.played.length + '');
+    is(G.mmss(252) === '4:12' && G.mmss(65) === '1:05' && G.mmss(0) === '',
+      '🎵 K3.2: jo chalaya us ka naam + duration BOLTI hai (andhera nahi)', G.mmss(252));
+    is(/gaane /.test(G.line()) && /Shorts rade/.test(G.line()) && /poochhe/.test(G.line()),
+      '🎵 K4: GANA.line() — poora hisaab ek line (PANEL isi ko dikhata hai)', G.line());
+
+    /* ── C. ytPlay ka wiring (source locks) ── */
+    const YTI = HTML.indexOf('async function ytPlay(query, opts){');
+    const YTSRC = HTML.slice(YTI, YTI + 4200);
+    is(YTI > 0 && /window\.MayaBridge\.ytSearchList\(q, 8\)/.test(YTSRC),
+      '🎵 K3.1 (F79): ytPlay ab PEHLE fehrist mangta hai (8 ummeedwar), pehla videoId nahi');
+    is(/if \(!opts\.sure && GANA\.vague\(q\)\) return GANA\.ask\(q\);/.test(YTSRC),
+      '🎵 K3.3 (F82): naam na ho to andaza nahi — ask() (aur pooche gaye jawab par dobara nahi poochhti)');
+    is(/YouTube par dhoondh rahi hoon/.test(YTSRC) && /JAWAB\.turnStart\("gaana"\)/.test(YTSRC),
+      '🎵 K3.5 (F83): 16 second ki KHAMOSH search khatam — status par dikhta hai + mic/wake band');
+    is(/GANA\.remember\(pick\)/.test(YTSRC) && /GANA\.mmss\(pick\.sec\)/.test(YTSRC),
+      '🎵 K3.2: chuna hua gaana yaad + user ko naam aur duration bola jata hai');
+    is(/sab chhoti clips ya lambe mix the/.test(YTSRC) && /GANA\.fallbacks\+\+/.test(YTSRC),
+      '🎵 K3.5 (F83): sab natije Shorts/mix hon to imaandari + search page (jhoot nahi, chup nahi)');
+    is(/window\.MayaBridge\.ytSearch\b/.test(YTSRC),
+      '🎵 K3.1: purani APK par bhi gaana chalta hai (ytSearch fallback — compatibility)');
+    is(HTML.indexOf('pehla wala dabana') === -1,
+      '🎵 K3.5: purani laparwahi ("pehla wala dabana") qatl — ab faisla Maya ka apna hai');
+
+    /* ── D. Kotlin: ytSearchList (F79) ── */
+    is(/@JavascriptInterface\s*\n\s*fun ytSearchList\(query: String, max: Int\): String/.test(MA38),
+      '🎵 K3.1 (F79): Kotlin mein naya bridge `ytSearchList(query, max)` — JS isi se fehrist leta hai');
+    is(/private fun ytParse\(txt: String, lim: Int, seen: MutableSet<String>, out: JSONArray\)/.test(MA38) &&
+       /return out\.toString\(\)/.test(MA38),
+      '🎵 K3.1: fehrist JSONArray mein wapas jati hai (id + title + duration + channel)');
+    is(/ytTitleRe/.test(MA38) && /ytLenRe/.test(MA38) && /ytOwnerRe/.test(MA38) &&
+       /o\.put\("title", title\)/.test(MA38) && /o\.put\("sec", sec\)/.test(MA38),
+      '🎵 K3.1 (F79): title + duration + channel PARHE jate hain (pehle sirf videoId tha — andhera)');
+    is(/win\.contains\("reelItemRenderer"\)[\s\S]{0,200}shortsLockupViewModel/.test(MA38) &&
+       /if \(sec in 1\.\.45\) continue/.test(MA38),
+      '🎵 K3.1 (F79): Shorts/reel aur 45s se chhoti clip Kotlin mein hi RAD (JS tak nahi aati)');
+    is(/if \(title\.isEmpty\(\)\) continue/.test(MA38),
+      '🎵 K3.1: bina title ka videoId (playlist/channel/ad) fehrist mein nahi aata');
+    is(/ytVidRe\.find\(ctx, selfAt \+ 12\)/.test(MA38),
+      '🎵 K3.1: har video ki khidki AGLE videoId tak — doosre ka title chipak nahi sakta');
+    is(/fun ytSearch\(query: String\): String/.test(MA38) && /private fun ytInnertube/.test(MA38) &&
+       /private fun ytHtml/.test(MA38),
+      '🎵 K3.1: purana ytSearch barqarar + dono fetch raste (innertube/HTML) alag — purani JS bhi chalti hai');
+    is(/private fun ytSec\(t: String\): Int/.test(MA38) && /p\[0\]\.toInt\(\) \* 3600/.test(MA38),
+      '🎵 K3.1: "4:12" aur "1:02:10" dono second mein badalte hain (duration ka asal hisaab)');
+    is(/private fun ytUnesc\(raw: String\): String/.test(MA38) && /JSONArray\("\[\\""/.test(MA38),
+      '🎵 K3.1: title ke JSON escapes khulte hain (user ko kachra nahi dikhta)');
+    is((MA38.match(/connectTimeout = 8000/g) || []).length >= 2 && /catch \(e: Throwable\) \{\}\s*\n\s*return out\.toString\(\)/.test(MA38),
+      '🎵 K3.1: search 8s par timeout + Throwable catch — crash nahi, khali fehrist "[]"');
+
+    /* ── E. DIMAAG: soch ka budget (F81) ── */
+    const wD2 = (function () {
+      const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously', url: 'https://appassets.androidplatform.net/' });
+      const w = dom.window;
+      w.pushLog = function () {}; w.$ = () => null; w.NATIVE = false;
+      w.settings = { name: 'Boss', apikey: 'k' };
+      w.eval(HTML.slice(HTML.indexOf('var SCHEMA = {'), HTML.indexOf('var AWAAZ = {')));
+      w.eval(DIMSRC);
+      return w;
+    })();
+    const D = wD2.DIMAAG;
+    is(D.thinkBudget('salam', true) === 512,
+      '🧠 K3.4 (F81): tool wale qadam par SOCH ka budget 512 — pehle har jagah 0 tha (dimaag band)');
+    is(D.thinkBudget('salam maya kaisi ho', false) === 0,
+      '🧠 K3.4: aam baat-cheet par soch 0 — raftar qaim (salam ka jawab 3 second na lage)');
+    is(D.thinkBudget('ye kaise kaam karta hai aur kyun', false) === 512 &&
+       D.thinkBudget('mujhe iska plan banao', false) === 512,
+      '🧠 K3.4: "kaise/kyun/plan" wale sawal par asli soch (reasoning wapas aayi)');
+    let __lamba2 = 'ye sawal bohat lamba hai '; while (__lamba2.length < 140) __lamba2 += 'aur thora aur ';
+    is(D.thinkBudget(__lamba2, false) === 256,
+      '🧠 K3.4: lamba sawal (120+ harf) par darmiyani soch (256) — na kam, na bekaar der');
+    is(D.thinks >= 3 && typeof D.maxTok === 'number',
+      '🧠 K4: soch aur MAX_TOKENS ke counter (PANEL mein number, andaza nahi)', 'thinks=' + D.thinks);
+    is(HTML.indexOf('maxOutputTokens: 280') === -1 && /maxOutputTokens: maxTok/.test(HTML) &&
+       /var maxTok = think > 0 \? 1024 : 512;/.test(HTML),
+      '🧠 K3.4 (F81): 280 token ki qaid KHATAM — 512 (soch ON ho to 1024); is liye tool args kat-te the');
+    is(/thinkingConfig = \{ thinkingBudget: think \}/.test(HTML) &&
+       HTML.indexOf('thinkingBudget: 0 };\n    if (!plain && step < maxSteps)') === -1,
+      '🧠 K3.4 (F81): thinkingBudget ab HAR sawal par 0 nahi — sawal ke hisab se');
+    is(/if \(frNow === "MAX_TOKENS"\) \{/.test(HTML) && /maxTok = maxTok \* 2;/.test(HTML) &&
+       /if \(!useStream && !geminiTry\._retriedBig && !fnCalls\.length\)/.test(HTML),
+      '🧠 K3.4: jawab MAX_TOKENS par kate to ek dafa BARE budget par retry — magar stream chal chuka ho to dobara nahi bolti');
+    is(/GAANA QANOON/.test(HTML) && /Kaunsa gaana ya artist/.test(HTML) && /SOCH QANOON/.test(HTML),
+      '🧠 K3.3/K3.4 (F82): prompt mein GAANA QANOON (poochho) + SOCH QANOON (wajah + agla qadam)');
+    is(/sach: true/.test(HTML) && /FLAGS\.on\("sach"\) \? 4 : 2/.test(HTML),
+      '🤝 K3.5 (F83): HAQEEQAT default ON — tool ka ASAL haal dimaag ko + 4 tool-qadam ("ho gaya" ka jhoot khatam)');
+
+    /* ── F. K4: PANEL ki nayi lines ── */
+    {
+      const w4 = world({});
+      w4.AWAAZ = { engine: 'edge', switched: 2, ttsReq: 5, preheats: 3, TTS_DAY_MAX: 12, ttsDay: function () { return 7; }, lock: { key: 'j9', engine: 'edge' }, fastTrips: 1, FAST: 1800 };
+      w4.JAWAB = { n: { turnBlocks: 4, turnExpire: 1, empty: 2 }, turn: { on: true, at: Date.now() - 3000, why: 'soch' } };
+      w4.SUKOON = { haal: 'SOCH_RAHI' };
+      w4.GANA = { line: function () { return 'gaane 3 · chune 3 · poochhe 1 · dohraye 0 · Shorts rade 2 · yaad 3/80 · fallback 0'; } };
+      w4.DIMAAG = { thinks: 6, maxTok: 1 };
+      const LN = w4.RAFTAR.line();
+      is(/🎵 EK AWAAZ: artist badla 2 dafa/.test(LN) && /TTS aaj 7\/12/.test(LN) && /pehle se mangwaye 3/.test(LN),
+        '📊 K4: PANEL mein EK AWAAZ ka hisaab — artist badla, aaj ki TTS request, preheat', LN.split('\n').pop());
+      is(/🎙️ MIC: turn ne wake roki 4/.test(LN) && /khali transcript 2/.test(LN) && /haal SOCH_RAHI/.test(LN),
+        '📊 K4: PANEL mein MIC ka hisaab — turn lock, khali transcript, haal');
+      is(/🎵 GANA: gaane 3/.test(LN) && /🧠 DIMAAG: soch ka budget 6 dafa/.test(LN),
+        '📊 K4: PANEL mein GANA + DIMAAG ka hisaab (ek jagah, number mein)');
+    }
+
+    /* ── G. Qanoon 9: forensic + fix + report darj ── */
+    const FR = fs.readFileSync(path.join(ROOT, 'docs/FORENSIC-EK-AWAAZ.md'), 'utf8');
+    let ids38 = 0; for (let n = 67; n <= 83; n++) if (FR.indexOf('F' + n) >= 0) ids38++;
+    is(ids38 === 17, '🔬 F67–F83 (17 flaws) forensic doc mein saboot ke sath darj hain', ids38 + '/17');
+    const FX38 = fs.readFileSync(path.join(ROOT, 'docs/FIX-v5.14.0-ek-awaaz.md'), 'utf8');
+    is(/K1/.test(FX38) && /K2/.test(FX38) && /K3/.test(FX38) && /K4/.test(FX38) &&
+       /F67/.test(FX38) && /F83/.test(FX38) && /adhoora/i.test(FX38),
+      '📄 v5.14.0 ka amal-record: K1–K4, F67–F83 ka mapping, aur imaandari (kya adhoora hai)');
+    const RP38 = fs.readFileSync(path.join(ROOT, 'docs/REPORT-v5.14.0-aam-zubaan.md'), 'utf8');
+    is(/PASS/.test(RP38) && /FAIL/.test(RP38) && /5\.14\.0/.test(RP38) && /79/.test(RP38) &&
+       /ADHOORA/i.test(RP38) && /kya bhejein/i.test(RP38),
+      '📱 Qanoon 9: v5.14.0 ki aam-zubaan report — kya naya, PASS/FAIL, kya adhoora, fail par kya bhejein, version pehchaan');
+  }
+
 
     console.log('\n\x1b[1m\x1b[35m══════════════════════════════════════════════════════════\x1b[0m');
     if (fail === 0) console.log('\x1b[1m\x1b[32m✅ SAB TEST PASS — ' + pass + '/' + pass + '\x1b[0m');
