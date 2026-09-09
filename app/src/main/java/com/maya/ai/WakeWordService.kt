@@ -74,6 +74,11 @@ class WakeWordService : Service() {
         fun applyHaal(h: String) {
             if (h == "BOL_RAHI") lastBolAt = System.currentTimeMillis()
             haalAt = System.currentTimeMillis()       /* watchdog stuck-recovery anchor */
+            /* wake-regression: KHALI = app ka mic session khatam, to pause ka
+               sabab bhi khatam. Pehle pausedByApp true hi reh jata tha —
+               resumeFromApp() ka KOI caller nahi tha -> har tap-to-speak ke
+               baad wake 20-65s tak mara rehta tha. */
+            if (h == "KHALI") pausedByApp = false
             haal = h
             try { instance?.onHaal(h) } catch (e: Exception) {}
         }
@@ -82,6 +87,15 @@ class WakeWordService : Service() {
         fun haalBlock(): String? {
             val s = instance ?: return null            /* service band -> faisla baema'ni */
             if (!s.sukoonOn()) return null             /* escape hatch — LAB switch OFF */
+            /* wake-regression: stale-HAAL live rescue — JS/WebView sach mein mar
+               gaya ho to watchdog (45s tick) ka intezar na pare. 50s = JS ke
+               apne 45s TTS-watchdog se bara, to zinda speech kabhi nahi kategi;
+               aur JS murda ho to speech bhi murdi hai — koi jhoota block nahi. */
+            if (haal != "KHALI" && System.currentTimeMillis() - haalAt > 50000) {
+                try { s.report("haal", "stale " + haal + " — live rescue") } catch (e: Exception) {}
+                applyHaal("KHALI")
+                return null
+            }
             if (haal == "BOL_RAHI") return "Maya bol rahi hai"
             if (haal == "APP_SUN") return "app ka mic chal raha hai"
             if (pausedByApp) return "sulah: app ka mic"
@@ -94,6 +108,17 @@ class WakeWordService : Service() {
             pausedByApp = true
             pausedAt = System.currentTimeMillis()
             try { instance?.hardPause() } catch (e: Exception) {}
+            /* wake-regression safety: agar app ka mic session shuru hi na ho
+               (sunStart kho gaya / start fail) to 1.5s baad pause khud azad.
+               Sirf tab jab ab bhi KHALI ho — APP_SUN/BOL_RAHI chal rahe hain
+               to unke apne KHALI ka intezar (onHaal pause clear karta hai). */
+            try {
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    if (pausedByApp && haal == "KHALI" &&
+                        System.currentTimeMillis() - pausedAt >= 1400
+                    ) resumeFromApp()
+                }, 1500)
+            } catch (e: Exception) {}
         }
         fun resumeFromApp() {
             pausedByApp = false

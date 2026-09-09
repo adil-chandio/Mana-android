@@ -536,7 +536,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver">v5.9.2 — 🎚️ SUKOON — awaaz kabhi nahi kategi · mic-larai khatam · wake word sach mein zinda</div>
+  <div class="ver">v5.9.3 — 🎚️ SUKOON — awaaz kabhi nahi kategi · mic-larai khatam · wake word sach mein zinda</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,14 +561,14 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.9.2 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.9.3 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.9.2 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.9.3 ✨</small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -729,7 +729,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.9.2</div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.9.3</div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -1195,7 +1195,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.9.2 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.9.3 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1210,7 +1210,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.9.2 · OK</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.9.3 · OK</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1278,7 +1278,7 @@ setTimeout(function(){
 "use strict";
 /* ================= MAYA v2.1.1 — Doctor Build ================= */
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.9.2 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v5.9.3 OK \u2713"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
 /* ---------- SETTINGS (v1 migration ke saath) ---------- */
@@ -1367,7 +1367,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.9.2 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.9.3 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -1586,7 +1586,7 @@ var VOICE_MOODS = [
 var PERSONA_MOOD = { maya:"warm", friday:"pro", jarvis:"pro", venom:"funny", gf:"warm", coach:"hype", teacher:"calm" };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🧪  MAYA LAB  —  P0 (NAAP-TOL) + P1 (SAAF ZUBAAN) + 👑 MALIK    (app v5.9.2)
+   🧪  MAYA LAB  —  P0 (NAAP-TOL) + P1 (SAAF ZUBAAN) + 👑 MALIK    (app v5.9.3)
    ---------------------------------------------------------------------------
    Ye block 3 kaam karta hai, aur teeno ALAG SWITCH ke peeche hain:
 
@@ -2064,7 +2064,7 @@ FLAGS.load();
 NAAP.load();
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🎙️  SUNO  —  MAYA aap ki AWAAZ theek samjhe                  (app v5.9.2)
+   🎙️  SUNO  —  MAYA aap ki AWAAZ theek samjhe                  (app v5.9.3)
    ---------------------------------------------------------------------------
    ASAL MASLA (aap ki apni chat se):
 
@@ -2326,7 +2326,7 @@ var SUNO = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🗣️  BOLI  —  LEHJA (accent) ka asal ilaj                      (app v5.9.2)
+   🗣️  BOLI  —  LEHJA (accent) ka asal ilaj                      (app v5.9.3)
    ---------------------------------------------------------------------------
    ASAL MASLA — awaaz ka nahi, MATN ka tha.
 
@@ -5358,9 +5358,9 @@ async function resolveModels(){
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🧠🔥  BRAIN POOL v3  —  "quota khatam" ka mustaqil ilaj   (app v5.9.2)
+   🧠🔥  BRAIN POOL v3  —  "quota khatam" ka mustaqil ilaj   (app v5.9.3)
    ---------------------------------------------------------------------------
-   Kyun bana: ek ya do provider par tikna = unke quota ki qaid. v5.9.2 se pehle Groq
+   Kyun bana: ek ya do provider par tikna = unke quota ki qaid. v5.9.3 se pehle Groq
    ne 16 August 2026 ko apne purane Llama 3.x models band kar diye the — hamara
    default wahi tha, is liye "backup brain bhi thak gaya" aata tha.
 
@@ -5711,7 +5711,7 @@ window.__httpDone = function (id, status, b64) {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🧠  DIMAAG ENGINE v2  —  MAYA ka sochne ka wahid rasta   (app v5.9.2)
+   🧠  DIMAAG ENGINE v2  —  MAYA ka sochne ka wahid rasta   (app v5.9.3)
    ---------------------------------------------------------------------------
    Purane code ke 3 asli bugs jinki wajah se "Sab free brains busy" bar bar aata tha:
 
@@ -6049,7 +6049,7 @@ async function geminiTry(m, plain){
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   👁️  NAZAR  —  Maya screen PARH sakti hai                     (P7a · v5.9.2)
+   👁️  NAZAR  —  Maya screen PARH sakti hai                     (P7a · v5.9.3)
    ---------------------------------------------------------------------------
    Ye P7 ka PEHLA qadam hai: Maya screen ko DEKHTI hai, magar CHHUTI NAHI.
 
@@ -6189,7 +6189,7 @@ var NAZAR = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ⚡  BIJLI  +  👁️  AANKHEIN                              (P4 · app v5.9.2)
+   ⚡  BIJLI  +  👁️  AANKHEIN                              (P4 · app v5.9.3)
    ═══════════════════════════════════════════════════════════════════════════
 
    ⚡ BIJLI — phone control 50ms mein, DIMAAG se PEHLE
@@ -6335,7 +6335,7 @@ var AANKH = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🛡️  IJAZAT + 📜 LEDGER + ⟲ UNDO + 📊 TRACE            (P3 · app v5.9.2)
+   🛡️  IJAZAT + 📜 LEDGER + ⟲ UNDO + 📊 TRACE            (P3 · app v5.9.3)
    ---------------------------------------------------------------------------
    AMAL-WORKFLOW.md ka usool: "P3 (LAGAAM) P4/P6 (zyada taqat) se PEHLE."
 
@@ -6617,7 +6617,7 @@ var TRACE = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🤝  HAQEEQAT  —  "SACH BOLO" ka nizam                        (app v5.9.2)
+   🤝  HAQEEQAT  —  "SACH BOLO" ka nizam                        (app v5.9.3)
    ---------------------------------------------------------------------------
    ASAL MASLA (aap ki apni chat se — 5 dafa):
 
@@ -6782,7 +6782,7 @@ var HAQEEQAT = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ⚡  AMAL ENGINE — P2a: TOOLS AB HAR DIMAAG KO                  (app v5.9.2)
+   ⚡  AMAL ENGINE — P2a: TOOLS AB HAR DIMAAG KO                  (app v5.9.3)
    ---------------------------------------------------------------------------
    ASAL MASLA (aap ke apne device se sabit):
 
@@ -7374,7 +7374,7 @@ async function ytPlay(query){
 
 /* ---------- WAKE WORD ('Maya' / 'Boss') ---------- */
 /* ═══════════════════════════════════════════════════════════════════════════
-   👂  KAAN  —  wake word ka asal ilaj                          (v5.9.2)
+   👂  KAAN  —  wake word ka asal ilaj                          (v5.9.3)
    ---------------------------------------------------------------------------
    User: "background mein mic on/off hota hai, magar 'Maya' bolne par kuch
           nahi hota."
@@ -7414,6 +7414,7 @@ var SUKOON = {
   haal: "KHALI",
   tailMs: 550,          /* echo tail — WakeWordService.ECHO_TAIL_MS se match */
   _tailT: null,
+  _bolT: null,         /* wake-regression: max-speech watchdog (45s) */
   _native: function (h) {
     try { if (window.MayaBridge && window.MayaBridge.setHaal) window.MayaBridge.setHaal(h); } catch (e) {}
     try { if (typeof KAAN !== "undefined" && KAAN.push) KAAN.push("haal", h); } catch (e) {}
@@ -7427,10 +7428,24 @@ var SUKOON = {
   bolStart: function () {
     if (SUKOON._tailT) { clearTimeout(SUKOON._tailT); SUKOON._tailT = null; }
     SUKOON.set("BOL_RAHI");
+    /* wake-regression: agar __nativeTtsDone kabhi na aaye (Edge TTS switch
+       / WebView juggling / callback lost) to BOL_RAHI HAMESHA ke liye atak
+       jata tha -> Kotlin har mic-darwaza band. 45s se lambi sachi speech
+       kabhi nahi hoti — watchdog sirf atka hua state torta hai. */
+    if (SUKOON._bolT) { clearTimeout(SUKOON._bolT); SUKOON._bolT = null; }
+    SUKOON._bolT = setTimeout(function () {
+      if (SUKOON.haal === "BOL_RAHI") {
+        try { pushLog("SUKOON: TTS watchdog — 45s BOL_RAHI atka tha, khud azad"); } catch (e) {}
+        try { if (typeof speaking !== "undefined") speaking = false; } catch (e) {}
+        SUKOON.bolEnd();
+      }
+    }, 45000);
   },
   /* Aawaaz khatam — speaker ki goonj ka 550ms tail, phir KHALI.
      Magar isi dauran mic khul gaya ho to haath mat ghumao. */
   bolEnd: function () {
+    if (SUKOON._bolT) { clearTimeout(SUKOON._bolT); SUKOON._bolT = null; }
+    try { if (typeof speaking !== "undefined") speaking = false; } catch (e) {}
     if (SUKOON._tailT) clearTimeout(SUKOON._tailT);
     SUKOON._tailT = setTimeout(function () {
       if (SUKOON.haal === "BOL_RAHI") SUKOON.set("KHALI");
@@ -7546,7 +7561,7 @@ var KAAN = {
       L.push("  Iska matlab ya to:");
       L.push("   \u2022 wake word switch OFF hai, ya");
       L.push("   \u2022 mic ki ijazat nahi mili, ya");
-      L.push("   \u2022 purani APK hai (v5.9.2 se pehle diagnostics thi hi nahi)");
+      L.push("   \u2022 purani APK hai (v5.9.3 se pehle diagnostics thi hi nahi)");
       return L.join("\n");
     }
     L.push("  \u2500\u2500 aakhri " + Math.min(KAAN.log.length, 22) + " waqiat \u2500\u2500");
@@ -7611,7 +7626,7 @@ var KAAN = {
     } else {
       L.push("  \uD83D\uDC49 KYA KARNA HAI:");
       if (bad.indexOf("aiai") >= 0) L.push("     \u2022 [VOICE INPUT] dabao \u2192 \"Speech Recognition & Synthesis\" chuno");
-      /* v5.9.2 — pehle yahan purane bracket-button ka hawala likha hota tha magar
+      /* v5.9.3 — pehle yahan purane bracket-button ka hawala likha hota tha magar
          aisa button kahin THA HI NAHI (user dhoondta reh jata). Ab neeche ASLI
          button hai: 🗣️ */
       if (bad.indexOf("ondevice") >= 0) L.push("     \u2022 neeche \uD83D\uDDE3\uFE0F ON-DEVICE LANGUAGE button dabao \u2192 \u0627\u0631\u062F\u0648 + English (India) download karo (offline chalegi)");
@@ -7651,9 +7666,47 @@ var KAAN = {
   }
 };
 
-/* Kotlin ki har report yahan aati hai (v5.9.2) */
+/* Kotlin ki har report yahan aati hai (v5.9.3) */
 window.__wakeLog = function (kind, data) {
   try { KAAN.push(String(kind || "?"), data); } catch (e) {}
+  try { if (typeof WAKE_DOT !== "undefined" && WAKE_DOT.log) WAKE_DOT.log(String(kind || "")); } catch (e) {}
+};
+
+/* wake-regression: listening indicator — Kotlin service ke __wakeLog
+   events se chalta hai (gate/start = sun rahi, voice = awaaz mili,
+   skip/err/sulah = intezar). Mic ki ASLI halat nazar aati hai. */
+var WAKE_DOT = {
+  el: null, t: null,
+  ensure: function () {
+    if (WAKE_DOT.el || !NATIVE) return WAKE_DOT.el;
+    try {
+      var st = document.createElement("style");
+      st.textContent = "#wakeDot{position:fixed;right:6px;top:26px;z-index:998;display:none;align-items:center;gap:5px;padding:2px 7px;border-radius:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);font:9px/1.4 monospace;cursor:default}#wakeDot i{width:6px;height:6px;border-radius:50%;background:#39D98A;display:inline-block;animation:wakePulse 1.4s ease-in-out infinite}@keyframes wakePulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.25)}}#wakeDot.dim i{background:#8a8a96;animation:none}#wakeDot.loud i{background:#FFD166;animation-duration:.5s}";
+      document.head.appendChild(st);
+      var d = document.createElement("div");
+      d.id = "wakeDot"; d.innerHTML = "<i></i><span>MAYA SUN RAHI</span>";
+      document.body.appendChild(d);
+      WAKE_DOT.el = d;
+    } catch (e) {}
+    return WAKE_DOT.el;
+  },
+  set: function (mode, txt) {
+    try {
+      var el = WAKE_DOT.ensure();
+      if (!NATIVE || !settings.wakeWord) { if (el) el.style.display = "none"; return; }
+      if (!el) return;
+      el.style.display = "flex";
+      el.className = mode || "";
+      el.querySelector("span").textContent = txt || "MAYA SUN RAHI";
+      if (WAKE_DOT.t) { clearTimeout(WAKE_DOT.t); WAKE_DOT.t = null; }
+      if (mode === "dim") WAKE_DOT.t = setTimeout(function () { WAKE_DOT.set("", "MAYA SUN RAHI"); }, 4000);
+    } catch (e) {}
+  },
+  log: function (kind) {
+    if (kind === "gate" || kind === "start") WAKE_DOT.set("", "MAYA SUN RAHI");
+    else if (kind === "voice") WAKE_DOT.set("loud", "AWAAZ MILI\u2026");
+    else if (kind === "skip" || kind === "err" || kind === "err8" || kind === "sulah") WAKE_DOT.set("dim", "INTEZAAR\u2026");
+  }
 };
 
 /* Kotlin ab SAARE andaze bhejta hai — faisla yahan hota hai */
@@ -7855,7 +7908,7 @@ document.querySelectorAll(".qactions button").forEach(function(b){
 
 /* ---------- SETTINGS TAB ---------- */
 /* ═══════════════════════════════════════════════════════════════════════════
-   🗄️  SETFORM v1 — Settings ka EK hi darwaza   (app v5.9.2)
+   🗄️  SETFORM v1 — Settings ka EK hi darwaza   (app v5.9.3)
    ---------------------------------------------------------------------------
    Purana bug (user ne pakda): "girlfriend mode on karta hun, groq key lagata
    hun — thori der baad wo option khud band ho jata hai."
@@ -8192,7 +8245,7 @@ function labPaint(){
     try { window.MayaBridge.openSetting("battery"); } catch (e) { toast("Sirf APK mein"); }
   });
 
-  /* 🗣️ v5.9.2 — jo cheez doctor sirf LIKHTA tha, ab MAUJOOD hai */
+  /* 🗣️ v5.9.3 — jo cheez doctor sirf LIKHTA tha, ab MAUJOOD hai */
   var lod = $("#labOnDevice");
   if (lod) lod.addEventListener("click", function(){
     var ok = false;
@@ -8547,6 +8600,7 @@ function setWakeService(on){
     toast(on ? "\uD83D\uDC42 Wake word ON — ab 'Maya' ya 'Boss' bolo" : "Wake word OFF");
     pushLog("WAKE WORD: " + (on ? "ON" : "OFF"));
   } catch(e){ toast("Wake service start nahi hui"); }
+  try { if (typeof WAKE_DOT !== "undefined" && WAKE_DOT.set) WAKE_DOT.set("", ""); } catch (e2) {}
   hudRefresh();
 }
 
@@ -8592,7 +8646,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.9.2 — DOCTOR REPORT");
+  out.push("MAYA v5.9.3 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -9183,7 +9237,7 @@ document.querySelectorAll(".setgrp-head").forEach(function(h){
   h.addEventListener("click", function(){ h.parentElement.classList.toggle("open"); });
 });
 
-/* NOTE: loadV4Form / doosra saveSettings handler v5.9.2 mein khatam.
+/* NOTE: loadV4Form / doosra saveSettings handler v5.9.3 mein khatam.
    Ab SETFORM (upar) hi settings ka wahid darwaza hai — dekho SET_FIELDS.
    Sliders live update karte hain, baqi sab SAVE par ek hi tarteeb se. */
 try { $("#sRadius").addEventListener("input", function(){ $("#radiusVal").textContent = this.value; settings.radius = parseInt(this.value,10) || 18; saveSettings(); applyTheme(); }); } catch(e){}
@@ -9274,8 +9328,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.9.2"; } catch(e){}
-try { pushLog("MAYA v5.9.2 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.9.3"; } catch(e){}
+try { pushLog("MAYA v5.9.3 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
@@ -9534,7 +9588,7 @@ var MayaUI = (function () {
     for (i = 0; i < reopen.length; i++) delCls(reopen[i], "is-open");
 
     var out = [];
-    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v5.9.2");
+    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v5.9.3");
     out.push("WEBVIEW: Chrome " + (window.__webviewMajor || "?") + (window.__oldWebview ? " (PURANA)" : ""));
     out.push("");
     out.push("VISIBLE: " + okc + "   INVISIBLE: " + bad + (bad ? "  \u274C" : "  \u2705"));
