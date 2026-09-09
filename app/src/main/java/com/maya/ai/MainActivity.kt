@@ -122,7 +122,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.9.1 • SUKOON + doctor ka [ON-DEVICE] ab ASLI button hai", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.9.2 • SUKOON + doctor ka [ON-DEVICE] ab ASLI button hai", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -142,6 +142,7 @@ class MainActivity : AppCompatActivity() {
         initTts()
         createNotificationChannel()
         requestNeededPermissions()
+        ensureWakeAlive()      /* Issue 1: listener never dies */
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -155,9 +156,42 @@ class MainActivity : AppCompatActivity() {
             } else if (requestCode == 5002 && data?.data != null) {
                 contentResolver.openInputStream(data.data!!)?.use { it.readBytes() }?.let { bytes = it }
             }
-            if (bytes != null && bytes!!.size in 1..4_000_000) {
-                val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                evalAsync("window.__photoTaken && window.__photoTaken('" + b64 + "')")
+            /* Issue 5: full-resolution upload (up to 4MB -> ~5.3MB base64)
+               par vision call mobile data par 5-30s leti thi. Ab Kotlin khud
+               downscale karta hai (max 1280px JPEG q=80) — Gemini ke liye
+               quality kaafi hoti hai, upload ~10x chhota. */
+            if (bytes != null) {
+                var b64: String? = null
+                try {
+                    val bmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes!!.size)
+                    if (bmp != null) {
+                        val maxSide = 1280
+                        val scale = minOf(1f, maxSide / maxOf(bmp.width.toFloat(), bmp.height.toFloat()))
+                        val out = android.graphics.Bitmap.createBitmap(
+                            (bmp.width * scale).toInt().coerceAtLeast(1),
+                            (bmp.height * scale).toInt().coerceAtLeast(1),
+                            android.graphics.Bitmap.Config.ARGB_8888
+                        )
+                        val canvas = android.graphics.Canvas(out)
+                        canvas.drawBitmap(bmp, null, android.graphics.RectF(0f, 0f, out.width.toFloat(), out.height.toFloat()), null)
+                        val bos = java.io.ByteArrayOutputStream()
+                        out.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, bos)
+                        b64 = android.util.Base64.encodeToString(bos.toByteArray(), android.util.Base64.NO_WRAP)
+                        bmp.recycle(); out.recycle()
+                    }
+                } catch (e: Exception) {}
+                if (b64 == null) {
+                    /* decode fail? chhoti tasveer (<=400KB) seedha bhejo */
+                    if (bytes!!.size <= 400_000) {
+                        b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                    }
+                }
+                /* Issue 5: nakaam par bhi JS ko KHABAR do — UI 'dekh rahi hoon'
+                   par hang nahi rahega. */
+                evalAsync(
+                    if (b64 != null) "window.__photoTaken && window.__photoTaken('" + b64 + "')"
+                    else "window.__photoTaken && window.__photoTaken(null)"
+                )
             }
         } catch (e: Exception) {}
     }
@@ -267,7 +301,7 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.9.1-native"
+        fun appVersion(): String = "5.9.2-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
@@ -373,7 +407,10 @@ class MainActivity : AppCompatActivity() {
                        ("Funk Taka" -> "اس لاوا فنک" ki yehi wajah thi.) */
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 6)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                    putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 700)
+                    /* Issue 2: 700ms bohat chhota tha — jumla poora hone se pehle hi
+                       mic band ho jata tha. 1200ms = poori baat pakadta hai, phir
+                       bhi response tez rehta hai. */
+                    putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 1200)
                 }
                 recognizer = makeRecognizer().apply {
                     setRecognitionListener(object : RecognitionListener {
@@ -1269,7 +1306,7 @@ class MainActivity : AppCompatActivity() {
         /** Zaroori settings ke seedhe darwaze (menu mein bhatakna khatam) */
         @JavascriptInterface
         fun openSetting(which: String): Boolean {
-            /* v5.9.1 — ON-DEVICE zubaan ka asli darwaza. Doctor ka text "[ON-DEVICE]
+            /* v5.9.2 — ON-DEVICE zubaan ka asli darwaza. Doctor ka text "[ON-DEVICE]
                dabao" kehta tha magar aisa button kahin THA HI NAHI (sirf likha tha) —
                user dhoondhta reh jata. Ab ASLI button ye chain kholta hai:
                1. Gboard → Voice typing (wahan "Faster/Offline speech recognition"
@@ -1332,6 +1369,32 @@ class MainActivity : AppCompatActivity() {
     fun evalAsyncPublic(js: String) { evalAsync(js) }
 
     private fun prefs() = getSharedPreferences("maya", Context.MODE_PRIVATE)
+
+    /* ═══ Issue 1: LISTENER NEVER DIES ═══
+       Tecno/HiOS background mic services ko maar deta hai. Pehle wake service
+       sirf tab start hoti thi jab user switch dabata tha. Ab: har app-open par,
+       agar saved pref kehti hai wake ON tha, to service dobara start + battery
+       whitelist ka nudge (ek dialog, sirf jab exemption abhi nahi mili). */
+    private fun ensureWakeAlive() {
+        try {
+            if (!prefs().getBoolean("wake", false)) return
+            android.os.Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    if (WakeWordService.instance == null) WakeWordService.start(this@MainActivity)
+                    val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                        try {
+                            Toast.makeText(this@MainActivity,
+                                "Listener hamesha zinda rakhne ke liye battery optimization OFF karo \uD83D\uDD0B",
+                                Toast.LENGTH_LONG).show()
+                            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                Uri.parse("package:" + packageName)))
+                        } catch (e: Exception) {}
+                    }
+                } catch (e: Exception) {}
+            }, 1500)
+        } catch (e: Exception) {}
+    }
 
     private fun evalAsync(js: String) {
         webView.post { webView.evaluateJavascript(js, null) }

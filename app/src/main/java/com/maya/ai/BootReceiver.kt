@@ -11,7 +11,13 @@ class BootReceiver : BroadcastReceiver() {
             try {
                 if (context.getSharedPreferences("maya", Context.MODE_PRIVATE)
                         .getBoolean("wake", false)) {
-                    /* SAFE MODE v2.12.1: boot autostart band */ // WakeWordService.start(context)
+                    /* Issue 1 (LISTENER NEVER DIES): boot autostart restored.
+                       The old black-screen culprit was auto-launching the app UI
+                       (launchApp) — that engine was already removed from
+                       WakeWordService. Starting ONLY the foreground mic service
+                       is safe: BOOT_COMPLETED is an allowed background
+                       foreground-service start on Android 12+. */
+                    WakeWordService.start(context)
                 }
             } catch (e: Exception) {}
         }

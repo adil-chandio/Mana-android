@@ -536,7 +536,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver">v5.9.1 — 🎚️ SUKOON — awaaz kabhi nahi kategi · mic-larai khatam · wake word sach mein zinda</div>
+  <div class="ver">v5.9.2 — 🎚️ SUKOON — awaaz kabhi nahi kategi · mic-larai khatam · wake word sach mein zinda</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,14 +561,14 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.9.1 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.9.2 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.9.1 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.9.2 ✨</small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -729,7 +729,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.9.1</div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.9.2</div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -899,6 +899,10 @@ nav{padding:8px 10px 10px}
           <div class="ui-row">
             <div class="ui-row-txt">🐟 Fish Audio S2.1 Pro <small>(be-hisaab + MOOD zinda — sab se pehle yehi bolti hai)</small></div>
             <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFishOn"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">⚡ Fast short replies <small>(small answers skip Fish Audio and speak instantly via Edge/phone — default OFF)</small></div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFastShort"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
           </div>
           <div class="ui-field">
             <div class="ui-label">🐟 FISH API KEY <small>(fish.audio/app/api-keys — muft, card nahi lagta)</small></div>
@@ -1191,7 +1195,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.9.1 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.9.2 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1206,7 +1210,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.9.1 · OK</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.9.2 · OK</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1274,11 +1278,11 @@ setTimeout(function(){
 "use strict";
 /* ================= MAYA v2.1.1 — Doctor Build ================= */
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.9.1 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v5.9.2 OK \u2713"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
 /* ---------- SETTINGS (v1 migration ke saath) ---------- */
-var DEFAULTS = { name:"Sir", apikey:"", groqKey:"", ghKey:"", cerebrasKey:"", mistralKey:"", orKey:"", nvidiaKey:"", zaiKey:"", llm7Key:"", ttsKey:"", voiceEngine:"auto", gVoice:"Kore", voiceMood:"auto", neuralWifiOnly:false, neuralMaxChars:1400, edgeTTS:true, edgeVoice:"", fishKey:"", fishVoice:"", fishVoiceName:"", fishTemp:0.35, fishOn:true, trustMode:false, wakeDoor:15, micZoom:0.8, micNear:true, ttsModel:"", city:"Hyderabad", stt:"ur-PK", tts:"ur-PK", rate:1.0, pitch:1.05, voiceName:"", voiceArtist:"maya", model:"auto", autoListen:false, voiceOn:true, wakeWord:false, turbo:true, notifSpeak:false, batteryAlert:true, gender:"male", phone:"", musicApp:"youtube", favSong:"", ytChannel:"", assistName:"Maya", gfMode:false, persona:"maya", remember:true, convoMode:false, lang:"roman-ur", proactive:false, theme:"obsidian", accent:"#FF7A1A", radius:18, fontScale:1, edgeGlow:false };
+var DEFAULTS = { name:"Sir", apikey:"", groqKey:"", ghKey:"", cerebrasKey:"", mistralKey:"", orKey:"", nvidiaKey:"", zaiKey:"", llm7Key:"", ttsKey:"", voiceEngine:"auto", gVoice:"Kore", voiceMood:"auto", neuralWifiOnly:false, neuralMaxChars:1400, edgeTTS:true, edgeVoice:"", fishKey:"", fishVoice:"", fishVoiceName:"", fishTemp:0.35, fishOn:true, trustMode:false, fastShort:false, wakeDoor:15, micZoom:0.8, micNear:true, ttsModel:"", city:"Hyderabad", stt:"ur-PK", tts:"ur-PK", rate:1.0, pitch:1.05, voiceName:"", voiceArtist:"maya", model:"auto", autoListen:false, voiceOn:true, wakeWord:false, turbo:true, notifSpeak:false, batteryAlert:true, gender:"male", phone:"", musicApp:"youtube", favSong:"", ytChannel:"", assistName:"Maya", gfMode:false, persona:"maya", remember:true, convoMode:false, lang:"roman-ur", proactive:false, theme:"obsidian", accent:"#FF7A1A", radius:18, fontScale:1, edgeGlow:false };
 var settings = Object.assign({}, DEFAULTS);
 try {
   var s1 = JSON.parse(localStorage.getItem("maya_settings") || "null");
@@ -1363,7 +1367,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.9.1 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.9.2 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -1465,6 +1469,11 @@ window.__nativeSpeech = function(text, altsJson){
 window.__nativePartial = function(t){ try { interimEl.textContent = t || ""; } catch(e){} };
 window.__nativeRms = function(db){
   try {
+    /* Issue 2 mic pickup: log amplitude every 12th RMS sample (~every 3s)
+       so weak-pickup complaints can be verified from the system log. */
+    if (!window.__rmsLogT) window.__rmsLogT = 0;
+    window.__rmsLogT++;
+    if (window.__rmsLogT % 12 === 0) try { pushLog("MIC: " + Math.round(db || 0) + " dB (alive)"); } catch (e) {}
     var pct = Math.max(4, Math.min(100, Math.round(((db || 0) + 2) * 5)));
     document.querySelectorAll(".micbar").forEach(function(el){ el.style.width = pct + "%"; });
   } catch(e){}
@@ -1577,7 +1586,7 @@ var VOICE_MOODS = [
 var PERSONA_MOOD = { maya:"warm", friday:"pro", jarvis:"pro", venom:"funny", gf:"warm", coach:"hype", teacher:"calm" };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🧪  MAYA LAB  —  P0 (NAAP-TOL) + P1 (SAAF ZUBAAN) + 👑 MALIK    (app v5.9.1)
+   🧪  MAYA LAB  —  P0 (NAAP-TOL) + P1 (SAAF ZUBAAN) + 👑 MALIK    (app v5.9.2)
    ---------------------------------------------------------------------------
    Ye block 3 kaam karta hai, aur teeno ALAG SWITCH ke peeche hain:
 
@@ -2055,7 +2064,7 @@ FLAGS.load();
 NAAP.load();
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🎙️  SUNO  —  MAYA aap ki AWAAZ theek samjhe                  (app v5.9.1)
+   🎙️  SUNO  —  MAYA aap ki AWAAZ theek samjhe                  (app v5.9.2)
    ---------------------------------------------------------------------------
    ASAL MASLA (aap ki apni chat se):
 
@@ -2317,7 +2326,7 @@ var SUNO = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🗣️  BOLI  —  LEHJA (accent) ka asal ilaj                      (app v5.9.1)
+   🗣️  BOLI  —  LEHJA (accent) ka asal ilaj                      (app v5.9.2)
    ---------------------------------------------------------------------------
    ASAL MASLA — awaaz ka nahi, MATN ka tha.
 
@@ -3099,6 +3108,9 @@ var AWAAZ = {
     /* 🐟 TEH 0 — Fish: be-hisaab, foran, aur MOOD samajhti hai */
     function useFish(next) {
       if (gen !== AWAAZ.gen) return;
+      /* Issue 3 fast path (opt-in): short spoken replies go straight to
+         Edge/device instead of waiting on a Fish Audio HTTP round-trip. */
+      if (settings.fastShort === true && text.length <= 60) { next(); return; }
       if (c.mode === "device" || !c.fish || !AWAAZ.fishReady()) { next(); return; }
       AWAAZ.setEngine("fish");
       if (cb.onStart) cb.onStart("fish");
@@ -4907,7 +4919,7 @@ function sysPrompt(){
     "- Zaroori cheez (birthday, appointment, pasand, kisi ka naam, kaam) -> khud save_memory use karo, 'yaad rakhna' bole na bole\n" +
     "- Yaad karna ho -> recall_memory\n" +
     "Tool use karne ke baad ek chhoti friendly line mein confirm karo. Jo tools se mumkin nahi, wo bRIEFLY bata do.\n" +
-    "RULES: (1) Reply SPOKEN ALOUD hoti hai — 1-3 jumlay, 60 words se kam (detail na maangi jaye to). (2) Plain spoken text: koi markdown, list, asterisk, emoji nahi. (3) User ki language aur script mein jawab: Urdu script -> Urdu script, Roman Urdu -> Roman Urdu, English -> English. (4) Kaam aksar tools se karo, sirf baat mat karo. (4b) Calculations, lists, data-parse, conversion -> run_javascript mein khud code likh kar chalao. (4c) Live info (rates, news, koi bhi site) -> web_fetch. (4d) Roznamcha: diary_write/diary_search. (4e) Messages: read_messages/reply_message/schedule_message. (4f) Namaz: prayer_times. (4g) Phone: torch_control/volume_control/brightness_control. (5) Kaun ho? MAYA, " + settings.name + " ki personal AI — mohabbat se 0 budget par bani.";
+    "RULES: (1) Reply SPOKEN ALOUD hoti hai — 1-3 jumlay, 60 words se kam (detail na maangi jaye to). (2) Plain spoken text: koi markdown, list, asterisk, emoji nahi. (3) User ki language aur script mein jawab: Urdu script -> Urdu script, Roman Urdu -> Roman Urdu, English -> English. (4) Kaam aksar tools se karo, sirf baat mat karo. (4b) Calculations, lists, data-parse, conversion -> run_javascript mein khud code likh kar chalao. (4c) Live info (rates, news, koi bhi site) -> web_fetch. (4d) Roznamcha: diary_write/diary_search. (4e) Messages: read_messages/reply_message/schedule_message. (4f) Namaz: prayer_times. (4g) Phone: torch_control/volume_control/brightness_control. (4h) YouTube: play_youtube ka `query` SIRF search text ho (gaane/video ka naam) — KABHI video ID, URL, ya channel name nahi. App khud sahi search page kholta hai. Random/mashhoor video mat chuno. (5) Kaun ho? MAYA, " + settings.name + " ki personal AI — mohabbat se 0 budget par bani.";
   if (_activeSkill) p += "\n\u2699\uFE0F ACTIVE SKILL: " + _activeSkill.name + " — " + _activeSkill.prompt;
   if (customSkills.length) p += "\nCUSTOM SKILLS available: " + customSkills.map(function(s){ return s.name; }).join(", ");
   if (memorySummary) p += "\nLONG-TERM MEMORY SUMMARY (pichli baatein): " + memorySummary;
@@ -4978,7 +4990,7 @@ var TOOL_DECLS = [
     parameters: { type: "OBJECT", properties: { minutes: { type: "NUMBER" }, text: { type: "STRING", description: "Kya yaad dilana hai" } }, required: ["minutes", "text"] } },
   { name: "open_app", description: "App kholta hai. Available: whatsapp, youtube, instagram, telegram, facebook, gmail, maps, play store, google, netflix, spotify, snapchat, twitter, tiktok, daraz",
     parameters: { type: "OBJECT", properties: { app: { type: "STRING" } }, required: ["app"] } },
-  { name: "play_youtube", description: "YouTube par query search kar ke kholta hai (gaana, video).",
+  { name: "play_youtube", description: "YouTube/YT Music par search page kholta hai. `query` mein SIRF search text do (gaane/video ka naam) — KABHI video ID, URL, ya channel nahi. App khud search page banati hai.",
     parameters: { type: "OBJECT", properties: { query: { type: "STRING" } }, required: ["query"] } },
   { name: "search_web", description: "Google search kholta hai.",
     parameters: { type: "OBJECT", properties: { query: { type: "STRING" } }, required: ["query"] } },
@@ -5346,9 +5358,9 @@ async function resolveModels(){
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🧠🔥  BRAIN POOL v3  —  "quota khatam" ka mustaqil ilaj   (app v5.9.1)
+   🧠🔥  BRAIN POOL v3  —  "quota khatam" ka mustaqil ilaj   (app v5.9.2)
    ---------------------------------------------------------------------------
-   Kyun bana: ek ya do provider par tikna = unke quota ki qaid. v5.9.1 se pehle Groq
+   Kyun bana: ek ya do provider par tikna = unke quota ki qaid. v5.9.2 se pehle Groq
    ne 16 August 2026 ko apne purane Llama 3.x models band kar diye the — hamara
    default wahi tha, is liye "backup brain bhi thak gaya" aata tha.
 
@@ -5699,7 +5711,7 @@ window.__httpDone = function (id, status, b64) {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🧠  DIMAAG ENGINE v2  —  MAYA ka sochne ka wahid rasta   (app v5.9.1)
+   🧠  DIMAAG ENGINE v2  —  MAYA ka sochne ka wahid rasta   (app v5.9.2)
    ---------------------------------------------------------------------------
    Purane code ke 3 asli bugs jinki wajah se "Sab free brains busy" bar bar aata tha:
 
@@ -6037,7 +6049,7 @@ async function geminiTry(m, plain){
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   👁️  NAZAR  —  Maya screen PARH sakti hai                     (P7a · v5.9.1)
+   👁️  NAZAR  —  Maya screen PARH sakti hai                     (P7a · v5.9.2)
    ---------------------------------------------------------------------------
    Ye P7 ka PEHLA qadam hai: Maya screen ko DEKHTI hai, magar CHHUTI NAHI.
 
@@ -6177,7 +6189,7 @@ var NAZAR = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ⚡  BIJLI  +  👁️  AANKHEIN                              (P4 · app v5.9.1)
+   ⚡  BIJLI  +  👁️  AANKHEIN                              (P4 · app v5.9.2)
    ═══════════════════════════════════════════════════════════════════════════
 
    ⚡ BIJLI — phone control 50ms mein, DIMAAG se PEHLE
@@ -6323,7 +6335,7 @@ var AANKH = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🛡️  IJAZAT + 📜 LEDGER + ⟲ UNDO + 📊 TRACE            (P3 · app v5.9.1)
+   🛡️  IJAZAT + 📜 LEDGER + ⟲ UNDO + 📊 TRACE            (P3 · app v5.9.2)
    ---------------------------------------------------------------------------
    AMAL-WORKFLOW.md ka usool: "P3 (LAGAAM) P4/P6 (zyada taqat) se PEHLE."
 
@@ -6605,7 +6617,7 @@ var TRACE = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   🤝  HAQEEQAT  —  "SACH BOLO" ka nizam                        (app v5.9.1)
+   🤝  HAQEEQAT  —  "SACH BOLO" ka nizam                        (app v5.9.2)
    ---------------------------------------------------------------------------
    ASAL MASLA (aap ki apni chat se — 5 dafa):
 
@@ -6770,7 +6782,7 @@ var HAQEEQAT = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ⚡  AMAL ENGINE — P2a: TOOLS AB HAR DIMAAG KO                  (app v5.9.1)
+   ⚡  AMAL ENGINE — P2a: TOOLS AB HAR DIMAAG KO                  (app v5.9.2)
    ---------------------------------------------------------------------------
    ASAL MASLA (aap ke apne device se sabit):
 
@@ -7012,11 +7024,17 @@ async function askAI(wasVoice){
   geminiChat.keyErr = false;
   geminiChat.toolsUsed = false;
 
+  /* Issue 3 latency: per-turn timing markers in the system log
+     (t0 = askAI entry, t1 = brain answer ready). */
+  try { pushLog("T: brain start"); } catch (e) {}
   var need = lu ? needsTools(lu) : false;
+  var tBrain0 = (new Date()).getTime();
   var all = BRAIN.plan(need), keyed = [], keyless = [], i;
   for (i = 0; i < all.length; i++) (all[i].p.keyless ? keyless : keyed).push(all[i]);
   /* 4 keyed koshishein, phir keyless teh — jo hamesha zinda hoti hai */
-  var order = keyed.slice(0, 4).concat(keyless);
+  /* Issue 3: fewer serial brain attempts per turn. Default keeps the
+     battle-tested 4-keyed chain; settings.fastShort tightens it to 2. */
+  var order = (settings.fastShort === true ? keyed.slice(0, 2) : keyed.slice(0, 4)).concat(keyless);
   var msgs = DIMAAG.msgs(need);
   var out = null;
 
@@ -7103,6 +7121,9 @@ var _activeSkill = null;
 /* ---------- VISION ENGINE (Phase 9): Maya ki aankhein ---------- */
 var pendingVisionPrompt = null;
 async function visionAsk(prompt, b64){
+  /* Issue 5: pehle HAR model par poori tasveer dobara-upload hoti thi —
+     ek hi call kaafi hai. Pehla vision-capable model chuno; wo fail ho to
+     hi agli koshish (upload ek hi dafa hota hai, baar-baar nahi). */
   var models = await resolveModels();
   for (var i = 0; i < models.length; i++) {
     try {
@@ -7127,6 +7148,8 @@ async function visionAsk(prompt, b64){
   return null;
 }
 window.__photoTaken = async function(b64){
+  /* Issue 5: Kotlin ab nakaam par null bhejta hai — hang nahi, sach. */
+  if (!b64) { reply("Photo nahi khul saki — dobara try karo, " + settings.name + ".", true); return; }
   if (!settings.apikey) { reply("Photo dekhne ke liye Gemini key chahiye, " + settings.name + " \u2014 wahi key jo dimaag ke liye hai.", true); return; }
   addBubble("ai", "\uD83D\uDC41\uFE0F Tasveer mil gayi \u2014 dekh rahi hoon...");
   pushLog("AANKH: dekh rahi hoon...");
@@ -7329,27 +7352,29 @@ function htmlToText(h){
     .replace(/\s+/g, " ").trim();
 }
 
-/* ---------- YOUTUBE AUTO-PLAY (pehla result seedha chalega) ---------- */
+/* ---------- YOUTUBE (Issue 4: app-built search URL — koi video-ID nahi) ----------
+   Pehle native search se PEHLA video-ID utha kar seedha watch-page kholta tha —
+   "play a good song" par random purana viral video chal jata tha. Ab LLM sirf
+   search text deta hai (strict JSON contract) aur app KHUD search page banata hai. */
 async function ytPlay(query){
   var q = String(query || "").trim();
   if (!q) return "Kya chalana hai, " + settings.name + "?";
+  q = q.replace(/https?:\/\/\S+/gi, " ").replace(/\b[a-zA-Z0-9_-]{11}\b/g, " ")
+       .replace(/\s+/g, " ").trim();
+  if (!q) return "Gaane ya video ka naam bolo, " + settings.name + " — link/ID nahi.";
   pushLog("YT PLAY: " + q);
-  if (NATIVE && window.MayaBridge.ytSearch) {
-    try {
-      var vid = window.MayaBridge.ytSearch(q);
-      if (vid) {
-        openURL("https://www.youtube.com/watch?v=" + vid);
-        return "YouTube par chala rahi hoon, " + settings.name + "!";
-      }
-    } catch(e){}
-  }
-  openURL("https://www.youtube.com/results?search_query=" + encodeURIComponent(q));
-  return "YouTube search khol rahi hoon, " + settings.name + " — pehla wala dabana.";
+  var music = String(settings.musicApp) === "ytmusic";
+  var url = music
+    ? "https://music.youtube.com/search?q=" + encodeURIComponent(q)
+    : "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
+  openURL(url);
+  return (music ? "YouTube Music search khol rahi hoon" : "YouTube search khol rahi hoon") +
+    ", " + settings.name + " — jo pasand aaye dabana.";
 }
 
 /* ---------- WAKE WORD ('Maya' / 'Boss') ---------- */
 /* ═══════════════════════════════════════════════════════════════════════════
-   👂  KAAN  —  wake word ka asal ilaj                          (v5.9.1)
+   👂  KAAN  —  wake word ka asal ilaj                          (v5.9.2)
    ---------------------------------------------------------------------------
    User: "background mein mic on/off hota hai, magar 'Maya' bolne par kuch
           nahi hota."
@@ -7521,7 +7546,7 @@ var KAAN = {
       L.push("  Iska matlab ya to:");
       L.push("   \u2022 wake word switch OFF hai, ya");
       L.push("   \u2022 mic ki ijazat nahi mili, ya");
-      L.push("   \u2022 purani APK hai (v5.9.1 se pehle diagnostics thi hi nahi)");
+      L.push("   \u2022 purani APK hai (v5.9.2 se pehle diagnostics thi hi nahi)");
       return L.join("\n");
     }
     L.push("  \u2500\u2500 aakhri " + Math.min(KAAN.log.length, 22) + " waqiat \u2500\u2500");
@@ -7586,7 +7611,7 @@ var KAAN = {
     } else {
       L.push("  \uD83D\uDC49 KYA KARNA HAI:");
       if (bad.indexOf("aiai") >= 0) L.push("     \u2022 [VOICE INPUT] dabao \u2192 \"Speech Recognition & Synthesis\" chuno");
-      /* v5.9.1 — pehle yahan purane bracket-button ka hawala likha hota tha magar
+      /* v5.9.2 — pehle yahan purane bracket-button ka hawala likha hota tha magar
          aisa button kahin THA HI NAHI (user dhoondta reh jata). Ab neeche ASLI
          button hai: 🗣️ */
       if (bad.indexOf("ondevice") >= 0) L.push("     \u2022 neeche \uD83D\uDDE3\uFE0F ON-DEVICE LANGUAGE button dabao \u2192 \u0627\u0631\u062F\u0648 + English (India) download karo (offline chalegi)");
@@ -7626,7 +7651,7 @@ var KAAN = {
   }
 };
 
-/* Kotlin ki har report yahan aati hai (v5.9.1) */
+/* Kotlin ki har report yahan aati hai (v5.9.2) */
 window.__wakeLog = function (kind, data) {
   try { KAAN.push(String(kind || "?"), data); } catch (e) {}
 };
@@ -7830,7 +7855,7 @@ document.querySelectorAll(".qactions button").forEach(function(b){
 
 /* ---------- SETTINGS TAB ---------- */
 /* ═══════════════════════════════════════════════════════════════════════════
-   🗄️  SETFORM v1 — Settings ka EK hi darwaza   (app v5.9.1)
+   🗄️  SETFORM v1 — Settings ka EK hi darwaza   (app v5.9.2)
    ---------------------------------------------------------------------------
    Purana bug (user ne pakda): "girlfriend mode on karta hun, groq key lagata
    hun — thori der baad wo option khud band ho jata hai."
@@ -7883,6 +7908,7 @@ var SET_FIELDS = [
   { id: "sEdgeTts",     key: "edgeTTS",       t: "check", def: true },
   { id: "sEdgeVoice",   key: "edgeVoice",     t: "sel",   def: "" },
   { id: "sFishOn",      key: "fishOn",        t: "check", def: true },
+  { id: "sFastShort",   key: "fastShort",     t: "check", def: false },
   { id: "sFishKey",     key: "fishKey",       t: "text",  def: "" },
   /* 🔒 fishVoice SETFORM se BAHAR hai — wo apne change par foran mehfooz hota
      hai. Pehle yahan hone ki wajah se boot par khali dropdown SAVE karte hi
@@ -8166,7 +8192,7 @@ function labPaint(){
     try { window.MayaBridge.openSetting("battery"); } catch (e) { toast("Sirf APK mein"); }
   });
 
-  /* 🗣️ v5.9.1 — jo cheez doctor sirf LIKHTA tha, ab MAUJOOD hai */
+  /* 🗣️ v5.9.2 — jo cheez doctor sirf LIKHTA tha, ab MAUJOOD hai */
   var lod = $("#labOnDevice");
   if (lod) lod.addEventListener("click", function(){
     var ok = false;
@@ -8566,7 +8592,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.9.1 — DOCTOR REPORT");
+  out.push("MAYA v5.9.2 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -9157,7 +9183,7 @@ document.querySelectorAll(".setgrp-head").forEach(function(h){
   h.addEventListener("click", function(){ h.parentElement.classList.toggle("open"); });
 });
 
-/* NOTE: loadV4Form / doosra saveSettings handler v5.9.1 mein khatam.
+/* NOTE: loadV4Form / doosra saveSettings handler v5.9.2 mein khatam.
    Ab SETFORM (upar) hi settings ka wahid darwaza hai — dekho SET_FIELDS.
    Sliders live update karte hain, baqi sab SAVE par ek hi tarteeb se. */
 try { $("#sRadius").addEventListener("input", function(){ $("#radiusVal").textContent = this.value; settings.radius = parseInt(this.value,10) || 18; saveSettings(); applyTheme(); }); } catch(e){}
@@ -9248,8 +9274,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.9.1"; } catch(e){}
-try { pushLog("MAYA v5.9.1 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.9.2"; } catch(e){}
+try { pushLog("MAYA v5.9.2 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
@@ -9508,7 +9534,7 @@ var MayaUI = (function () {
     for (i = 0; i < reopen.length; i++) delCls(reopen[i], "is-open");
 
     var out = [];
-    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v5.9.1");
+    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v5.9.2");
     out.push("WEBVIEW: Chrome " + (window.__webviewMajor || "?") + (window.__oldWebview ? " (PURANA)" : ""));
     out.push("");
     out.push("VISIBLE: " + okc + "   INVISIBLE: " + bad + (bad ? "  \u274C" : "  \u2705"));

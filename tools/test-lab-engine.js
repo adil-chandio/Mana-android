@@ -1306,8 +1306,8 @@ Here's a thinking process:
       '🔑 sannate mein recognizer BILKUL nahi chalta ("mic on/off" ka ilaj)');
     is(/rec\.release\(\)[\s\S]{0,120}MicKit\.release\(\)[\s\S]{0,140}actuallyStart/.test(WS),
       '🔒 mic pehle CHHORA jata hai, phir recognizer (dono ek sath nahi)');
-    is(/over > 14\.0/.test(WS) && /loud >= 3/.test(WS),
-      '📏 door ki dheemi awaaz rad — sirf qareebi buland awaaz par jaage');
+    is(/over > 10\.0/.test(WS) && /loud >= 3/.test(WS),
+      '📏 halki/door ki awaaz bhi pehra cross kare (Issue 2: threshold 14dB -> 10dB)');
 
     /* recognizer seerhi */
     is(/isOnDeviceRecognitionAvailable/.test(MA) && /createOnDeviceSpeechRecognizer/.test(MA),
@@ -1371,8 +1371,8 @@ Here's a thinking process:
     is(/fun pauseForApp\(\)/.test(WS) && /fun resumeFromApp\(\)/.test(WS) &&
        /WakeWordService\.pauseForApp\(\)/.test(MA),
       '🤝 MIC SULAH — tap-to-speak se pehle wake service apna mic chhor deti hai');
-    is(/pausedByApp && System\.currentTimeMillis\(\) - pausedAt > 60000/.test(WS),
-      '🔒 WebView mar bhi jaye to 60s baad pause KHUD-BA-KHUD azad (wake hamesha ke liye nahi sota)');
+    is(/pausedByApp && System\.currentTimeMillis\(\) - pausedAt > 20000/.test(WS),
+      '🔒 WebView mar bhi jaye to 20s baad pause KHUD-BA-KHUD azad (Issue 1: 60s -> 20s)');
 
     /* ── L5 ERR-8 MERCY: service khud ko nahi marti, aap ka switch nahi mita ── */
     const E8 = WS.slice(WS.indexOf('8 -> {'), WS.indexOf('8 -> {') + 900);
@@ -1415,11 +1415,11 @@ Here's a thinking process:
       '👁️ KAAN report mein HAAL + roko ki ginti nazar aati hai');
 
     /* ── version qanoon ── */
-    is(/appVersion\(\): String = "5\.9\.1-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1,
+    is(/appVersion\(\): String = "5\.9\.2-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1,
       '🩹 BONUS — appVersion() ka purana 4.3.0 jhoot bhi ab qatl');
-    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.9.1') > 0 &&
-       /versionCode 70/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')),
-      '🏷️ poore app mein VERSION v5.9.1 (cache saaf, splash saaf, APK saaf)');
+    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.9.2') > 0 &&
+       /versionCode 71/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')),
+      '🏷️ poore app mein VERSION v5.9.2 (cache saaf, splash saaf, APK saaf)');
     is(HTML.indexOf('5.8.0') === -1, 'kahi purana 5.8.0 version nazar nahi aata');
 
     /* ── v5.9.1 hotfix — doctor ka jhoota button ab ASAL hai ── */

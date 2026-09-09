@@ -47,6 +47,7 @@ class WakeWordService : Service() {
            Hal: HAAL — JS (SUKOON) batati hai, Kotlin ka mic har darwaze par
            pehle HAAL poochhta hai. */
         @Volatile var haal: String = "KHALI"          /* KHALI | BOL_RAHI | APP_SUN */
+        @Volatile var haalAt: Long = 0L               /* jab ye haal shuru hua (watchdog) */
         @Volatile var lastBolAt: Long = 0L            /* bolne ka aakhri lamha */
         @Volatile var pausedByApp: Boolean = false    /* L4 MIC SULAH */
         @Volatile var pausedAt: Long = 0L
@@ -72,6 +73,7 @@ class WakeWordService : Service() {
            (kotlin build fail). Isi liye "applyHaal". */
         fun applyHaal(h: String) {
             if (h == "BOL_RAHI") lastBolAt = System.currentTimeMillis()
+            haalAt = System.currentTimeMillis()       /* watchdog stuck-recovery anchor */
             haal = h
             try { instance?.onHaal(h) } catch (e: Exception) {}
         }
@@ -224,8 +226,11 @@ class WakeWordService : Service() {
     } catch (e: Exception) { true }
 
     private fun micZoom(): Float = try {
-        getSharedPreferences("maya", Context.MODE_PRIVATE).getString("mic_zoom", "0.8")!!.toFloat()
-    } catch (e: Exception) { 0.8f }
+        /* Issue 2: 0.8 (max zoom = sirf qareeb) default tha — door ki awaaz
+           pehra hi cross nahi kar pati thi. Ab 0.0 (aam pickup, poora kamra).
+           Purani saved setting ki izzat barkarar. */
+        getSharedPreferences("maya", Context.MODE_PRIVATE).getString("mic_zoom", "0.0")!!.toFloat()
+    } catch (e: Exception) { 0.0f }
 
     private fun startGate() {
         if (gateOn) return
@@ -264,7 +269,10 @@ class WakeWordService : Service() {
                     if (floorDb <= 0.0) floorDb = d
                     if (d < floorDb) floorDb = floorDb * 0.9 + d * 0.1     /* farsh dheere dheere seekho */
                     val over = d - floorDb
-                    if (over > 14.0) { loud++; quiet = 0 } else { quiet++; if (quiet > 3) loud = 0 }
+                    /* Issue 2: 14dB se 10dB — door/baarik awaaz bhi pehra cross
+                       kare. Zoom khud 0.0 hua hai, to self-wake ka khatra nahi
+                       barha (L7 shield + HAAL gates waise hi hain). */
+                    if (over > 10.0) { loud++; quiet = 0 } else { quiet++; if (quiet > 3) loud = 0 }
                     if (loud >= 3) {                                       /* ~300ms qareebi awaaz */
                         report("voice", "awaaz " + Math.round(d) + "dB  farsh " + Math.round(floorDb) + "dB")
                         break
@@ -440,11 +448,18 @@ class WakeWordService : Service() {
             }
         }
         /* L4 stale-sulah recovery — JS/WebView mar bhi jaye (YA uska KHALI
-           call kho jaye) to 60s baad pause khud-ba-khud azad. Warna wake word
-           hamesha ke liye so jata. */
-        if (pausedByApp && System.currentTimeMillis() - pausedAt > 60000) {
+           call kho jaye) to 20s baad pause khud-ba-khud azad. Warna wake word
+           hamesha ke liye so jata. (Issue 1: 60s -> 20s.) */
+        if (pausedByApp && System.currentTimeMillis() - pausedAt > 20000) {
             report("sulah", "stale pause khud azad hua")
             resumeFromApp()
+        }
+        /* Issue 1 — stuck-HAAL recovery: WebView died mid-speech/mid-listen?
+           JS kabhi KHALI nahi bhejegi aur mic HAMESHA ke liye blocked reh jata.
+           120s (90s nahi) taake sachi lambi speech kabhi kaate na jaye. */
+        if (haal != "KHALI" && System.currentTimeMillis() - haalAt > 120000) {
+            report("haal", "stuck " + haal + " — khud KHALI kiya")
+            applyHaal("KHALI")
         }
         handler.postDelayed(::watchdog, 45000)
     }
