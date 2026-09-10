@@ -2,7 +2,7 @@
 
 Date: 2026-09-10. User approved a higher-code test APK and physical voice/wake/latency checks after Phases 1 and 2.
 
-**Status: preparing and validating a development candidate; physical-device acceptance remains pending.** This is not a Stable release, a signed updater feed, proof of audible playback, or a measured speed/wake improvement.
+**Status: development candidate built and CI-verified; awaiting the user's in-place install and physical-device results.** This is not a Stable release, a signed updater feed, proof of audible playback, or a measured speed/wake improvement.
 
 ## What this candidate contains
 
@@ -84,9 +84,23 @@ Wake counters in Device Test Status are only callbacks observed by the current W
 - Added failing regressions first: visible stale version labels, missing test snapshot/identity, and the reproducible wake-OFF late-command path.
 - `npm test`: **1,132 checks pass** (previous 1,122 + one wake guard case + nine candidate/report checks), plus CSS/syntax validation. These are controlled checks, not phone acceptance.
 - JS/public and Android-packaged assets must match `tools/sync-version.cjs --check`.
-- Native CI must compile, execute the existing 42 JVM tests and verify actual APK identity/signature before offering this artifact.
+- Native CI [34466017402](https://github.com/adil-chandio/Mana-android/actions/runs/34466017402) passed: **42/42 JVM tests**, zero failures/skips, actual APK package/version/minSdk/debug and signing checks. Source `5e7795fa41bde9c1405495fb6afcd5f3d1fa249b`.
 - No emulator, connected phone, live Fish synthesis or measured recognition/wake/latency evidence is available in this sandbox.
 
 ## Release hold
 
 The draft PR remains unmerged. Phase 3 is **waiting for device feedback**, not complete just because an APK builds. Stable, configured updater bootstrap and later signed release publication require separate activation and acceptance. Never offer the affected code83 artifact again.
+
+## Verified development artifact — manual install only
+
+- [Download MAYA-APK ZIP](https://github.com/adil-chandio/Mana-android/actions/runs/34466017402/artifacts/10147599144). GitHub login may be required. Extract `app-debug.apk`; install it over the existing app. Do not use an older run's similarly named artifact.
+- Source: `5e7795fa41bde9c1405495fb6afcd5f3d1fa249b`; build run `34466017402`; job `102834666675`.
+- Artifact ID `10147599144`; API reports ZIP size **5,658,416 bytes**, not expired at this receipt.
+- CI-verified identity: `com.maya.ai`, **5.17.2 / 84**, minSdk26, development/debug APK.
+- APK SHA-256 from CI: `2d22a9583c179d7fc03d5359d174914aca5329e6e493b5471b6a39f64bd87f73` (APK, not ZIP).
+- CI-verified development signer SHA-256: `ba5f9e07a474cad5f8d8123c79e618f1a76976d7561d901d4df3f5a3da32d24a`, unchanged from the previously distributed development candidate. Actual phone compatibility/retention is still pending.
+- Update trust remains **false**. No production key, configured bootstrap, signed release metadata or Stable publication.
+- Local `gh run download` could not retrieve the redirected artifact blob (EOF from storage endpoint). No local downloaded-binary/checksum inspection or attached APK is claimed; the identity/signature/hash receipt is from CI. The verified artifact link above is the delivery path.
+- Non-fatal action-deprecation/cache-restore warnings remain. Pre-existing local workflow edits were not staged or pushed.
+
+Subsequent documentation-only commits do not change this binary. **Phase 3 is not accepted/completed until physical results arrive.** All entries in the phone result matrix remain PENDING.

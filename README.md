@@ -2,6 +2,8 @@
 >
 > Replaces the user-reported broken 5.17.1/83 candidate for controlled testing: bounded chat/STOP recovery, saved Fish library-reference preservation, independent text/voice errors and speech-only retry. Adds synchronized build labels and a manual privacy-limited Device Test Status; late wake callbacks are ignored after wake OFF. No native wake/player retuning or phone-success claim in this step.
 >
+> [Download code84 test APK ZIP](https://github.com/adil-chandio/Mana-android/actions/runs/34466017402/artifacts/10147599144) · CI: 42/42 native tests and actual APK signature/identity checks; local: 1,132 checks pass.
+>
 > [Phase 3 installation/test protocol and build receipt](docs/PHASE3-DEVICE-TEST.md). Automated checks are not physical voice/wake/latency acceptance. **Do not reinstall code83 or promote Stable.** Secure in-app delivery is still blocked by signing/bootstrap configuration; this test uses a manual, in-place, same-development-signer install. Never uninstall/clear data to force it.
 
 > **Update Center implementation — v5.17.0 / code 82 (bootstrap, not published)**
