@@ -35,3 +35,18 @@ Do not reduce safety confirmations, truncate what the user said, synthesize an u
 ## Provider reference checked during implementation
 
 Fish's [Text to Speech API reference](https://docs.fish.audio/api-reference/endpoint/openapi-v1/text-to-speech) documents MP3 output, `reference_id`, `s2.1-pro-free`, segment limits and latency modes. It also states that unrecognized/omitted model headers default to `s2.1-pro`; the native policy explicitly prevents that paid-model fallback. Provider terms/availability may change: an error is not permission to switch plans or voices.
+
+## Verified build receipt — 2026-09-10
+
+- Source: `82f989cb91b9c798d1598b92aa048087ed95f8b3`.
+- [Successful Android CI 34453910914](https://github.com/adil-chandio/Mana-android/actions/runs/34453910914).
+- CI annotation: **35 JVM tests, 35 passed, 0 failed, 0 skipped** (25 updater + 10 Fish request-policy tests).
+- Local: **1072 checks** = 72 settings + 310 voice + 155 brain + 466 lab + 56 updater/tooling + 13 voice-session checks, plus CSS. Native audio decoding/real network timing are not covered by those counts.
+- CI verified APK package/version/minSdk/debug identity with aapt and its signature with apksigner before upload.
+- [Development APK artifact](https://github.com/adil-chandio/Mana-android/actions/runs/34453910914/artifacts/10142709859): ZIP containing `app-debug.apk`, not a published GitHub Release. GitHub may require login.
+- APK SHA-256: `ed010af1dfe46b5d19c85aa970656f0bcd57d4bad2769c3126921ae2bedfb61f` (APK checksum, not ZIP checksum).
+- Signer SHA-256: `ba5f9e07a474cad5f8d8123c79e618f1a76976d7561d901d4df3f5a3da32d24a`, unchanged from the previous development artifact; phone signer/data retention remain unverified.
+- CI explicitly reported **update trust configured=false**. Signing-secret public-key API was rechecked and still returned **403**. No configured updater release was published.
+- Use a **new higher versionCode (at least 84 after this distributed code 83)** for the future configured bootstrap. Stable requires the real-device acceptance results, not just these build receipts.
+
+The build receipt is CI evidence, not a locally downloaded/inspected APK or a phone test. The subsequent documentation-only commit does not change this binary. Non-fatal legacy action/cache warnings remain pending workflow authorization.

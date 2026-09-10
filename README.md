@@ -1,6 +1,6 @@
 > **Voice/wake testing candidate — 5.17.1 / code 83**
 >
-> Selected Fish voice streaming, guarded microphone/wake sessions and no hidden Fish/Neural voice substitution. Phone playback/latency and background-wake acceptance are still pending; this is not a Stable release. [Scope and test plan](docs/VOICE-5.17.1.md).
+> Selected Fish voice streaming, guarded microphone/wake sessions and no hidden Fish/Neural voice substitution. Android CI compiled and signature-verified the candidate with 35 JVM tests passing; 1072 local checks also pass. Phone playback/latency and background-wake acceptance are still pending; this is not a Stable release. [Scope and test plan](docs/VOICE-5.17.1.md).
 >
 > The updater activation/signing blocker below still applies. The historical 5.17.0 build evidence does not validate these new voice changes.
 
