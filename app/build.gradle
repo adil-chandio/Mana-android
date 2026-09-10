@@ -3,19 +3,36 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+def releaseVersion = new groovy.json.JsonSlurper().parse(rootProject.file('release/version.json'))
+def updateKey = System.getenv('MAYA_UPDATE_PUBLIC_KEY_B64') ?: ''
+if (!(updateKey ==~ /[A-Za-z0-9+\/=]*/)) throw new GradleException('Invalid update public key encoding')
+def releaseStore = System.getenv('MAYA_APK_KEYSTORE')
+
 android {
     namespace 'com.maya.ai'
     compileSdk 34
 
     defaultConfig {
         applicationId "com.maya.ai"
-        minSdk 26          // Android 8.0+ — vector icon + modern APIs
+        minSdk (releaseVersion.minSdk as int)          // Android 8.0+ — vector icon + modern APIs
         targetSdk 34
-        versionCode 74
-        versionName "5.9.5"
+        versionCode (releaseVersion.versionCode as int)
+        versionName releaseVersion.versionName
+        buildConfigField 'String', 'UPDATE_PUBLIC_KEY_B64', '"' + updateKey + '"'
     }
 
+    buildFeatures { buildConfig true }
+
     signingConfigs {
+        // Release material must come from a protected environment, never from Git.
+        secureRelease {
+            if (releaseStore) storeFile file(releaseStore)
+            storePassword System.getenv('MAYA_APK_STORE_PASSWORD') ?: ''
+            keyAlias System.getenv('MAYA_APK_KEY_ALIAS') ?: ''
+            keyPassword System.getenv('MAYA_APK_KEY_PASSWORD') ?: ''
+        }
+        // Legacy compatibility for DEVELOPMENT builds only. This key is public.
+        // Do not treat it as a secret or use debug artifacts as updater releases.
         maya {
             storeFile file("maya.keystore")
             storePassword "maya2026adil"
@@ -30,7 +47,7 @@ android {
         }
         release {
             minifyEnabled false
-            signingConfig signingConfigs.maya
+            signingConfig signingConfigs.secureRelease
         }
     }
     compileOptions {
@@ -46,4 +63,21 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.webkit:webkit:1.11.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}
+
+// Ordinary debug builds remain available. Publishing cannot silently fall back to
+// the checked-in key or to metadata with no pinned verification key.
+tasks.configureEach { task ->
+    if (task.name == 'preReleaseBuild') {
+        task.doFirst {
+            if (!releaseStore || !file(releaseStore).isFile() || !updateKey) {
+                throw new GradleException('Release requires signing secrets and MAYA_UPDATE_PUBLIC_KEY_B64; see docs/UPDATE-CENTER.md')
+            }
+            ['MAYA_APK_STORE_PASSWORD', 'MAYA_APK_KEY_ALIAS', 'MAYA_APK_KEY_PASSWORD'].each {
+                if (!System.getenv(it)) throw new GradleException('Missing release signing configuration: ' + it)
+            }
+        }
+    }
 }

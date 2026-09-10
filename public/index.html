@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>MAYA — Personal AI v4</title>
 <style>
-/* ================= MAYA v4.1.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+/* ================= MAYA v5.17.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
    Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
 :root{
   /* new tokens */
@@ -561,7 +561,7 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.9.5 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.17.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
@@ -751,6 +751,12 @@ nav{padding:8px 10px 10px}
 
     <!-- ============ SETTINGS (video jaisa tree) ============ -->
     <section class="tab" id="tab-set">
+      <div class="ui-card">
+        <div class="ui-card-h">MAYA UPDATE CENTER</div>
+        <div class="ui-hint">Check signed Stable/Beta APK releases, read changes, download and install with Android confirmation. No background downloads.</div>
+        <button type="button" class="ui-btn" id="openUpdatesBtn">CHECK APP UPDATES</button>
+        <div class="ui-hint" id="updateCenterHint">A separate MAYA Updates launcher icon also opens native recovery without this screen.</div>
+      </div>
 
       <!-- ================= v4.1.0 IRONCLAD — UI KIT v5 markup =================
            Har control ka contract docs/SETTINGS-UI-ARCHITECTURE.md mein hai.
@@ -1195,7 +1201,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.9.5 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.17.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1210,7 +1216,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.9.5 · OK</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.17.0 · OK</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1276,10 +1282,23 @@ setTimeout(function(){
 
 <script>
 "use strict";
-/* ================= MAYA v2.1.1 — Doctor Build ================= */
+/* ================= MAYA v5.17.0 — Doctor Build ================= */
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.9.5 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v5.17.0 OK \u2713"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
+
+/* Native update navigation; deliberately no URLs, download or install API in JS. */
+(function () {
+  var b = document.getElementById("openUpdatesBtn");
+  if (!b) return;
+  b.addEventListener("click", function () {
+    var h = document.getElementById("updateCenterHint");
+    if (window.MayaBridge && window.MayaBridge.openUpdates) {
+      try { window.MayaBridge.openUpdates(); }
+      catch (e) { if (h) h.textContent = "Could not open Update Center. Use the MAYA Updates launcher icon."; }
+    } else if (h) h.textContent = "Requires an updater-enabled Android APK. Browser/PWA and older APKs cannot install this update from here.";
+  });
+})();
 
 /* ---------- SETTINGS (v1 migration ke saath) ---------- */
 var DEFAULTS = { name:"Sir", apikey:"", groqKey:"", ghKey:"", cerebrasKey:"", mistralKey:"", orKey:"", nvidiaKey:"", zaiKey:"", llm7Key:"", ttsKey:"", voiceEngine:"auto", gVoice:"Kore", voiceMood:"auto", neuralWifiOnly:false, neuralMaxChars:1400, edgeTTS:true, edgeVoice:"", fishKey:"", fishVoice:"", fishVoiceName:"", fishTemp:0.35, fishOn:true, trustMode:false, fastShort:false, wakeDoor:15, micZoom:0.8, micNear:true, ttsModel:"", city:"Hyderabad", stt:"ur-PK", tts:"ur-PK", rate:1.0, pitch:1.05, voiceName:"", voiceArtist:"maya", model:"auto", autoListen:false, voiceOn:true, wakeWord:false, turbo:true, notifSpeak:false, batteryAlert:true, gender:"male", phone:"", musicApp:"youtube", favSong:"", ytChannel:"", assistName:"Maya", gfMode:false, persona:"maya", remember:true, convoMode:false, lang:"roman-ur", proactive:false, theme:"obsidian", accent:"#FF7A1A", radius:18, fontScale:1, edgeGlow:false };
@@ -1367,7 +1386,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.9.5 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.17.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -8742,7 +8761,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.9.5 — DOCTOR REPORT");
+  out.push("MAYA v5.17.0 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -9424,8 +9443,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.9.5"; } catch(e){}
-try { pushLog("MAYA v5.9.5 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.17.0"; } catch(e){}
+try { pushLog("MAYA v5.17.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
