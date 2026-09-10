@@ -1503,6 +1503,7 @@ window.__nativeTtsStatus = function(s){
    SUNO un mein se behtareen chunta hai, Roman Urdu banata hai, aur
    pise hue naam (Monarch / Instagram / Funk Taka) theek karta hai. */
 window.__nativeSpeech = function(text, altsJson){
+  if (!listening) return;
   listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle");
   var alts = [];
   try { if (altsJson) alts = JSON.parse(altsJson); } catch (e) { alts = []; }
@@ -1524,7 +1525,7 @@ window.__nativeSpeech = function(text, altsJson){
   } catch (e) { said = text || ""; }
   if (said && said.trim()) handleUserText(said.trim(), true);
 };
-window.__nativePartial = function(t){ try { interimEl.textContent = t || ""; } catch(e){} };
+window.__nativePartial = function(t){ if (!listening) return; try { interimEl.textContent = t || ""; } catch(e){} };
 window.__nativeRms = function(db){
   try {
     /* Issue 2 mic pickup: log amplitude every 12th RMS sample (~every 3s)
@@ -1537,6 +1538,7 @@ window.__nativeRms = function(db){
   } catch(e){}
 };
 window.__nativeSpeechErr = function(code){
+  if (!listening) return;
   listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle"); interimEl.textContent = "";
   var m = { 1:"Recognition network timeout", 2:"Recognition network error", 3:"Mic audio error", 4:"Recognition server error", 5:"Voice input service error", 6:"Koi awaaz nahi mili", 7:"Awaaz samajh nahi aayi", 8:"Recognizer busy", 9:"Mic permission nahi", 10:"Recognition rate limit", 11:"Recognition server disconnected", 12:"Input language unsupported", 13:"Input language model unavailable" }[code] || "Voice error";
   toast(m);
@@ -3123,6 +3125,7 @@ var AWAAZ = {
   speak: function (text, cb) {
     cb = cb || {};
     AWAAZ.stop();
+    try { if (typeof showVoiceNotice === "function") showVoiceNotice(""); } catch (e) {}
     AWAAZ.gen++;
     var gen = AWAAZ.gen;
     var c = AWAAZ.cfg();
@@ -3151,7 +3154,7 @@ var AWAAZ = {
       AWAAZ.paint();
       var message = "Selected " + engine + " voice unavailable (" + code + "). Voice unchanged. Tap the reply speaker to retry.";
       try { if (typeof toast === "function") toast(message); } catch (e) {}
-      try { if (typeof addBubble === "function") addBubble("ai", message); } catch (e) {}
+      try { if (typeof showVoiceNotice === "function") showVoiceNotice(message); } catch (e) {}
       try { if (cb.onError) cb.onError(code); } catch (e) {}
       done();
     }
@@ -4488,6 +4491,24 @@ function reply(text, wasVoice, link){
   speak(text, wasVoice);
 }
 
+/* Non-answer statuses never replace the Home answer or enter conversation history. */
+function showNotice(kind, message) {
+  ["tab-home", "tab-chat"].forEach(function (id) {
+    var host = document.getElementById(id);
+    if (!host) return;
+    var node = host.querySelector("." + kind + "-notice");
+    if (!node && message) {
+      node = document.createElement("div"); node.className = "ui-hint " + kind + "-notice";
+      node.setAttribute("role", "status");
+      node.style.cssText = "padding:10px;margin:8px 0;border:1px solid var(--line);border-radius:8px;flex-shrink:0";
+      host.insertBefore(node, host.firstChild);
+    }
+    if (node) { node.textContent = message || ""; node.style.display = message ? "block" : "none"; }
+  });
+}
+function showTurnNotice(message) { showNotice("turn", message); }
+function showVoiceNotice(message) { showNotice("voice", message); }
+
 /* ---------- TEST VOICE (AWAAZ SUNO) — bolta bhi hai, batata bhi hai ---------- */
 function testMayaVoice() {
   var vId = AWAAZ.voiceId(), mId = AWAAZ.moodId();
@@ -4529,6 +4550,8 @@ function scheduleListening(delay, explicitWake){
   }, delay);
 }
 function startListening(){
+  if (typeof INPUT_EPOCH !== "undefined") INPUT_EPOCH++;
+  if (typeof TURNS !== "undefined") TURNS.cancel("interrupted");
   if (listenTimer) clearTimeout(listenTimer); listenTimer = null;
   if (!listening && !thinking) { VOICE_TIME.reset(); AWAAZ.stop(); speaking = false; }
   if (NATIVE) {
@@ -4545,9 +4568,11 @@ function startListening(){
   if (thinking) return;
   ensureAudio(); chime(660, 0.08);
   try { rec = new SR(); } catch(e){ return; }
+  var inputSession = rec;
   rec.lang = settings.stt; rec.interimResults = true; rec.maxAlternatives = 1;
   listening = true; try { SUKOON.sunStart(); } catch (e) {} setOrb("listening"); interimEl.textContent = "";
   rec.onresult = function(e){
+    if (rec !== inputSession) return;
     var fin = "", intr = "";
     for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) fin += e.results[i][0].transcript;
@@ -4557,6 +4582,7 @@ function startListening(){
     if (fin && fin.trim()) { interimEl.textContent = ""; handleUserText(fin.trim(), true); }
   };
   rec.onerror = function(e){
+    if (rec !== inputSession) return;
     listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle"); interimEl.textContent = "";
     var m = {
       "not-allowed": "Mic ki permission nahi mili — browser settings mein microphone allow karo (page HTTPS par hona chahiye).",
@@ -4567,13 +4593,14 @@ function startListening(){
     }[e.error] || "Voice error — dobara try karo.";
     if (m) { addBubble("ai", m); pushLog("MIC ERROR: " + e.error); }
   };
-  rec.onend = function(){ listening = false; try { SUKOON.sunEnd(); } catch (e) {} interimEl.textContent = ""; if (!speaking) setOrb("idle"); };
+  rec.onend = function(){ if (rec !== inputSession) return; listening = false; try { SUKOON.sunEnd(); } catch (e) {} interimEl.textContent = ""; if (!speaking) setOrb("idle"); };
   try { rec.start(); } catch(e){ listening = false; try { SUKOON.sunEnd(); } catch (e) {} }
 }
 function stopListening(){
   if (listenTimer) clearTimeout(listenTimer); listenTimer = null;
   if (NATIVE) { try { window.MayaBridge.stopListen(); } catch(e){} }
-  if (rec) { try { rec.stop(); } catch(e){} }
+  if (rec) { var oldRec = rec; rec = null; oldRec.onresult = oldRec.onerror = oldRec.onend = null; try { if (oldRec.abort) oldRec.abort(); else oldRec.stop(); } catch(e){} }
+  interimEl.textContent = "";
   listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle");
 }
 
@@ -4665,6 +4692,8 @@ function addBubble(who, text, link){
 /* ---------- MAIN HANDLER ---------- */
 function stripWake(t){ return String(t || "").replace(KAAN.PREFIX, "").trim(); }
 function handleUserText(text, wasVoice){
+  var inputEpoch = typeof INPUT_EPOCH === "undefined" ? 0 : INPUT_EPOCH;
+  function currentInput() { return typeof INPUT_EPOCH === "undefined" || INPUT_EPOCH === inputEpoch; }
   if (!wasVoice) VOICE_TIME.reset();
   var stripped = stripWake(text) || text;
   /* 🛑 AMAL kill words — pehle STOP, phir kuch aur (guardrail) */
@@ -4682,7 +4711,7 @@ function handleUserText(text, wasVoice){
   if (typeof LEDGER !== "undefined" && FLAGS.on("ijazat")) {
     if (LEDGER.ASK_TODAY.test(stripped)) { reply(LEDGER.today(), wasVoice); return; }
     if (LEDGER.ASK_UNDO.test(stripped)) {
-      LEDGER.undo().then(function (r) { reply(r.say, wasVoice); });
+      LEDGER.undo().then(function (r) { if (currentInput()) reply(r.say, wasVoice); });
       return;
     }
   }
@@ -4696,13 +4725,14 @@ function handleUserText(text, wasVoice){
         BIJLI.mark(m.tool);
         try { NAAP.mark("tool"); NAAP.cur && (NAAP.cur.tool = m.tool); } catch (e) {}
         execTool(m.tool, m.args).then(function (out) {
+          if (!currentInput()) return;
           var ms = (new Date()).getTime() - t0;
           pushLog("BIJLI: " + m.tool + " " + ms + "ms (dimaag se pehle)");
           var okb = !!(out && out.ok !== false && out.done !== false);
           if (!okb) { askAI(wasVoice); return; }          /* nakaam? dimaag ko de do */
           try { NAAP.mark("brain"); NAAP.cur && (NAAP.cur.brain = "\u26A1 BIJLI"); TRACE.brain("\u26A1 BIJLI", ms); } catch (e) {}
           reply(BIJLI.say(m.tool, m.args, out), wasVoice);
-        }, function () { askAI(wasVoice); });
+        }, function () { if (currentInput()) askAI(wasVoice); });
       })(_bm);
       return;
     }
@@ -5107,25 +5137,26 @@ function sysPrompt(){
 var WMO = {0:"saaf aasman",1:"thoda saaf",2:"badal chhaye hue",3:"ghane badal",45:"dhund",48:"dhund",51:"halki boondabandi",53:"boondabandi",55:"tez boondabandi",56:"barf bari",57:"barf bari",61:"halki barish",63:"barish",65:"tez barish",66:"barf bari",67:"barf bari",71:"halki barf",73:"barf bari",75:"tez barf bari",77:"barf ke kanay",80:"baarish ke chhinte",81:"baarish",82:"bohat tez baarish",85:"barf bari",86:"barf bari",95:"toofan o graaj",96:"toofan o graaj (ballay)",99:"tez toofan o graaj"};
 var CITY_CACHE = {};
 function pad2(n){ return (n < 10 ? "0" : "") + n; }
-async function geoCity(city){
+async function geoCity(city, turn){
   var key = String(city || "Hyderabad").toLowerCase();
   if (CITY_CACHE[key]) return CITY_CACHE[key];
   var g = null;
   try {
-    var r = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&name=" + encodeURIComponent(city)).then(function(x){ return x.json(); });
+    var r = (await TURNS.json(turn, "https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&name=" + encodeURIComponent(city))).data;
     g = r && r.results && r.results[0];
   } catch(e){}
+  if (turn) TURNS.assert(turn);
   var c = g ? { lat: g.latitude, lon: g.longitude, name: g.name + (g.country_code ? ", " + g.country_code : "") }
             : { lat: 25.396, lon: 68.377, name: "Hyderabad, PK" };
   CITY_CACHE[key] = c;
   return c;
 }
-async function fetchWeather(cityName){
+async function fetchWeather(cityName, turn){
   try {
-    var c = await geoCity(cityName || settings.city || "Hyderabad");
+    var c = await geoCity(cityName || settings.city || "Hyderabad", turn);
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + c.lat + "&longitude=" + c.lon +
       "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1";
-    var d = await fetch(url).then(function(x){ return x.json(); });
+    var d = (await TURNS.json(turn, url)).data;
     var cur = d.current || {};
     var mx = d.daily && d.daily.temperature_2m_max ? d.daily.temperature_2m_max[0] : null;
     var mn = d.daily && d.daily.temperature_2m_min ? d.daily.temperature_2m_min[0] : null;
@@ -5230,7 +5261,8 @@ var TOOL_DECLS = [
   { name: "maya_act", description: "AMAL: kisi doosri app ke screen element par TAP karo, text field mein TYPE karo, swipe, ya back. find mein wahi matn do jo SCREEN par likha hai (Maya pehle use dhoondh kar verify karti hai — andha tap kabhi nahi). Sirf user ke saaf hukm par; banking/finance apps aur password/OTP fields hamesha refused hain. action=stop se foran band.",
     parameters: { type: "OBJECT", properties: { action: { type: "STRING", description: "tap | type | swipe | back | stop" }, find: { type: "STRING", description: "screen par wahi matn — button/field ka label" }, text: { type: "STRING", description: "sirf action=type ke liye" }, index: { type: "INTEGER", description: "same naam ke multiple elements mein kaunsa (0=default)" }, x1: { type: "INTEGER" }, y1: { type: "INTEGER" }, x2: { type: "INTEGER" }, y2: { type: "INTEGER" }, ms: { type: "INTEGER" } }, required: ["action"] } }
 ];
-async function execTool(name, args){
+async function execTool(name, args, turn){
+  if (turn) { TURNS.assert(turn); turn.stage = "tool"; }
   args = args || {};
   var out;
 
@@ -5245,7 +5277,15 @@ async function execTool(name, args){
   }
   if (typeof IJAZAT !== "undefined" && IJAZAT.need(name)) {
     var _yes = false;
-    try { _yes = await IJAZAT.ask(name, args); } catch (e) { _yes = false; }
+    var _off = function () {};
+    try {
+      var _approval = IJAZAT.ask(name, args);
+      var _pending = IJAZAT.pend;
+      if (turn) _off = TURNS.track(turn, function () { if (_pending) _pending(false); });
+      _yes = await TURNS.wait(turn, _approval);
+    } catch (e) { _yes = false; }
+    finally { _off(); }
+    if (turn) TURNS.assert(turn);
     if (!_yes) {
       var _n = { ok: false, done: false, state: "failed", sure: true, note: "user ne ijazat nahi di",
                  sach: "User ne IJAZAT NAHI DI. Ye kaam nahi hua \u2014 aur ye bilkul theek hai. Zid mat karo." };
@@ -5253,6 +5293,7 @@ async function execTool(name, args){
       return _n;
     }
   }
+  if (turn) TURNS.assert(turn);
   var _before;
   try { _before = LEDGER.snap(name, args); } catch (e) {}
 
@@ -5325,7 +5366,7 @@ async function execTool(name, args){
         out = { learned: true, total: customSkills.length };
       } else out = { learned: false };
     } else if (name === "prayer_times") {
-      var pt = await prayerTimes();
+      var pt = await prayerTimes(turn);
       out = pt ? { city: settings.city, timings: pt } : { error: "namaz times nahi mile — internet check" };
     } else if (name === "read_messages") {
       if (!NATIVE) out = { error: "sirf APK" };
@@ -5362,14 +5403,14 @@ async function execTool(name, args){
       if (NATIVE) { try { ob1 = parseInt(window.MayaBridge.brightness(Math.max(5, Math.min(100, parseInt(args.percent, 10) || 50))), 10); } catch(e){} }
       out = ob1 === -2 ? { done: false, note: "permission dialog khula hai — allow kar ke dobara" } : (ob1 >= 0 ? { done: true, level: ob1 } : { done: false });
     } else if (name === "web_search") {
-      out = await webSearch(String(args.query || ""));
+      out = await webSearch(String(args.query || ""), turn);
     } else if (name === "wiki_search") {
-      out = await wikiLookup(String(args.query || ""));
+      out = await wikiLookup(String(args.query || ""), turn);
     } else if (name === "list_files") {
       out = await listFilesAction(String(args.folder || "downloads"));
     } else if (name === "open_file") {
       var fo = fileFind(String(args.name || ""));
-      if (!fo && NATIVE) { await listFilesAction("downloads"); fo = fileFind(String(args.name || "")); }
+      if (!fo && NATIVE) { await listFilesAction("downloads"); if (turn) TURNS.assert(turn); fo = fileFind(String(args.name || "")); }
       if (fo) { var oko = false; try { oko = window.MayaBridge.openFile(fo.uri, fo.type) === true; } catch(e){} out = oko ? { done: true, file: fo.name } : { done: false, note: "kholne wala app nahi mila" }; }
       else out = { done: false, note: "file nahi mili — pehle list_files se check karo" };
     } else if (name === "share_file") {
@@ -5384,21 +5425,14 @@ async function execTool(name, args){
       chatHist.slice(-200).forEach(function(h){ if (sq && h.text.toLowerCase().indexOf(sq) >= 0) hits.push((h.role === "user" ? "USER: " : "MAYA: ") + h.text.slice(0, 150)); });
       out = { matches: hits.slice(0, 12), total: hits.length };
     } else if (name === "run_javascript") {
-      out = await sandboxRun(String(args.code || ""), String(args.input || ""));
+      out = await sandboxRun(String(args.code || ""), String(args.input || ""), turn);
     } else if (name === "web_fetch") {
       var wurl = String(args.url || "");
       if (!/^https?:\/\//.test(wurl)) { out = { error: "poora URL do (https://...)" }; }
       else {
         var wtxt = "";
-        if (NATIVE && window.MayaBridge.httpGet) {
-          var wr = JSON.parse(window.MayaBridge.httpGet(wurl, ""));
-          if (wr.status >= 200 && wr.status < 300) wtxt = htmlToText(wr.body).slice(0, 3000);
-        } else {
-          try {
-            var wf = await fetch(wurl);
-            if (wf.ok) wtxt = htmlToText(await wf.text()).slice(0, 3000);
-          } catch (e) {}
-        }
+        var wr = await nativeGet(wurl, turn);
+        if (wr.status >= 200 && wr.status < 300) wtxt = htmlToText(wr.body).slice(0, 3000);
         out = wtxt ? { ok: true, text: wtxt } : { error: "page nahi khul saka (site block ya JS-only page ho sakta hai)" };
       }
     } else if (name === "diary_write") {
@@ -5460,7 +5494,7 @@ async function execTool(name, args){
         } catch(e){ out = { error: String(e && e.message || e) }; }
       }
     } else if (name === "get_weather") {
-      out = await fetchWeather(args.city);
+      out = await fetchWeather(args.city, turn);
     } else if (name === "battery_status") {
       var bat = null;
       if (NATIVE) { try { bat = JSON.parse(window.MayaBridge.battery()); } catch(e){} }
@@ -5493,6 +5527,7 @@ async function execTool(name, args){
       out = { error: "unknown tool: " + name };
     }
   } catch (e) { out = { error: String(e && e.message || e) }; }
+  if (turn) TURNS.assert(turn);
   /* 🤝 SACH: har tool ke jawab mein `sure` jur jata hai — kya kaam SACH MEIN hua? */
   try { if (typeof HAQEEQAT !== "undefined" && FLAGS.on("sach")) out = HAQEEQAT.wrap(name, out); } catch (e) {}
   /* 📜 roznamcha + ⟲ undo ki halat + 📊 trace */
@@ -5530,12 +5565,13 @@ function modelScore(n){
   if (/preview|exp|thinking|8b|live|image|audio|native|tts|embedding|aqa|imagen|veo|gemma|robotics/.test(n)) s -= 800;
   return s;
 }
-async function resolveModels(){
+async function resolveModels(turn){
+  if (turn) { TURNS.assert(turn); turn.stage = "discovery"; }
   if (settings.model !== "auto") return [settings.model];
   var now = Date.now();
   if (MODEL_CACHE && MODEL_CACHE.names && MODEL_CACHE.names.length && now - MODEL_CACHE.ts < 86400000) return MODEL_CACHE.names;
   try {
-    var j = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&key=" + encodeURIComponent(settings.apikey)).then(function(x){ return x.json(); });
+    var j = (await TURNS.json(turn, "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&key=" + encodeURIComponent(settings.apikey))).data;
     var names = (j.models || [])
       .filter(function(m){ return (m.supportedGenerationMethods || []).indexOf("generateContent") >= 0; })
       .map(function(m){ return String(m.name || "").replace(/^models\//, ""); })
@@ -5547,6 +5583,7 @@ async function resolveModels(){
     pushLog("MODELS RESOLVED: " + MODEL_CACHE.names[0] + " (+" + (MODEL_CACHE.names.length - 1) + " backup)");
     return MODEL_CACHE.names;
   } catch(e) {
+    if (turn) TURNS.assert(turn);
     return MODELS;
   }
 }
@@ -5705,29 +5742,48 @@ var BRAIN = {
   },
 
   /* ---------- ek HTTP POST: APK mein bridge (CORS nahi, UI jam nahi), warna XHR ---------- */
-  post: function (url, auth, payload, timeoutMs, cb) {
-    var done = false;
-    function finish(status, body) { if (done) return; done = true; cb(status, body); }
-
-    if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge.httpPostAsync) {
-      var id = "r" + (++BRAIN.reqSeq) + "_" + Date.now();
-      BRAIN.waiting[id] = function (status, body) { delete BRAIN.waiting[id]; finish(status, body); };
-      setTimeout(function () { if (BRAIN.waiting[id]) { delete BRAIN.waiting[id]; finish(0, "timeout"); } }, timeoutMs + 3000);
-      try { window.MayaBridge.httpPostAsync(url, auth, payload, id, timeoutMs); }
-      catch (e) { delete BRAIN.waiting[id]; finish(0, String(e && e.message || e)); }
-      return;
+  post: function (url, auth, payload, timeoutMs, cb, turn) {
+    return BRAIN.request("POST", url, auth, payload, timeoutMs, cb, turn);
+  },
+  request: function (method, url, auth, payload, timeoutMs, cb, turn) {
+    if (turn) TURNS.assert(turn);
+    var done = false, timer = null, id = null, xhr = null, off = function () {};
+    function abortIO() {
+      if (id) { try { if (window.MayaBridge.cancelHttpPost) window.MayaBridge.cancelHttpPost(id); } catch (e) {} }
+      if (xhr) { try { xhr.abort(); } catch (e) {} }
     }
-    var xhr = new XMLHttpRequest();
+    function release() { clearTimeout(timer); off(); if (id) delete BRAIN.waiting[id]; }
+    function abort() { if (done) return; done = true; release(); abortIO(); }
+    function finish(status, body, cancelIO) {
+      if (done) return;
+      done = true; release(); if (cancelIO) abortIO();
+      if (!turn || TURNS.live(turn)) cb(status, body);
+    }
+    if (turn) timeoutMs = Math.max(1, Math.min(timeoutMs, Math.ceil(turn.deadline - TURNS.now())));
+    off = TURNS.track(turn, abort);
+    timer = setTimeout(function () { finish(0, "timeout", true); }, timeoutMs);
+    if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge[method === "GET" ? "httpGetAsync" : "httpPostAsync"]) {
+      id = "r" + (++BRAIN.reqSeq) + "_" + Date.now();
+      BRAIN.waiting[id] = function (status, body) { finish(status, body); };
+      try {
+        if (method === "GET") window.MayaBridge.httpGetAsync(url, auth, id, timeoutMs);
+        else window.MayaBridge.httpPostAsync(url, auth, payload, id, timeoutMs);
+      }
+      catch (e) { finish(0, "network", true); }
+      return abort;
+    }
     try {
-      xhr.open("POST", url, true);
-      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr = new XMLHttpRequest();
+      xhr.open(method, url, true);
+      if (method === "POST") xhr.setRequestHeader("Content-Type", "application/json");
       if (auth) xhr.setRequestHeader("Authorization", auth);
       xhr.timeout = timeoutMs;
-    } catch (e) { finish(0, "open fail"); return; }
-    xhr.ontimeout = function () { finish(0, "timeout"); };
-    xhr.onerror = function () { finish(0, "network"); };
-    xhr.onload = function () { finish(xhr.status, xhr.responseText || ""); };
-    try { xhr.send(payload); } catch (e) { finish(0, "send fail"); }
+      xhr.ontimeout = function () { finish(0, "timeout", true); };
+      xhr.onerror = function () { finish(0, "network"); };
+      xhr.onload = function () { finish(xhr.status, xhr.responseText || ""); };
+      xhr.send(payload);
+    } catch (e) { finish(0, "send fail", true); }
+    return abort;
   },
 
   /* ---------- OpenAI-shakl provider se baat ---------- */
@@ -5737,7 +5793,8 @@ var BRAIN = {
     return BRAIN.REASONER.test(String(model || "")) ? 1400 : 400;
   },
 
-  ask: function (p, ki, msgs, cb, step) {
+  ask: function (p, ki, msgs, cb, step, turn) {
+    if (turn && !TURNS.live(turn)) return;
     step = step || 0;
     var keys = BRAIN.keys(p);
     var key = keys[ki] || "";
@@ -5756,6 +5813,7 @@ var BRAIN = {
     var auth = key ? ("Bearer " + key) : "";
     DIMAAG.calls++;
     BRAIN.post(p.url, auth, payload, 22000, function (status, body) {
+      if (turn && !TURNS.live(turn)) return;
       var data = null;
       try { data = JSON.parse(body); } catch (e) {}
       if (status >= 200 && status < 300) {
@@ -5767,12 +5825,13 @@ var BRAIN = {
         if (useTools && tcalls) {
           BRAIN.free(p.id, ki);
           geminiChat.toolsUsed = true;
-          AMAL.runCalls(tcalls).then(function (results) {
+          AMAL.runCalls(tcalls, turn).then(function (results) {
+            if (turn && !TURNS.live(turn)) return;
             var next = msgs.slice(0);
             next.push({ role: "assistant", content: m0.content || "", tool_calls: tcalls });
             for (var z = 0; z < results.length; z++) next.push(results[z]);
-            BRAIN.ask(p, ki, next, cb, step + 1);
-          }, function () { cb("EMPTY"); });
+            BRAIN.ask(p, ki, next, cb, step + 1, turn);
+          }, function () { if (!turn || TURNS.live(turn)) cb("EMPTY"); });
           return;
         }
 
@@ -5805,7 +5864,7 @@ var BRAIN = {
          koshish karo, aur aage ke liye yaad rakh lo. Dimaag marna nahi chahiye. */
       if (useTools && (status === 400 || status === 422) ) {
         AMAL.markBad(p.id, msg);
-        BRAIN.ask(p, ki, msgs, cb, 9);          /* step 9 = tools band */
+        BRAIN.ask(p, ki, msgs, cb, 9, turn);          /* step 9 = tools band */
         return;
       }
 
@@ -5813,7 +5872,7 @@ var BRAIN = {
       if ((code === "MODEL_404" || code === "BAD_REQUEST") && /model|decommission|deprecat|not found|does not exist/i.test(msg)) {
         DIMAAG.log(p.name, "MODEL", model + " → " + msg.slice(0, 50));
         BRAIN.dropModel(p, model);
-        BRAIN.discover(p, key);
+        if (!turn) BRAIN.discover(p, key); // Avoid the synchronous model-discovery bridge inside an active turn.
         cb("MODEL"); return;
       }
       if (code === "QUOTA") { BRAIN.chill(p.id, ki, DIMAAG.isDayQuota(data || {}) ? 3600000 : 90000, "QUOTA"); }
@@ -5821,7 +5880,7 @@ var BRAIN = {
       else if (code === "SERVER") { BRAIN.chill(p.id, ki, 120000, "SERVER"); }
       DIMAAG.log(p.name + (keys.length > 1 ? " key" + (ki + 1) : ""), code, msg);
       cb(code);
-    });
+    }, turn);
   },
 
   /* ---------- mara hua model list se nikaalo ---------- */
@@ -6137,26 +6196,28 @@ var DIMAAG = {
 };
 
 /* --- Provider 1: Gemini pool (tools ke saath) --- */
-async function geminiChat(){
+async function geminiChat(turn){
+  if (turn) TURNS.assert(turn);
   var gate = DIMAAG.geminiReady();
   if (gate) { DIMAAG.log("GEMINI", gate); return null; }
 
   /* B3: 5 nahi, sirf 2 model — ek sawal par quota 5 guna zaya nahi hota */
-  var all = await resolveModels();
+  var all = await resolveModels(turn);
   var models = all.slice(0, 2);
   var quotaHit = false;
 
   for (var i = 0; i < models.length; i++) {
+    if (turn) TURNS.assert(turn);
     var m = models[i];
     if (Date.now() < (modelCooldowns[m] || 0)) { DIMAAG.log("GEMINI/" + m, "QUOTA", "cooldown"); continue; }
-    var got = await geminiTry(m, false);
+    var got = await geminiTry(m, false, turn);
     if (got && got.text) { DIMAAG.ok("GEMINI"); return got.text; }
     var code = got ? got.code : "EMPTY";
 
     /* B1+B2 ka ilaj: 400 par KEY blackout NAHI — history saaf kar ke bina tools dobara */
     if (code === "BAD_REQUEST") {
       DIMAAG.historySuspect = true;
-      var fixed = await geminiTry(m, true);          /* sirf aakhri sawal, koi tool nahi */
+      var fixed = await geminiTry(m, true, turn);          /* sirf aakhri sawal, koi tool nahi */
       if (fixed && fixed.text) {
         DIMAAG.fixes++;
         DIMAAG.log("GEMINI/" + m, null, "khud marammat: history saaf kar ke chal gaya");
@@ -6168,7 +6229,7 @@ async function geminiChat(){
     }
     if (code === "KEY_BAD") { DIMAAG.keyBadUntil = Date.now() + 600000; geminiChat.keyErr = true; return null; }
     if (code === "QUOTA") { quotaHit = true; if (got.dayQuota) { DIMAAG.dayQuotaUntil = Date.now() + 3600000; DIMAAG.lastCode = "QUOTA_DAY"; return null; } continue; }
-    if (code === "MODEL_404") { if (!geminiChat._r404) { geminiChat._r404 = true; MODEL_CACHE = null; saveModelCache(); return await geminiChat(); } continue; }
+    if (code === "MODEL_404") { if (!geminiChat._r404) { geminiChat._r404 = true; MODEL_CACHE = null; saveModelCache(); return await geminiChat(turn); } continue; }
   }
   geminiChat._r404 = false;
   if (quotaHit) DIMAAG.lastCode = "QUOTA";
@@ -6177,7 +6238,8 @@ async function geminiChat(){
 geminiChat.keyErr = false;
 
 /* Ek model par ek koshish. plain = true -> koi tool nahi, sirf aakhri sawal. */
-async function geminiTry(m, plain){
+async function geminiTry(m, plain, turn){
+  if (turn) { TURNS.assert(turn); turn.stage = "provider"; }
   var url = "https://generativelanguage.googleapis.com/v1beta/models/" + m + ":generateContent?key=" + encodeURIComponent(settings.apikey);
   var contents = plain ? [{ role: "user", parts: [{ text: DIMAAG.lastUser() }] }] : DIMAAG.contents(8);
   if (!contents.length) return { code: "BAD_REQUEST", info: "khali history" };
@@ -6185,6 +6247,7 @@ async function geminiTry(m, plain){
   var maxSteps = (_activeSkill && _activeSkill.deep) ? 5 : (FLAGS.on("sach") ? 4 : 2);
 
   for (var step = 0; step < maxSteps + 1; step++) {
+    if (turn) TURNS.assert(turn);
     var body = {
       systemInstruction: { parts: [{ text: sysPrompt() }] },
       contents: contents,
@@ -6196,9 +6259,10 @@ async function geminiTry(m, plain){
     var res, data = {};
     DIMAAG.calls++;
     try {
-      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    } catch (e) { DIMAAG.log("GEMINI/" + m, "NETWORK", String(e && e.message || e).slice(0, 60)); return { code: "NETWORK" }; }
-    try { data = await res.json(); } catch (e) { data = {}; }
+      var fetched = await TURNS.json(turn, url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      res = fetched.response; data = fetched.data;
+      if (turn) TURNS.assert(turn);
+    } catch (e) { if (turn) TURNS.assert(turn); DIMAAG.log("GEMINI/" + m, "NETWORK", "request failed"); return { code: "NETWORK" }; }
 
     if (!res.ok) {
       var code = DIMAAG.classify(res.status, data);
@@ -6221,12 +6285,14 @@ async function geminiTry(m, plain){
       geminiChat.toolsUsed = true;
       contents.push({ role: "model", parts: parts });
       for (var fc = 0; fc < fnCalls.length; fc++) {
+        if (turn) TURNS.assert(turn);
         var name = fnCalls[fc].functionCall.name;
         pushLog("AI TOOL: " + name);
         try { NAAP.mark("tool"); NAAP.cur && (NAAP.cur.tool = name); } catch (e) {}   /* 📊 P0 */
         var result;
-        try { result = await execTool(name, fnCalls[fc].functionCall.args || {}); }
+        try { result = await TURNS.wait(turn, execTool(name, fnCalls[fc].functionCall.args || {}, turn)); }
         catch (e) { result = { error: String(e && e.message || e) }; }
+        if (turn) TURNS.assert(turn);
         contents.push({ role: "user", parts: [{ functionResponse: { name: name, response: result } }] });
       }
       continue;
@@ -7053,9 +7119,10 @@ var AMAL = {
   },
 
   /* ─── tool calls chalao aur nateeje wapas do (OpenAI shakl) ─── */
-  runCalls: async function (calls) {
+  runCalls: async function (calls, turn) {
     var out = [], i, c, name, args, res;
     for (i = 0; i < calls.length && i < 4; i++) {
+      if (turn) TURNS.assert(turn);
       c = calls[i];
       name = (c && c.function && c.function.name) || "";
       args = {};
@@ -7063,8 +7130,9 @@ var AMAL = {
       args = AMAL.alias(name, args);
       if (typeof pushLog === "function") pushLog("AI TOOL: " + name + " (pool)");
       try { NAAP.mark("tool"); NAAP.cur && (NAAP.cur.tool = name); } catch (e) {}
-      try { res = await execTool(name, args); }
+      try { res = await TURNS.wait(turn, execTool(name, args, turn)); }
       catch (e) { res = { error: String((e && e.message) || e) }; }
+      if (turn) TURNS.assert(turn);
       out.push({
         role: "tool",
         tool_call_id: c.id || ("call_" + i),
@@ -7195,86 +7263,165 @@ var AMAL = {
   }
 };
 
+/* TURN CONTROLLER — one bounded AI request owner, independent of speech configuration. */
+var TURNS = {
+  BUDGET_MS: 15000,
+  seq: 0, active: null, history: [],
+  now: function () { return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now(); },
+  error: function (reason) { var e = new Error("AI turn " + reason); e.name = "TurnCancelled"; e.reason = reason; return e; },
+  live: function (t) { return !t || (TURNS.active === t && t.state === "active"); },
+  assert: function (t) {
+    if (!t) return;
+    if (TURNS.live(t) && TURNS.now() >= t.deadline) TURNS.cancel("timeout");
+    if (!TURNS.live(t)) throw TURNS.error(t.result || "cancelled");
+  },
+  begin: function () {
+    TURNS.cancel("superseded");
+    var t = { id: ++TURNS.seq, state: "active", stage: "planning", start: TURNS.now(), cancels: [] };
+    t.deadline = t.start + TURNS.BUDGET_MS;
+    t.aborted = new Promise(function (_, reject) { t.reject = reject; });
+    t.aborted.catch(function () {}); // A cancel before the first await is still handled.
+    TURNS.active = t;
+    t.timer = setTimeout(function () { if (TURNS.active === t) TURNS.cancel("timeout"); }, TURNS.BUDGET_MS);
+    try { if (typeof showTurnNotice === "function") showTurnNotice(""); } catch (e) {}
+    return t;
+  },
+  track: function (t, abort) {
+    if (!t) return function () {};
+    var item = { abort: abort, done: false };
+    if (!TURNS.live(t)) { abort(); return function () {}; }
+    t.cancels.push(item);
+    return function () { item.done = true; };
+  },
+  wait: function (t, promise) {
+    if (!t) return Promise.resolve(promise);
+    var pending = Promise.resolve(promise);
+    try { TURNS.assert(t); } catch (e) { pending.catch(function () {}); return Promise.reject(e); }
+    return Promise.race([pending, t.aborted]).then(function (value) { TURNS.assert(t); return value; });
+  },
+  cleanup: function (t, result) {
+    clearTimeout(t.timer); t.state = "terminal"; t.result = result;
+    t.cancels.forEach(function (item) { if (!item.done) { item.done = true; try { item.abort(); } catch (e) {} } });
+    t.cancels = [];
+    TURNS.history.push({ id: t.id, stage: t.stage, result: result, ms: Math.round(TURNS.now() - t.start) });
+    if (TURNS.history.length > 20) TURNS.history.shift();
+    try { pushLog("TURN " + t.id + ": " + t.stage + " / " + result); } catch (e) {}
+    if (TURNS.active === t) {
+      TURNS.active = null; thinking = false;
+      try { interimEl.textContent = ""; } catch (e) {}
+      try { if (typeof speaking === "undefined" || !speaking) setOrb("idle"); } catch (e) {}
+    }
+  },
+  cancel: function (reason) {
+    var t = TURNS.active;
+    if (!t) return;
+    reason = reason || "cancelled";
+    TURNS.cleanup(t, reason); t.reject(TURNS.error(reason));
+    if (reason === "timeout") TURNS.notice("AI request timed out. You can send another message. Check any completed actions before retrying.");
+  },
+  finish: function (t, result) { if (t && TURNS.live(t)) TURNS.cleanup(t, result || "done"); },
+  notice: function (text) {
+    try { if (typeof showTurnNotice === "function") showTurnNotice(text); else toast(text); } catch (e) {}
+  },
+  json: async function (t, url, init) {
+    TURNS.assert(t);
+    var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var options = {}, key;
+    for (key in (init || {})) if (Object.prototype.hasOwnProperty.call(init, key)) options[key] = init[key];
+    if (controller) options.signal = controller.signal;
+    var off = TURNS.track(t, function () { if (controller) controller.abort(); });
+    var stage = t && t.stage.indexOf("discovery") === 0 ? "discovery" : t && t.stage.indexOf("tool") === 0 ? "tool" : "provider";
+    if (t) t.stage = stage + "-headers";
+    try {
+      // Chrome 55-65 has fetch but no AbortController: use cancellable XHR/native HTTP instead.
+      if (t && !controller) {
+        var packet = await TURNS.wait(t, new Promise(function (resolve) {
+          BRAIN.request(options.method || "GET", url, "", options.body || null, 15000,
+            function (status, body) { resolve({ status: status, body: body }); }, t);
+        }));
+        t.stage = stage + "-body";
+        return { response: { ok: packet.status >= 200 && packet.status < 300, status: packet.status }, data: JSON.parse(packet.body) };
+      }
+      var response = await TURNS.wait(t, fetch(url, options));
+      if (t) t.stage = stage + "-body";
+      var data = await TURNS.wait(t, response.json());
+      return { response: response, data: data };
+    } finally { off(); }
+  }
+};
+
 /* --- OpenAI-shakl providers ab BRAIN POOL sambhalta hai --- */
-function brainAsk(p, ki, msgs){
+function brainAsk(p, ki, msgs, turn){
   return new Promise(function (res) {
-    BRAIN.ask(p, ki, msgs, function (err, out) { res(err ? null : out); });
+    BRAIN.ask(p, ki, msgs, function (err, out) { res(err ? null : out); }, 0, turn);
   });
 }
 
 /* --- Main: kabhi rukne wala nahi --- */
 async function askAI(wasVoice){
-  DIMAAG.reset();
-  var lu = DIMAAG.lastUser();
-  if (lu) {
-    var ck = cacheKey(lu);
-    var cv = replyCache[ck];
-    if (cv && Date.now() - cv.t < 21600000 && cv.text) {
-      pushLog("CACHE HIT (turant)");
-      DIMAAG.log("CACHE", null, "yaad tha");
-      reply(cv.text, wasVoice);
-      return;
+  var turn = TURNS.begin();
+  try {
+    if (typeof stopListening === "function") stopListening();
+    thinking = true; setOrb("thinking");
+    DIMAAG.reset();
+    var lu = DIMAAG.lastUser();
+    var out = null;
+    if (lu) {
+      var cv = replyCache[cacheKey(lu)];
+      if (cv && Date.now() - cv.t < 21600000 && cv.text) {
+        out = cv.text; DIMAAG.log("CACHE", null, "cached answer");
+      }
+    }
+    geminiChat.keyErr = false; geminiChat.toolsUsed = false;
+    if (!out) {
+      var need = lu ? needsTools(lu) : false;
+      var all = BRAIN.plan(need), keyed = [], keyless = [], i;
+      for (i = 0; i < all.length; i++) (all[i].p.keyless ? keyless : keyed).push(all[i]);
+      var order = (settings.fastShort === true ? keyed.slice(0, 2) : keyed.slice(0, 4)).concat(keyless);
+      var msgs = DIMAAG.msgs(need);
+      for (i = 0; i < order.length && !out; i++) {
+        TURNS.assert(turn); turn.stage = "provider";
+        var it = order[i];
+        try {
+          out = await TURNS.wait(turn, it.p.kind === "gemini" ? geminiChat(turn) : brainAsk(it.p, it.ki, msgs, turn));
+        } catch (e) {
+          TURNS.assert(turn);
+          DIMAAG.log(it.p.name || "Gemini", "NETWORK", "request failed");
+        }
+      }
+    }
+    TURNS.assert(turn);
+    if (!out) {
+      DIMAAG.lastCode = DIMAAG.verdict() || DIMAAG.lastCode;
+      out = DIMAAG.localAnswer(lu);
+      if (out) { DIMAAG.log("LOCAL", null, "offline answer"); aiState.provider = "LOCAL"; }
+      if (!out) {
+        turn.stage = "unavailable"; aiState.provider = "—";
+        // No timer retries: a new attempt requires another explicit user action.
+        TURNS.notice(DIMAAG.failMessage() + " Send again when ready; no automatic retry is scheduled.");
+        return;
+      }
+    }
+    turn.stage = "text-ready";
+    try {
+      NAAP.mark("brain"); var _bn = aiState.provider || BRAIN.lastUsed || "?";
+      if (NAAP.cur) NAAP.cur.brain = _bn;
+      TRACE.brain(_bn, (NAAP.cur && NAAP.cur.m.brain) || 0);
+    } catch (e) {}
+    try { if (lu && !geminiChat.toolsUsed && out.length < 400) cachePut(cacheKey(lu), out); } catch (e) {}
+    thinking = false;
+    reply(out, wasVoice); // Text is retained even if optional speech fails.
+  } catch (e) {
+    if (TURNS.live(turn)) {
+      turn.stage = "error";
+      TURNS.notice("AI request failed safely. You can type or tap the microphone again. Check completed actions before retrying.");
+    }
+  } finally {
+    if (TURNS.live(turn)) {
+      // Do not replace speech preparation/playback status with an old thinking label.
+      TURNS.finish(turn, turn.stage === "text-ready" ? "done" : turn.stage);
     }
   }
-  thinking = true; setOrb("thinking");
-  geminiChat.keyErr = false;
-  geminiChat.toolsUsed = false;
-
-  /* Issue 3 latency: per-turn timing markers in the system log
-     (t0 = askAI entry, t1 = brain answer ready). */
-  try { pushLog("T: brain start"); } catch (e) {}
-  var need = lu ? needsTools(lu) : false;
-  var tBrain0 = (new Date()).getTime();
-  var all = BRAIN.plan(need), keyed = [], keyless = [], i;
-  for (i = 0; i < all.length; i++) (all[i].p.keyless ? keyless : keyed).push(all[i]);
-  /* 4 keyed koshishein, phir keyless teh — jo hamesha zinda hoti hai */
-  /* Issue 3: fewer serial brain attempts per turn. Default keeps the
-     battle-tested 4-keyed chain; settings.fastShort tightens it to 2. */
-  var order = (settings.fastShort === true ? keyed.slice(0, 2) : keyed.slice(0, 4)).concat(keyless);
-  var msgs = DIMAAG.msgs(need);
-  var out = null;
-
-  for (i = 0; i < order.length && !out; i++) {
-    var it = order[i];
-    if (it.p.kind === "gemini") { try { out = await geminiChat(); } catch (e) { DIMAAG.log("Gemini", "NETWORK", String(e && e.message || e).slice(0, 60)); } }
-    else { try { out = await brainAsk(it.p, it.ki, msgs); } catch (e) { DIMAAG.log(it.p.name, "NETWORK", String(e && e.message || e).slice(0, 60)); } }
-  }
-
-  if (out) {
-    askAI._retried = false;
-    try {
-      NAAP.mark("brain");
-      var _bn = aiState.provider || BRAIN.lastUsed || "?";
-      NAAP.cur && (NAAP.cur.brain = _bn);
-      TRACE.brain(_bn, (NAAP.cur && NAAP.cur.m.brain) || 0);
-    } catch (e) {}   /* 📊 P0 */
-    thinking = false; setOrb("idle");
-    if (lu && !geminiChat.toolsUsed && out.length < 400) cachePut(cacheKey(lu), out);
-    reply(out, wasVoice);
-    return;
-  }
-  thinking = false; setOrb("idle");
-
-  var code = DIMAAG.verdict() || DIMAAG.lastCode;
-  DIMAAG.lastCode = code;
-  var loc0 = DIMAAG.localAnswer(lu);
-  if (loc0) { DIMAAG.log("LOCAL", null, "offline jawab"); aiState.provider = "LOCAL"; reply(loc0, wasVoice); return; }
-
-  var worthRetry = (code === "QUOTA" || code === "SERVER" || code === "NETWORK" || code === "TIMEOUT" || code === "EMPTY");
-  if (worthRetry && !askAI._retried && navigator.onLine !== false) {
-    askAI._retried = true;
-    var wait = Math.min(Math.max(lastRetryDelay || 30000, 5000), 45000);
-    aiState.provider = "COOLDOWN";
-    toast("Sab " + order.length + " dimaag thak gaye — " + Math.round(wait / 1000) + "s baad KHUD dobara try karungi");
-    pushLog("RETRY IN " + Math.round(wait / 1000) + "s (" + code + ")");
-    setTimeout(function(){ askAI(wasVoice); }, wait);
-    return;
-  }
-  askAI._retried = false;
-  aiState.provider = "—";
-
-  try { NAAP.cur && (NAAP.cur.err = code); } catch (e) {}   /* 📊 P0 */
-  reply(DIMAAG.failMessage(), wasVoice);
 }
 
 function openURL(u){ var w = window.open(u, "_blank"); if (!w) { try { location.href = u; } catch(e){} } }
@@ -7360,11 +7507,11 @@ window.__photoTaken = async function(b64){
 
 /* ---------- NAMAZ TIMES (Aladhan — free, Pakistan method) ---------- */
 var prayerCache = null;
-async function prayerTimes(){
+async function prayerTimes(turn){
   try {
     var today = new Date().toISOString().slice(0, 10);
     if (prayerCache && prayerCache.d === today) return prayerCache;
-    var r = await nativeGet("https://api.aladhan.com/v1/timingsByCity?city=" + encodeURIComponent(settings.city || "Hyderabad") + "&country=Pakistan&method=1");
+    var r = await nativeGet("https://api.aladhan.com/v1/timingsByCity?city=" + encodeURIComponent(settings.city || "Hyderabad") + "&country=Pakistan&method=1", turn);
     if (!r.body) return null;
     var j = JSON.parse(r.body);
     var t = j && j.data && j.data.timings;
@@ -7499,14 +7646,20 @@ setInterval(function(){
 }, 60000);
 
 /* ---------- WEB SHARK (Phase 8): search + wiki ---------- */
-async function nativeGet(url){
+async function nativeGet(url, turn){
+  if (turn) {
+    TURNS.assert(turn);
+    return TURNS.wait(turn, new Promise(function (resolve) {
+      BRAIN.request("GET", url, "", null, 10000, function (status, body) { resolve({ status: status, body: body }); }, turn);
+    }));
+  }
   if (NATIVE && window.MayaBridge.httpGet) {
     try { var r = JSON.parse(window.MayaBridge.httpGet(url, "")); return { status: r.status, body: r.body || "" }; } catch(e){ return { status: 0, body: "" }; }
   }
   try { var f = await fetch(url); return { status: f.status, body: f.ok ? await f.text() : "" }; } catch(e){ return { status: 0, body: "" }; }
 }
-async function webSearch(q){
-  var res = await nativeGet("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(q));
+async function webSearch(q, turn){
+  var res = await nativeGet("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(q), turn);
   var html = res.body || "";
   var results = [];
   var re = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
@@ -7520,9 +7673,9 @@ async function webSearch(q){
   }
   return results.length ? { results: results } : { error: "kuch nahi mila" };
 }
-async function wikiLookup(q){
+async function wikiLookup(q, turn){
   var lang = /[\u0600-\u06FF]/.test(q) ? "ur" : "en";
-  var res = await nativeGet("https://" + lang + ".wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(q.trim().replace(/\s+/g, "_")));
+  var res = await nativeGet("https://" + lang + ".wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(q.trim().replace(/\s+/g, "_")), turn);
   if (res.status !== 200 || !res.body) return { error: "page nahi mila" };
   try {
     var j = JSON.parse(res.body);
@@ -7548,17 +7701,25 @@ async function listFilesAction(folder){
 }
 
 /* ---------- AGENT MODE: JS Sandbox (safe cage — no DOM, no data access) ---------- */
-function sandboxRun(code, input){
+function sandboxRun(code, input, turn){
   return new Promise(function(resolve){
     var workerSrc = 'self.onmessage=function(e){var logs=[];var console={log:function(){for(var i=0;i<arguments.length;i++)logs.push(String(arguments[i]))}};' +
       'Promise.resolve().then(function(){var AF=Object.getPrototypeOf(async function(){}).constructor;var fn=new AF("input","console","\"use strict\";"+e.data.code);return fn(e.data.input)})' +
       '.then(function(r){var o;try{o=typeof r==="string"?r:JSON.stringify(r)}catch(x){o=String(r)}self.postMessage({ok:true,result:o,logs:logs.slice(0,5)})})' +
       '.catch(function(err){self.postMessage({ok:false,error:String(err&&err.message||err),logs:logs.slice(0,5)})})};';
-    var finish = function(o){ resolve(o); };
+    var finished = false, off = function () {}, blobUrl = null, w = null, to = null;
+    var finish = function(o){
+      if (finished) return; finished = true; clearTimeout(to); off();
+      try { if (w) w.terminate(); if (blobUrl) URL.revokeObjectURL(blobUrl); } catch (e) {}
+      resolve(o);
+    };
     try {
       if (typeof Worker === "undefined") throw new Error("no-worker");
-      var w = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: "application/javascript" })));
-      var to = setTimeout(function(){ try { w.terminate(); } catch(e){} finish({ error: "timeout (8s) — code atka" }); }, 8000);
+      if (turn) TURNS.assert(turn);
+      blobUrl = URL.createObjectURL(new Blob([workerSrc], { type: "application/javascript" }));
+      w = new Worker(blobUrl);
+      if (turn) off = TURNS.track(turn, function () { finish({ error: "cancelled" }); });
+      to = setTimeout(function(){ try { w.terminate(); } catch(e){} finish({ error: "timeout (8s) — code atka" }); }, 8000);
       w.onmessage = function(ev){
         clearTimeout(to);
         try { w.terminate(); } catch(e){}
@@ -7571,6 +7732,7 @@ function sandboxRun(code, input){
       };
       w.postMessage({ code: code, input: input });
     } catch (e) {
+      if (turn) { finish({ error: "Isolated worker unavailable; code was not run on the UI thread." }); return; }
       /* Fallback: bina worker (old WebView) — try/catch cage */
       try {
         var AF2 = Object.getPrototypeOf(async function(){}).constructor;
@@ -8957,6 +9119,8 @@ function sendText(){
   txt.value = ""; stopListening(); handleUserText(v, false);
 }
 $("#qStop").addEventListener("click", function(){
+  INPUT_EPOCH++; TURNS.cancel("cancelled");
+  try { if (typeof MAYA_AMAL !== "undefined") MAYA_AMAL.stop(); } catch (e) {}
   stopListening();
   geminiTTS_stop();
   if (NATIVE) { try { window.MayaBridge.stopSpeak(); } catch(e){} }
@@ -9364,14 +9528,22 @@ handleUserText = function(text, wasVoice){
 
 /* ---------- interaction timestamp (proactive ke liye) ---------- */
 var _hutInteract = handleUserText;
-handleUserText = function(t, w){ MAYA_V4.lastInteract = Date.now(); return _hutInteract(t, w); };
+var INPUT_EPOCH = 0;
+handleUserText = function(t, w){
+  if (!String(t || "").trim()) return;
+  INPUT_EPOCH++; TURNS.cancel("superseded");
+  stopListening(); AWAAZ.stop(); speaking = false;
+  try { SUKOON.bolEnd(); } catch (e) {}
+  showTurnNotice(""); showVoiceNotice("");
+  MAYA_V4.lastInteract = Date.now(); return _hutInteract(t, w);
+};
 var MAYA_V4 = { lastInteract: Date.now(), proactiveTimer: null };
 
 /* ---------- HOME WIRING ---------- */
 try { $("#micHome").addEventListener("click", startListening); } catch(e){}
 try {
   $("#homeTxt").addEventListener("keydown", function(e){
-    if (e.key === "Enter") { var v = this.value.trim(); if (!v) return; this.value = ""; handleUserText(v, true); }
+    if (e.key === "Enter") { var v = this.value.trim(); if (!v) return; this.value = ""; handleUserText(v, false); }
   });
 } catch(e){}
 /* home quick actions — home par raho, voice reply */

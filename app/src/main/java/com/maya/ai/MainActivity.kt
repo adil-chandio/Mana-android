@@ -83,6 +83,9 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var ttsEverSpoke = false
     private var recognizer: SpeechRecognizer? = null
     private var speechGeneration = 0L
+    @Volatile private var httpClosed = false
+    private val httpDeadlines = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+    private val httpRequests = java.util.concurrent.ConcurrentHashMap<String, com.maya.ai.net.CancelableRequest>()
     private var fishPlayer: com.maya.ai.voice.FishStreamPlayer? = null
 
     /* ================= LIFECYCLE ================= */
@@ -203,6 +206,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        httpClosed = true
+        httpDeadlines.shutdownNow()
+        httpRequests.values.forEach { it.cancel() }; httpRequests.clear()
         fishPlayer?.stop(); fishPlayer = null
         instance = null
         stopRecognizer()
@@ -1155,32 +1161,67 @@ class MainActivity : AppCompatActivity() {
          * base64 is liye ke jawab mein quotes/newlines JS string ko na toren.
          */
         @JavascriptInterface
-        fun httpPostAsync(url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) {
+        fun httpPostAsync(url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) =
+            httpAsync("POST", url, authHeader, body, reqId, timeoutMs)
+
+        @JavascriptInterface
+        fun httpGetAsync(url: String, authHeader: String, reqId: String, timeoutMs: Int) =
+            httpAsync("GET", url, authHeader, "", reqId, timeoutMs)
+
+        private fun httpAsync(method: String, url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) {
+            if (httpClosed) return
+            val job = com.maya.ai.net.CancelableRequest()
+            if (httpRequests.putIfAbsent(reqId, job) != null) return
+            if (httpClosed) { httpRequests.remove(reqId, job); job.cancel(); return }
+            // A suspended WebView must not leave a slow/dripping socket alive indefinitely.
+            val deadline = try {
+                httpDeadlines.schedule(Runnable { job.cancel() }, timeoutMs.coerceIn(1, 25000).toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            } catch (_: java.util.concurrent.RejectedExecutionException) {
+                httpRequests.remove(reqId, job); job.cancel(); return
+            }
             Thread {
                 var code = 0
                 var txt = ""
                 try {
                     val conn = URL(url).openConnection() as HttpURLConnection
-                    conn.requestMethod = "POST"
-                    conn.doOutput = true
-                    conn.connectTimeout = if (timeoutMs > 0) timeoutMs else 12000
-                    conn.readTimeout = if (timeoutMs > 0) timeoutMs else 25000
-                    conn.setRequestProperty("Content-Type", "application/json")
-                    conn.setRequestProperty("Accept", "application/json")
+                    if (!job.attach(conn)) return@Thread
+                    conn.requestMethod = method
+                    conn.instanceFollowRedirects = false
+                    conn.doOutput = method == "POST"
+                    conn.connectTimeout = timeoutMs.coerceIn(1, 25000)
+                    conn.readTimeout = timeoutMs.coerceIn(1, 25000)
+                    if (method == "POST") conn.setRequestProperty("Content-Type", "application/json")
+                    conn.setRequestProperty("Accept", if (method == "POST") "application/json" else "*/*")
                     if (authHeader.isNotEmpty()) conn.setRequestProperty("Authorization", authHeader)
-                    conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    if (job.cancelled) return@Thread
+                    if (method == "POST") conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                     code = conn.responseCode
-                    txt = (if (code in 200..399) conn.inputStream else conn.errorStream)
-                        ?.bufferedReader()?.use { it.readText() } ?: ""
-                    conn.disconnect()
-                } catch (e: Exception) {
-                    code = 0
-                    txt = e.message ?: "network error"
+                    val stream = if (code in 200..399) conn.inputStream else conn.errorStream
+                    txt = stream?.bufferedReader()?.use { reader ->
+                        val out = StringBuilder()
+                        val buffer = CharArray(8192)
+                        while (!job.cancelled) {
+                            val n = reader.read(buffer)
+                            if (n < 0) break
+                            if (out.length + n > 8_000_000) throw java.io.IOException("Response too large")
+                            out.append(buffer, 0, n)
+                        }
+                        out.toString()
+                    } ?: ""
+                } catch (_: Exception) {
+                    code = 0; txt = "network error" // Do not return URLs, auth or raw exception text.
+                } finally {
+                    deadline.cancel(false); job.close(); httpRequests.remove(reqId, job)
                 }
-                val b64 = Base64.encodeToString(txt.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-                evalAsync("window.__httpDone && window.__httpDone('" + jsEscape(reqId) + "'," + code + ",'" + b64 + "')")
+                if (!job.cancelled) {
+                    val b64 = Base64.encodeToString(txt.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+                    evalAsync("window.__httpDone && window.__httpDone('" + jsEscape(reqId) + "'," + code + ",'" + b64 + "')")
+                }
             }.start()
         }
+
+        @JavascriptInterface
+        fun cancelHttpPost(reqId: String) { httpRequests.remove(reqId)?.cancel() }
 
         @JavascriptInterface
         fun httpGet(url: String, authHeader: String): String {

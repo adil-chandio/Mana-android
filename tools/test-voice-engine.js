@@ -1157,8 +1157,8 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
       const hb = KT.slice(KT.indexOf('fun httpBytes('), KT.indexOf('fun httpBytes(') + 3200);
       is(hb.indexOf('bufferedReader') < 0 && /bos\.write\(buf, 0, n\)/.test(hb) && /Base64\.encodeToString\(bos\.toByteArray\(\)/.test(hb),
         '🔑 Kotlin RAW BYTES base64 karta hai — httpBytes mein bufferedReader hai HI nahi (wohi MP3 tor deta tha)');
-      is(/bufferedReader/.test(KT.slice(KT.indexOf('fun httpPostAsync('), KT.indexOf('fun httpPostAsync(') + 1800)),
-        'purana httpPostAsync jyun ka tyun hai (matn ke liye) — koi regression nahi');
+      is(/fun httpPostAsync[\s\S]{0,180}httpAsync\("POST"/.test(KT) && /bufferedReader/.test(KT.slice(KT.indexOf('private fun httpAsync('), KT.indexOf('fun cancelHttpPost('))),
+        'async text bridge retains text decoding; raw-byte voice bridge stays separate');
       is(/JSONObject\(headersJson\)[\s\S]{0,220}setRequestProperty/.test(KT),
         'Kotlin har custom header bhejta hai (model: s2.1-pro-free is ke bagair na jata)');
       is(src.indexOf('window.__binDone') > 0, 'bytes wapas lene ka darwaza maujood');
