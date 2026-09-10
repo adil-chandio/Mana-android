@@ -87,13 +87,13 @@ object MayaAct {
             if (killedCooldownActive()) {
                 out.put("ok", false)
                 out.put("why", "kill-switch laga hua hai — kuch der baad naya hukm do")
-                return finish(out)
+                return out
             }
             val action = json.optString("action", "")
             if (action != "tap" && action != "type" && action != "swipe" && action != "back") {
                 out.put("ok", false)
                 out.put("why", "namaloom action '" + action + "' — sirf tap/type/swipe/back")
-                return finish(out)
+                return out
             }
             /* vague command refusal: tap/type NEED a find label (no blind taps) */
             if ((action == "tap" || action == "type") &&
@@ -101,7 +101,7 @@ object MayaAct {
             ) {
                 out.put("ok", false)
                 out.put("why", "kis par? screen par us cheez ka NAAM do (verify-before-tap)")
-                return finish(out)
+                return out
             }
             synchronized(rate) {
                 val now = SystemClock.elapsedRealtime()
@@ -109,7 +109,7 @@ object MayaAct {
                 if (rate.size >= MAX_PER_MINUTE) {
                     out.put("ok", false)
                     out.put("why", "rate limit — 1 minute mein max " + MAX_PER_MINUTE + " actions")
-                    return finish(out)
+                    return out
                 }
                 rate.addLast(now)
             }
@@ -119,11 +119,11 @@ object MayaAct {
             out.put("queued", queue.size)
             out.put("note", "STOP MAYA AUTOMATION notification se foran band")
             if (!executing) drain(ctx.applicationContext)
-            return finish(out)
+            return out
         } catch (e: Exception) {
             out.put("ok", false)
             out.put("why", e.message ?: "enqueue masla")
-            return finish(out)
+            return out
         }
     }
 
@@ -288,7 +288,7 @@ object MayaAct {
                         return
                     }
                     /* NOTE: typed text KABHI report/log nahi hota — sirf field label */
-                    val ok = svc.typeInto(node.first, text)
+                    val ok = svc.typeInto(node.third, text)
                     h.removeCallbacks(timedOut)
                     finishAction(appCtx, next, chain, ok, ok, "type:" + node.second)
                 }

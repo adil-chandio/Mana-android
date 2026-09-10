@@ -2,7 +2,6 @@ package com.maya.ai
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
-import android.accessibilityservice.GestureResultCallback
 import android.content.Context
 import android.graphics.Path
 import android.graphics.Rect
@@ -266,7 +265,7 @@ class AutoSendService : AccessibilityService() {
                 val g = GestureDescription.Builder()
                     .addStroke(GestureDescription.StrokeDescription(p, 0, ms))
                     .build()
-                val sent = dispatchGesture(g, object : GestureResultCallback() {
+                val sent = dispatchGesture(g, object : AccessibilityService.GestureResultCallback() {
                     override fun onCompleted(gc: GestureDescription?) { handler.post { cb(true) } }
                     override fun onCancelled(gc: GestureDescription?) { handler.post { cb(false) } }
                 }, null)
