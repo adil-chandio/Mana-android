@@ -2,6 +2,8 @@
 >
 > The user reports code84 typed Chat is fast and the explicitly selected Fish voice plays, but wake did not respond. Code85 preserves that chat/voice path; fixes a reproduced STOP/SUNO speech-exclusion leak; adds actual native wake status, readiness/failure diagnostics and honest indicators. No physical wake or latency improvement is claimed yet.
 >
+> [Download code85 test APK ZIP](https://github.com/adil-chandio/Mana-android/actions/runs/34470774866/artifacts/10149471250) · 1,152 local checks + 54 native JVM tests pass; actual APK signature/identity CI-verified. Physical wake acceptance pending.
+>
 > [Current candidate evidence and installation protocol](docs/WAKE-RECOVERY-5.17.3.md) · [Code84 feedback and historical receipt](docs/PHASE3-DEVICE-TEST.md).
 >
 > Automated checks are not phone acceptance. **Do not reinstall older codes or promote Stable.** Secure in-app delivery is still blocked by signing/bootstrap configuration; use only the current CI-verified manual, in-place, same-development-signer candidate. Never uninstall/clear data to force it.

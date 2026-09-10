@@ -43,4 +43,16 @@ Only after this passes: SUNO STOP→wake, completion→wake, no self-trigger, wa
 
 ## Build/delivery receipt
 
-Pending native build verification. No code85 APK offered until the actual package/version/signature checks pass. The draft PR stays unmerged and Stable is on hold.
+**CI passed; code85 artifact offered for manual in-place testing. Phone wake acceptance remains pending.**
+
+- Runtime source: `a00c48a0d52bb7f8d91c2cae35eda674295d3270`.
+- [CI run 34470774866](https://github.com/adil-chandio/Mana-android/actions/runs/34470774866), job `102849909714`: successful compilation, **54/54 native JVM tests**, zero failed/skipped; actual APK identity/signature verification passed.
+- [Download MAYA-APK ZIP](https://github.com/adil-chandio/Mana-android/actions/runs/34470774866/artifacts/10149471250), artifact `10149471250`, API ZIP size **5,668,023 bytes**, not expired at receipt. GitHub login may be required. Extract `app-debug.apk`, then update the existing app.
+- CI identity: **com.maya.ai / 5.17.3 / code85 / minSdk26**, development/debug, update trust **false**.
+- APK SHA-256 from CI: `c95134f29feb2307da918fbcd4fae0534ff005442cf61db317dbcddfd8184afc` (APK, not ZIP).
+- Development signer SHA-256: `ba5f9e07a474cad5f8d8123c79e618f1a76976d7561d901d4df3f5a3da32d24a`, same as the previous candidates. Actual phone install/data retention still must be checked.
+- Sandbox download attempt reached the redirected storage endpoint but returned EOF. No local binary inspection/attached APK is claimed; the receipt is from CI and the verified artifact link is the delivery path.
+- Local version85 full suite: **1,152 checks plus CSS/syntax validation pass**; version-sync and diff checks pass. No actual microphone/voice latency measurement in the sandbox.
+- Non-fatal action deprecation/cache400 warnings remain; the two pre-existing workflow edits were neither altered nor staged.
+
+Subsequent documentation-only commits do not change this binary. Draft PR7 stays unmerged, production signing/bootstrap is not activated, and Stable stays on hold. Do not reinstall code84/83 for this repair. A distributed successor to installed code85 must have a higher version code.
