@@ -77,4 +77,20 @@ test('disabling wake invalidates its pending explicit handoff', () => {
 test('spoken replies and in-flight thinking cannot self-trigger wake', () => {
   for (const busy of ['speaking', 'thinking', 'listening']) { const s = world(); s[busy] = true; s.__wakeHeard('["Maya weather"]'); assert.equal(s.commands.length, 0); }
 });
+// Source wiring guards supplement, but do not replace, Android playback testing.
+test('Media3 automatic focus uses media usage with speech content', () => {
+  const player = fs.readFileSync('app/src/main/java/com/maya/ai/voice/FishStreamPlayer.kt', 'utf8');
+  assert.match(player, /setUsage\(C.USAGE_MEDIA\)/);
+  assert.match(player, /setContentType\(C.AUDIO_CONTENT_TYPE_SPEECH\)/);
+  assert.match(player, /DefaultLoadErrorHandlingPolicy\(0\)/);
+  assert.match(player, /instanceFollowRedirects = false/);
+  assert.match(player, /opened.compareAndSet\(false, true\)/);
+});
+test('wake cannot resume over an active Fish stream or discard its first syllable', () => {
+  const wake = fs.readFileSync('app/src/main/java/com/maya/ai/WakeWordService.kt', 'utf8');
+  assert.match(wake, /if \(fishOutputActive\) return/);
+  assert.match(wake, /private fun vadEnabled\(\): Boolean = false/);
+  assert.match(wake, /session != recognitionGeneration \|\| delivered/);
+  assert.match(wake, /haalBlock\(\) == null && !recognitionActive/);
+});
 console.log(`VOICE SESSION TESTS PASS — ${passed}/${passed}. Mocked JS lifecycle, not device recognition.`);

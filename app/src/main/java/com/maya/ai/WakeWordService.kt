@@ -496,8 +496,7 @@ class WakeWordService : Service() {
             /* L2 — watchdog bhi HAAL se pooche: Maya ke bolte waqt recognizer
                todna = awaaz kaatna. Pehle ye bina dekhe chalta tha — har 12
                minute par awaaz katne ka scheduled chance tha. */
-            if (haalBlock() == null) {
-                resetRecognizer()
+            if (haalBlock() == null && !recognitionActive) {
                 actuallyStart()
             }
         }
@@ -511,7 +510,7 @@ class WakeWordService : Service() {
         /* Issue 1 — stuck-HAAL recovery: WebView died mid-speech/mid-listen?
            JS kabhi KHALI nahi bhejegi aur mic HAMESHA ke liye blocked reh jata.
            120s (90s nahi) taake sachi lambi speech kabhi kaate na jaye. */
-        if (haal != "KHALI" && System.currentTimeMillis() - haalAt > 120000) {
+        if (!fishOutputActive && haal != "KHALI" && System.currentTimeMillis() - haalAt > 120000) {
             report("haal", "stuck " + haal + " — khud KHALI kiya")
             applyHaal("KHALI")
         }
@@ -533,7 +532,7 @@ class WakeWordService : Service() {
                 /* mic ISI LAMHE chhodo — awaaz katna yahi se rukta hai */
                 stopGate()
                 recognitionGeneration++; recognitionActive = false
-                try { sr?.cancel() } catch (e: Exception) {}
+                try { sr?.cancel(); sr?.destroy(); sr = null } catch (e: Exception) {}
                 pendingGen++                     /* pending restart murda */
             } else if (h == "KHALI") {
                 restart(300)
@@ -546,7 +545,7 @@ class WakeWordService : Service() {
         if (Looper.myLooper() != Looper.getMainLooper()) { handler.post { hardPause() }; return }
         stopGate()
         recognitionGeneration++; recognitionActive = false
-        try { sr?.cancel() } catch (_: Exception) {}
+        try { sr?.cancel(); sr?.destroy(); sr = null } catch (_: Exception) {}
         pendingGen++
         report("sulah", "wake paused before app microphone acquisition")
     }

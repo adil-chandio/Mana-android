@@ -1401,7 +1401,7 @@ Here's a thinking process:
       '📏 echo tail JS aur Kotlin mein DONO 550ms (ek ka 300, doosre ka 800 nahi)');
 
     /* ── watchdog bhi gate ka hukam maanta hai ── */
-    is(/watchdogRuns = 0[\s\S]{0,300}?if \(haalBlock\(\) == null\)/.test(WS),
+    is(/watchdogRuns = 0[\s\S]{0,300}?if \(haalBlock\(\) == null && !recognitionActive\)/.test(WS),
       '🔑 har-12-minute wala recognizer-reset ab HAAL poochhta hai (awaaz kaatne ka scheduled chance khatam)');
 
     /* ── instance lifecycle ── */
