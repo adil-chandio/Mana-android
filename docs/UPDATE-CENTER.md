@@ -4,13 +4,27 @@
 
 Implemented in this checkout: native update UI and recovery launcher, explicit Stable/Beta discovery, signed metadata policy, bounded downloads/cancellation, APK checks, Android installer handoff, local build feedback, version/asset synchronization, publisher tooling and CI tests.
 
-**Source pushed; secure release not activated:** source changes are on `arena/01a089f7-mana-android` and the existing APK build workflow is running. A real push confirmed that this connection can push source, but GitHub rejects changes to `.github/workflows/` without `workflows` permission. Secrets and their public-key API return HTTP 403, and the `maya-release` environment is absent. No signing secret was provisioned, no APK was published, and no release workflow was dispatched. Reconnect GitHub with the required permissions; do not put credentials in chat.
+**Source pushed; secure release not activated:** source changes are on `arena/01a089f7-mana-android` and the existing APK build workflow successfully compiled and verified a development APK with all 25 native JVM tests passing. A real push confirmed that this connection can push source, but GitHub rejects changes to `.github/workflows/` without `workflows` permission. Secrets and their public-key API return HTTP 403, and the `maya-release` environment is absent. No signing secret was provisioned, no APK was published, and no release workflow was dispatched. Reconnect GitHub with the required permissions; do not put credentials in chat.
 
 **Workflow activation is pending.** Proposed workflows are reviewable in `docs/workflows/`; updated `.github/workflows/` files remain local in Arena until authorized. The remote workflow files are unchanged. Do **not** use the old remote release workflow as the secure updater publisher. Proposal wiring tests do not prove remote activation.
 
-The sandbox does not have Java/Gradle/Android SDK. Attempts to obtain the toolchain were blocked by network access to its download hosts. The JS/release tests ran locally; the added Android JVM tests and full APK build require CI or a configured Android development environment. A successful device installation is still an acceptance gate, not a claim made by this patch.
+The sandbox does not have Java/Gradle/Android SDK. Attempts to obtain the toolchain were blocked by network access to its download hosts. The JS/release tests ran locally; the added Android JVM tests and development APK build have now run successfully on GitHub CI (evidence below). The configured, non-debuggable bootstrap release has NOT been built. A successful device installation is still an acceptance gate, not a claim made by this patch.
 
 The voice/wake/automation issues documented in the audit are **not fixed** by this updater. Downloads and installation are explicit actions; no startup checks, notification polling, background downloading, silent installation, hot JS updates or forced upgrades are added.
+
+## Verified build evidence — 2026-09-10
+
+- Source commit: `524623b3ec4d850f30f949939e4362003fb6a63e`.
+- [Successful Android CI run 34450793433](https://github.com/adil-chandio/Mana-android/actions/runs/34450793433).
+- Native result, from the CI annotation: **25 tests, 25 passed, 0 failed, 0 skipped**. These are JVM policy/transport tests, not phone tests.
+- Local JS/protocol/publisher/provisioning checks: **1045** (72 + 296 + 155 + 466 + 56), plus CSS. Provisioning tests mock GitHub and do not set production secrets.
+- CI ran `aapt dump badging` against the actual APK, checked package `com.maya.ai`, version **5.17.0 (82)**, minSdk **26**, and the development/debug flag. `apksigner verify --verbose --print-certs` succeeded before artifact upload.
+- APK SHA-256: `91e850cc6152472827154b34c379764fc9c881bf8244ae8f612706f883e6f418`.
+- APK signer certificate SHA-256: `ba5f9e07a474cad5f8d8123c79e618f1a76976d7561d901d4df3f5a3da32d24a` (legacy/public development identity, not independently checked against the phone).
+- [Download MAYA-APK development artifact](https://github.com/adil-chandio/Mana-android/actions/runs/34450793433/artifacts/10141501387). GitHub may require login; this is a temporary Actions ZIP containing `app-debug.apk`, not a GitHub Release asset. The ZIP has a different checksum from the APK inside it.
+- CI explicitly reported **update trust configured=false**. This artifact cannot check/download/install signed in-app updates. It is NOT the configured bootstrap release, and it is not a voice/wake fix.
+
+The sandbox could read CI status/annotations but its network could not download the artifact/log storage redirects. Binary identity/signature evidence above comes from CI, not a locally inspected APK. No device installation, settings-retention test, signed-release publication or production trust provisioning was performed. Cache/Node-action deprecation warnings did not fail the build; workflow modernization remains pending authorized activation.
 
 ## Architecture
 
@@ -101,7 +115,7 @@ Automated:
 
 - `npm ci --ignore-scripts && npm test`: existing JS/CSS suites + real crypto/protocol tests, native-button behavior, version/assets and workflow wiring.
 - `gradle testDebugUnitTest`: production Kotlin policy/HTTP/download tests, using real RSA signatures and fake HTTP, including corruption, redirects, cancellation and channel selection.
-- `gradle assembleDebug`: development compilation, now depends on `testDebugUnitTest`; updater disabled without a trust key.
+- `gradle assembleDebug`: depends on `testDebugUnitTest`, verifies the actual development APK with aapt/apksigner, and emits CI test/signature/checksum annotations; updater disabled without a trust key.
 - Configured release workflow: `gradle testDebugUnitTest assembleRelease`, followed by aapt/apksigner identity/signature verification and manifest signing.
 
 Device acceptance (still required): Android 8+ compatibility, both entry points, signed Beta discovery, offline/rate-limit errors, cancellation/rotation, insufficient space, wrong signer/hash rejection, Android source-permission round trip, cancel installer, real upgrade with data retention, after-upgrade checklist, and native recovery while the WebView UI is unavailable. Record the exact build and result. Never equate source-pattern checks or mocked JVM tests with real-device installation success.
