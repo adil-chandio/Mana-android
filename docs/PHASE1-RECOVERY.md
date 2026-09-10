@@ -32,7 +32,7 @@ Date: 2026-09-10. Implements the approved Phase 1 of [the recovery plan](RECOVER
 2. Expanded to **25/25** passing controlled behavioral tests in `tools/test-turn-recovery.cjs`. Real production functions run with fake transports/mic/worker; no paid/live API calls or phone access.
 3. `npm test`: **1,097 checks pass** (72 settings + 310 voice + 155 brain + 466 lab + 56 updater + 13 existing session + 25 recovery), plus CSS compatibility validation.
 4. All 3 inline scripts parse; packaged `public/index.html` and Android asset copy are identical; `node tools/sync-version.cjs --check` and `git diff --check` pass.
-5. Added 3 JVM `CancelableRequestTest` cases: cancel before attach, cancel after attach/idempotent release, successful completion release. Native build/JVM execution is pending CI at this receipt; no Java/Android SDK is installed locally.
+5. Added 3 JVM `CancelableRequestTest` cases: cancel before attach, cancel after attach/idempotent release, successful completion release. CI [34458054403](https://github.com/adil-chandio/Mana-android/actions/runs/34458054403), source `de4518ce9b7d6e7f45c31220416e34fdf196c53e`, completed successfully: **38/38 native JVM tests**, zero failures/skips, and APK compilation/identity/signature verification passed. No Java/Android SDK is installed locally.
 6. Existing auto-retry assertions were explicitly changed to the approved manual-retry/status policy. The voice bridge source guard now follows the extracted HTTP implementation, still verifying text decoding stays separate from raw-byte voice handling. No behavioral failure assertion was simply removed.
 
 Commands:
@@ -46,8 +46,19 @@ gradle testDebugUnitTest assembleDebug --no-daemon
 
 ## Before acceptance / distribution
 
-- Obtain native compile/JVM result for this exact source revision.
+- Native compile/JVM gate passed for source `de4518c`; this is not device acceptance.
 - Complete Phase 2 saved/default Fish selection handling with user approval, then test the chosen voice on-device.
 - On a higher-code, compatible, development candidate: typed Home/Chat with Fish available/unavailable; mic → AI → text → selected speech; STOP mid-request; immediate A→B; offline/timeout recovery; mic restart after error; old result suppression.
 - Measure real latency and validate wake separately. Never infer either from these mocks or a green APK build.
 - Distribution remains behind the existing signing/bootstrap/updater permission blockers and explicit device acceptance. No Stable promotion.
+
+## Native build receipt (not a download recommendation)
+
+- Run: `34458054403`; job: `102809004495`; source: `de4518ce9b7d6e7f45c31220416e34fdf196c53e`.
+- Development-only output still identifies as 5.17.1 / 83; it is **not** the higher-code successor for installation.
+- APK SHA-256: `17054c82d2a6031885a08226a47eb5161fab1281e4f5715edb2e6cb9dfc5a157`.
+- Verified development signer SHA-256: `ba5f9e07a474cad5f8d8123c79e618f1a76976d7561d901d4df3f5a3da32d24a`.
+- Update trust remains `false`; no signed updater metadata or Stable release was published.
+- CI cache-restore and deprecated-action warnings did not fail the build. The workflow files were not changed/pushed as part of Phase 1.
+
+Phase 1 stops here for review. Phase 2 requires approval; no named/default Fish selection policy has been changed in this phase.
