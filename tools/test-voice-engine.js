@@ -573,7 +573,10 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
     is(src.indexOf('puterTTS_speak') < 0, 'puter.js ka murda reference khatam');
     is((src.match(/function testMayaVoice/g) || []).length === 1, 'testMayaVoice sirf ek dafa');
     is((src.match(/function speak\(text, wasVoice\)/g) || []).length === 1, 'speak() sirf ek dafa');
-    is(/window\.__nativeTtsDone = function \(\) \{ try \{ if \(AWAAZ\.deviceDone\)/.test(src), 'Kotlin ka TTS-done callback engine se juda hai');
+    /* v5.9.5: pehle DO __nativeTtsDone definitions thi — doosri pehli ko overwrite kar deti thi aur SUKOON/afterSpeak kabhi nahi chalte the. Ab ek hi unified handler hai jo AWAAZ.deviceDone + SUKOON.bolEnd + afterSpeak sab chalata hai. */
+    is((src.match(/window\.__nativeTtsDone = function/g) || []).length === 1, 'sirf EK __nativeTtsDone definition (duplicate overwrite khatam)');
+    is(/window\.__nativeTtsDone = function\(v2\)\{[\s\S]*?AWAAZ\.deviceDone\(\)/.test(src), 'TTS-done callback ab arbiter ko UNLOCK bhi karta hai (deviceDone)');
+    is(/window\.__nativeTtsWatch = function/.test(src), 'native utterance watchdog maujood (12s stuck-TTS rescue)');
     is(/if \(e\.cancelable && e\.preventDefault\)/.test(src), 'touchmove par cancelable guard laga (console warning fix)');
     is(/data-say/.test(src) && /say-btn/.test(src), 'har jawab par 🔊 replay button maujood');
   }

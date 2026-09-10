@@ -77,6 +77,10 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var webViewAlive = false
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    @Volatile private var ttsBooting = false
+    /* v5.9.5: silent-TTS guard — jab tak pehli asli speech start na ho,
+       engine "shak wale" haal mein maana jata hai; koi bhi bol de to clear. */
+    @Volatile private var ttsEverSpoke = false
     private var recognizer: SpeechRecognizer? = null
 
     /* ================= LIFECYCLE ================= */
@@ -122,7 +126,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.9.4 • AMAL: device control (safe + bounded) + wake fixes", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.9.5 • silent-TTS fix (init-retry + watchdog + media stream)", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -272,23 +276,76 @@ class MainActivity : AppCompatActivity() {
 
     /* ================= TTS ================= */
 
+    /* v5.9.5 — SILENT-VOICE-FIX, teen deewarein:
+       1. init-retry: initTts ek dafa chalta tha; TextToSpeech constructor
+          khamoshi fail ho jaye (kuch ROM/WebView boot races) to JS ka device
+          tier HAMESHA ke liye murda ho jata tha -> "text aa gaya, awaaz zero".
+          Ab max 3 koshish (2s/6s), har koshish ka log.
+       2. UTTERANCE watchdog: system TTS ka onDone/onError bhool jana aam hai
+          (Tecno/HiOS par bhi). Bhoola to SUKOON BOL_RAHI mein atak jata tha
+          aur mic pipeline band ho jati thi. 12s HARD fallback — bolo ya
+          bhoolo, JS ko jawab jayega hi.
+       3. AUDIO ATTRIBUTES: pehle default stream (akasar ring/notification)
+          par bolta tha — media volume ZERO ho to Maya "boli hi nahi".
+          Ab USAGE_MEDIA/CONTENT_TYPE_SPEECH (media volume par). */
     private fun initTts() {
-        tts = TextToSpeech(this) { status ->
-            ttsReady = status == TextToSpeech.SUCCESS
-            tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                override fun onStart(utteranceId: String?) {}
-                override fun onDone(utteranceId: String?) {
-                    if (utteranceId == "maya")
-                        evalAsync("window.__nativeTtsDone && window.__nativeTtsDone()")
+        ttsBooting = true
+        try {
+            tts = TextToSpeech(applicationContext) { status ->
+                ttsBooting = false
+                android.util.Log.i("MayaTTS", "init status=" + status + " ready=" + (status == TextToSpeech.SUCCESS))
+                ttsReady = status == TextToSpeech.SUCCESS
+                if (ttsReady) {
+                    try {
+                        tts?.setAudioAttributes(
+                            android.media.AudioAttributes.Builder()
+                                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                                .build()
+                        )
+                    } catch (e: Exception) {}
+                } else {
+                    retryTts()
                 }
-                @Deprecated("Deprecated in Java")
-                override fun onError(utteranceId: String?) {
-                    if (utteranceId == "maya")
-                        evalAsync("window.__nativeTtsDone && window.__nativeTtsDone()")
-                }
-            })
+                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        if (utteranceId == "maya") ttsEverSpoke = true
+                    }
+                    override fun onDone(utteranceId: String?) {
+                        if (utteranceId == "maya")
+                            evalAsync("window.__nativeTtsDone && window.__nativeTtsDone('done')")
+                    }
+                    @Deprecated("Deprecated in Java")
+                    override fun onError(utteranceId: String?) {
+                        android.util.Log.w("MayaTTS", "utterance error")
+                        if (utteranceId == "maya")
+                            evalAsync("window.__nativeTtsDone && window.__nativeTtsDone('error')")
+                    }
+                })
+            }
+        } catch (e: Exception) {
+            ttsBooting = false
+            android.util.Log.e("MayaTTS", "init threw: " + e.message)
+            retryTts()
         }
     }
+
+    private fun retryTts() {
+        if (ttsReady || ttsBooting) return
+        if (ttsRetries >= 2) {
+            android.util.Log.e("MayaTTS", "init nakaam — JS ko bataya (device tier off)")
+            evalAsync("window.__nativeTtsStatus && window.__nativeTtsStatus('init_failed')")
+            return
+        }
+        ttsRetries++
+        val delay = if (ttsRetries == 1) 2000L else 6000L
+        android.util.Log.w("MayaTTS", "init retry #" + ttsRetries + " in " + delay + "ms")
+        android.os.Handler(Looper.getMainLooper()).postDelayed({
+            if (!ttsReady && !ttsBooting) initTts()
+        }, delay)
+    }
+
+    private var ttsRetries = 0
 
     /* ================= STT ================= */
 
@@ -301,7 +358,7 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.9.4-native"
+        fun appVersion(): String = "5.9.5-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
@@ -326,7 +383,13 @@ class MainActivity : AppCompatActivity() {
         fun speak(text: String, lang: String, rate: Double, pitch: Double, voiceName: String) {
             runOnUiThread {
                 if (!ttsReady) {
-                    evalAsync("window.__nativeTtsDone && window.__nativeTtsDone()")
+                    /* v5.9.5: init abhi zinda hai (retry chal raha) to JS ko
+                       khabar na karo — warna device tier "khatam" maan kar chain
+                       chhod deta. Retry khatam + phir bhi murda = sacha jawab. */
+                    if (!ttsBooting) {
+                        android.util.Log.w("MayaTTS", "speak on dead engine — nakaam JS ko")
+                        evalAsync("window.__nativeTtsDone && window.__nativeTtsDone('engine_not_ready')")
+                    }
                     return@runOnUiThread
                 }
                 try {
@@ -344,9 +407,14 @@ class MainActivity : AppCompatActivity() {
                     } catch (e: Exception) {}
                     engine.setSpeechRate(rate.toFloat().coerceIn(0.5f, 2f))
                     engine.setPitch(pitch.toFloat().coerceIn(0.5f, 2f))
+                    /* v5.9.5: 12s UTTERANCE WATCHDOG — system TTS ka onDone/onError
+                       bhool jana (Tecno/HiOS) = SUKOON BOL_RAHI hamesha ke liye atak
+                       jata tha. Ab native khud 12s baad JS ko azaad karta hai.
+                       (Edge/device TTS engine ise override kar deta hai.) */
+                    evalAsync("window.__nativeTtsWatch && window.__nativeTtsWatch(12000)")
                     engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "maya")
                 } catch (e: Exception) {
-                    evalAsync("window.__nativeTtsDone && window.__nativeTtsDone()")
+                    evalAsync("window.__nativeTtsDone && window.__nativeTtsDone('exception')")
                 }
             }
         }
