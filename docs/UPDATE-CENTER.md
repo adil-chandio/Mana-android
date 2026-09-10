@@ -4,7 +4,9 @@
 
 Implemented in this checkout: native update UI and recovery launcher, explicit Stable/Beta discovery, signed metadata policy, bounded downloads/cancellation, APK checks, Android installer handoff, local build feedback, version/asset synchronization, publisher tooling and CI tests.
 
-**Not activated remotely:** no signing secret was provisioned, no APK was published, and no release workflow was run. The current Arena GitHub connection returned HTTP 403 for Secrets and reported no repository push/admin permission. Reconnect GitHub with the required permissions; do not put credentials in chat.
+**Source pushed; secure release not activated:** source changes are on `arena/01a089f7-mana-android` and the existing APK build workflow is running. A real push confirmed that this connection can push source, but GitHub rejects changes to `.github/workflows/` without `workflows` permission. Secrets and their public-key API return HTTP 403, and the `maya-release` environment is absent. No signing secret was provisioned, no APK was published, and no release workflow was dispatched. Reconnect GitHub with the required permissions; do not put credentials in chat.
+
+**Workflow activation is pending.** Proposed workflows are reviewable in `docs/workflows/`; updated `.github/workflows/` files remain local in Arena until authorized. The remote workflow files are unchanged. Do **not** use the old remote release workflow as the secure updater publisher. Proposal wiring tests do not prove remote activation.
 
 The sandbox does not have Java/Gradle/Android SDK. Attempts to obtain the toolchain were blocked by network access to its download hosts. The JS/release tests ran locally; the added Android JVM tests and full APK build require CI or a configured Android development environment. A successful device installation is still an acceptance gate, not a claim made by this patch.
 
@@ -37,7 +39,7 @@ Metadata signer rotation is not supported in protocol 1. Do not replace its secr
 
 ## One-time activation (authorized maintainer)
 
-1. Reconnect GitHub with repository workflow publishing and environment-secret administration permissions. Create the **maya-release** environment; restrict deployment branches and add required reviewers to protect release secrets. Use only trusted workflow code. The session work remains on `arena/01a089f7-mana-android`.
+1. Reconnect GitHub with repository workflow publishing and environment-secret administration permissions. Review `docs/workflows/`, copy those two files into `.github/workflows/`, and push the authorized workflow changes on this same session branch. Create the **maya-release** environment; restrict deployment branches and add required reviewers to protect release secrets. Use only trusted workflow code. The session work remains on `arena/01a089f7-mana-android`.
 2. With those permissions, run `node tools/setup-update-trust.cjs --create-once`. It first checks environment access and refuses to overwrite an existing signing secret. It generates a 3072-bit RSA key in memory, sends the private PEM to `gh secret set` through stdin, and prints only the public fingerprint. No secret is written to Git or logs.
 3. Configure the chosen **compatible Android signing identity** as environment secrets, without changing it blindly:
    - `MAYA_APK_KEYSTORE_B64`: base64 keystore.
@@ -99,7 +101,7 @@ Automated:
 
 - `npm ci --ignore-scripts && npm test`: existing JS/CSS suites + real crypto/protocol tests, native-button behavior, version/assets and workflow wiring.
 - `gradle testDebugUnitTest`: production Kotlin policy/HTTP/download tests, using real RSA signatures and fake HTTP, including corruption, redirects, cancellation and channel selection.
-- `gradle assembleDebug`: development compilation, updater disabled without a trust key.
+- `gradle assembleDebug`: development compilation, now depends on `testDebugUnitTest`; updater disabled without a trust key.
 - Configured release workflow: `gradle testDebugUnitTest assembleRelease`, followed by aapt/apksigner identity/signature verification and manifest signing.
 
 Device acceptance (still required): Android 8+ compatibility, both entry points, signed Beta discovery, offline/rate-limit errors, cancellation/rotation, insufficient space, wrong signer/hash rejection, Android source-permission round trip, cancel installer, real upgrade with data retention, after-upgrade checklist, and native recovery while the WebView UI is unavailable. Record the exact build and result. Never equate source-pattern checks or mocked JVM tests with real-device installation success.

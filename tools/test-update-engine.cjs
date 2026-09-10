@@ -61,7 +61,9 @@ test('native bridge failure leaves recovery instructions', () => {
 const mani = fs.readFileSync('app/src/main/AndroidManifest.xml', 'utf8');
 const activity = fs.readFileSync('app/src/main/java/com/maya/ai/update/UpdateActivity.kt', 'utf8');
 const repo = fs.readFileSync('app/src/main/java/com/maya/ai/update/UpdateRepository.kt', 'utf8');
-const workflow = fs.readFileSync('.github/workflows/release-apk.yml', 'utf8');
+// Reviewable proposals; activation requires GitHub workflows permission.
+// This validates their content, NOT proof that the remote pipeline is activated.
+const workflow = fs.readFileSync('docs/workflows/release-apk.yml', 'utf8');
 test('separate native recovery activity is registered', () => assert.match(mani, /android:name="\.update.UpdateActivity"/));
 test('dedicated file provider identity avoids camera provider merge', () => assert.match(mani, /android:name="\.update.UpdateFileProvider"/));
 test('provider exposes only updates subdirectory', () => {
@@ -73,11 +75,11 @@ test('activity has no automatic release check on create/resume', () => {
 });
 test('downloads cancel when screen is backgrounded', () => assert.match(activity, /override fun onStop[\s\S]*?cancel\(\)/));
 test('no authentication token used by native updater', () => { assert(!repo.includes('Authorization')); assert(!repo.includes('GH_TOKEN')); });
-test('publishing runs tests and builds release, not debug', () => { assert.match(workflow, /npm test/); assert.match(workflow, /testDebugUnitTest assembleRelease/); assert(!workflow.includes('assembleDebug')); });
-test('publication is draft until uploads finish and never clobbers', () => {
+test('proposed publishing runs tests and builds release, not debug', () => { assert.match(workflow, /npm test/); assert.match(workflow, /testDebugUnitTest assembleRelease/); assert(!workflow.includes('assembleDebug')); });
+test('proposed publication is draft until uploads finish and never clobbers', () => {
   assert(workflow.indexOf('--draft ') < workflow.indexOf('gh release upload')); assert(workflow.indexOf('gh release upload') < workflow.indexOf('--draft=false')); assert(!workflow.includes('--clobber'));
 });
-test('release key and APK signer configuration fail closed', () => { assert.match(workflow, /MAYA_UPDATE_SIGNING_KEY/); assert.match(workflow, /MAYA_EXPECTED_APK_CERT_SHA256/); assert.match(fs.readFileSync('app/build.gradle', 'utf8'), /Release requires signing secrets/); });
+test('proposed release key and APK signer configuration fail closed', () => { assert.match(workflow, /MAYA_UPDATE_SIGNING_KEY/); assert.match(workflow, /MAYA_EXPECTED_APK_CERT_SHA256/); assert.match(fs.readFileSync('app/build.gradle', 'utf8'), /Release requires signing secrets/); });
 // Exercise publisher orchestration with fake Android CLI tools, not real APK verification.
 const tmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'maya-publisher-test-'));
 try {

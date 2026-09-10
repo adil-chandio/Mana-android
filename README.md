@@ -2,7 +2,7 @@
 >
 > Native Stable/Beta updates, signed metadata, verified APK downloads, Android install confirmation and a separate **MAYA Updates** recovery entry are implemented. First installation still needs a manually installed, signing-configured bootstrap APK. Development artifacts without a pinned update key intentionally cannot fetch/install updates.
 >
-> **Activation blockers:** GitHub Secrets/publishing access is currently unavailable to this session; signing configuration and the full Android build/device upgrade test remain required. The exposed legacy APK signing identity is not repaired by this feature. Voice/wake fixes are not included.
+> **Activation blockers:** Source can be pushed, but GitHub rejects workflow-file changes and Secrets access. Proposed workflows are in `docs/workflows/` pending authorized activation; do not use the old remote release workflow as the secure publisher. Signing configuration and Android/device verification remain required. The exposed legacy APK signing identity is not repaired by this feature. Voice/wake fixes are not included.
 >
 > Architecture, setup, security limitations and phone test plan: [docs/UPDATE-CENTER.md](docs/UPDATE-CENTER.md). Edit `release/version.json` / notes / test checklist, then run `npm run version:sync`. Never overwrite a published update.
 

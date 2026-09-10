@@ -262,7 +262,12 @@ class UpdateActivity : AppCompatActivity() {
                     finishOperation()
                 }
             } catch (e: Exception) {
-                file.delete(); deliver(id, r) { apk = null }; failure(id, r, e)
+                // A cancelled/stale verification must not delete the retained APK
+                // behind the current UI (or another request using the same file).
+                deliver(id, r) {
+                    file.delete(); apk = null
+                    failure(id, r, e)
+                }
             }
         }
     }
