@@ -17,3 +17,25 @@ Personal Android AI assistant APK (voice, app launcher, WhatsApp send, screen vi
 - Code, logs, commit messages: English only
 ## Workflow
 For any code change use /think-plan-ask: THINK → PLAN → ASK → wait for my "yes" → EXECUTE → REPORT → wait again. STOP and explain on any unexpected break — never improvise big changes.
+
+## Automation Safety & Stability Guardrails (HARD RULES)
+
+### Safety
+- Send / Pay / Delete / Buy / Logout buttons: ALWAYS ask confirmation first; proceed only after I say yes/haan
+- Banking/UPI/finance apps (GPay, PhonePe, Paytm, bank apps): NEVER control or open
+- Password / OTP / credit-card fields: never read, never type into, never log
+- Verify target node text on screen BEFORE any tap — no blind coordinate tapping
+- Screen reading only on explicit command, never background capture
+- "Maya ruk jao" / "stop" cancels the current action instantly and returns to listening
+
+### Stability (critical)
+- Maya acts ONLY on explicit voice commands. NO scheduled, automatic, or self-started actions. Never act randomly in background.
+- Every action bounded: max 3 verified attempts; if screen doesn't change, STOP and ask me — never retry infinitely
+- Global rate limit: max 10 automated taps/types per minute
+- Per-action timeout 5 seconds; stalled = abort + report
+- Kill-switch: persistent notification button "STOP MAYA AUTOMATION" — tapping instantly disables the action queue
+- If I touch the screen during automation (<1s ago), abort and wait — never fight my input
+- AccessibilityService crash → show one-tap re-enable prompt; never silently auto-re-enable
+- All gestures off the UI thread — no ANRs
+- Maya ignores her own spoken replies as input (no self-trigger)
+- Idle = zero actions, zero screenshots, no battery drain

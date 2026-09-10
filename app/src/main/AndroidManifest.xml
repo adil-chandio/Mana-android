@@ -67,6 +67,11 @@
             android:name=".ScheduledReceiver"
             android:exported="false" />
 
+        <!-- 🛑 Roadmap Phase 1: kill-switch button receiver -->
+        <receiver
+            android:name=".MayaStopReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

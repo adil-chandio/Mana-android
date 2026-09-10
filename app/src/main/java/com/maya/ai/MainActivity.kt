@@ -122,7 +122,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.9.3 • wake-word regression fixes + SUKOON watchdog", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.9.4 • AMAL: device control (safe + bounded) + wake fixes", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -301,7 +301,7 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.9.3-native"
+        fun appVersion(): String = "5.9.4-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
@@ -1231,6 +1231,31 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        /* ═══ 🖐️ AMAL (Roadmap Phase 1, S2) — MayaAct bridge ═══
+           JS (maya_act tool) -> Kotlin safety engine. Koi naya behavior nahi:
+           saare guards MayaAct mein hain (blocked apps, sensitive fields,
+           rate/attempts/timeout, touch-abort, kill-switch). */
+
+        @JavascriptInterface
+        fun mayaAct(json: String): String {
+            return try {
+                MayaAct.enqueue(this@MainActivity, JSONObject(json))
+            } catch (e: Exception) {
+                val o = JSONObject()
+                o.put("ok", false)
+                o.put("why", "mayaAct masla: " + (e.message ?: "?"))
+                o.toString()
+            }
+        }
+
+        @JavascriptInterface
+        fun mayaStop() {
+            try { MayaAct.killAll(this@MainActivity) } catch (e: Exception) {}
+        }
+
+        @JavascriptInterface
+        fun mayaStatus(): String = try { MayaAct.status() } catch (e: Exception) { "{}" }
+
         /** Persistent prefs (boot autostart wake) */
         @JavascriptInterface
         fun setPref(k: String, v: Boolean) { try { prefs().edit().putBoolean(k, v).apply() } catch (e: Exception) {} }
@@ -1306,7 +1331,7 @@ class MainActivity : AppCompatActivity() {
         /** Zaroori settings ke seedhe darwaze (menu mein bhatakna khatam) */
         @JavascriptInterface
         fun openSetting(which: String): Boolean {
-            /* v5.9.3 — ON-DEVICE zubaan ka asli darwaza. Doctor ka text "[ON-DEVICE]
+            /* v5.9.4 — ON-DEVICE zubaan ka asli darwaza. Doctor ka text "[ON-DEVICE]
                dabao" kehta tha magar aisa button kahin THA HI NAHI (sirf likha tha) —
                user dhoondhta reh jata. Ab ASLI button ye chain kholta hai:
                1. Gboard → Voice typing (wahan "Faster/Offline speech recognition"

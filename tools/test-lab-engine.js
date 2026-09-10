@@ -1415,11 +1415,11 @@ Here's a thinking process:
       '👁️ KAAN report mein HAAL + roko ki ginti nazar aati hai');
 
     /* ── version qanoon ── */
-    is(/appVersion\(\): String = "5\.9\.3-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1,
+    is(/appVersion\(\): String = "5\.9\.4-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1,
       '🩹 BONUS — appVersion() ka purana 4.3.0 jhoot bhi ab qatl');
-    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.9.3') > 0 &&
-       /versionCode 72/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')),
-      '🏷️ poore app mein VERSION v5.9.3 (cache saaf, splash saaf, APK saaf)');
+    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.9.4') > 0 &&
+       /versionCode 73/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')),
+      '🏷️ poore app mein VERSION v5.9.4 (cache saaf, splash saaf, APK saaf)');
     is(HTML.indexOf('5.8.0') === -1, 'kahi purana 5.8.0 version nazar nahi aata');
 
     /* ── v5.9.1 hotfix — doctor ka jhoota button ab ASAL hai ── */
@@ -1491,6 +1491,30 @@ Here's a thinking process:
     S.bolEnd(); await sleep(700);
     is(S.haal === 'KHALI' && calls.join('>') === 'BOL_RAHI>KHALI',
       '🔑 POORA POOD: sirf 2 HAAL badle (BOL>KHALI) — awaaz ke beech mic kabhi nahi khula');
+
+    /* ═══ 30. 🖐 AMAL (maya_act) — Phase 1 device control guardrails ═══ */
+    const ACT = fs.readFileSync(path.join(ROOT, 'app/src/main/java/com/maya/ai/MayaAct.kt'), 'utf8');
+    const MANI = fs.readFileSync(path.join(ROOT, 'app/src/main/AndroidManifest.xml'), 'utf8');
+    head('30. 🖐 AMAL — maya_act tool + HARD safety guardrails');
+    is(/name: "maya_act"/.test(HTML), '🖐 maya_act TOOL_DECLS mein registered hai');
+    is(/maya_act: 2,/.test(HTML), '🟡 maya_act = ZARD tier-2 — confirm-first, koi silent amal nahi');
+    is(/MAYA_AMAL\.isStop/.test(HTML) && /ruk jao/.test(HTML) && /mayaStop/.test(HTML),
+      '🛑 "ruk jao"/"stop" -> mayaStop() foran — kill words pehle, baqi baad mein');
+    is(/window\.__mayaActDone/.test(HTML), '📣 Kotlin report HUD log mein aati hai (kya hua — kya likha gaya WOH nahi)');
+    is(/BLOCKED_PKGS/.test(ACT) && /paytm|phonepe/i.test(ACT),
+      '🏦 banking/UPI apps hard-block — GPay/Paytm/PhonePe/banks kabhi nahi chhootay');
+    is(/SENSITIVE_LABELS/.test(ACT) && /password/.test(ACT) && /otp/.test(ACT),
+      '🔐 password/OTP/card fields — never read, never type, never log');
+    is(/kis par\?/.test(ACT), '👉 vague hukm refused — target ka NAAM zaroori (no blind taps)');
+    is(/MAX_ATTEMPTS = 3/.test(ACT) && /ACTION_TIMEOUT_MS = 5000L/.test(ACT),
+      '⏱️ bounded: max 3 attempts + 5s per-action timeout — infinite retry nahi');
+    is(/MAX_PER_MINUTE = 10/.test(ACT), '🎛 global rate limit: max 10 actions/minute');
+    is(/TOUCH_GRACE_MS = 1000L/.test(ACT) && /onUserTouch/.test(ACT),
+      '✋ user ka touch (<1s) -> automation abort — user se kabhi nahi larte');
+    is(/MayaStopReceiver/.test(MANI),
+      '🛑 STOP MAYA AUTOMATION kill-switch receiver manifest mein registered hai');
+    is(/HandlerThread\("maya-act"\)/.test(ACT),
+      '🧵 saara kaam worker thread par — UI thread kabhi block nahi (no ANR)');
 
     console.log('\n\x1b[1m\x1b[35m══════════════════════════════════════════════════════════\x1b[0m');
     if (fail === 0) console.log('\x1b[1m\x1b[32m✅ SAB TEST PASS — ' + pass + '/' + pass + '\x1b[0m');
