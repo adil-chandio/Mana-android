@@ -12,7 +12,7 @@ object FishRequestPolicy {
         val b = JSONObject(body)
         require(b.getString("text").length in 1..6000) { "Invalid speech text" }
         require(b.getString("format") == "mp3") { "MP3 required" }
-        require(b.opt("reference_id") is String && b.getString("reference_id").trim().length in 1..200) { "Select a Fish voice first" }
+        require(b.opt("reference_id") is String && b.getString("reference_id").matches(Regex("[A-Za-z0-9_-]{1,200}"))) { "Select a Fish voice first" }
         require(!b.has("references")) { "Use the selected voice ID" }
         val h = JSONObject(headers)
         require(h.getString("model") == MODEL) { "Only the configured free Fish model is allowed" }

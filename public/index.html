@@ -903,7 +903,7 @@ nav{padding:8px 10px 10px}
             <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sNeuralWifi"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
           </div>
           <div class="ui-row">
-            <div class="ui-row-txt">🐟 Fish Audio S2.1 Pro <small>(be-hisaab + MOOD zinda — sab se pehle yehi bolti hai)</small></div>
+            <div class="ui-row-txt">🐟 Fish Audio <small>(s2.1-pro-free only — provider limits apply; selected voice preserved)</small></div>
             <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFishOn"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
           </div>
           <div class="ui-row">
@@ -911,7 +911,7 @@ nav{padding:8px 10px 10px}
             <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFastShort"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
           </div>
           <div class="ui-field">
-            <div class="ui-label">🐟 FISH API KEY <small>(fish.audio/app/api-keys — muft, card nahi lagta)</small></div>
+            <div class="ui-label">🐟 FISH API KEY <small>(fish.audio/app/api-keys — no paid-model fallback)</small></div>
             <input class="ui-input" id="sFishKey" type="password" placeholder="Fish key yahan paste karo">
             <div class="ui-hint">Sirf yehi engine aap ke 9 MOOD (🤗 Warm, 🤫 Whisper, 🎭 Funny) samajhti hai — Edge par wo bekaar ho jate hain. ⚠️ Aap ke jumle Fish ke server par model behtar banane ke liye rakhe ja sakte hain.</div>
           </div>
@@ -1305,7 +1305,9 @@ var DEFAULTS = { name:"Sir", apikey:"", groqKey:"", ghKey:"", cerebrasKey:"", mi
 var settings = Object.assign({}, DEFAULTS);
 try {
   var s1 = JSON.parse(localStorage.getItem("maya_settings") || "null");
-  var s0 = JSON.parse(localStorage.getItem("jarvisSettings") || "null"); // v1 se upgrade
+  var s0 = null;
+  // A corrupt obsolete v1 record must not discard valid current settings.
+  try { s0 = JSON.parse(localStorage.getItem("jarvisSettings") || "null"); } catch (e) {}
   [s0, s1].forEach(function(src){ if (src) Object.keys(src).forEach(function(k){ settings[k] = src[k]; }); });
 } catch(e){}
 function saveSettings(){ localStorage.setItem("maya_settings", JSON.stringify(settings)); }
@@ -3154,7 +3156,7 @@ var AWAAZ = {
       AWAAZ.paint();
       var message = "Selected " + engine + " voice unavailable (" + code + "). Voice unchanged. Tap the reply speaker to retry.";
       try { if (typeof toast === "function") toast(message); } catch (e) {}
-      try { if (typeof showVoiceNotice === "function") showVoiceNotice(message); } catch (e) {}
+      try { if (typeof showVoiceNotice === "function") showVoiceNotice(message, cb.onRetry ? function () { if (gen === AWAAZ.gen) cb.onRetry(); } : null); } catch (e) {}
       try { if (cb.onError) cb.onError(code); } catch (e) {}
       done();
     }
@@ -3916,6 +3918,7 @@ var FISH = {
   cool: 0,            /* 429 / 402 ke baad thori der haath na lagao */
   COOL: 300000,
   lib: null,          /* awaaz ki library (jab mangwai jaye) */
+  libSeq: 0,
   loadLib: function () {
     if (FISH.lib) return FISH.lib;
     try {
@@ -3954,12 +3957,14 @@ var FISH = {
 
   /* har code ka insani matlab — DOCTOR aur status yehi bolte hain */
   WHY: {
-    OK:       "Fish zinda hai — muft aur be-hisaab",
+    OK:       "Fish response received; playback and quota are separate checks.",
     INTERRUPTED: "Audio focus changed. Selected voice stopped; tap the reply speaker to retry.",
-    VOICE_MISSING: "Fish ki selected voice chunein — koi doosri awaaz nahi lagayi gayi",
+    VOICE_MISSING: "No saved Fish voice ID. Choose a named voice from Audio Library; no default or replacement voice will be used. Text chat still works.",
+    VOICE_INVALID: "Saved Fish voice ID is invalid. It has not been erased. Choose a voice from Audio Library; text chat still works.",
+    CANCELLED: "Voice/library request cancelled. Retry explicitly when ready.",
     KEY_MISSING: "Fish ki key nahi dali (fish.audio/app/api-keys — muft, card nahi lagta)",
     KEY_BAD:  "Key ghalat ya khatam ho gayi (401) — nayi key banao",
-    PAYMENT:  "402 — muft window band ho gayi ya balance khatam. Fish ne 31 Aug 2026 wala free daur khatam kar diya lagta hai",
+    PAYMENT:  "Fish returned 402 for the free-model request. No paid model or replacement voice will be used.",
     FORBIDDEN:"403 — is key ko ijazat nahi (shayad free model band hai)",
     RATE:     "429 — Fair Use ki hadd lag gayi, thori der baad khud chal jayega",
     BUSY:     "503 — Fish ka server abhi busy hai",
@@ -3983,24 +3988,27 @@ var FISH = {
   },
   voice: function () {
     var s = (typeof settings === "object" && settings) ? settings : {};
-    return String(s.fishVoice || "").trim();
+    return FISH.validVoiceId(s.fishVoice) ? s.fishVoice : "";
   },
 
-  /* Chal sakta hai? Sach bolo — jhooti koshish mein waqt zaya na ho. */
-  ready: function () {
+  // Legacy blank/default and missing IDs cannot identify a stable speaker.
+  // Classification is read-only: never guess from a title or overwrite saved data.
+  validVoiceId: function (id) { return typeof id === "string" && id.length >= 1 && id.length <= 200 && !/[^A-Za-z0-9_-]/.test(id); },
+  selection: function () {
     var s = (typeof settings === "object" && settings) ? settings : {};
-    if (s.fishOn === false) return false;
-    if (!FISH.key()) return false;
-    if (!FISH.native()) return false;          /* browser mein CORS rokta hai */
-    if (Date.now() < FISH.cool) return false;
-    return true;
+    var id = s.fishVoice;
+    if (FISH.validVoiceId(id)) return { state: "reference", id: id };
+    if (id !== undefined && id !== null && id !== "") return { state: "invalid", id: "" };
+    return { state: s.fishVoiceName ? "missing-id" : "legacy-or-unset", id: "" };
   },
+  ready: function () { return FISH.block() === ""; },
   block: function () {
     var s = (typeof settings === "object" && settings) ? settings : {};
     if (s.fishOn === false) return "OFF";
     if (!FISH.key()) return "KEY_MISSING";
     if (!FISH.native()) return "BROWSER";
-    if (window.MayaBridge.fishStreamSpeak && !FISH.voice()) return "VOICE_MISSING";
+    if (FISH.selection().state === "invalid") return "VOICE_INVALID";
+    if (!FISH.voice()) return "VOICE_MISSING";
     if (Date.now() < FISH.cool) return "RATE";
     return "";
   },
@@ -4031,6 +4039,7 @@ var FISH = {
   },
 
   body: function (text, mood) {
+    if (!FISH.voice()) throw new Error("Select a named Fish voice first");
     var s = (typeof settings === "object" && settings) ? settings : {};
     var o = {
       /* 🗣️ LEHJA: Fish matn se zubaan pehchanta hai. Latin bhejenge to
@@ -4194,17 +4203,17 @@ var FISH = {
   },
 
   stop: function () {
+    if (FISH.testCancel) { var reset = FISH.testCancel; FISH.testCancel = null; reset(); }
     if (FISH.streamPending) clearTimeout(FISH.streamPending.timer);
     FISH.streamPending = null;
     try { if (window.MayaBridge && window.MayaBridge.fishStreamStop) window.MayaBridge.fishStreamStop(); } catch (e) {}
 
-    var k;
-    for (k in FISH.pend) {
-      if (Object.prototype.hasOwnProperty.call(FISH.pend, k)) {
-        try { clearTimeout(FISH.pend[k].to); } catch (e) {}
+    var k, pending = FISH.pend; FISH.pend = {};
+    for (k in pending) {
+      if (Object.prototype.hasOwnProperty.call(pending, k)) {
+        try { clearTimeout(pending[k].to); pending[k].cb(0, "", "", "cancelled"); } catch (e) {}
       }
     }
-    FISH.pend = {};
     try {
       if (FISH.audio) {
         FISH.audio.pause();
@@ -4225,13 +4234,16 @@ var FISH = {
   },
 
   /* 🎀 PYARI — kai talash ek sath, phir zanana/Hindi-Urdu wali oopar
-     (user ko Gemini ki "Kore" jaisi meethi zanana awaaz chahiye) */
-  SWEET: /(female|woman|girl|ladki|aurat|zanana|sweet|soft|cute|warm|gentle|meethi|pyari|didi|behen|lady|she|her|anchor|rj)/i,
-  MALEISH: /(male|man|boy|ladka|mard|deep|bass|guy|bhai|sir\b|uncle)/i,
+     (rank suggestions only; the user previews and chooses a voice) */
+  SWEET: /\b(female|woman|girl|ladki|aurat|zanana|sweet|soft|cute|warm|gentle|meethi|pyari|didi|behen|lady|she|her|anchor|rj)\b/i,
+  MALEISH: /\b(male|man|boy|ladka|mard|deep|bass|guy|bhai|sir|uncle)\b/i,
   pyari: function (cb) {
+    var group = ++FISH.libSeq;
     var qs = ["hindi", "urdu", "female", "indian", "girl"], got = [], seen = {}, left = qs.length, err = "";
     function done() {
       if (--left > 0) return;
+      if (group !== FISH.libSeq || err === "CANCELLED") { cb(null, "CANCELLED"); return; }
+      if (!got.length) { cb(null, err || "No matching voices found; saved selection unchanged."); return; }
       /* score: zanana + pasand + Hindi/Urdu zubaan */
       var i, v, sc;
       for (i = 0; i < got.length; i++) {
@@ -4239,12 +4251,13 @@ var FISH = {
         sc = 0;
         if (FISH.SWEET.test(v.title + " " + (v.tags || ""))) sc += 60;
         if (FISH.MALEISH.test(v.title + " " + (v.tags || ""))) sc -= 80;
-        if (/hi|ur|hin|urd/.test(String(v.langs || ""))) sc += 40;
+        if (/\b(hi|ur|hin|urd|hindi|urdu)\b/i.test(String(v.langs || ""))) sc += 40;
         sc += Math.min(30, Math.round((v.likes || 0) / 10));
         v.sc = sc;
       }
       got.sort(function (a, b) { return b.sc - a.sc; });
       FISH.lib = got.slice(0, 40);
+      try { localStorage.setItem("maya_fishlib", JSON.stringify(FISH.lib)); } catch (e) {}
       cb(FISH.lib, got.length ? "" : (err || "kuch nahi mila"));
     }
     var k;
@@ -4255,13 +4268,15 @@ var FISH = {
           var i;
           for (i = 0; i < L.length; i++) if (!seen[L[i].id]) { seen[L[i].id] = 1; got.push(L[i]); }
           done();
-        });
+        }, group);
       })(qs[k]);
     }
   },
 
   /* ─── awaaz ki library (public voices) ─── */
-  library: function (q, cb) {
+  library: function (q, cb, group) {
+    var publish = !group;
+    if (!group) group = ++FISH.libSeq;
     if (!FISH.key()) { cb(null, "KEY_MISSING"); return; }
     if (!FISH.native()) { cb(null, "BROWSER"); return; }
     /* Fish ki API `language` filter deti hai — ab Hindi/Urdu awaazein saamne aayengi */
@@ -4271,7 +4286,8 @@ var FISH = {
               "&language=" + lg + (lg === "ur" ? "&language=hi" : "") +
               (q ? ("&title=" + encodeURIComponent(q)) : "");
     FISH.req("GET", url, JSON.stringify({ "Authorization": "Bearer " + FISH.key() }), "", function (status, b64, ctype, err) {
-      var c = FISH.code(status);
+      if (group !== FISH.libSeq) { cb(null, "CANCELLED"); return; }
+      var c = err === "cancelled" ? "CANCELLED" : FISH.code(status);
       if (c !== "OK") { FISH.lastErr = FISH.readErr(b64) || err; cb(null, c); return; }
       var txt = "";
       try { txt = decodeURIComponent(escape(atob(String(b64 || "").replace(/\s+/g, "")))); }
@@ -4281,7 +4297,7 @@ var FISH = {
         var j = JSON.parse(txt), i, m;
         for (i = 0; i < (j.items || []).length; i++) {
           m = j.items[i];
-          if (!m || !m._id) continue;
+          if (!m || !FISH.validVoiceId(m._id)) continue;
           out.push({
             id: m._id,
             title: String(m.title || "bay-naam"),
@@ -4291,9 +4307,9 @@ var FISH = {
           });
         }
       } catch (e) { cb(null, "DECODE"); return; }
-      FISH.lib = out;
+      if (publish) FISH.lib = out;
       /* 🔒 list mehfooz — restart ke baad bhi awaaz ka NAAM dikhe, hex id nahi */
-      try { localStorage.setItem("maya_fishlib", JSON.stringify(out.slice(0, 60))); } catch (e) {}
+      try { if (publish) localStorage.setItem("maya_fishlib", JSON.stringify(out.slice(0, 60))); } catch (e) {}
       cb(out, "");
     });
   },
@@ -4321,19 +4337,22 @@ var FISH = {
       return;
     }
 
-    var k = FISH.key();
-    say("🔑 Key: " + k.slice(0, 6) + "…" + k.slice(-4) + "  (" + k.length + " harf)");
-    say("🎯 Model: " + FISH.MODEL);
-    say("🎙️ Awaaz: " + (FISH.voice() || "(default)"));
-    say("");
-    say("📡 Fish se sach poocha ja raha hai…");
+    var blocked = FISH.block();
+    if (blocked) {
+      say(FISH.why(blocked));
+      onDone({ verdict: blocked, ok: false, text: lines.join("\n") }); return;
+    }
+    say("Fish key configured (not displayed).");
+    say("Model: " + FISH.MODEL);
+    say("Selected reference: " + FISH.voice());
+    say("Checking synthesis only; this does not prove audible playback or unlimited quota.");
 
     var t0 = Date.now();
     FISH.req("POST", FISH.API, FISH.headers(),
-      JSON.stringify({ text: "Salam", format: "mp3", latency: "balanced" }),
+      FISH.body("Salam", "warm"),
       function (status, b64, ctype, err) {
         var ms = Date.now() - t0;
-        var c = FISH.code(status);
+        var c = err === "cancelled" ? "CANCELLED" : FISH.code(status);
         var msg = (c === "OK") ? "" : (FISH.readErr(b64) || err || "");
         var bytes = 0;
         try { bytes = Math.round(String(b64 || "").length * 3 / 4); } catch (e) {}
@@ -4345,20 +4364,17 @@ var FISH = {
         say("");
 
         var verdict = c, ok = false;
-        if (c === "OK" && bytes > 500) {
+        if (c === "OK" && bytes > 500 && /^audio\//i.test(ctype || "")) {
           ok = true; verdict = "OK";
-          say("✅ ZINDA HAI. Muft window abhi bhi khuli hai.");
+          say("Selected-reference synthesis returned audio. Playback is not yet verified.");
           say("   " + bytes + " bytes ki MP3 " + ms + " ms mein aa gayi.");
-          say("   Koi rozana hadd nahi (Fair Use) — Maya ab jitna chahe bole.");
+          say("Quota/free-tier availability can change; no unlimited-use guarantee.");
         } else if (c === "OK") {
           verdict = "NO_AUDIO";
-          say("⚠️ Fish ne 200 kaha magar audio khaali thi (" + bytes + " bytes).");
+          say("HTTP 200 did not contain a usable audio response (" + bytes + " bytes). Playback is not verified.");
         } else if (c === "PAYMENT") {
-          say("🚨 YEHI WO DIN THA JIS KA DAR THA.");
-          say("   402 ka matlab: s2.1-pro-free ka muft daur BAND ho gaya");
-          say("   (blog par 31 August 2026 likha tha) ya balance khatam hai.");
-          say("   Maya ko koi nuqsan nahi — awaaz khud 🌊 Edge par chali jayegi,");
-          say("   jo abhi bhi muft aur be-hisaab hai.");
+          say("Fish returned 402 for this free-model request. Check account/free-tier availability.");
+          say("No paid-model retry and no Edge, device or other speaker substitution.");
         } else if (c === "KEY_BAD") {
           say("❌ Key qubool nahi hui (401).");
           say("   fish.audio/app/api-keys par ja kar nayi key banao.");
@@ -4377,7 +4393,7 @@ var FISH = {
 
         say("");
         say("── Ab kya hoga ──");
-        if (ok) say("Selected Fish voice ready. Streaming APK starts playback as audio arrives.");
+        if (ok) say("Test the selected voice with SUNO to check playback.");
         else say("Selected Fish voice unavailable. No automatic voice replacement; fix the error and retry.");
 
         FISH.lastErr = msg;
@@ -4442,6 +4458,10 @@ function speak(text, wasVoice) {
   var voiceFailed = false;
   try { VOICE_TIME.requested = VOICE_TIME.now(); VOICE_TIME.audio = 0; } catch (e) {}
   AWAAZ.speak(clean, {
+    onRetry: function () {
+      if (thinking || listening) { toast("Stop the current request/microphone before retrying speech."); return; }
+      speak(text, false);
+    },
     onError: function () { voiceFailed = true; },
     onStart: function (eng) {
       speaking = true; try { SUKOON.bolStart(); } catch (e) {} setOrb(eng === "fish" ? "buffering" : "speaking");
@@ -4507,7 +4527,27 @@ function showNotice(kind, message) {
   });
 }
 function showTurnNotice(message) { showNotice("turn", message); }
-function showVoiceNotice(message) { showNotice("voice", message); }
+function showVoiceNotice(message, retry) {
+  showNotice("voice", message);
+  if (!message) return;
+  document.querySelectorAll(".voice-notice").forEach(function (node) {
+    var settingsButton = document.createElement("button"); settingsButton.type = "button";
+    settingsButton.className = "ui-btn ui-btn-ghost"; settingsButton.textContent = "Voice settings";
+    settingsButton.addEventListener("click", function () {
+      showTab("set");
+      var group = document.getElementById("grp-voice"); if (group) group.classList.add("is-open");
+      fishFillVoices();
+      var picker = document.getElementById("sFishVoice");
+      if (picker) { if (picker.scrollIntoView) picker.scrollIntoView({ block: "center" }); picker.focus(); }
+    });
+    node.appendChild(settingsButton);
+    if (retry) {
+      var button = document.createElement("button"); button.type = "button";
+      button.className = "ui-btn ui-btn-ghost"; button.textContent = "Retry voice only";
+      button.addEventListener("click", retry); node.appendChild(button);
+    }
+  });
+}
 
 /* ---------- TEST VOICE (AWAAZ SUNO) — bolta bhi hai, batata bhi hai ---------- */
 function testMayaVoice() {
@@ -8709,7 +8749,7 @@ function labPaint(){
 
 /* ═══ 🐟 FISH — library, test, aur DOCTOR ═══ */
 (function(){
-  var lb = $("#fishLib"), tb = $("#fishTest"), db = $("#fishDoctor");
+  var lb = $("#fishLib"), tb = $("#fishTest"), db = $("#fishDoctor"), libraryView = 0;
 
   /* 📚 awaaz ki library */
   if (lb) lb.addEventListener("click", function () {
@@ -8720,18 +8760,20 @@ function labPaint(){
       if (h) { h.className = "ui-hint warn"; h.textContent = "⚠️ " + FISH.why(blk); }
       return;
     }
+    var view = ++libraryView;
     lb.disabled = true;
     var old = lb.textContent;
     lb.textContent = "📚 AA RAHI HAI…";
     if (h) { h.className = "ui-hint"; h.textContent = "📚 Fish se awaazein mangwai ja rahi hain…"; }
     FISH.library("", function (list, code) {
       lb.disabled = false; lb.textContent = old;
+      if (view !== libraryView) return;
       if (!list) {
         if (h) { h.className = "ui-hint warn"; h.textContent = "❌ " + code + " — " + (FISH.lastErr || FISH.why(code)); }
         return;
       }
       fishFillVoices();
-      if (h) { h.className = "ui-hint ok"; h.textContent = "✅ " + list.length + " awaazein aa gayin — upar se chuno, phir SUNO dabao, phir SAVE."; }
+      if (h) { h.className = "ui-hint ok"; h.textContent = "✅ " + list.length + " awaazein aa gayin — upar se chuno, SUNO dabao. Selection is saved immediately."; }
       pushLog("FISH LIBRARY: " + list.length + " awaazein");
     });
   });
@@ -8746,12 +8788,14 @@ function labPaint(){
       if (h) { h.className = "ui-hint warn"; h.textContent = "⚠️ " + FISH.why(blk); }
       return;
     }
+    var view = ++libraryView;
     pb.disabled = true;
     var old = pb.textContent;
     pb.textContent = "🎀 DHOOND RAHI HOON…";
     if (h) { h.className = "ui-hint"; h.textContent = "🎀 Hindi/Urdu ki zanana awaazein dhoondi ja rahi hain… (5 talash)"; }
     FISH.pyari(function (list, code) {
       pb.disabled = false; pb.textContent = old;
+      if (view !== libraryView) return;
       if (!list || !list.length) {
         if (h) { h.className = "ui-hint warn"; h.textContent = "❌ " + (code || "kuch nahi mila") + " — " + (FISH.lastErr || ""); }
         return;
@@ -8759,7 +8803,7 @@ function labPaint(){
       fishFillVoices();
       if (h) {
         h.className = "ui-hint ok";
-        h.textContent = "🎀 " + list.length + " awaazein — sab se pyari sab se upar. Ek chuno → 🐟 SUNO dabao → pasand aaye to SAVE.";
+        h.textContent = "🎀 " + list.length + " awaazein — Hindi/female tags ranked first, not a gender guarantee. Ek chuno → 🐟 SUNO dabao. Selection is saved immediately.";
       }
       pushLog("FISH PYARI: " + list.length + " awaazein");
     });
@@ -8768,6 +8812,7 @@ function labPaint(){
   /* 🐟 awaaz suno */
   if (tb) tb.addEventListener("click", function () {
     if (tb.disabled) return;
+    if (!fishCommitSelection()) return;
     var h = $("#fishHint");
     var blk = FISH.block();
     if (blk) {
@@ -8779,37 +8824,34 @@ function labPaint(){
     var old = tb.textContent;
     tb.textContent = "🐟 AA RAHI HAI…";
     var mood = AWAAZ.moodId();
-    /* 🔊 jo awaaz DROPDOWN mein chuni hai wohi sunao (pehle purani bajti thi) */
-    var sel = $("#sFishVoice");
-    if (sel && sel.value !== settings.fishVoice) {
-      settings.fishVoice = sel.value || "";
-      settings.fishVoiceName = (sel.options[sel.selectedIndex] || {}).textContent || "";
-      saveSettings();
-    }
     if (h) { h.className = "ui-hint"; h.textContent = "🐟 " + (FISH.voiceName() || "auto") + " \u2014 " + mood + " andaaz…"; }
     AWAAZ.stop(); AWAAZ.gen++;
-    var gen = AWAAZ.gen, t0 = Date.now();
+    var gen = AWAAZ.gen, t0 = Date.now(), testedName = FISH.voiceName(), testedId = FISH.voice();
+    function resetTest() { tb.disabled = false; tb.textContent = old; }
+    FISH.testCancel = resetTest;
     var sample = "Assalam-o-alaikum " + ((settings && settings.name) || "Boss") + "! Main " +
                  ((settings && settings.assistName) || "Maya") +
                  " hoon. Ye Fish Audio ki awaaz hai — aur ab main andaaz bhi badal sakti hoon.";
-    speaking = true; try { SUKOON.bolStart(); } catch (e) {} setOrb("speaking");
+    speaking = true; try { SUKOON.bolStart(); } catch (e) {} setOrb("buffering");
     FISH.speak(sample, mood,
       function () {
-        speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
-        tb.disabled = false; tb.textContent = old;
         if (gen !== AWAAZ.gen) return;
+        resetTest();
+        if (FISH.testCancel === resetTest) FISH.testCancel = null;
+        speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
         if (h) {
           h.className = "ui-hint ok";
-          h.textContent = "✅ Bol diya — 🎤 " + (FISH.voiceName() || "auto") + "  •  " + mood +
+          h.textContent = "✅ Bol diya — 🎤 " + (testedName || testedId) + "  •  " + mood +
                           " andaaz  •  " + ((Date.now() - t0) / 1000).toFixed(1) + " sec  •  mehfooz ✓";
         }
-        pushLog("FISH OK: " + mood + " / " + (FISH.voice() || "default") + " (" + (Date.now() - t0) + "ms)");
-        fishPaintHint();
+        pushLog("FISH OK: " + mood + " / " + testedId + " (" + (Date.now() - t0) + "ms)");
+        if (FISH.voice() !== testedId && h) h.textContent += " Current selection changed after this sample started.";
       },
       function (code) {
-        speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
-        tb.disabled = false; tb.textContent = old;
         if (gen !== AWAAZ.gen) return;
+        resetTest();
+        if (FISH.testCancel === resetTest) FISH.testCancel = null;
+        speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
         if (h) {
           h.className = "ui-hint warn";
           h.textContent = "❌ " + code + " — " + FISH.why(code) + (FISH.lastErr ? ("\n↳ " + FISH.lastErr) : "");
@@ -9212,22 +9254,24 @@ function edgePaintHint(){
     h.textContent = "⚠️ Sirf APK mein chalti hai — browser ka WebSocket Microsoft ke zaroori headers nahi bhej sakta. Abhi ki pasand: " + v;
   }
 }
-/* 🐟 FISH ka awaaz picker — library aa jaye to usse, warna sirf "default" */
+/* Fish picker preserves the saved reference; a blank value is setup, never a default speaker. */
 function fishFillVoices(){
   var fs = $("#sFishVoice"), i, o, L;
   if (!fs || typeof FISH !== "object" || !FISH) return;
   /* 🔒 settings hamesha SACH hai — dropdown nahi. (Pehle boot ke waqt dropdown
      khali hota tha aur SAVE dabate hi fishVoice "" ho kar KHO jati thi.) */
   var sv = (typeof settings === "object" && settings) ? settings : {};
-  var keep = sv.fishVoice || fs.value || "";
+  var keep = FISH.validVoiceId(sv.fishVoice) ? sv.fishVoice : "";
   L = FISH.loadLib() || [];
   fs.innerHTML = "";
   o = document.createElement("option");
-  o.value = ""; o.textContent = "🪄 Default awaaz (Fish khud chunta hai)";
+  o.value = ""; o.disabled = true; o.textContent = "Choose an Audio Library voice — no automatic default";
   fs.appendChild(o);
   for (i = 0; i < L.length; i++) {
+    if (!L[i] || !FISH.validVoiceId(L[i].id)) continue;
     o = document.createElement("option");
     o.value = L[i].id;
+    o.setAttribute("data-fish-name", String(L[i].title || ""));
     o.textContent = L[i].title + (L[i].langs ? ("  [" + L[i].langs + "]") : "") + (L[i].likes ? ("  ❤" + L[i].likes) : "");
     fs.appendChild(o);
   }
@@ -9238,6 +9282,7 @@ function fishFillVoices(){
     if (!found) {
       o = document.createElement("option");
       o.value = keep;
+      o.setAttribute("data-fish-name", String(sv.fishVoiceName || ""));
       o.textContent = "🎙️ " + (sv.fishVoiceName || (keep.slice(0, 8) + "\u2026")) + "   (mehfooz)";
       fs.appendChild(o);
     }
@@ -9250,19 +9295,31 @@ function fishFillVoices(){
   if (!fs.__wired) {
     fs.__wired = true;
     fs.addEventListener("change", function () {
-      var id = fs.value || "";
-      var nm = "";
-      var LL = FISH.loadLib() || [], z;
-      for (z = 0; z < LL.length; z++) if (LL[z].id === id) { nm = LL[z].title; break; }
-      settings.fishVoice = id;
-      settings.fishVoiceName = nm;
-      saveSettings();
-      pushLog("FISH AWAAZ: " + (nm || id || "auto") + " (mehfooz)");
-      toast(id ? ("\uD83C\uDFA4 " + (nm || "awaaz") + " \u2014 mehfooz \u2713") : "\uD83E\uDE84 Auto awaaz");
+      if (!fishCommitSelection()) return;
       fishPaintHint();
     });
   }
   fishPaintHint();
+}
+
+// Only explicit picker change/Test may commit a rendered nonblank reference.
+function fishCommitSelection() {
+  var el = $("#sFishVoice"), opt = el && el.options[el.selectedIndex];
+  if (!opt || opt.disabled || !FISH.validVoiceId(opt.value) || !opt.hasAttribute("data-fish-name")) {
+    fishFillVoices(); return true; // Unhydrated/invalid DOM cannot erase saved data.
+  }
+  if (opt.value === settings.fishVoice) return true;
+  var oldId = settings.fishVoice, oldName = settings.fishVoiceName;
+  settings.fishVoice = opt.value; settings.fishVoiceName = opt.getAttribute("data-fish-name") || "";
+  try { saveSettings(); }
+  catch (e) {
+    if (oldId === undefined) delete settings.fishVoice; else settings.fishVoice = oldId;
+    if (oldName === undefined) delete settings.fishVoiceName; else settings.fishVoiceName = oldName;
+    fishFillVoices(); toast("Voice could not be saved. Previous selection unchanged; try again.");
+    return false;
+  }
+  toast("Fish voice saved: " + (settings.fishVoiceName || settings.fishVoice));
+  fishPaintHint(); return true;
 }
 
 /* Sach bolne wala hint */
@@ -9273,12 +9330,14 @@ function fishPaintHint(){
   if (st.ready) {
     h.className = "ui-hint ok";
     var vn = FISH.voiceName();
-    h.textContent = "✅ Tayyar" + (vn ? ("  •  🎤 " + vn) : "  •  🪄 auto awaaz") +
+    h.textContent = "Configured (not playback-tested)" + (vn ? ("  •  🎤 " + vn) : "  •  🪄 auto awaaz") +
                     (st.spoke ? ("  •  " + st.spoke + " dafa boli") : "") +
                     "  •  lehja: " + (FISH.temp() <= 0.4 ? "sthir" : "jazbaati");
   } else {
     h.className = "ui-hint warn";
     h.textContent = "⚠️ " + FISH.why(st.block || "KEY_MISSING");
+    if (FISH.selection().state === "missing-id") h.textContent += " A saved name exists, but a name alone cannot recover its voice ID.";
+    if (FISH.selection().state === "legacy-or-unset") h.textContent += " An old blank/Default setting cannot identify your former speaker.";
   }
 }
 

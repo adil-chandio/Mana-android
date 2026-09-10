@@ -714,9 +714,9 @@ Here's a thinking process:
     const src = HTML;
 
     /* ── BUG A: awaaz kho jati thi ── */
-    is(/var keep = sv\.fishVoice \|\| fs\.value/.test(src),
+    is(/var keep = FISH\.validVoiceId\(sv\.fishVoice\) \? sv\.fishVoice : ""/.test(src),
       '🔑 SETTINGS ab sach hai, dropdown nahi (boot par khali dropdown SAVE karta to awaaz mit jati thi)');
-    is(/fs\.__wired[\s\S]{0,420}settings\.fishVoice = id[\s\S]{0,120}saveSettings\(\)/.test(src),
+    is(/fs\.__wired[\s\S]{0,200}fishCommitSelection\(\)/.test(src) && /settings\.fishVoice = opt\.value[\s\S]{0,150}saveSettings\(\)/.test(src),
       '🔑 awaaz chunte hi FORAN mehfooz — SAVE dabane ka intezar nahi');
     is(/fishVoice SETFORM se BAHAR hai/.test(src) && !/{ id: "sFishVoice",   key: "fishVoice"/.test(src),
       '🔑 fishVoice ab SETFORM se bahar — khali dropdown use mita nahi sakta');
@@ -727,7 +727,7 @@ Here's a thinking process:
     is(/fishVoiceName:""/.test(src.replace(/\s/g, '')), 'naya khana DEFAULTS mein maujood');
 
     /* ── BUG B: SUNO purani awaaz bajata tha ── */
-    is(/jo awaaz DROPDOWN mein chuni hai wohi sunao/.test(src),
+    is(/if \(tb\.disabled\) return;\s*if \(!fishCommitSelection\(\)\) return;[\s\S]{0,80}FISH\.block\(\)/.test(src),
       '🔑 🐟 SUNO ab DROPDOWN wali awaaz bajata hai (pehle purani bajti thi)');
 
     /* ── lehja sthir ── */

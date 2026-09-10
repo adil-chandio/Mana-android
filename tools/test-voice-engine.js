@@ -844,7 +844,7 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
         native: opts.native !== false,
         respond: opts.respond,
         bridge,
-        settings: Object.assign({ fishKey: 'fk_test_key_123456', fishOn: true }, opts.settings || {})
+        settings: Object.assign({ fishKey: 'fk_test_key_123456', fishOn: true, fishVoice: 'fixture-selected-id' }, opts.settings || {})
       });
       const w = world.w;
       bridge.httpBytes = function (method, url, headersJson, body, reqId, timeoutMs) {
@@ -912,8 +912,8 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
       is(c.timeoutMs > 0, 'native ko timeout diya gaya', c.timeoutMs + 'ms');
       const c2 = fishWorld({ settings: { fishVoice: '' } });
       c2.FISH.speak('hi', 'warm', () => {}, () => {});
-      is(c2.bridge.calls[0].json.reference_id === undefined,
-        'awaaz na chuni ho to reference_id bheja hi nahi jata (Fish default use kare)');
+      is(c2.bridge.calls.length === 0 && c2.FISH.block() === 'VOICE_MISSING',
+        'buffered and streaming paths both require an explicit saved reference');
       const c3 = fishWorld({ settings: { rate: 9 } });
       c3.FISH.speak('hi', 'warm', () => {}, () => {});
       is(c3.bridge.calls[0].json.prosody.speed === 2, 'speed hadd (2.0) se bahar nahi ja sakti',
@@ -964,8 +964,8 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
       is(FISH.readErr('') === '' && FISH.readErr(null) === '', 'khaali jawab par crash nahi');
       is(FISH.code(200) === 'OK' && FISH.code(402) === 'PAYMENT' && FISH.code(418) === 'HTTP_418',
         'har HTTP status ka apna code');
-      is(/402/.test(FISH.why('PAYMENT')) && /31 Aug/i.test(FISH.why('PAYMENT')),
-        'PAYMENT ka matlab insani zubaan mein likha hai (31 Aug wala dar)', FISH.why('PAYMENT').slice(0, 50));
+      is(/402/.test(FISH.why('PAYMENT')) && /No paid model/.test(FISH.why('PAYMENT')),
+        '402 is reported without guessing a free-tier end date', FISH.why('PAYMENT').slice(0, 50));
     }
 
     /* ── 18e. Pehredaar — bekaar request bheji hi na jaye ── */
@@ -1105,14 +1105,14 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
       is(brow.verdict === 'BROWSER' && /CORS/.test(brow.text),
         'DOCTOR: browser mein wajah CORS batata hai', brow.verdict);
       const good = await mk({ reply: { status: 200, b64: Buffer.alloc(4000, 7).toString('base64'), ctype: 'audio/mpeg' } });
-      is(good.verdict === 'OK' && good.ok === true && /ZINDA HAI/.test(good.text),
-        '✅ DOCTOR: 200 + audio = muft daur ZINDA', good.verdict);
-      is(/Koi rozana hadd nahi/.test(good.text) && good.bytes > 500,
-        'DOCTOR bytes aur "koi hadd nahi" dono batata hai', good.bytes + ' bytes');
+      is(good.verdict === 'OK' && good.ok === true && /Selected-reference synthesis returned audio/.test(good.text),
+        'Doctor distinguishes synthesis from audible playback', good.verdict);
+      is(/no unlimited-use guarantee/.test(good.text) && good.bytes > 500,
+        'Doctor reports bytes without promising unlimited use', good.bytes + ' bytes');
       const dead = await mk({ reply: { status: 402, b64: jb64({ message: 'free tier ended' }) } });
-      is(dead.verdict === 'PAYMENT' && dead.ok === false && /402/.test(dead.text) && /31 August 2026/.test(dead.text),
-        '🚨 DOCTOR: 402 par saaf kehta hai muft window band ho gaya', dead.verdict);
-      is(/No automatic voice replacement/.test(dead.text), 'DOCTOR: band hone par bhi tasalli deta hai ke Edge zinda hai');
+      is(dead.verdict === 'PAYMENT' && dead.ok === false && /402/.test(dead.text) && /No paid-model retry/.test(dead.text),
+        'Doctor reports 402 without promising a fallback voice', dead.verdict);
+      is(/No automatic voice replacement/.test(dead.text), 'Doctor explicitly refuses automatic voice replacement');
       const bad = await mk({ reply: { status: 401, b64: jb64({ message: 'bad key' }) } });
       is(bad.verdict === 'KEY_BAD' && /401/.test(bad.text) && /bad key/.test(bad.text),
         'DOCTOR: 401 par Fish ka apna message bhi dikhata hai', bad.verdict);

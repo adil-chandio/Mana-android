@@ -7,7 +7,7 @@
     "start": "npx serve public -l $PORT -s --no-clipboard",
     "dev": "npx serve public -l $PORT -s --no-clipboard",
     "build": "node tools/sync-version.cjs",
-    "test": "node tools/check-oldwebview-css.js && node tools/test-settings-ui.js && node tools/test-voice-engine.js && node tools/test-brain-engine.js && node tools/test-lab-engine.js && node tools/test-update-engine.cjs && node tools/test-voice-session.cjs && node tools/test-turn-recovery.cjs",
+    "test": "node tools/check-oldwebview-css.js && node tools/test-settings-ui.js && node tools/test-voice-engine.js && node tools/test-brain-engine.js && node tools/test-lab-engine.js && node tools/test-update-engine.cjs && node tools/test-voice-session.cjs && node tools/test-turn-recovery.cjs && node tools/test-fish-selection.cjs",
     "test:css": "node tools/check-oldwebview-css.js",
     "test:brain": "node tools/test-brain-engine.js",
     "test:voice": "node tools/test-voice-engine.js",
