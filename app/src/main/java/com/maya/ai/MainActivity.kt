@@ -547,7 +547,7 @@ class MainActivity : AppCompatActivity() {
                                    parha hi nahi jata tha — ab SUNO isay bhi dekhta hai. */
                                 val o = JSONObject()
                                 o.put("t", all[i])
-                                if (conf != null && i < conf.size) o.put("c", conf[i].toDouble())
+                                if (conf != null && i < conf.size && conf[i].isFinite() && conf[i] in 0f..1f) o.put("c", conf[i].toDouble())
                                 arr.put(o)
                             }
                             evalAsync(

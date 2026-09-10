@@ -30,6 +30,7 @@ class FishStreamPlayer(private val context: Context, private val event: (String,
     private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
     private var generation = 0L
+    private var request: FishStreamRequest? = null
     private var timeout: Runnable? = null
 
     fun stop() {
@@ -40,6 +41,7 @@ class FishStreamPlayer(private val context: Context, private val event: (String,
         }
         generation++
         timeout?.let { handler.removeCallbacks(it) }; timeout = null
+        request?.cancel(); request = null
         player?.release(); player = null
     }
 
@@ -58,9 +60,10 @@ class FishStreamPlayer(private val context: Context, private val event: (String,
         }
         try {
             val requestHeaders = FishRequestPolicy.validate(body, headers)
-            val opened = AtomicBoolean(false)
+            val streamRequest = FishStreamRequest(body, requestHeaders)
+            request = streamRequest
             // No load retry: replaying a synthesis POST could duplicate speech/usage.
-            val factory = DataSource.Factory { FishSource(body, requestHeaders, opened) }
+            val factory = DataSource.Factory { FishSource(streamRequest) }
             val source = ProgressiveMediaSource.Factory(factory)
                 .setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(0))
                 .createMediaSource(MediaItem.fromUri(FishRequestPolicy.URL))
@@ -105,26 +108,37 @@ class FishStreamPlayer(private val context: Context, private val event: (String,
     }
 }
 
+private class FishStreamRequest(val body: String, val headers: Map<String, String>) {
+    val opened = AtomicBoolean(false)
+    val cancelled = AtomicBoolean(false)
+    @Volatile var connection: HttpURLConnection? = null
+    fun cancel() { cancelled.set(true); connection?.disconnect() }
+    fun check() { if (cancelled.get() || Thread.currentThread().isInterrupted) throw IOException("Speech cancelled") }
+}
+
 private class FishHttpError(val status: Int) : IOException("Fish HTTP request rejected")
 
 /** One fixed HTTPS POST, no redirect, seek/re-POST, disk cache or unbounded read. */
 @UnstableApi
-private class FishSource(private val body: String, private val headers: Map<String, String>, private val opened: AtomicBoolean) : BaseDataSource(true) {
+private class FishSource(private val request: FishStreamRequest) : BaseDataSource(true) {
     private var connection: HttpURLConnection? = null
     private var input: InputStream? = null
     private var total = 0L
     private var transferred = false
     override fun open(dataSpec: DataSpec): Long {
-        if (dataSpec.position != 0L || !opened.compareAndSet(false, true)) throw IOException("Synthesis cannot be replayed or seeked")
+        request.check()
+        if (dataSpec.position != 0L || !request.opened.compareAndSet(false, true)) throw IOException("Synthesis cannot be replayed or seeked")
         transferInitializing(dataSpec)
         try {
             val c = URL(FishRequestPolicy.URL).openConnection() as HttpURLConnection
             connection = c
+            request.connection = c
+            request.check()
             c.requestMethod = "POST"; c.doOutput = true
             c.instanceFollowRedirects = false; c.useCaches = false
             c.connectTimeout = 6000; c.readTimeout = 12000
-            headers.forEach { (key, value) -> c.setRequestProperty(key, value) }
-            c.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            request.headers.forEach { (key, value) -> c.setRequestProperty(key, value) }
+            c.outputStream.use { it.write(request.body.toByteArray(Charsets.UTF_8)) }
             val status = c.responseCode
             if (status !in 200..299) throw FishHttpError(status)
             val type = (c.contentType ?: "").substringBefore(';').trim().lowercase()
@@ -137,6 +151,7 @@ private class FishSource(private val body: String, private val headers: Map<Stri
     }
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         if (length == 0) return 0
+        request.check()
         val n = input?.read(buffer, offset, length) ?: C.RESULT_END_OF_INPUT
         if (n > 0) {
             total += n
@@ -149,6 +164,7 @@ private class FishSource(private val body: String, private val headers: Map<Stri
     override fun close() {
         try { input?.close() } finally {
             input = null; connection?.disconnect(); connection = null
+            request.connection = null
             if (transferred) { transferred = false; transferEnded() }
         }
     }

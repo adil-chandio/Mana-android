@@ -1,3 +1,9 @@
+> **Voice/wake testing candidate — 5.17.1 / code 83**
+>
+> Selected Fish voice streaming, guarded microphone/wake sessions and no hidden Fish/Neural voice substitution. Phone playback/latency and background-wake acceptance are still pending; this is not a Stable release. [Scope and test plan](docs/VOICE-5.17.1.md).
+>
+> The updater activation/signing blocker below still applies. The historical 5.17.0 build evidence does not validate these new voice changes.
+
 > **Update Center implementation — v5.17.0 / code 82 (bootstrap, not published)**
 >
 > Native Stable/Beta updates, signed metadata, verified APK downloads, Android install confirmation and a separate **MAYA Updates** recovery entry are implemented. First installation still needs a manually installed, signing-configured bootstrap APK. Development artifacts without a pinned update key intentionally cannot fetch/install updates.

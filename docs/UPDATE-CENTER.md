@@ -1,5 +1,7 @@
 # MAYA Update Center — protocol 1 / bootstrap 5.17.0 (82)
 
+> For the newer **5.17.1 / code 83 voice/wake candidate**, see [VOICE-5.17.1.md](VOICE-5.17.1.md). The evidence below is the historical 5.17.0 updater baseline; signing activation is still pending.
+
 ## Status and scope
 
 Implemented in this checkout: native update UI and recovery launcher, explicit Stable/Beta discovery, signed metadata policy, bounded downloads/cancellation, APK checks, Android installer handoff, local build feedback, version/asset synchronization, publisher tooling and CI tests.
