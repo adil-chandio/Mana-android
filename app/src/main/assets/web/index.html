@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>MAYA — Personal AI v4</title>
 <style>
-/* ================= MAYA v5.17.2 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+/* ================= MAYA v5.17.3 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
    Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
 :root{
   /* new tokens */
@@ -536,7 +536,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver"><span data-build-version>v5.17.2</span> — DEVELOPMENT TEST · phone validation pending</div>
+  <div class="ver"><span data-build-version>v5.17.3</span> — DEVELOPMENT TEST · phone validation pending</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,14 +561,14 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.17.2 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.17.3 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.17.2</span></small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.17.3</span></small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -729,7 +729,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.17.2</span></div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.17.3</span></div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -1208,7 +1208,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.17.2 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.17.3 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1223,7 +1223,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.17.2</span> · loading</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.17.3</span> · loading</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1289,8 +1289,8 @@ setTimeout(function(){
 
 <script>
 "use strict";
-/* ================= MAYA v5.17.2 — Doctor Build ================= */
-var MAYA_BUILD = { versionName: "5.17.2", versionCode: 84 };
+/* ================= MAYA v5.17.3 — Doctor Build ================= */
+var MAYA_BUILD = { versionName: "5.17.3", versionCode: 85 };
 window.__mayaJSOK = true;
 try { document.getElementById("dbgBadge").textContent = "v" + MAYA_BUILD.versionName + " · script loaded"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
@@ -1396,7 +1396,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.17.2 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.17.3 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -3275,6 +3275,10 @@ var AWAAZ = {
     try { if (typeof FISH === "object" && FISH) FISH.stop(); } catch (e) {}
     try { if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge.stopSpeak) window.MayaBridge.stopSpeak(); } catch (e) {}
     try { if (typeof synth !== "undefined" && synth) synth.cancel(); } catch (e) {}
+    // Cancelled output has no terminal callback owner. Release its JS exclusion here,
+    // retaining echo tail and never overwriting an APP_SUN microphone owner.
+    try { if (typeof speaking !== "undefined") speaking = false; } catch (e) {}
+    try { if (typeof SUKOON !== "undefined" && SUKOON.haal === "BOL_RAHI") SUKOON.bolEnd(); } catch (e) {}
   },
 
   /* ---------- Doctor / status ke liye ---------- */
@@ -4600,8 +4604,17 @@ function deviceTestReport() {
   L.push("AI turn active: " + flag(!!t.active));
   L.push("");
   L.push("Wake enabled: " + flag(s.wakeWord));
+  if (typeof WAKE_STATUS === "object" && WAKE_STATUS) {
+    var nativeWake = WAKE_STATUS.read();
+    L.push("Native wake: " + nativeWake.state + " | Reason: " + nativeWake.reason + " | Code: " + (nativeWake.error === null ? "unknown" : nativeWake.error));
+    L.push("Service present: " + nativeWake.servicePresent + " | Foreground: " + nativeWake.foreground + " | Mic permission: " + nativeWake.micPermission);
+    L.push("Native audio state: " + nativeWake.audioState + " | Fish active: " + nativeWake.fishOutputActive + " | App mic paused: " + nativeWake.appMicPaused);
+    L.push("Native lifetime start attempts: " + count(nativeWake.starts, 10000000) + " | Ready callbacks: " + count(nativeWake.ready, 10000000) + " | State age: " + count(nativeWake.ageMs, 9007199254740991) + "ms");
+    L.push("Ready is a recent native callback, not proof of detection. Missing bridge/status means unknown.");
+  }
   L.push("Wake callbacks observed in this WebView session (not native service health):");
   L.push("Starts: " + count(k.starts, 10000000) + " | Heard: " + count(k.heard, 10000000) + " | Wake matches: " + count(k.woke, 10000000));
+  L.push("Blocked callbacks: " + count(k.skips, 10000000));
   L.push("Errors: " + count(k.errs, 10000000) + " | Last recognition error code: " + count(k.lastErr, 13));
   L.push("Foreground and locked-screen results must be checked separately on the phone.");
   return L.join("\n");
@@ -8179,41 +8192,74 @@ window.__wakeLog = function (kind, data) {
   try { if (typeof WAKE_DOT !== "undefined" && WAKE_DOT.log) WAKE_DOT.log(String(kind || "")); } catch (e) {}
 };
 
-/* wake-regression: listening indicator — Kotlin service ke __wakeLog
-   events se chalta hai (gate/start = sun rahi, voice = awaaz mili,
-   skip/err/sulah = intezar). Mic ki ASLI halat nazar aati hai. */
+/* NATIVE WAKE STATUS */
+var WAKE_STATUS = {
+  clean: function (raw) {
+    var o = raw && typeof raw === "object" ? raw : {};
+    function pick(value, allowed) { return allowed.indexOf(value) >= 0 ? value : "unknown"; }
+    function num(value) { return typeof value === "number" && isFinite(value) && value >= 0 && value <= 9007199254740991 ? Math.floor(value) : null; }
+    function flag(value) { return value === true ? "yes" : value === false ? "no" : "unknown"; }
+    var s = {
+      state: pick(o.state, ["stopped", "requested", "foreground", "starting", "ready", "blocked", "retry", "error", "unknown"]),
+      reason: pick(o.reason, ["none", "permission", "start_rejected", "foreground_rejected", "unavailable", "speech", "app_mic", "echo_tail", "fish_output", "recognizer_error", "deadline", "start_failed", "stale"]),
+      error: typeof o.error === "number" && o.error >= 0 && o.error <= 13 && Math.floor(o.error) === o.error ? o.error : null,
+      ageMs: num(o.ageMs), starts: num(o.starts), ready: num(o.ready),
+      servicePresent: flag(o.servicePresent), foreground: flag(o.foreground), micPermission: flag(o.micPermission),
+      fishOutputActive: flag(o.fishOutputActive), appMicPaused: flag(o.appMicPaused),
+      audioState: pick(o.audioState, ["KHALI", "BOL_RAHI", "APP_SUN"])
+    };
+    if (s.state === "ready" && (s.servicePresent !== "yes" || s.foreground !== "yes" || s.micPermission !== "yes")) s.state = "unknown";
+    if (s.state === "ready" && (s.ageMs === null || s.ageMs >= 35000)) { s.state = "unknown"; s.reason = "stale"; }
+    return s;
+  },
+  read: function () {
+    try { return WAKE_STATUS.clean(JSON.parse(window.MayaBridge.wakeStatus())); }
+    catch (e) { return WAKE_STATUS.clean(null); }
+  },
+  receive: function (raw) {
+    var s = WAKE_STATUS.clean(raw);
+    var labels = { stopped: "WAKE STOPPED", requested: "WAKE START REQUESTED", foreground: "WAKE SERVICE ON", starting: "MIC STARTING", ready: "MIC READY", blocked: "WAKE PAUSED", retry: "WAKE RETRY", error: "WAKE ERROR", unknown: "WAKE UNCONFIRMED" };
+    WAKE_DOT.set(s.state === "ready" ? "" : "dim", labels[s.state]);
+    // Silence can only make readiness UNKNOWN, never manufacture a green indicator.
+    if (s.state === "ready" && settings.wakeWord) {
+      WAKE_DOT.t = setTimeout(function () { WAKE_DOT.set("dim", "WAKE UNCONFIRMED"); }, Math.max(1, 35000 - s.ageMs));
+    }
+    return s;
+  },
+  refresh: function () { return WAKE_STATUS.receive(WAKE_STATUS.rawRead()); },
+  rawRead: function () {
+    try { return JSON.parse(window.MayaBridge.wakeStatus()); } catch (e) { return null; }
+  }
+};
+// Pull current native truth, not a possibly delayed event payload. No network/polling.
+window.__wakeState = function () { WAKE_STATUS.refresh(); };
+
 var WAKE_DOT = {
   el: null, t: null,
   ensure: function () {
     if (WAKE_DOT.el || !NATIVE) return WAKE_DOT.el;
     try {
       var st = document.createElement("style");
-      st.textContent = "#wakeDot{position:fixed;right:6px;top:26px;z-index:998;display:none;align-items:center;gap:5px;padding:2px 7px;border-radius:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);font:9px/1.4 monospace;cursor:default}#wakeDot i{width:6px;height:6px;border-radius:50%;background:#39D98A;display:inline-block;animation:wakePulse 1.4s ease-in-out infinite}@keyframes wakePulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.25)}}#wakeDot.dim i{background:#8a8a96;animation:none}#wakeDot.loud i{background:#FFD166;animation-duration:.5s}";
+      st.textContent = "#wakeDot{position:fixed;right:6px;top:26px;z-index:998;display:none;align-items:center;gap:5px;padding:2px 7px;border-radius:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);font:9px/1.4 monospace;cursor:default}#wakeDot i{width:6px;height:6px;border-radius:50%;background:#39D98A;display:inline-block}#wakeDot.dim i{background:#8a8a96}";
       document.head.appendChild(st);
       var d = document.createElement("div");
-      d.id = "wakeDot"; d.innerHTML = "<i></i><span>MAYA SUN RAHI</span>";
-      document.body.appendChild(d);
-      WAKE_DOT.el = d;
+      d.id = "wakeDot"; d.innerHTML = "<i></i><span>WAKE UNCONFIRMED</span>";
+      document.body.appendChild(d); WAKE_DOT.el = d;
     } catch (e) {}
     return WAKE_DOT.el;
   },
   set: function (mode, txt) {
     try {
+      if (WAKE_DOT.t) { clearTimeout(WAKE_DOT.t); WAKE_DOT.t = null; }
       var el = WAKE_DOT.ensure();
       if (!NATIVE || !settings.wakeWord) { if (el) el.style.display = "none"; return; }
       if (!el) return;
-      el.style.display = "flex";
-      el.className = mode || "";
-      el.querySelector("span").textContent = txt || "MAYA SUN RAHI";
-      if (WAKE_DOT.t) { clearTimeout(WAKE_DOT.t); WAKE_DOT.t = null; }
-      if (mode === "dim") WAKE_DOT.t = setTimeout(function () { WAKE_DOT.set("", "MAYA SUN RAHI"); }, 4000);
+      el.style.display = "flex"; el.className = mode || "dim";
+      if (mode === "" && txt === "MIC READY") el.className = "";
+      el.querySelector("span").textContent = txt || "WAKE UNCONFIRMED";
     } catch (e) {}
   },
-  log: function (kind) {
-    if (kind === "gate" || kind === "start") WAKE_DOT.set("", "MAYA SUN RAHI");
-    else if (kind === "voice") WAKE_DOT.set("loud", "AWAAZ MILI\u2026");
-    else if (kind === "skip" || kind === "err" || kind === "err8" || kind === "sulah") WAKE_DOT.set("dim", "INTEZAAR\u2026");
-  }
+  log: function () {} // Legacy log counters are not recognizer-ready evidence.
 };
 
 /* Kotlin ab SAARE andaze bhejta hai — faisla yahan hota hai */
@@ -9105,12 +9151,13 @@ function setWakeService(on){
     window.MayaBridge.setPrefString && (window.MayaBridge.setPrefString('wake_lang', settings.stt || 'en-IN'),
       window.MayaBridge.setPrefString('mic_zoom', String(settings.micZoom === undefined ? 0.8 : settings.micZoom)),
       window.MayaBridge.setPref('sukoon', FLAGS.on('sukoon')),
-      window.MayaBridge.setPref('mic_near', settings.micNear !== false)), window.MayaBridge.wakeService(on);
-    if (on) { try { if (!window.MayaBridge.batteryUnrestricted()) window.MayaBridge.requestBatteryUnrestricted(); } catch(e){} }
-    toast(on ? "\uD83D\uDC42 Wake word ON — ab 'Maya' ya 'Boss' bolo" : "Wake word OFF");
+      window.MayaBridge.setPref('mic_near', settings.micNear !== false));
+    var accepted = window.MayaBridge.wakeService(on);
+    // Do not launch a battery-settings Activity while acquiring the foreground mic.
+    toast(on ? (accepted === true ? "Wake start requested — mic readiness check ho rahi hai" : "Wake start nahi hui — Device Test Status dekhein; mic permission ke baad OFF/ON karein") : "Wake word OFF");
     pushLog("WAKE WORD: " + (on ? "ON" : "OFF"));
   } catch(e){ toast("Wake service start nahi hui"); }
-  try { if (typeof WAKE_DOT !== "undefined" && WAKE_DOT.set) WAKE_DOT.set("", ""); } catch (e2) {}
+  try { if (typeof WAKE_STATUS !== "undefined") WAKE_STATUS.refresh(); } catch (e2) {}
   hudRefresh();
 }
 
@@ -9156,7 +9203,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.17.2 — DOCTOR REPORT");
+  out.push("MAYA v5.17.3 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -9865,8 +9912,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.17.2"; } catch(e){}
-try { pushLog("MAYA v5.17.2 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.17.3"; } catch(e){}
+try { pushLog("MAYA v5.17.3 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)

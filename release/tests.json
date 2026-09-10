@@ -1,17 +1,19 @@
 [
-  "Install 5.17.2 (84) over the existing app without uninstalling or clearing data. If Android rejects it, stop and report the installer message.",
-  "Confirm 5.17.2 in the header and code84 in MAYA Updates/DEVICE TEST STATUS. Confirm existing chats, memories, API configuration and saved Fish selection remain.",
+  "Install 5.17.3 (85) over the existing app without uninstalling or clearing data. If Android rejects it, stop and report the installer message.",
+  "Confirm 5.17.3 in the header and code85 in MAYA Updates/DEVICE TEST STATUS. Confirm existing chats, memories, API configuration and saved Fish selection remain.",
   "If a saved Fish reference exists, keep it. If the ID is missing, choose a Hindi female voice yourself from Audio Library; no name/default/first-result guessing.",
   "With wake OFF initially, submit a harmless question from Chat and Home. Text must appear even when Fish is unavailable; failures must not leave thinking stuck.",
   "Tap SUNO for the chosen voice. Confirm you actually hear the expected speaker. A configured label, HTTP200 or native playing event alone is not audible proof.",
   "Ask a harmless question by mic. Record speech-end to transcript, text arrival and audible speech separately. No selected-voice substitution is permitted.",
-  "Tap STOP mid-request/preparing/playing, then send a new question. Old answers/audio/tools must not resume or reset the new microphone state.",
+  "STOP during SUNO/preparing/playing, wait for the echo tail, then test wake. Speaking/preparing must clear; new speech or a tap-mic session must retain its own exclusion. Never clear a live Fish stream just because playing is not yet reported.",
   "Retry voice only after an output failure: no new AI request, duplicated answer or tool replay. Save/reopen the app and confirm the same voice remains selected.",
   "Compare five typed and five spoken trials using unique test tags to avoid cache hits. Record failures, cache status, median and worst delay; do not infer speed from mock tests.",
-  "Enable wake while MAYA is visible. Test Maya alone and Maya plus a harmless question. Disable wake and confirm no late callback executes a command.",
+  "Enable wake with MAYA visible and silent. Look for MIC READY (actual callback), then say Maya plus a harmless question without tapping. If blocked/error/unconfirmed, capture the native wake status/reason/permission fields.",
   "Test foreground wake and locked-screen wake separately. Note phone/Android version, recognition language, network and any displayed error; do not claim killed-app support.",
   "Test offline recovery without editing/clearing saved keys. Text/status must remain usable; reconnect and retry explicitly. Stop repeat tests if the provider refuses the free request.",
   "If a real call/audio-focus interruption occurs, Fish must stop rather than resume stale speech. Check selected voice, microphone and wake again afterwards.",
   "Use Settings > SHOW DEVICE TEST STATUS for a limited manual snapshot. Do not share full Doctor/LAB logs or API keys; the new snapshot contains no transcripts or audio.",
-  "Update Center must continue to show unconfigured trust rather than claim a secure update is available. Secure in-app delivery and Stable remain separate activation/device gates."
+  "Update Center must continue to show unconfigured trust rather than claim a secure update is available. Secure in-app delivery and Stable remain separate activation/device gates.",
+  "Permission/start rejection must not show MIC READY or open battery settings automatically. Grant mic permission explicitly if requested, then toggle wake OFF/ON. Denied background/locked-screen access is not bypassed.",
+  "Switch wake OFF during startup; wait past the old boot/deadline window. No delayed callback or startup request may execute a command or silently enable wake again."
 ]

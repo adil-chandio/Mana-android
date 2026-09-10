@@ -1,5 +1,14 @@
 package com.maya.ai
 
+import com.maya.ai.voice.WakeStatus
+import com.maya.ai.voice.WakeStatus.State
+import com.maya.ai.voice.WakeStatus.Reason
+import org.json.JSONObject
+import android.os.SystemClock
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -20,12 +29,8 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import androidx.core.app.NotificationCompat
 
-/**
- * MAYA Wake Word Service 2.0 (Phase 10: ALWAYS-ON)
- * - Background mein hamesha sunta hai — "Maya" ya "Boss"
- * - App khula ho → WebView ke raaste poora flow (chime + listen + kaam)
- * - App band ho → apna TTS bolta hai + khud app khol deta hai
- * - Watchdog: har 45s check; har 12 min recognizer refresh
+/** User-enabled foreground recognition. Readiness requires a recognizer callback.
+ * No offline command execution or automatic Activity launch is promised.
  */
 class WakeWordService : Service() {
 
@@ -54,18 +59,57 @@ class WakeWordService : Service() {
         @Volatile var pausedAt: Long = 0L
         const val ECHO_TAIL_MS = 550L                 /* JS SUKOON.tailMs se match */
 
-        fun start(ctx: Context) {
-            try {
+        val health = WakeStatus { SystemClock.elapsedRealtime() }
+        @Volatile private var requested: Boolean? = null
+        @Volatile private var requestGeneration = 0L
+        @Volatile private var foreground = false
+
+        fun publishHealth() {
+            try { MainActivity.instance?.evalAsyncPublic("window.__wakeState && window.__wakeState()") } catch (_: Exception) {}
+        }
+        fun updateHealth(state: State, reason: Reason = Reason.NONE, error: Int = 0) {
+            if (health.update(state, reason, error)) publishHealth()
+        }
+        fun statusJson(): JSONObject {
+            val s = health.snapshot()
+            return JSONObject().put("state", s.state.name.lowercase()).put("reason", s.reason.name.lowercase())
+                .put("error", s.error).put("ageMs", s.ageMs).put("starts", s.starts).put("ready", s.ready)
+                .put("servicePresent", instance != null).put("foreground", foreground)
+                .put("fishOutputActive", fishOutputActive).put("appMicPaused", pausedByApp)
+                .put("audioState", if (haal in listOf("KHALI", "BOL_RAHI", "APP_SUN")) haal else "unknown")
+        }
+        @Synchronized fun start(ctx: Context): Boolean {
+            val generation = ++requestGeneration
+            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                updateHealth(State.ERROR, Reason.PERMISSION, 9)
+                return false
+            }
+            requested = true
+            if (instance == null) updateHealth(State.REQUESTED)
+            return try {
                 val i = Intent(ctx, WakeWordService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ctx.startForegroundService(i)
-                else ctx.startService(i)
-            } catch (e: Exception) {}
+                val component = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ctx.startForegroundService(i)
+                    else ctx.startService(i)
+                if (component == null) { updateHealth(State.ERROR, Reason.START_REJECTED); false }
+                else {
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (generation == requestGeneration && requested == true && instance == null &&
+                            health.snapshot().state in listOf(State.REQUESTED, State.UNKNOWN)) updateHealth(State.ERROR, Reason.DEADLINE)
+                    }, 8000)
+                    true // Accepted request, NOT a ready microphone.
+                }
+            } catch (_: SecurityException) { updateHealth(State.ERROR, Reason.PERMISSION, 9); false }
+              catch (_: Exception) { updateHealth(State.ERROR, Reason.START_REJECTED); false }
         }
 
-        fun stop(ctx: Context) {
+        @Synchronized fun stop(ctx: Context) {
+            requestGeneration++
+            requested = false
+            instance?.running = false // Reject queued recognition before Android delivers onDestroy.
+            updateHealth(State.STOPPED)
             haal = "KHALI"
             pausedByApp = false
-            try { ctx.stopService(Intent(ctx, WakeWordService::class.java)) } catch (e: Exception) {}
+            try { ctx.stopService(Intent(ctx, WakeWordService::class.java)) } catch (_: Exception) {}
         }
 
         /* L1 — MainActivity.setHaal bridge se aata hai.
@@ -150,10 +194,13 @@ class WakeWordService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        if (requested == false || (requested == null && !getSharedPreferences("maya", Context.MODE_PRIVATE).getBoolean("wake", false))) {
+            stopSelf(); return
+        }
         running = true
         attach(this)                              /* P9 — HAAL bridge instance */
         pausedByApp = false
-        startAsForeground()
+        if (!startAsForeground()) { running = false; stopSelf(); return }
         try {
             tts = TextToSpeech(this) { st -> ttsReady = st == TextToSpeech.SUCCESS }
         } catch (e: Exception) {}
@@ -161,11 +208,13 @@ class WakeWordService : Service() {
         handler.postDelayed(::watchdog, 45000)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = if (running) START_STICKY else START_NOT_STICKY
 
     override fun onDestroy() {
         running = false
         detach(this)                              /* P9 */
+        foreground = false
+        health.destroyed(); publishHealth()
         stopGate()
         try { MicKit.release() } catch (e: Exception) {}
         handler.removeCallbacksAndMessages(null)
@@ -174,8 +223,8 @@ class WakeWordService : Service() {
         super.onDestroy()
     }
 
-    private fun startAsForeground() {
-        try {
+    private fun startAsForeground(): Boolean {
+        return try {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 nm.createNotificationChannel(
@@ -188,8 +237,8 @@ class WakeWordService : Service() {
             )
             val notif: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle("MAYA hamesha sun rahi hai \uD83D\uDC42")
-                .setContentText("Bolo: \u201CMaya\u201D ya \u201CBoss\u201D — kahin se bhi")
+                .setContentTitle("MAYA wake service")
+                .setContentText("Microphone readiness/status: open MAYA")
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setContentIntent(pi)
@@ -199,7 +248,11 @@ class WakeWordService : Service() {
             } else {
                 startForeground(NOTIF_ID, notif)
             }
-        } catch (e: Exception) {}
+            foreground = true
+            updateHealth(State.FOREGROUND)
+            true
+        } catch (_: SecurityException) { updateHealth(State.ERROR, Reason.PERMISSION, 9); false }
+          catch (_: Exception) { updateHealth(State.ERROR, Reason.FOREGROUND_REJECTED); false }
     }
 
     private fun speakLocal(text: String) {
@@ -324,7 +377,10 @@ class WakeWordService : Service() {
 
     private fun startLoop() {
         handler.post {
-            if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            if (!running) return@post
+            val available = try { SpeechRecognizer.isRecognitionAvailable(this) } catch (_: Exception) { false }
+            if (!available) {
+                updateHealth(State.ERROR, Reason.UNAVAILABLE, 5)
                 evalToApp("window.__wakeErr && window.__wakeErr(5)")
                 stopSelf()
                 return@post
@@ -337,13 +393,18 @@ class WakeWordService : Service() {
         val session = ++recognitionGeneration
         recognitionActive = false
         var delivered = false
+        var ready = false
         try { sr?.destroy() } catch (e: Exception) {}
         /* 🎯 P8b — wahi seerhi jo MainActivity mein hai: on-device -> Google -> aam.
            Android 12+ par default AiAi ho sakta hai jo kaam hi nahi karta. */
         sr = (MainActivity.instance?.makeRecognizer(preferOnDevice)
               ?: SpeechRecognizer.createSpeechRecognizer(this)).apply {
             setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) {}
+                override fun onReadyForSpeech(params: Bundle?) {
+                    if (!running || session != recognitionGeneration || delivered || ready) return
+                    ready = true
+                    updateHealth(State.READY)
+                }
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(rmsdB: Float) {}
                 override fun onBufferReceived(buffer: ByteArray?) {}
@@ -351,8 +412,10 @@ class WakeWordService : Service() {
                 override fun onError(error: Int) {
                     if (!running || session != recognitionGeneration || delivered) return
                     delivered = true; recognitionActive = false
+                    updateHealth(State.RETRY, Reason.RECOGNIZER_ERROR, error)
                     if (error == 12 || error == 13) preferOnDevice = false // Unsupported/unavailable language model, not a TTS voice change.
                     if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
+                        updateHealth(State.ERROR, Reason.PERMISSION, 9)
                         evalToApp("window.__wakeErr && window.__wakeErr(9)")
                         stopSelf(); return
                     }
@@ -387,6 +450,7 @@ class WakeWordService : Service() {
                 override fun onResults(results: Bundle?) {
                     if (!running || session != recognitionGeneration || delivered) return
                     delivered = true; recognitionActive = false
+                    updateHealth(State.RETRY)
                     val all = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?: arrayListOf()
                     if (all.isNotEmpty()) { handleAll(all); errStreak = 0 }
@@ -439,6 +503,7 @@ class WakeWordService : Service() {
             if (gen != pendingGen) return@postDelayed
             val why = haalBlock()
             if (why != null) {
+                blocked(why)
                 report("skip", why)
                 restart(700)                     /* HAAL khali hone ka intezar */
                 return@postDelayed
@@ -448,9 +513,9 @@ class WakeWordService : Service() {
     }
 
     private fun actuallyStart() {
-        if (!running || recognitionActive) return
+        if (!running || requested == false || recognitionActive) return
         val why = haalBlock()                    /* L2 — chautha darwaza */
-        if (why != null) { report("skip", why); restart(700); return }
+        if (why != null) { blocked(why); report("skip", why); restart(700); return }
         try {
             /* v5.7.0 — do badlaav:
                1. MAX_RESULTS 1 -> 6. SUNO ka sabaq: sahih jawab aksar doosre ya
@@ -472,18 +537,20 @@ class WakeWordService : Service() {
             recognitionActive = true
             val session = recognitionGeneration
             starts++
+            updateHealth(State.STARTING)
             report("start", lang + "|" + starts)
             sr?.startListening(intent)
             handler.postDelayed({
                 if (running && recognitionActive && session == recognitionGeneration) {
                     recognitionGeneration++; recognitionActive = false
                     try { sr?.cancel() } catch (_: Exception) {}
+                    updateHealth(State.RETRY, Reason.DEADLINE, 1)
                     report("err", "1|recognizer deadline")
                     restart(1500)
                 }
             }, 30000)
         } catch (_: Exception) {
-            recognitionActive = false; report("err", "5|recognizer start failed"); restart(1500)
+            recognitionActive = false; updateHealth(State.RETRY, Reason.START_FAILED, 5); report("err", "5|recognizer start failed"); restart(1500)
         }
     }
 
@@ -524,17 +591,30 @@ class WakeWordService : Service() {
         getSharedPreferences("maya", Context.MODE_PRIVATE).getBoolean("sukoon", true)
     } catch (e: Exception) { true }
 
+    private fun blocked(why: String) {
+        val reason = when (why) {
+            "selected Fish output active" -> Reason.FISH_OUTPUT
+            "Maya bol rahi hai" -> Reason.SPEECH
+            "app ka mic chal raha hai", "sulah: app ka mic" -> Reason.APP_MIC
+            "echo tail" -> Reason.ECHO_TAIL
+            else -> Reason.NONE
+        }
+        updateHealth(State.BLOCKED, reason)
+    }
+
     /* L1 — HAAL badla to foran amal */
     fun onHaal(h: String) {
         handler.post {
             if (!running || haal != h) return@post
             if (h == "BOL_RAHI" || h == "APP_SUN") {
                 /* mic ISI LAMHE chhodo — awaaz katna yahi se rukta hai */
+                blocked(if (h == "APP_SUN") "app ka mic chal raha hai" else if (fishOutputActive) "selected Fish output active" else "Maya bol rahi hai")
                 stopGate()
                 recognitionGeneration++; recognitionActive = false
                 try { sr?.cancel(); sr?.destroy(); sr = null } catch (e: Exception) {}
                 pendingGen++                     /* pending restart murda */
             } else if (h == "KHALI") {
+                updateHealth(State.RETRY)
                 restart(300)
             }
         }
@@ -543,6 +623,8 @@ class WakeWordService : Service() {
     /* L4 — tap-to-speak jeetta hamesha */
     fun hardPause() {
         if (Looper.myLooper() != Looper.getMainLooper()) { handler.post { hardPause() }; return }
+        if (!running) return
+        blocked("app ka mic chal raha hai")
         stopGate()
         recognitionGeneration++; recognitionActive = false
         try { sr?.cancel(); sr?.destroy(); sr = null } catch (_: Exception) {}

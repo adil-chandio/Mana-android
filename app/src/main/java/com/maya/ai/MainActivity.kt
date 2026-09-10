@@ -698,12 +698,12 @@ class MainActivity : AppCompatActivity() {
                 if (start) {
                     if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO)
                         != PackageManager.PERMISSION_GRANTED) {
+                        WakeWordService.updateHealth(com.maya.ai.voice.WakeStatus.State.ERROR, com.maya.ai.voice.WakeStatus.Reason.PERMISSION, 9)
                         requestMicPermission()
                         return false
                     }
-                    WakeWordService.start(this@MainActivity)
                     prefs().edit().putBoolean("wake", true).apply()
-                    true
+                    WakeWordService.start(this@MainActivity)
                 } else {
                     WakeWordService.stop(this@MainActivity)
                     prefs().edit().putBoolean("wake", false).apply()
@@ -711,6 +711,11 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) { false }
         }
+
+        /** Explicit local read, fixed fields only. No transcript/keys/raw exception messages. */
+        @JavascriptInterface
+        fun wakeStatus(): String = WakeWordService.statusJson().put("micPermission",
+            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED).toString()
 
         /** YouTube v2 — innertube JSON + consent cookie fallback (pakka videoId) */
         @JavascriptInterface
@@ -1546,40 +1551,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun prefs() = getSharedPreferences("maya", Context.MODE_PRIVATE)
 
-    /* ═══ Issue 1: LISTENER NEVER DIES ═══
-       Tecno/HiOS background mic services ko maar deta hai. Pehle wake service
-       sirf tab start hoti thi jab user switch dabata tha. Ab: har app-open par,
-       agar saved pref kehti hai wake ON tha, to service dobara start + battery
-       whitelist ka nudge (ek dialog, sirf jab exemption abhi nahi mili). */
+    /** Recheck the saved switch at execution time; never move the Activity away
+     * from the foreground to show battery settings while acquiring its mic. */
     private fun ensureWakeAlive() {
-        try {
-            if (!prefs().getBoolean("wake", false)) return
-            /* wake-regression: 1.5s par JS apna boot-start khud karta hai
-               (index.html INIT -> setWakeService(true)). 2.5s par start karte
-               hain taake WebView ke pehle mic session (greeting/HAAL) se
-               double-start ka shor na ho. */
-            android.os.Handler(Looper.getMainLooper()).postDelayed({
-                try {
-                    if (WakeWordService.instance == null) WakeWordService.start(this@MainActivity)
-                    /* wake-regression: battery dialog har app-open par Nahi —
-                       sirf PEHLI dafa (pref flag). Har khulne par system dialog
-                       foreground mic session ko disturb karta tha. */
-                    val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                    if (!pm.isIgnoringBatteryOptimizations(packageName) &&
-                        !prefs().getBoolean("bat_asked", false)
-                    ) {
-                        prefs().edit().putBoolean("bat_asked", true).apply()
-                        try {
-                            Toast.makeText(this@MainActivity,
-                                "Listener hamesha zinda rakhne ke liye battery optimization OFF karo \uD83D\uDD0B",
-                                Toast.LENGTH_LONG).show()
-                            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                Uri.parse("package:" + packageName)))
-                        } catch (e: Exception) {}
-                    }
-                } catch (e: Exception) {}
-            }, 2500)
-        } catch (e: Exception) {}
+        if (!prefs().getBoolean("wake", false)) return
+        android.os.Handler(Looper.getMainLooper()).postDelayed({
+            if (!prefs().getBoolean("wake", false) || isFinishing || isDestroyed) return@postDelayed
+            if (WakeWordService.instance == null) WakeWordService.start(this@MainActivity)
+        }, 2500)
     }
 
     private fun evalAsync(js: String) {
@@ -1662,9 +1641,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestMicPermission() {
-        ActivityCompat.requestPermissions(
-            this, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_PERMS
-        )
+        runOnUiThread {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_PERMS)
+        }
     }
 
     private fun requestNotificationPermission() {

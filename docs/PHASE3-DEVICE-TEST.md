@@ -1,8 +1,10 @@
 # Phase 3 — 5.17.2 / 84 device-test candidate
 
+> Historical code84 receipt and phone feedback. The user approved the targeted wake repair: see [current 5.17.3/code85 candidate](WAKE-RECOVERY-5.17.3.md). Do not reinstall code84 as the new wake repair.
+
 Date: 2026-09-10. User approved a higher-code test APK and physical voice/wake/latency checks after Phases 1 and 2.
 
-**Status: development candidate built and CI-verified; awaiting the user's in-place install and physical-device results.** This is not a Stable release, a signed updater feed, proof of audible playback, or a measured speed/wake improvement.
+**Status: user reports 5.17.2 is running, typed Chat responds in under one second, and their explicitly selected voice plays. Wake and measured voice-latency acceptance remain pending.** This is not a Stable release, a signed updater feed, or a measured speed/wake improvement.
 
 ## What this candidate contains
 
@@ -40,15 +42,15 @@ A good first response can simply say: installed version; old data retained yes/n
 
 | Check | Expected | Phone result |
 |---|---|---|
-| In-place 83 → 84 | Same package/signer, old chat/memory/settings retained | PENDING |
-| Chat + Home typing | Text appears independently of Fish; no indefinite thinking | PENDING |
-| Fish SUNO and saved ID after restart | User hears the intended voice; no silent selection change | PENDING |
+| In-place 83 → 84 | Same package/signer, old chat/memory/settings retained | User shows 5.17.2 running; exact code and full data retention not independently checked |
+| Chat + Home typing | Text appears independently of Fish; no indefinite thinking | User reports Chat replies in <1s; not instrumented. Separate Home/failure tests pending |
+| Fish SUNO and saved ID after restart | User hears the intended voice; no silent selection change | User explicitly chose a voice and reports that same voice plays; restart retention not separately established |
 | Tap → final transcript → text → Fish | Separate input/text/output stages; selected speaker unchanged | PENDING |
 | STOP during AI/preparing/playing | Old answer/audio/tool chain stays stopped | PENDING |
 | Immediate A → B / mic after error | Late A cannot overwrite B or close its microphone | PENDING |
 | Retry voice only | No duplicate answer, new AI call or tool replay | PENDING |
 | Offline/free-provider refusal | Clear bounded failure, text remains; no paid/different-voice fallback | PENDING |
-| Wake ON, app visible | Bare Maya listens; Maya + harmless question reaches chat | PENDING |
+| Wake ON, app visible | Bare Maya listens; Maya + harmless question reaches chat | FAILED user-reported initial trial: “Wake nhi suna”; service/recognition/matching cause not yet established |
 | Wake OFF | No buffered wake command/handoff is executed | PENDING |
 | Screen locked (separate test) | Record actual behavior/limitations, not inferred from foreground | PENDING |
 | Real call/audio focus interruption | No stale Fish resume; microphone/selected voice remain usable | PENDING |
@@ -103,4 +105,33 @@ The draft PR remains unmerged. Phase 3 is **waiting for device feedback**, not c
 - Local `gh run download` could not retrieve the redirected artifact blob (EOF from storage endpoint). No local downloaded-binary/checksum inspection or attached APK is claimed; the identity/signature/hash receipt is from CI. The verified artifact link above is the delivery path.
 - Non-fatal action-deprecation/cache-restore warnings remain. Pre-existing local workflow edits were not staged or pushed.
 
-Subsequent documentation-only commits do not change this binary. **Phase 3 is not accepted/completed until physical results arrive.** All entries in the phone result matrix remain PENDING.
+Subsequent documentation-only commits do not change this binary. **Phase 3 is not accepted/completed until physical results arrive.** The matrix distinguishes initial user-reported successes from remaining device checks.
+
+## First user feedback — 2026-09-10
+
+The supplied screenshot shows both active version labels at 5.17.2. The user says the requested basics are working, specifically that they personally selected their voice and that same voice plays, and that typing in Chat produces a response in less than one second. This is actual user-reported playback and responsiveness evidence, not an automated timing measurement. The screenshot by itself does not establish audio, provider/network health, native code84, or old-data retention. No exact voice ID is supplied or inferred.
+
+The user now wants wake-mode conversation to feel as responsive as typed Chat. Do not regress the working chat path or substitute a different TTS voice. First collect one harmless foreground wake trial: whether “Maya” is detected, approximate speech-end to visible answer, and visible answer to audible output. A missing wake reaction is different from slow recognition, slow AI, or delayed Fish playback. The existing native wake listener does not emit the tap recognizer's speech-end timing marker, so absent or older Device Test Status timings must not be presented as measurements of this wake trial. Do not dispatch partial recognized commands or remove self-trigger/cancellation safeguards to chase a subsecond claim.
+
+Full five-plus-five latency samples, foreground/locked-screen wake matrix, STOP/error checks, and explicit restart/data-retention checks remain pending. No new runtime change or APK was made in response to this initial feedback.
+
+## Wake trial feedback — no reaction
+
+After the requested no-tap wake trial, the user reported “Wake nhi suna” (wake did not hear/respond). Treat initial wake acceptance as failed, not merely a request for faster synthesis. Exact enabled-state, callback counts, permission/error state, language and audio routing are not yet available. Request only the current Device Test Status wake section (enabled, starts, heard, matches, errors and last recognition error code); do not request raw KAAN/Doctor logs or recognized text.
+
+Read-only source inspection found diagnostic gaps, not a proven phone root cause: `WakeWordService.start` swallows startup exceptions, the bridge can consequently report a successful start request without confirmed service readiness, and the wake indicator can return to a listening label on a timer without a new ready callback. Current counters describe WebView callbacks and cannot distinguish all native readiness failures. Do not treat the switch or indicator alone as proof the recognizer is listening. No runtime changes have been made; preserve working typed Chat and the user's selected Fish voice while narrowing this failure.
+
+## Device Test Status screenshots — 16:08, 2026-09-10
+
+The user supplied the requested limited snapshot, showing:
+
+- WebView build label **5.17.2 (84)**; wake enabled **yes**.
+- Starts **0**, Heard **0**, Wake matches **0**, Errors **0**, last recognition error code **0**.
+- Thinking **no**, Listening **no**, Speaking/preparing **yes**.
+- Configured and last engine **fish**; reference-format selection present; current native Fish playing event **no**.
+- Main-reply timing markers and last AI turn **not recorded**; AI turn active **no**.
+- The separate live indicator still displays “MAYA SUN RAHI”.
+
+Interpretation: this snapshot provides no observed recognizer-start/heard callback, despite the enabled switch and listening label. Zero error callbacks do not prove a healthy or absent native service. The speaking/preparing flag would suppress wake result handling, and the associated native speech-exclusion state can defer recognition. However, one manual snapshot cannot establish that this is stale: a legitimate pending audition/synthesis or another playback path can also have no current native playing event. Do not unconditionally clear speech flags, override microphone exclusion, or stop actual selected-voice output based on that flag combination alone. Missing main-reply timing markers are not a zero-latency result and need not describe a library audition.
+
+Proposed next small repair, pending user approval: reproduce lifecycle/startup failures in controlled tests; expose bounded native service/recognizer readiness and sanitized failure/blocked reasons rather than timer-generated listening claims; repair demonstrated terminal/cancellation cleanup so an ended output cannot leave wake blocked, while preserving active output, tap-mic ownership and wake-OFF guards. Keep working Chat and selected Fish reference unchanged. Only after implementation/tests/build verification offer a higher-code in-place candidate; physical wake and latency remain acceptance gates. No runtime changes made in this turn.
