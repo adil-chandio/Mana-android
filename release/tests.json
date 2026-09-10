@@ -5,5 +5,10 @@
   "Download again, tap INSTALL, grant Android permission if needed, and tap INSTALL again after returning.",
   "Cancel Android installation once; the app must not claim success.",
   "Install the update and reopen MAYA Updates; confirm the new installed version and test checklist.",
-  "Confirm existing chat, memories and voice settings are retained. Do not uninstall or clear data."
+  "Confirm existing chat, memories and voice settings are retained. Do not uninstall or clear data.",
+  "Select Fish voice; compare the same typed and tap-to-speak question 5 times. Record local recognition/text/Fish-playing timings and confirm the same voice.",
+  "Try Maya alone and Maya plus a question in Roman Urdu, Urdu and Hindi; repeat after silence and after a reply, with wakeDoor both 0 and 15 seconds.",
+  "Stop or tap to speak while Fish is preparing/playing; old audio and callbacks must not resume or close the new mic session.",
+  "Test Fish offline/failure, wrong key and missing selection. Show a clear retry/error; never replace the selected voice with Edge, phone or another provider.",
+  "Test wake foreground and screen-locked separately, including a real incoming call/audio-focus loss. Do not claim background support from foreground success."
 ]

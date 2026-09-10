@@ -511,7 +511,7 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
     const { AWAAZ, state } = makeWorld({ settings: { voiceEngine: 'neural' }, respond: () => ({ status: 500, body: {} }) });
     AWAAZ.speak('neural mode', {});
     await wait(40);
-    is(state.deviceSaid.length === 1, 'sirf-neural mode bhi nakami par phone par girta hai');
+    is(state.deviceSaid.length === 0 && AWAAZ.engine === 'neural' && !!AWAAZ.err, 'selected neural voice fails visibly without switching to phone');
   }
 
   /* ─── 13. MODEL AUTO-SWITCH ─── */
@@ -575,7 +575,7 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
     is((src.match(/function speak\(text, wasVoice\)/g) || []).length === 1, 'speak() sirf ek dafa');
     /* v5.9.5: pehle DO __nativeTtsDone definitions thi — doosri pehli ko overwrite kar deti thi aur SUKOON/afterSpeak kabhi nahi chalte the. Ab ek hi unified handler hai jo AWAAZ.deviceDone + SUKOON.bolEnd + afterSpeak sab chalata hai. */
     is((src.match(/window\.__nativeTtsDone = function/g) || []).length === 1, 'sirf EK __nativeTtsDone definition (duplicate overwrite khatam)');
-    is(/window\.__nativeTtsDone = function\(v2\)\{[\s\S]*?AWAAZ\.deviceDone\(\)/.test(src), 'TTS-done callback ab arbiter ko UNLOCK bhi karta hai (deviceDone)');
+    is(/var complete = AWAAZ\.deviceDone;[\s\S]*?AWAAZ\.deviceDone = null;[\s\S]*?complete\(\)/.test(src), 'TTS-done callback ab arbiter ko UNLOCK bhi karta hai (deviceDone)');
     is(/window\.__nativeTtsWatch = function/.test(src), 'native utterance watchdog maujood (12s stuck-TTS rescue)');
     is(/if \(e\.cancelable && e\.preventDefault\)/.test(src), 'touchmove par cancelable guard laga (console warning fix)');
     is(/data-say/.test(src) && /say-btn/.test(src), 'har jawab par 🔊 replay button maujood');
@@ -859,6 +859,12 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
           w.__binDone(reqId, r.status || 0, r.b64 || '', r.ctype || '', r.err || '');
         }, opts.delay == null ? 1 : opts.delay);
       };
+      if (opts.stream) {
+        bridge.streams = []; bridge.stops = 0;
+        bridge.fishStreamSpeak = (body, headers, id) => bridge.streams.push({ body: JSON.parse(body), headers: JSON.parse(headers), id });
+        bridge.fishStreamStop = () => bridge.stops++;
+        w.VOICE_TIME = { count: 0, playing() { this.count++; } };
+      }
       return Object.assign(world, { bridge, FISH: w.FISH, MP3, MP3B64 });
     }
 
@@ -1001,17 +1007,17 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
       const seen = [];
       AWAAZ.speak('Salam', { onStart: (e) => seen.push(e) });
       await wait(40);
-      is(seen[0] === 'fish' && seen[1] === 'neural',
-        'Fish mar jaye to 🎭 Gemini par jata hai (khamoshi nahi)', seen.join('>'));
-      is(state.gcalls.length >= 1, 'Gemini ko sach much request gayi');
+      is(seen.join('>') === 'fish' && AWAAZ.err === 'PAYMENT',
+        'Fish failure is reported; selected voice remains unchanged', seen.join('>'));
+      is(state.gcalls.length === 0 && state.deviceSaid.length === 0, 'no hidden Gemini or phone fallback');
     }
     {
       const { AWAAZ } = fishWorld({ reply: { status: 402 }, settings: { apikey: '', ttsKey: '' } });
       const seen = [];
       AWAAZ.speak('Salam', { onStart: (e) => seen.push(e) });
       await wait(50);
-      is(seen[0] === 'fish' && seen.indexOf('free') > 0,
-        'Fish + Gemini dono na hon to bhi asli awaaz aati hai', seen.join('>'));
+      is(seen.join('>') === 'fish' && AWAAZ.err === 'PAYMENT',
+        'missing alternatives cannot change the selected Fish voice', seen.join('>'));
     }
     {
       const { AWAAZ, bridge, state } = fishWorld({ settings: { fishKey: '' } });
@@ -1039,6 +1045,56 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
       is(done === 0 && state.played.length === 0, 'stop() ke baad Fish ka jawab chup rehta hai');
     }
 
+    // Real JS streaming bridge protocol; Android audio/network remain device tests.
+    {
+      const { AWAAZ, bridge, w, FISH, state } = fishWorld({ stream: true, settings: { voiceEngine: 'fish', fishVoice: 'chosen-voice', fastShort: true } });
+      let done = 0;
+      AWAAZ.speak('Hello', { onDone: () => done++ });
+      is(bridge.streams.length === 1 && bridge.calls.length === 0, 'Fish starts streaming without full-file/base64 download');
+      is(bridge.streams[0].body.reference_id === 'chosen-voice', 'stream preserves selected voice even with fastShort enabled');
+      is(bridge.streams[0].body.chunk_length === 100 && bridge.streams[0].headers.model === 's2.1-pro-free', 'provider uses smaller streaming segments and the same free model');
+      is(w.VOICE_TIME.count === 0 && done === 0, 'request submission is not counted as audible playback');
+      const id = bridge.streams[0].id;
+      w.__fishStreamEvent('unrelated', 'playing', 200);
+      is(w.VOICE_TIME.count === 0, 'foreign stream callbacks are ignored');
+      w.__fishStreamEvent(id, 'playing', 200); w.__fishStreamEvent(id, 'playing', 200);
+      is(w.VOICE_TIME.count === 1 && done === 0, 'actual playing is marked once, before full stream completion');
+      w.__fishStreamEvent(id, 'done', 200); w.__fishStreamEvent(id, 'done', 200);
+      is(done === 1 && FISH.spoke === 1 && FISH.streamPending === null, 'one terminal callback and cleanup per stream');
+      is(state.deviceSaid.length === 0 && state.gcalls.length === 0 && state.freecalls.length === 0, 'stream never calls replacement voice providers');
+      w.close();
+    }
+    {
+      const { AWAAZ, bridge, w, state } = fishWorld({ stream: true, settings: { fishVoice: 'chosen-voice' } });
+      let done = 0, err = '';
+      AWAAZ.speak('Hello', { onDone: () => done++, onError: code => { err = code; } });
+      w.__fishStreamEvent(bridge.streams[0].id, 'error', 402);
+      is(err === 'PAYMENT' && done === 1, 'stream billing failure is explicit and completes once');
+      is(state.gcalls.length === 0 && state.deviceSaid.length === 0 && AWAAZ.engine === 'fish', 'Auto with configured Fish also refuses voice substitution');
+      w.close();
+    }
+    {
+      const { AWAAZ, bridge, w } = fishWorld({ stream: true, settings: { voiceEngine: 'fish', fishVoice: 'original' } });
+      let done = 0;
+      AWAAZ.speak('A complete sentence. '.repeat(240), { onDone: () => done++ });
+      const first = bridge.streams[0];
+      w.settings.fishVoice = 'changed'; w.settings.rate = 2;
+      w.__fishStreamEvent(first.id, 'playing', 200); w.__fishStreamEvent(first.id, 'done', 200);
+      is(bridge.streams.length === 2 && bridge.streams[1].body.reference_id === 'original', 'later chunks retain the original voice snapshot');
+      is(bridge.streams[1].body.prosody.speed === first.body.prosody.speed, 'later chunks retain original prosody');
+      const second = bridge.streams[1].id;
+      AWAAZ.stop(); w.__fishStreamEvent(second, 'playing', 200); w.__fishStreamEvent(second, 'done', 200);
+      is(done === 0 && bridge.stops > 0 && w.FISH.streamPending === null, 'stop cancels native playback and rejects late completion');
+      w.close();
+    }
+    {
+      const { AWAAZ, bridge, w } = fishWorld({ stream: true, settings: { voiceEngine: 'fish', fishVoice: '' } });
+      let error = '';
+      AWAAZ.speak('Hello', { onError: code => { error = code; } });
+      is(error === 'VOICE_MISSING' && bridge.streams.length === 0, 'missing selection cannot silently use a default stream voice');
+      w.close();
+    }
+
     /* ── 18g. 🩺 FISH DOCTOR ── */
     {
       const mk = (opts) => new Promise((res) => fishWorld(opts).FISH.doctor(() => {}, res));
@@ -1056,7 +1112,7 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
       const dead = await mk({ reply: { status: 402, b64: jb64({ message: 'free tier ended' }) } });
       is(dead.verdict === 'PAYMENT' && dead.ok === false && /402/.test(dead.text) && /31 August 2026/.test(dead.text),
         '🚨 DOCTOR: 402 par saaf kehta hai muft window band ho gaya', dead.verdict);
-      is(/Edge/.test(dead.text), 'DOCTOR: band hone par bhi tasalli deta hai ke Edge zinda hai');
+      is(/No automatic voice replacement/.test(dead.text), 'DOCTOR: band hone par bhi tasalli deta hai ke Edge zinda hai');
       const bad = await mk({ reply: { status: 401, b64: jb64({ message: 'bad key' }) } });
       is(bad.verdict === 'KEY_BAD' && /401/.test(bad.text) && /bad key/.test(bad.text),
         'DOCTOR: 401 par Fish ka apna message bhi dikhata hai', bad.verdict);

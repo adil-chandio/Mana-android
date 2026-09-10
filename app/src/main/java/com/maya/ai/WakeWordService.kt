@@ -34,6 +34,7 @@ class WakeWordService : Service() {
         const val NOTIF_ID = 2001
 
         @Volatile var instance: WakeWordService? = null
+        @Volatile var fishOutputActive = false
 
         /* ═══ 🎚️ P9 SUKOON — audio referee: ek waqt mein EK cheez ═══
            Teen jang-boot jo ye sulhaata hai:
@@ -85,6 +86,7 @@ class WakeWordService : Service() {
 
         /* L2 — mic ka jawab: abhi kholna mana hai? (null = khol lo) */
         fun haalBlock(): String? {
+            if (fishOutputActive) return "selected Fish output active"
             val s = instance ?: return null            /* service band -> faisla baema'ni */
             if (!s.sukoonOn()) return null             /* escape hatch — LAB switch OFF */
             /* wake-regression: stale-HAAL live rescue — JS/WebView sach mein mar
@@ -130,6 +132,9 @@ class WakeWordService : Service() {
     }
 
     private var sr: SpeechRecognizer? = null
+    private var recognitionGeneration = 0L
+    private var recognitionActive = false
+    private var preferOnDevice = true
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private val handler = Handler(Looper.getMainLooper())
@@ -246,9 +251,9 @@ class WakeWordService : Service() {
     private var gateThread: Thread? = null
     private var floorDb = 0.0
 
-    private fun vadEnabled(): Boolean = try {
-        getSharedPreferences("maya", Context.MODE_PRIVATE).getBoolean("mic_near", true)
-    } catch (e: Exception) { true }
+    // AudioRecord gating consumed the first ~300ms of "Maya" before STT existed.
+    // Keep wake STT listening directly. mic_near/zoom still apply to explicit mic tests.
+    private fun vadEnabled(): Boolean = false
 
     private fun micZoom(): Float = try {
         /* Issue 2: 0.8 (max zoom = sirf qareeb) default tha — door ki awaaz
@@ -324,16 +329,18 @@ class WakeWordService : Service() {
                 stopSelf()
                 return@post
             }
-            resetRecognizer()
             actuallyStart()
         }
     }
 
     private fun resetRecognizer() {
+        val session = ++recognitionGeneration
+        recognitionActive = false
+        var delivered = false
         try { sr?.destroy() } catch (e: Exception) {}
         /* 🎯 P8b — wahi seerhi jo MainActivity mein hai: on-device -> Google -> aam.
            Android 12+ par default AiAi ho sakta hai jo kaam hi nahi karta. */
-        sr = (MainActivity.instance?.makeRecognizer()
+        sr = (MainActivity.instance?.makeRecognizer(preferOnDevice)
               ?: SpeechRecognizer.createSpeechRecognizer(this)).apply {
             setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {}
@@ -342,6 +349,13 @@ class WakeWordService : Service() {
                 override fun onBufferReceived(buffer: ByteArray?) {}
                 override fun onEndOfSpeech() {}
                 override fun onError(error: Int) {
+                    if (!running || session != recognitionGeneration || delivered) return
+                    delivered = true; recognitionActive = false
+                    if (error == 12 || error == 13) preferOnDevice = false // Unsupported/unavailable language model, not a TTS voice change.
+                    if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
+                        evalToApp("window.__wakeErr && window.__wakeErr(9)")
+                        stopSelf(); return
+                    }
                     /* v5.7.0 — pehle NO_MATCH par sirf 250ms baad dobara shuru
                        hota tha. Android 11+ background mic ko THROTTLE karta hai
                        aur itni tez restart par Google ka recognizer chup ho jata
@@ -371,6 +385,8 @@ class WakeWordService : Service() {
                     restart(back)
                 }
                 override fun onResults(results: Bundle?) {
+                    if (!running || session != recognitionGeneration || delivered) return
+                    delivered = true; recognitionActive = false
                     val all = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?: arrayListOf()
                     if (all.isNotEmpty()) { handleAll(all); errStreak = 0 }
@@ -432,7 +448,7 @@ class WakeWordService : Service() {
     }
 
     private fun actuallyStart() {
-        if (!running) return
+        if (!running || recognitionActive) return
         val why = haalBlock()                    /* L2 — chautha darwaza */
         if (why != null) { report("skip", why); restart(700); return }
         try {
@@ -452,10 +468,23 @@ class WakeWordService : Service() {
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 6)
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
             }
+            resetRecognizer()
+            recognitionActive = true
+            val session = recognitionGeneration
             starts++
             report("start", lang + "|" + starts)
             sr?.startListening(intent)
-        } catch (e: Exception) {}
+            handler.postDelayed({
+                if (running && recognitionActive && session == recognitionGeneration) {
+                    recognitionGeneration++; recognitionActive = false
+                    try { sr?.cancel() } catch (_: Exception) {}
+                    report("err", "1|recognizer deadline")
+                    restart(1500)
+                }
+            }, 30000)
+        } catch (_: Exception) {
+            recognitionActive = false; report("err", "5|recognizer start failed"); restart(1500)
+        }
     }
 
     /** Har 45s zinda hai? har 12 min fresh recognizer */
@@ -499,10 +528,11 @@ class WakeWordService : Service() {
     /* L1 — HAAL badla to foran amal */
     fun onHaal(h: String) {
         handler.post {
-            if (!running) return@post
+            if (!running || haal != h) return@post
             if (h == "BOL_RAHI" || h == "APP_SUN") {
                 /* mic ISI LAMHE chhodo — awaaz katna yahi se rukta hai */
                 stopGate()
+                recognitionGeneration++; recognitionActive = false
                 try { sr?.cancel() } catch (e: Exception) {}
                 pendingGen++                     /* pending restart murda */
             } else if (h == "KHALI") {
@@ -513,12 +543,12 @@ class WakeWordService : Service() {
 
     /* L4 — tap-to-speak jeetta hamesha */
     fun hardPause() {
-        handler.post {
-            stopGate()
-            try { sr?.cancel() } catch (e: Exception) {}
-            pendingGen++
-            report("sulah", "service pause — app ka mic")
-        }
+        if (Looper.myLooper() != Looper.getMainLooper()) { handler.post { hardPause() }; return }
+        stopGate()
+        recognitionGeneration++; recognitionActive = false
+        try { sr?.cancel() } catch (_: Exception) {}
+        pendingGen++
+        report("sulah", "wake paused before app microphone acquisition")
     }
     fun softResume() {
         handler.post {

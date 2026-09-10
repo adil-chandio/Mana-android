@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>MAYA — Personal AI v4</title>
 <style>
-/* ================= MAYA v5.17.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+/* ================= MAYA v5.17.1 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
    Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
 :root{
   /* new tokens */
@@ -561,7 +561,7 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.17.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.17.1 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
@@ -881,9 +881,9 @@ nav{padding:8px 10px 10px}
           <div class="ui-field">
             <div class="ui-label">🎙️ AWAAZ ENGINE</div>
             <select class="ui-input ui-select" id="sVoiceEngine">
-              <option value="auto">🪄 Auto — neural, warna phone (behtareen)</option>
+              <option value="auto">🪄 Auto — configured Fish voice stays selected</option>
               <option value="neural">🎭 Sirf Neural — Gemini studio awaaz</option>
-              <option value="fish">🐟 Sirf Fish Audio — BE-HISAAB + ANDAAZ</option>
+              <option value="fish">🐟 Fish Audio — selected voice, streaming</option>
               <option value="edge">🌊 Sirf Edge TTS — MUFT aur BE-HISAAB</option>
               <option value="device">📱 Sirf Phone — 0 data, foran</option>
               <option value="off">🔇 Band — Maya khamosh</option>
@@ -907,7 +907,7 @@ nav{padding:8px 10px 10px}
             <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFishOn"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
           </div>
           <div class="ui-row">
-            <div class="ui-row-txt">⚡ Fast short replies <small>(small answers skip Fish Audio and speak instantly via Edge/phone — default OFF)</small></div>
+            <div class="ui-row-txt">⚡ Fast short replies <small>(fewer AI retries; selected Fish/Neural voice stays unchanged)</small></div>
             <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFastShort"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
           </div>
           <div class="ui-field">
@@ -916,7 +916,7 @@ nav{padding:8px 10px 10px}
             <div class="ui-hint">Sirf yehi engine aap ke 9 MOOD (🤗 Warm, 🤫 Whisper, 🎭 Funny) samajhti hai — Edge par wo bekaar ho jate hain. ⚠️ Aap ke jumle Fish ke server par model behtar banane ke liye rakhe ja sakte hain.</div>
           </div>
           <div class="ui-field">
-            <div class="ui-label">🐟 FISH AWAAZ <small>(khaali = default)</small></div>
+            <div class="ui-label">🐟 FISH AWAAZ <small>(select a voice for streaming)</small></div>
             <select class="ui-input ui-select" id="sFishVoice"></select>
             <div class="ui-row" style="margin-top:8px">
               <button type="button" class="ui-btn ui-btn-ghost" id="fishLib">📚 AWAAZ LIBRARY LAO</button>
@@ -1201,7 +1201,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.17.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.17.1 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1216,7 +1216,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.17.0 · OK</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.17.1 · OK</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1282,9 +1282,9 @@ setTimeout(function(){
 
 <script>
 "use strict";
-/* ================= MAYA v5.17.0 — Doctor Build ================= */
+/* ================= MAYA v5.17.1 — Doctor Build ================= */
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.17.0 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v5.17.1 OK \u2713"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
 /* Native update navigation; deliberately no URLs, download or install API in JS. */
@@ -1386,7 +1386,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.17.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.17.1 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -1459,28 +1459,42 @@ document.addEventListener("visibilitychange", function(){ if (document.visibilit
 /* ---------- NATIVE BRIDGE (APK build — window.MayaBridge) ---------- */
 var NATIVE = !!(window.MayaBridge);
 var lastWasVoice = false;
-window.__nativeTtsDone = function(v2){ /* v5.9.5 unified handler — old version dropped callbacks */
-  try { var _why = String(v2 || "");
-    if (_why && _why !== "done" && typeof pushLog === "function") pushLog("TTS: device tier " + _why);
-  } catch(e){}
-  speaking = false;
-  try { SUKOON.bolEnd(); } catch (e) {}
-  try { if (AWAAZ.deviceDone) AWAAZ.deviceDone(); } catch (e) {}
-  afterSpeak(lastWasVoice);
+window.__nativeTtsDone = function(v2){
+  // One completion owner. Old Android callbacks cannot end Fish/new speech.
+  if (typeof AWAAZ === "undefined" || typeof AWAAZ.deviceDone !== "function") return;
+  if (window.__ttsWatchT) clearTimeout(window.__ttsWatchT);
+  window.__ttsWatchT = null;
+  var complete = AWAAZ.deviceDone;
+  AWAAZ.deviceDone = null;
+  complete();
 };
-/* v5.9.5: Kotlin 12s utterance watchdog — system TTS ka onDone/onError bhool jaye
-   (Tecno/HiOS par aam) to JS khud azaad ho jata hai, mic-pipeline atki nahi. */
 window.__nativeTtsWatch = function(ms){
-  try {
-    if (window.__ttsWatchT) { clearTimeout(window.__ttsWatchT); window.__ttsWatchT = null; }
-    window.__ttsWatchT = setTimeout(function(){
-      window.__ttsWatchT = null;
-      if (typeof speaking !== "undefined" && speaking) {
-        try { pushLog("TTS: native utterance watchdog — atka device TTS azaad"); } catch(e){}
-        window.__nativeTtsDone("watchdog");
-      }
-    }, ms || 12000);
-  } catch(e){}
+  if (window.__ttsWatchT) clearTimeout(window.__ttsWatchT);
+  var gen = AWAAZ.gen;
+  window.__ttsWatchT = setTimeout(function(){
+    window.__ttsWatchT = null;
+    if (gen === AWAAZ.gen && AWAAZ.engine === "device") window.__nativeTtsDone("watchdog");
+  }, ms || 12000);
+};
+// Local duration-only evidence: never store transcripts, keys or audio here.
+var VOICE_TIME = {
+  turn: 0, ended: 0, final: 0, requested: 0, audio: 0,
+  reset: function () { VOICE_TIME.turn++; VOICE_TIME.ended = 0; VOICE_TIME.final = 0; VOICE_TIME.requested = 0; VOICE_TIME.audio = 0; },
+  now: function () { return window.performance && performance.now ? performance.now() : Date.now(); },
+  playing: function () {
+    if (VOICE_TIME.audio) return;
+    VOICE_TIME.audio = VOICE_TIME.now();
+    pushLog("VOICE TIMING: Fish request-to-playing=" + Math.round(VOICE_TIME.audio - VOICE_TIME.requested) + "ms" +
+      (VOICE_TIME.final ? "; final-transcript-to-playing=" + Math.round(VOICE_TIME.audio - VOICE_TIME.final) + "ms" : ""));
+    try { NAAP.mark("voice"); } catch (e) {}
+  }
+};
+window.__speechTiming = function(stage){
+  if (stage === "ended") VOICE_TIME.ended = VOICE_TIME.now();
+  if (stage === "final") {
+    VOICE_TIME.final = VOICE_TIME.now();
+    if (VOICE_TIME.ended) pushLog("VOICE TIMING: speech-end-to-final=" + Math.round(VOICE_TIME.final - VOICE_TIME.ended) + "ms");
+  }
 };
 window.__nativeTtsStatus = function(s){
   try { pushLog("TTS ENGINE: " + s + " — on-device awaaz is session mein off"); } catch(e){}
@@ -1524,7 +1538,7 @@ window.__nativeRms = function(db){
 };
 window.__nativeSpeechErr = function(code){
   listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle"); interimEl.textContent = "";
-  var m = { 1:"Network timeout", 2:"Network error", 3:"Mic masla", 4:"Recognizer busy", 5:"Voice service error", 6:"Koi awaz nahi mili", 7:"Mic permission nahi" }[code] || "Voice error";
+  var m = { 1:"Recognition network timeout", 2:"Recognition network error", 3:"Mic audio error", 4:"Recognition server error", 5:"Voice input service error", 6:"Koi awaaz nahi mili", 7:"Awaaz samajh nahi aayi", 8:"Recognizer busy", 9:"Mic permission nahi", 10:"Recognition rate limit", 11:"Recognition server disconnected", 12:"Input language unsupported", 13:"Input language model unavailable" }[code] || "Voice error";
   toast(m);
   addBubble("ai", m + ". " + (code === 5 || code === 2 ? "Google app / voice service check karo aur dobara try karo." : "Dobara try karo, " + settings.name + "."));
 };
@@ -3131,6 +3145,34 @@ var AWAAZ = {
 
     if (!c.on || c.mode === "off") { AWAAZ.setEngine("off"); done(); return; }
 
+    function selectedFailure(engine, code) {
+      if (gen !== AWAAZ.gen || finished) return;
+      AWAAZ.err = code; AWAAZ.errText = engine === "fish" ? FISH.why(code) : AWAAZ.why(code);
+      AWAAZ.paint();
+      var message = "Selected " + engine + " voice unavailable (" + code + "). Voice unchanged. Tap the reply speaker to retry.";
+      try { if (typeof toast === "function") toast(message); } catch (e) {}
+      try { if (typeof addBubble === "function") addBubble("ai", message); } catch (e) {}
+      try { if (cb.onError) cb.onError(code); } catch (e) {}
+      done();
+    }
+    // Explicit selections never fall through to a different voice/provider.
+    // Auto with a configured Fish account also preserves the selected Fish voice.
+    var lockedFish = c.mode === "fish" || (c.mode === "auto" && c.fish && typeof FISH !== "undefined" && !!FISH.key());
+    if (lockedFish) {
+      AWAAZ.setEngine("fish");
+      if (cb.onStart) cb.onStart("fish");
+      AWAAZ.fish(text, done, function (code) { selectedFailure("fish", code); });
+      return;
+    }
+    if (c.mode === "neural") {
+      AWAAZ.setEngine("neural");
+      var reason = AWAAZ.blockReason(text);
+      if (reason) { selectedFailure("neural", reason); return; }
+      if (cb.onStart) cb.onStart("neural");
+      AWAAZ.neural(text, done, function (code) { selectedFailure("neural", code); });
+      return;
+    }
+
     /* ─── SEERHI: 1) Gemini neural   2) EDGE (be-hisaab)   3) muft neural   4) phone ───
        Har teh apni nakami agli teh ko de deti hai — khamoshi kabhi nahi hoti.
        EDGE ab muft-neural se PEHLE hai: uska koi quota nahi, asli Urdu awaaz
@@ -3210,6 +3252,8 @@ var AWAAZ = {
   stop: function () {
     AWAAZ.gen++;
     AWAAZ.deviceDone = null;
+    if (window.__ttsWatchT) clearTimeout(window.__ttsWatchT);
+    window.__ttsWatchT = null;
     try { if (AWAAZ.audio) { AWAAZ.audio.pause(); AWAAZ.audio.onended = null; AWAAZ.audio.onerror = null; AWAAZ.audio = null; } } catch (e) {}
     for (var i = 0; i < AWAAZ.xhrs.length; i++) { try { AWAAZ.xhrs[i].abort(); } catch (e) {} }
     AWAAZ.xhrs = [];
@@ -3856,6 +3900,7 @@ var FISH = {
   LIB: "https://api.fish.audio/model",
   MODEL: "s2.1-pro-free",
   TIMEOUT: 25000,
+  streamPending: null,
   MAXCHARS: 4000,     /* is se lamba matn tukron mein jayega */
 
   audio: null,
@@ -3907,6 +3952,8 @@ var FISH = {
   /* har code ka insani matlab — DOCTOR aur status yehi bolte hain */
   WHY: {
     OK:       "Fish zinda hai — muft aur be-hisaab",
+    INTERRUPTED: "Audio focus changed. Selected voice stopped; tap the reply speaker to retry.",
+    VOICE_MISSING: "Fish ki selected voice chunein — koi doosri awaaz nahi lagayi gayi",
     KEY_MISSING: "Fish ki key nahi dali (fish.audio/app/api-keys — muft, card nahi lagta)",
     KEY_BAD:  "Key ghalat ya khatam ho gayi (401) — nayi key banao",
     PAYMENT:  "402 — muft window band ho gayi ya balance khatam. Fish ne 31 Aug 2026 wala free daur khatam kar diya lagta hai",
@@ -3950,6 +3997,7 @@ var FISH = {
     if (s.fishOn === false) return "OFF";
     if (!FISH.key()) return "KEY_MISSING";
     if (!FISH.native()) return "BROWSER";
+    if (window.MayaBridge.fishStreamSpeak && !FISH.voice()) return "VOICE_MISSING";
     if (Date.now() < FISH.cool) return "RATE";
     return "";
   },
@@ -3989,7 +4037,7 @@ var FISH = {
       format: "mp3",
       mp3_bitrate: 128,
       latency: "balanced",
-      chunk_length: 300,
+      chunk_length: 100,
       normalize: true,
       /* 🎯 Fish docs: "temperature — higher is more VARIED, lower is more
          CONSISTENT". 0.7 par har turn ka lehja badal jata tha ("alag alag
@@ -4091,11 +4139,39 @@ var FISH = {
     var list = AWAAZ.chunks(String(text || ""), FISH.MAXCHARS);
     if (!list.length) { onDone(); return; }
 
+    // Snapshot voice/prosody once; settings changes cannot alter later chunks.
+    var bodies = list.map(function (part) { return FISH.body(part, mood); });
+    var headers = FISH.headers();
+    if (window.MayaBridge && typeof window.MayaBridge.fishStreamSpeak === "function") {
+      function streamPart(idx) {
+        if (gen !== AWAAZ.gen) return;
+        if (idx >= bodies.length) { FISH.spoke++; onDone(); return; }
+        var id = "fs" + (++FISH.seq) + "_" + Date.now();
+        var startedAt = Date.now();
+        FISH.streamPending = { id: id, gen: gen, started: false,
+          timer: setTimeout(function () {
+            var pending = FISH.streamPending;
+            if (!pending || pending.id !== id) return;
+            FISH.streamPending = null;
+            try { window.MayaBridge.fishStreamStop(); } catch (e) {}
+            if (gen === AWAAZ.gen) onFail("TIMEOUT");
+          }, 215000),
+          playing: function () { FISH.lastMs = Date.now() - startedAt; },
+          done: function () { streamPart(idx + 1); },
+          fail: onFail
+        };
+        try { window.MayaBridge.fishStreamSpeak(bodies[idx], headers, id); }
+        catch (e) { window.__fishStreamEvent(id, "error", 0); }
+      }
+      streamPart(0);
+      return;
+    }
+
     function one(idx) {
       if (gen !== AWAAZ.gen) return;
       if (idx >= list.length) { FISH.spoke++; onDone(); return; }
       var t0 = Date.now();
-      FISH.req("POST", FISH.API, FISH.headers(), FISH.body(list[idx], mood), function (status, b64, ctype, err) {
+      FISH.req("POST", FISH.API, headers, bodies[idx], function (status, b64, ctype, err) {
         if (gen !== AWAAZ.gen) return;
         FISH.lastHttp = status;
         FISH.lastMs = Date.now() - t0;
@@ -4115,6 +4191,10 @@ var FISH = {
   },
 
   stop: function () {
+    if (FISH.streamPending) clearTimeout(FISH.streamPending.timer);
+    FISH.streamPending = null;
+    try { if (window.MayaBridge && window.MayaBridge.fishStreamStop) window.MayaBridge.fishStreamStop(); } catch (e) {}
+
     var k;
     for (k in FISH.pend) {
       if (Object.prototype.hasOwnProperty.call(FISH.pend, k)) {
@@ -4294,8 +4374,8 @@ var FISH = {
 
         say("");
         say("── Ab kya hoga ──");
-        if (ok) say("🐟 Fish pehle bolegi. Nakaam ho to 🎭 Gemini → 🌊 Edge → 📱 phone.");
-        else say("🐟 Fish skip hogi. Maya 🎭 Gemini → 🌊 Edge → 📱 phone par bolegi — khamoshi nahi hogi.");
+        if (ok) say("Selected Fish voice ready. Streaming APK starts playback as audio arrives.");
+        else say("Selected Fish voice unavailable. No automatic voice replacement; fix the error and retry.");
 
         FISH.lastErr = msg;
         onDone({ verdict: verdict, ok: ok, http: status, ms: ms, bytes: bytes, msg: msg, text: lines.join("\n") });
@@ -4327,6 +4407,27 @@ window.__binDone = function (reqId, status, b64, ctype, err) {
   p.cb(+status || 0, String(b64 || ""), String(ctype || ""), String(err || ""));
 };
 
+window.__fishStreamEvent = function (id, event, status) {
+  var p = FISH.streamPending;
+  if (!p || p.id !== id || p.gen !== AWAAZ.gen) return;
+  if (event === "playing") {
+    if (p.started) return;
+    p.started = true; FISH.lastHttp = 200; p.playing();
+    try { VOICE_TIME.playing(); } catch (e) {}
+    try { SUKOON.bolStart(); setOrb("speaking"); } catch (e) {}
+    return;
+  }
+  if (event !== "done" && event !== "error" && event !== "timeout" && event !== "interrupted") return;
+  clearTimeout(p.timer); FISH.streamPending = null;
+  if (event === "done" && p.started) { FISH.lastErr = ""; p.done(); return; }
+  FISH.lastHttp = +status || 0;
+  var code = event === "interrupted" ? "INTERRUPTED" : event === "timeout" ? "TIMEOUT" : (status ? FISH.code(+status) : "DECODE");
+  if (code === "OK") code = "NO_AUDIO";
+  FISH.lastErr = FISH.why(code);
+  if (code === "RATE" || code === "PAYMENT") { FISH.cool = Date.now() + FISH.COOL; FISH.persist(); }
+  p.fail(code);
+};
+
 FISH.restore();
 
 /* ---------- PUBLIC API: poori app sirf isi se bolti hai ---------- */
@@ -4335,15 +4436,18 @@ function speak(text, wasVoice) {
   lastWasVoice = wasVoice;
   if (!clean) { AWAAZ.stop(); afterSpeak(wasVoice); return; }
   try { SUKOON.bolStart(); } catch (e) {}   /* 🎚️ fetch ki 1-2s bhi cover — mic abhi nahi khul sakta */
+  var voiceFailed = false;
+  try { VOICE_TIME.requested = VOICE_TIME.now(); VOICE_TIME.audio = 0; } catch (e) {}
   AWAAZ.speak(clean, {
+    onError: function () { voiceFailed = true; },
     onStart: function (eng) {
-      speaking = true; try { SUKOON.bolStart(); } catch (e) {} setOrb("speaking");
-      try { NAAP.mark("voice"); NAAP.cur && (NAAP.cur.engine = eng || AWAAZ.engine); } catch (e) {}   /* 📊 P0 */
+      speaking = true; try { SUKOON.bolStart(); } catch (e) {} setOrb(eng === "fish" ? "buffering" : "speaking");
+      try { if (eng !== "fish") NAAP.mark("voice"); NAAP.cur && (NAAP.cur.engine = eng || AWAAZ.engine); } catch (e) {}   /* 📊 P0 */
     },
     onDone: function () {
       speaking = false; try { SUKOON.bolEnd(); } catch (e) {}
       try { NAAP.end({ engine: AWAAZ.engine, saaf: (NAAP.cur && NAAP.cur.saafHit) || 0 }); } catch (e) {}  /* 📊 P0 */
-      afterSpeak(wasVoice);
+      afterSpeak(voiceFailed ? false : wasVoice);
     }
   });
 }
@@ -4366,18 +4470,19 @@ function afterSpeak(wasVoice){
     try {
       if (typeof KAAN !== "undefined" && KAAN.DARWAZA.isOpen()) {
         KAAN.DARWAZA.open();                       /* baat chal rahi hai -> waqt barha do */
-        setTimeout(startListening, 350);
+        scheduleListening(600);
       }
     } catch (e) {}
     return;
   }
-  if (settings.autoListen) setTimeout(startListening, 350);
+  if (settings.autoListen) scheduleListening(600);
 }
 
 function reply(text, wasVoice, link){
   /* 🤝 SACH — model par bharosa nahi, JAANCH. Aakhri amal sure:false tha aur
      jawab mein "bhej diya / ho gaya" likha hai? To app KHUD theek kar degi. */
   try { if (typeof HAQEEQAT !== "undefined") text = HAQEEQAT.check(text); } catch (e) {}
+  try { if (wasVoice && VOICE_TIME.final) pushLog("VOICE TIMING: final-transcript-to-reply=" + Math.round(VOICE_TIME.now() - VOICE_TIME.final) + "ms"); } catch (e) {}
   addBubble("ai", text, link);
   chatHist.push({ role:"model", text:text }); persistChat();
   speak(text, wasVoice);
@@ -4399,7 +4504,8 @@ function testMayaVoice() {
     onDone: function () {
       speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
       var st = AWAAZ.status();
-      if (st.engine === "neural") toast("🎭 NEURAL bola — " + vLabel);
+      if (st.engine === "fish") toast(st.err ? "Fish error — voice unchanged; retry" : "Selected Fish voice test completed");
+      else if (st.engine === "neural") toast("🎭 NEURAL bola — " + vLabel);
       else toast("📱 PHONE ki awaaz — " + (st.why || "neural abhi maujood nahi"));
       paintAwaaz();
     }
@@ -4409,7 +4515,22 @@ function testMayaVoice() {
 /* ---------- STT ---------- */
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 var rec = null;
+var listenTimer = null;
+function scheduleListening(delay, explicitWake){
+  if (listenTimer) clearTimeout(listenTimer);
+  var gen = AWAAZ.gen;
+  listenTimer = setTimeout(function(){
+    listenTimer = null;
+    if (gen !== AWAAZ.gen || listening || thinking || speaking) return;
+    if (explicitWake && !settings.wakeWord) return;
+    if (!explicitWake && !settings.wakeWord && !settings.autoListen) return;
+    if (!explicitWake && settings.wakeWord && !KAAN.DARWAZA.isOpen()) return;
+    startListening();
+  }, delay);
+}
 function startListening(){
+  if (listenTimer) clearTimeout(listenTimer); listenTimer = null;
+  if (!listening && !thinking) { VOICE_TIME.reset(); AWAAZ.stop(); speaking = false; }
   if (NATIVE) {
     if (listening) { stopListening(); return; }
     if (thinking) return;
@@ -4450,6 +4571,7 @@ function startListening(){
   try { rec.start(); } catch(e){ listening = false; try { SUKOON.sunEnd(); } catch (e) {} }
 }
 function stopListening(){
+  if (listenTimer) clearTimeout(listenTimer); listenTimer = null;
   if (NATIVE) { try { window.MayaBridge.stopListen(); } catch(e){} }
   if (rec) { try { rec.stop(); } catch(e){} }
   listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle");
@@ -4461,7 +4583,7 @@ function setOrb(state){
   setCharState(state);
   micBtn.classList.toggle("listening", state === "listening");
   dot.className = "dot" + (state === "listening" ? " listening" : state === "thinking" ? " thinking" : "");
-  var map = { idle:"MAYA READY", listening:"SUN RAHI HOON...", thinking:"SOCH RAHI HOON...", speaking:"BOL RAHI HOON..." };
+  var map = { idle:"MAYA READY", listening:"SUN RAHI HOON...", thinking:"SOCH RAHI HOON...", speaking:"BOL RAHI HOON...", buffering:"FISH AAWAAZ TAYYAR HO RAHI HAI..." };
   chatState.textContent = map[state] || "MAYA READY";
   statusText.textContent = state === "idle" ? "TAP TO SPEAK" : map[state] || "";
   statusPill.textContent = (NATIVE ? "APK • " : "") + DIMAAG.pill();
@@ -4541,8 +4663,9 @@ function addBubble(who, text, link){
 })();
 
 /* ---------- MAIN HANDLER ---------- */
-function stripWake(t){ return t.replace(/^\s*(hey\s+)?(maya|maywa|mya|maaya|boss)[\s,.!:-]*/i, "").trim(); }
+function stripWake(t){ return String(t || "").replace(KAAN.PREFIX, "").trim(); }
 function handleUserText(text, wasVoice){
+  if (!wasVoice) VOICE_TIME.reset();
   var stripped = stripWake(text) || text;
   /* 🛑 AMAL kill words — pehle STOP, phir kuch aur (guardrail) */
   try { if (typeof MAYA_AMAL !== "undefined" && MAYA_AMAL.isStop(stripped)) { MAYA_AMAL.stop(); return; } } catch (e) {}
@@ -7550,6 +7673,7 @@ var SUKOON = {
     if (SUKOON._bolT) { clearTimeout(SUKOON._bolT); SUKOON._bolT = null; }
     SUKOON._bolT = setTimeout(function () {
       if (SUKOON.haal === "BOL_RAHI") {
+        if (typeof FISH !== "undefined" && FISH.streamPending) { SUKOON.bolStart(); return; }
         try { pushLog("SUKOON: TTS watchdog — 45s BOL_RAHI atka tha, khud azad"); } catch (e) {}
         try { if (typeof speaking !== "undefined") speaking = false; } catch (e) {}
         SUKOON.bolEnd();
@@ -7617,15 +7741,9 @@ var KAAN = {
   /* wake word SHURU mein hona chahiye — beech ya aakhir mein nahi.
      "Maya yeh karo" ✅   ·   "chalo Maya yeh karo" ❌   ·   "yeh karo" ❌ */
   FILLER: /^(hey|hay|hi|hello|o|arey|are|oye|acha|suno|sun)$/i,
+  PREFIX: /^\s*(?:(?:hey|hay|hi|hello|o|arey|are|oye|acha|suno|sun)[\s,]+)?(?:maya|maaya|maywa|mya|boss|مایا|مايا|माया|باس)(?=$|[\s,.!?،؟:؛-])[\s,.!?،؟:؛-]*/i,
   atStart: function (t) {
-    var q = String(t || "").trim().toLowerCase();
-    q = q.replace(/^[\s,."'\u060C\u061F!?-]+/, "");
-    var w = q.split(/\s+/);
-    var i = 0;
-    /* "hey Maya" / "o Maya" chalega, magar "chalo Maya yeh karo" NAHI */
-    if (w.length > 1 && KAAN.FILLER.test(w[0])) i = 1;
-    var first = w[i] || "";
-    return KAAN.SURE.test(first) || KAAN.WAKE.test(first);
+    return KAAN.PREFIX.test(String(t || ""));
   },
 
   push: function (kind, data) {
@@ -7883,7 +8001,7 @@ window.__wakeHeard = function (payload) {
   try { chime(880, 0.1); chime(1175, 0.16, 0.12); } catch (e) {}
   try { statusText.textContent = "\uD83D\uDC42 JI " + String(settings.name || "BOSS").toUpperCase() + "? BOLIYE..."; } catch (e) {}
   addBubble("ai", "\uD83D\uDC42 Ji " + settings.name + "? Boliye..." + (open ? ("  \uD83D\uDEAA " + open + "s") : ""));
-  setTimeout(startListening, 400);
+  scheduleListening(400, true);
 };
 
 window.__wakeErr = function(code){
@@ -8761,7 +8879,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.17.0 — DOCTOR REPORT");
+  out.push("MAYA v5.17.1 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -9443,8 +9561,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.17.0"; } catch(e){}
-try { pushLog("MAYA v5.17.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.17.1"; } catch(e){}
+try { pushLog("MAYA v5.17.1 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)

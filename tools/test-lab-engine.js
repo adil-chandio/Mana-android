@@ -58,6 +58,8 @@ const TOOLSRC = HTML.slice(TD_A, TD_B);
 function world(flags) {
   const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously', url: 'https://appassets.androidplatform.net/' });
   const w = dom.window;
+    // Scheduler state behavior is exercised separately in test-voice-session.cjs.
+    w.scheduleListening = function (delay) { w.setTimeout(function () { w.startListening(); }, delay); };
   w.pushLog = () => {};
   w.$ = () => null;
   w.NATIVE = false;
@@ -1104,6 +1106,8 @@ Here's a thinking process:
     const KSRC = HTML.slice(HB, HE);
     const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously' });
     const w = dom.window;
+    // Scheduler state behavior is exercised separately in test-voice-session.cjs.
+    w.scheduleListening = function (delay) { w.setTimeout(function () { w.startListening(); }, delay); };
     w.settings = { name: 'Boss', wakeWord: true, stt: 'ur-PK' };
     w.speaking = false; w.thinking = false; w.listening = false;
     w.said = [];
@@ -1207,6 +1211,8 @@ Here's a thinking process:
     const HE = HTML.indexOf('window.__wakeErr = function');
     const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously' });
     const w = dom.window;
+    // Scheduler state behavior is exercised separately in test-voice-session.cjs.
+    w.scheduleListening = function (delay) { w.setTimeout(function () { w.startListening(); }, delay); };
     w.settings = { name: 'Boss', wakeWord: true, wakeDoor: 15, micZoom: 0.8 };
     w.speaking = false; w.thinking = false; w.listening = false;
     w.said = []; w.bub = [];
@@ -1302,8 +1308,8 @@ Here's a thinking process:
 
     /* VAD */
     is(/KHAMOSHI KA PEHRA/.test(WS) && /gateOn/.test(WS), '🎧 khamoshi ka pehra (VAD) maujood');
-    is(/if \(vadEnabled\(\)\) startGate\(\) else actuallyStart\(\)/.test(WS),
-      '🔑 sannate mein recognizer BILKUL nahi chalta ("mic on/off" ka ilaj)');
+    is(/private fun vadEnabled\(\): Boolean = false/.test(WS),
+      'wake recognizer owns the microphone from the first syllable (no lossy VAD handoff)');
     is(/rec\.release\(\)[\s\S]{0,120}MicKit\.release\(\)[\s\S]{0,140}actuallyStart/.test(WS),
       '🔒 mic pehle CHHORA jata hai, phir recognizer (dono ek sath nahi)');
     is(/over > 10\.0/.test(WS) && /loud >= 3/.test(WS),
@@ -1314,7 +1320,7 @@ Here's a thinking process:
       '🎯 Android 12+ ka on-device recognizer (offline)');
     is(/googlequicksearchbox[\s\S]{0,200}GoogleRecognitionService/.test(MA),
       '🎯 warna Google ka recognizer ZABARDASTI (AiAi bug ka ilaj)');
-    is(/lastRecognizerKind/.test(MA) && /MainActivity\.instance\?\.makeRecognizer\(\)/.test(WS),
+    is(/lastRecognizerKind/.test(MA) && /MainActivity\.instance\?\.makeRecognizer\(preferOnDevice\)/.test(WS),
       'wake service bhi wahi seerhi istemal karti hai');
 
     /* doctor */
@@ -1353,10 +1359,10 @@ Here's a thinking process:
 
     /* ── speak/listen ke SAARE raaste cover ── */
     is((HTML.match(/try \{ SUKOON\.bolStart/g) || []).length >= 6 &&
-       (HTML.match(/try \{ SUKOON\.bolEnd/g) || []).length >= 11 &&
+       (HTML.match(/try \{ SUKOON\.bolEnd/g) || []).length >= 10 &&
        (HTML.match(/try \{ SUKOON\.sunStart/g) || []).length >= 2 &&
        (HTML.match(/try \{ SUKOON\.sunEnd/g) || []).length >= 7,
-      '🧲 speaking/listening ke 25 jagah SUKOON ke hook lage (koi raasta nahi chhoota)');
+      'audio arbiter hooks retained; duplicate native completion hook intentionally removed');
     is(/function speak\(text, wasVoice\) \{[\s\S]{0,420}?SUKOON\.bolStart/.test(HTML),
       '🔑 speak() CALL ke waqt hi bolStart — fetch ki 1-2s mein bhi mic nahi khulta');
 

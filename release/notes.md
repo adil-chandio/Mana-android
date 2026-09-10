@@ -1,7 +1,9 @@
-Native Update Center: manually check Stable/Beta releases, verify signed metadata and APK identity, download with progress/cancel, then open Android's installer.
+Voice/wake testing candidate 5.17.1 (83), not device-approved Stable.
 
-A separate MAYA Updates launcher entry works without the WebView UI. Installation is confirmed by the installed version on the next launch. A local test checklist and previewable, manually shared diagnostic are included.
+Fish Audio now uses native progressive MP3 playback instead of waiting for a complete base64 audio download. The selected reference voice, mood/prosody and existing s2.1-pro-free model are retained. Explicit Fish/Neural selections do not switch to Edge, phone or another provider on failure; Auto with configured Fish also stays on Fish. Server/network latency still applies; no instant-response guarantee is made.
 
-Bootstrap requirement: update trust must be configured at build time. Unconfigured development builds cannot download or install updates through the updater. APK signing-key rotation is not included. The exposed legacy signing identity still needs a separately tested migration.
+Wake STT no longer waits behind the AudioRecord amplitude gate that consumed the first syllable. Duplicate mic restarts, stale recognizer/TTS callbacks and multilingual wake-prefix stripping are guarded. Tap-to-speak remains explicit and takes priority. Background recognition remains subject to Android/provider restrictions; a destroyed app is not automatically relaunched.
 
-Voice, wake-word and automation bugs from the audit are NOT fixed in this release.
+Duration-only local timings distinguish recognition finalization, text response and real Fish playback start. Verify these improvements on the actual phone; compiled tests do not establish end-to-end latency or wake reliability.
+
+Update activation is still required: unconfigured development APKs show the Update Center but cannot fetch signed updates. A manually installed, compatible signing-configured bootstrap is needed first. Never uninstall/clear app data to force installation. The legacy Android signing key is exposed; this change does not repair that identity.

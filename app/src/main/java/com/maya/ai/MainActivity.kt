@@ -82,6 +82,8 @@ class MainActivity : AppCompatActivity() {
        engine "shak wale" haal mein maana jata hai; koi bhi bol de to clear. */
     @Volatile private var ttsEverSpoke = false
     private var recognizer: SpeechRecognizer? = null
+    private var speechGeneration = 0L
+    private var fishPlayer: com.maya.ai.voice.FishStreamPlayer? = null
 
     /* ================= LIFECYCLE ================= */
 
@@ -201,6 +203,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        fishPlayer?.stop(); fishPlayer = null
         instance = null
         stopRecognizer()
         try { tts?.stop(); tts?.shutdown() } catch (e: Exception) {}
@@ -350,6 +353,7 @@ class MainActivity : AppCompatActivity() {
     /* ================= STT ================= */
 
     private fun stopRecognizer() {
+        speechGeneration++
         try { recognizer?.destroy(); recognizer = null } catch (e: Exception) {}
     }
 
@@ -449,6 +453,20 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { try { tts?.stop() } catch (e: Exception) {} }
         }
 
+        /** Fixed Fish streaming output; no alternate voice or arbitrary network destination. */
+        @JavascriptInterface
+        fun fishStreamSpeak(body: String, headers: String, id: String) {
+            runOnUiThread {
+                if (fishPlayer == null) fishPlayer = com.maya.ai.voice.FishStreamPlayer(this@MainActivity) { request, event, status ->
+                    evalAsync("window.__fishStreamEvent && window.__fishStreamEvent('$request','$event',$status)")
+                }
+                fishPlayer?.speak(body, headers, id)
+            }
+        }
+
+        @JavascriptInterface
+        fun fishStreamStop() { runOnUiThread { fishPlayer?.stop() } }
+
         /** Native STT — Google voice recognition (Urdu ur-PK supported) */
         @JavascriptInterface
         fun listen(lang: String) {
@@ -458,7 +476,7 @@ class MainActivity : AppCompatActivity() {
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                     requestMicPermission()
-                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(7)")
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(9)")
                     return@runOnUiThread
                 }
                 if (!SpeechRecognizer.isRecognitionAvailable(this@MainActivity)) {
@@ -488,6 +506,9 @@ class MainActivity : AppCompatActivity() {
                        bhi response tez rehta hai. */
                     putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 1200)
                 }
+                val session = speechGeneration
+                var delivered = false
+                try {
                 recognizer = makeRecognizer().apply {
                     setRecognitionListener(object : RecognitionListener {
                         override fun onReadyForSpeech(params: Bundle?) {}
@@ -498,11 +519,18 @@ class MainActivity : AppCompatActivity() {
                             if (rmsTick % 4 == 0) evalAsync("window.__nativeRms && window.__nativeRms(" + rmsdB + ")")
                         }
                         override fun onBufferReceived(buffer: ByteArray?) {}
-                        override fun onEndOfSpeech() { evalAsync("window.__nativePartial && window.__nativePartial('')") }
+                        override fun onEndOfSpeech() {
+                            if (session == speechGeneration && !delivered) evalAsync("window.__speechTiming && window.__speechTiming('ended')")
+                        }
                         override fun onError(error: Int) {
+                            if (session != speechGeneration || delivered) return
+                            delivered = true
                             evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error)")
                         }
                         override fun onResults(results: Bundle?) {
+                            if (session != speechGeneration || delivered) return
+                            delivered = true
+                            evalAsync("window.__speechTiming && window.__speechTiming('final')")
                             /* 🎙️ Android 3-5 andaze deta hai. Pehle sirf pehla liya jata tha
                                aur baqi phenk diye jate the — isi liye "Monarch" -> "منار" ban
                                jata tha. Ab SAARE andaze JS ko jate hain; SUNO un mein se wo
@@ -528,6 +556,7 @@ class MainActivity : AppCompatActivity() {
                             )
                         }
                         override fun onPartialResults(partialResults: Bundle?) {
+                            if (session != speechGeneration || delivered) return
                             val pt = partialResults
                                 ?.getStringArrayList("android.speech.extra.RESULTS")?.firstOrNull() ?: ""
                             if (pt.isNotBlank()) evalAsync("window.__nativePartial && window.__nativePartial('" + jsEscape(pt) + "')")
@@ -535,6 +564,11 @@ class MainActivity : AppCompatActivity() {
                         override fun onEvent(eventType: Int, params: Bundle?) {}
                     })
                     startListening(intent)
+                }
+                } catch (_: Exception) {
+                    stopRecognizer()
+                    WakeWordService.resumeFromApp()
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5)")
                 }
             }
         }
@@ -1527,8 +1561,8 @@ class MainActivity : AppCompatActivity() {
        ═══════════════════════════════════════════════════════════════════ */
     var lastRecognizerKind: String = "-"
 
-    fun makeRecognizer(): SpeechRecognizer {
-        if (Build.VERSION.SDK_INT >= 31) {
+    fun makeRecognizer(preferOnDevice: Boolean = true): SpeechRecognizer {
+        if (preferOnDevice && Build.VERSION.SDK_INT >= 31) {
             try {
                 if (SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {
                     lastRecognizerKind = "on-device"
