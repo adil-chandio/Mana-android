@@ -18,7 +18,9 @@ function output(file, value) {
   fs.writeFileSync(file, next);
 }
 let html = fs.readFileSync('public/index.html', 'utf8');
-html = html.replace(/MAYA v\d+\.\d+\.\d+/g, `MAYA v${v.versionName}`)
+html = html.replace(/<span data-build-version>v[^<]+<\/span>/g, `<span data-build-version>v${v.versionName}</span>`)
+  .replace(/var MAYA_BUILD = \{ versionName: "[^"]+", versionCode: \d+ \};/, `var MAYA_BUILD = { versionName: "${v.versionName}", versionCode: ${v.versionCode} };`)
+  .replace(/MAYA v\d+\.\d+\.\d+/g, `MAYA v${v.versionName}`)
   .replace(/v\d+\.\d+\.\d+ · OK/g, `v${v.versionName} · OK`)
   .replace(/"v\d+\.\d+\.\d+ OK/g, `"v${v.versionName} OK`)
   .replace(/textContent = "v\d+\.\d+\.\d+"/g, `textContent = "v${v.versionName}"`);

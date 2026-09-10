@@ -1,8 +1,8 @@
-> **Voice/wake testing candidate — 5.17.1 / code 83**
+> **Development recovery candidate — 5.17.2 / code 84 (phone validation pending)**
 >
-> Selected Fish voice streaming, guarded microphone/wake sessions and no hidden Fish/Neural voice substitution. Android CI compiled and signature-verified the candidate with 35 JVM tests passing; 1072 local checks also pass. Phone playback/latency and background-wake acceptance are still pending; this is not a Stable release. [Scope and test plan](docs/VOICE-5.17.1.md).
+> Replaces the user-reported broken 5.17.1/83 candidate for controlled testing: bounded chat/STOP recovery, saved Fish library-reference preservation, independent text/voice errors and speech-only retry. Adds synchronized build labels and a manual privacy-limited Device Test Status; late wake callbacks are ignored after wake OFF. No native wake/player retuning or phone-success claim in this step.
 >
-> The updater activation/signing blocker below still applies. The historical 5.17.0 build evidence does not validate these new voice changes.
+> [Phase 3 installation/test protocol and build receipt](docs/PHASE3-DEVICE-TEST.md). Automated checks are not physical voice/wake/latency acceptance. **Do not reinstall code83 or promote Stable.** Secure in-app delivery is still blocked by signing/bootstrap configuration; this test uses a manual, in-place, same-development-signer install. Never uninstall/clear data to force it.
 
 > **Update Center implementation — v5.17.0 / code 82 (bootstrap, not published)**
 >
@@ -14,10 +14,12 @@
 
 # 🤖 MAYA — Personal AI Assistant
 
-**Version 5.9.0 "SUKOON" — 0-Budget Build • Android APK + Web PWA**
+**Version 5.17.2 (84) — Development device-test candidate • Android APK + Web PWA**
 
 MAYA = aap ka apna JARVIS — voice controlled AI assistant (Gemini brain),
 ab **asli Android app** (APK) ki soorat mein, native superpowers ke saath:
+
+## Historical changelog (not current device-acceptance evidence)
 
 ## 🎚️ v5.9.0 — SUKOON: awaaz kabhi nahi kategi · mic-larai khatam *(P9 · v5.9.1 mein 🗣️ ON-DEVICE LANGUAGE ka asli button bhi)*
 

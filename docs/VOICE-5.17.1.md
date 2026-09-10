@@ -1,4 +1,6 @@
-# Voice/wake candidate 5.17.1 (83)
+# Voice/wake candidate 5.17.1 (83) — historical, reported broken
+
+**Do not reinstall this artifact.** The user subsequently reported stuck chat/voice. See [the diagnosis](RECOVERY-PLAN-5.17.1.md) and [5.17.2 device-test protocol](PHASE3-DEVICE-TEST.md). The earlier receipt below does not establish phone correctness.
 
 ## User-observed problem and approved constraints
 

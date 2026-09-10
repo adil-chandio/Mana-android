@@ -1,9 +1,9 @@
-Voice/wake testing candidate 5.17.1 (83), not device-approved Stable.
+Development recovery candidate 5.17.2 (84), newer than the user-reported broken 5.17.1 (83). Not device-approved or Stable.
 
-Fish Audio now uses native progressive MP3 playback instead of waiting for a complete base64 audio download. The selected reference voice, mood/prosody and existing s2.1-pro-free model are retained. Explicit Fish/Neural selections do not switch to Edge, phone or another provider on failure; Auto with configured Fish also stays on Fish. Server/network latency still applies; no instant-response guarantee is made.
+Includes Phase 1 bounded chat requests/STOP cancellation/state cleanup and Phase 2 saved Fish library-reference preservation. Voice failures retain text; Retry voice only does not rerun AI/tools. Missing/invalid voice IDs need explicit selection from Audio Library. No random/default speaker, Edge/device substitution or paid-model fallback.
 
-Wake STT no longer waits behind the AudioRecord amplitude gate that consumed the first syllable. Duplicate mic restarts, stale recognizer/TTS callbacks and multilingual wake-prefix stripping are guarded. Tap-to-speak remains explicit and takes priority. Background recognition remains subject to Android/provider restrictions; a destroyed app is not automatically relaunched.
+Current build labels are synchronized. Settings has a manual, read-only DEVICE TEST STATUS snapshot with state, timing markers and wake counters; no keys, chat, voice IDs, audio or upload. Late wake callbacks are ignored when the user has switched wake OFF. The native wake engine and Fish player are not retuned in this candidate; physical wake, speech and latency still require phone testing.
 
-Duration-only local timings distinguish recognition finalization, text response and real Fish playback start. Verify these improvements on the actual phone; compiled tests do not establish end-to-end latency or wake reliability.
+Manual in-place installation is required for this development test while the updater signing/bootstrap remains unconfigured. The package and development signing identity are retained, but actual phone upgrade compatibility and data retention must be confirmed. Never uninstall or clear data to force installation. If Android rejects the update, stop and report the installer message.
 
-Update activation is still required: unconfigured development APKs show the Update Center but cannot fetch signed updates. A manually installed, compatible signing-configured bootstrap is needed first. Never uninstall/clear app data to force installation. The legacy Android signing key is exposed; this change does not repair that identity.
+No signed updater metadata or Stable release is published. No guaranteed latency or successful on-device playback/wake claim is made from build/tests alone. See docs/PHASE3-DEVICE-TEST.md.

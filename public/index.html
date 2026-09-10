@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>MAYA — Personal AI v4</title>
 <style>
-/* ================= MAYA v5.17.1 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+/* ================= MAYA v5.17.2 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
    Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
 :root{
   /* new tokens */
@@ -536,7 +536,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver">v5.9.5 — 🎚️ SUKOON — awaaz kabhi nahi kategi · mic-larai khatam · wake word sach mein zinda</div>
+  <div class="ver"><span data-build-version>v5.17.2</span> — DEVELOPMENT TEST · phone validation pending</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,14 +561,14 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.17.1 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.17.2 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.9.5 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.17.2</span></small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -729,7 +729,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.9.5</div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.17.2</span></div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -1103,6 +1103,13 @@ nav{padding:8px 10px 10px}
       </div>
 
       <div class="ui-card">
+        <div class="ui-card-h">DEVICE TEST — development candidate</div>
+        <button type="button" class="ui-btn ui-btn-ghost" id="deviceTestStatus">SHOW DEVICE TEST STATUS</button>
+        <div class="ui-hint">Read-only state, timing and wake counters. No API keys, chat, voice IDs or audio. Tap again to refresh; nothing is uploaded.</div>
+        <pre class="ui-pre" id="deviceTestOut" style="display:none">No snapshot yet.</pre>
+      </div>
+
+      <div class="ui-card">
         <div class="ui-card-h">🧪 MAYA LAB — naye hisse (switch se chalu karo)</div>
         <div class="ui-note">Har naya hissa yahan se ON/OFF hota hai. Kuch bura lage to OFF kar do — Maya foran purane tareeqe par aa jayegi. Nayi APK ka intezar nahi.</div>
 
@@ -1191,7 +1198,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <div class="ui-card">
-        <div class="ui-card-h">🚀 MAYA v4.1 — KYA NAYA HAI</div>
+        <div class="ui-card-h">MAYA v4.1 — HISTORICAL FEATURE NOTES</div>
         <div class="phase"><span class="st">✅</span><span><b>IRONCLAD Settings UI</b> — custom sliders/switches, har purane WebView par visible</span></div>
         <div class="phase"><span class="st">✅</span><span><b>Measured layout</b> — scroll ab JS se naapi gayi height par (kabhi clip nahi hota)</span></div>
         <div class="phase"><span class="st">✅</span><span><b>UI CHECK</b> — khud test kar ke batata hai kaunsa control dikh raha hai</span></div>
@@ -1201,7 +1208,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.17.1 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.17.2 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1216,7 +1223,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.17.1 · OK</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.17.2</span> · loading</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1282,9 +1289,10 @@ setTimeout(function(){
 
 <script>
 "use strict";
-/* ================= MAYA v5.17.1 — Doctor Build ================= */
+/* ================= MAYA v5.17.2 — Doctor Build ================= */
+var MAYA_BUILD = { versionName: "5.17.2", versionCode: 84 };
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.17.1 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v" + MAYA_BUILD.versionName + " · script loaded"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
 /* Native update navigation; deliberately no URLs, download or install API in JS. */
@@ -1388,7 +1396,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.17.1 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.17.2 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -4548,6 +4556,70 @@ function showVoiceNotice(message, retry) {
     }
   });
 }
+
+/* Read-only manual snapshot. Deliberately exclude transcript, logs, keys, IDs and URLs. */
+function deviceTestReport() {
+  function count(v, max) { return typeof v === "number" && isFinite(v) && v >= 0 && v <= max ? String(Math.floor(v)) : "unknown"; }
+  function flag(v) { return v === true ? "yes" : v === false ? "no" : "unknown"; }
+  function choice(v, allowed) { return allowed.indexOf(v) >= 0 ? v : "unknown"; }
+  function duration(a, b) {
+    if (typeof a !== "number" || typeof b !== "number" || !isFinite(a) || !isFinite(b) || a <= 0 || b < a || b - a > 300000) return "not recorded";
+    return Math.round(b - a) + "ms";
+  }
+  var s = typeof settings === "object" && settings ? settings : {};
+  var v = typeof VOICE_TIME === "object" && VOICE_TIME ? VOICE_TIME : {};
+  var k = typeof KAAN === "object" && KAAN ? KAAN : {};
+  var t = typeof TURNS === "object" && TURNS ? TURNS : {};
+  var fish = typeof FISH === "object" && FISH ? FISH : {};
+  var engine = typeof AWAAZ === "object" && AWAAZ ? AWAAZ.engine : "";
+  var selection = "unknown";
+  try { if (fish.selection) selection = choice(fish.selection().state, ["reference", "invalid", "missing-id", "legacy-or-unset"]); } catch (e) {}
+  var build = typeof MAYA_BUILD === "object" ? MAYA_BUILD : {};
+  var L = ["MAYA DEVICE TEST — v" + (build.versionName || "unknown") + " (" + count(build.versionCode, 2100000000) + ")",
+    "Development candidate; device acceptance pending.",
+    "Read-only manual snapshot. No chat, keys, voice IDs, audio or upload.", "",
+    "Thinking: " + flag(typeof thinking === "boolean" ? thinking : null) +
+      " | Listening: " + flag(typeof listening === "boolean" ? listening : null) +
+      " | Speaking/preparing: " + flag(typeof speaking === "boolean" ? speaking : null),
+    "Configured engine: " + choice(s.voiceEngine, ["auto", "fish", "neural", "edge", "device", "off"]),
+    "Last engine: " + choice(engine, ["fish", "neural", "edge", "device", "off", "free"]),
+    "Fish selection: " + selection + " (reference format only, not provider/playback validation)",
+    "Current Fish playing event: " + flag(!!(fish.streamPending && fish.streamPending.started)) + " (not audible proof)", "",
+    "Last available main-reply timing markers:",
+    "Speech-end to final transcript: " + duration(v.ended, v.final),
+    "Fish request to playing event: " + duration(v.requested, v.audio),
+    "Final transcript to playing event: " + duration(v.final, v.audio),
+    "Missing markers are not zero latency. Auditions/retries/local replies may not match the last AI turn.", ""];
+  var rows = Array.isArray(t.history) ? t.history : [];
+  var last = rows.length ? rows[rows.length - 1] : null;
+  if (last) {
+    L.push("Last AI turn #" + count(last.id, 10000000) + ": " +
+      choice(last.result, ["done", "error", "timeout", "cancelled", "superseded", "interrupted", "unavailable"]) +
+      "; elapsed " + count(last.ms, 300000) + "ms (may be earlier than a local answer)");
+  } else L.push("Last AI turn: not recorded");
+  L.push("AI turn active: " + flag(!!t.active));
+  L.push("");
+  L.push("Wake enabled: " + flag(s.wakeWord));
+  L.push("Wake callbacks observed in this WebView session (not native service health):");
+  L.push("Starts: " + count(k.starts, 10000000) + " | Heard: " + count(k.heard, 10000000) + " | Wake matches: " + count(k.woke, 10000000));
+  L.push("Errors: " + count(k.errs, 10000000) + " | Last recognition error code: " + count(k.lastErr, 13));
+  L.push("Foreground and locked-screen results must be checked separately on the phone.");
+  return L.join("\n");
+}
+/* END DEVICE TEST REPORT */
+
+/* DEVICE TEST WIRING */
+(function () {
+  var button = document.getElementById("deviceTestStatus");
+  if (!button) return;
+  button.addEventListener("click", function () {
+    var out = document.getElementById("deviceTestOut");
+    if (!out) return;
+    out.textContent = deviceTestReport();
+    out.style.display = "block";
+  });
+})();
+/* END DEVICE TEST WIRING */
 
 /* ---------- TEST VOICE (AWAAZ SUNO) — bolta bhi hai, batata bhi hai ---------- */
 function testMayaVoice() {
@@ -8146,6 +8218,7 @@ var WAKE_DOT = {
 
 /* Kotlin ab SAARE andaze bhejta hai — faisla yahan hota hai */
 window.__wakeHeard = function (payload) {
+  if (!settings.wakeWord) return; // Reject queued native results after the user switches wake OFF.
   var alts = [];
   try { alts = JSON.parse(payload); } catch (e) { alts = [String(payload || "")]; }
   if (!alts || !alts.length) return;
@@ -9083,7 +9156,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.17.1 — DOCTOR REPORT");
+  out.push("MAYA v5.17.2 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -9792,8 +9865,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.17.1"; } catch(e){}
-try { pushLog("MAYA v5.17.1 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.17.2"; } catch(e){}
+try { pushLog("MAYA v5.17.2 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
@@ -10052,7 +10125,7 @@ var MayaUI = (function () {
     for (i = 0; i < reopen.length; i++) delCls(reopen[i], "is-open");
 
     var out = [];
-    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v5.9.5");
+    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 " + (typeof MAYA_BUILD === "object" ? "v" + MAYA_BUILD.versionName : "version unavailable"));
     out.push("WEBVIEW: Chrome " + (window.__webviewMajor || "?") + (window.__oldWebview ? " (PURANA)" : ""));
     out.push("");
     out.push("VISIBLE: " + okc + "   INVISIBLE: " + bad + (bad ? "  \u274C" : "  \u2705"));

@@ -74,6 +74,11 @@ test('bare wake works with follow-up window disabled', () => {
 test('disabling wake invalidates its pending explicit handoff', () => {
   const s = world(); s.__wakeHeard('["Maya"]'); s.settings.wakeWord = false; s.flush(); assert.equal(s.calls.length, 0);
 });
+test('wake OFF rejects late service results before any command or microphone handoff', () => {
+  const s = world(); s.settings.wakeWord = false;
+  s.__wakeHeard('["Maya weather"]'); s.__wakeHeard('["Maya"]'); s.flush();
+  assert.deepEqual(s.commands, []); assert.deepEqual(s.calls, []);
+});
 test('spoken replies and in-flight thinking cannot self-trigger wake', () => {
   for (const busy of ['speaking', 'thinking', 'listening']) { const s = world(); s[busy] = true; s.__wakeHeard('["Maya weather"]'); assert.equal(s.commands.length, 0); }
 });
