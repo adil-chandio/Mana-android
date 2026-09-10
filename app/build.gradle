@@ -83,3 +83,53 @@ tasks.configureEach { task ->
         }
     }
 }
+
+// Make native-test evidence visible even in the unchanged legacy CI workflow.
+tasks.withType(Test).configureEach {
+    afterSuite { descriptor, result ->
+        if (!descriptor.parent) {
+            def summary = "${result.testCount} tests: ${result.successfulTestCount} passed, ${result.failedTestCount} failed, ${result.skippedTestCount} skipped"
+            logger.lifecycle("Native JVM test result: " + summary)
+            if (System.getenv('GITHUB_ACTIONS') == 'true') {
+                logger.lifecycle("::notice title=Native JVM tests::" + summary)
+            }
+        }
+    }
+}
+
+// Verify the actual development binary before the existing CI uploads it.
+// This does not activate release publishing or enroll an update trust key.
+tasks.configureEach { task ->
+    if (task.name == 'assembleDebug') task.doLast {
+        def apk = layout.buildDirectory.file('outputs/apk/debug/app-debug.apk').get().asFile
+        def tools = new File(android.sdkDirectory, "build-tools/${android.buildToolsVersion}")
+        def windows = System.getProperty('os.name').toLowerCase().contains('windows')
+        def inspect = { name, suffix, args ->
+            def output = new ByteArrayOutputStream()
+            project.exec {
+                commandLine([new File(tools, name + (windows ? suffix : '')).absolutePath] + args)
+                standardOutput = output
+            }
+            return output.toString('UTF-8')
+        }
+        def badging = inspect('aapt', '.exe', ['dump', 'badging', apk.absolutePath])
+        def identity = "package: name='com.maya.ai' versionCode='${releaseVersion.versionCode}' versionName='${releaseVersion.versionName}'"
+        if (!badging.contains(identity) || !badging.contains("sdkVersion:'${releaseVersion.minSdk}'") || !badging.contains('application-debuggable')) {
+            throw new GradleException('Development APK identity does not match release/version.json')
+        }
+        def signature = inspect('apksigner', '.bat', ['verify', '--verbose', '--print-certs', apk.absolutePath])
+        def signer = signature =~ /(?m)^Signer #1 certificate SHA-256 digest: ([a-fA-F0-9]{64})$/
+        if (!signer.find()) throw new GradleException('No verified APK signing certificate')
+        def digest = java.security.MessageDigest.getInstance('SHA-256')
+        apk.withInputStream { input ->
+            byte[] buffer = new byte[32768]
+            int n
+            while ((n = input.read(buffer)) != -1) digest.update(buffer, 0, n)
+        }
+        def summary = "DEVELOPMENT ONLY; ${releaseVersion.versionName} (${releaseVersion.versionCode}); APK SHA-256=${digest.digest().encodeHex()}; signer SHA-256=${signer.group(1).toLowerCase()}; update trust configured=${!updateKey.isEmpty()}"
+        logger.lifecycle(summary)
+        if (System.getenv('GITHUB_ACTIONS') == 'true') {
+            logger.lifecycle('::notice title=Verified development APK::' + summary)
+        }
+    }
+}

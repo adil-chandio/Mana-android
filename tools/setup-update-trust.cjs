@@ -13,9 +13,8 @@ function gh(args, input) {
 try {
   if (process.argv[2] !== '--create-once') throw Error('Explicit provisioning required: node tools/setup-update-trust.cjs --create-once');
   gh(['api', `repos/${repo}/environments/${environment}`]);
-  const existing = JSON.parse(gh(['api', `repos/${repo}/environments/${environment}/secrets`])).secrets;
-  if (!Array.isArray(existing)) throw Error('Invalid secret-list response');
-  if (existing.some(x => x.name === 'MAYA_UPDATE_SIGNING_KEY')) throw Error('Signing secret already exists. Never replace the trust root of installed apps without a migration.');
+  const existing = gh(['api', '--paginate', `repos/${repo}/environments/${environment}/secrets?per_page=100`, '--jq', '.secrets[].name']).trim().split(/\r?\n/);
+  if (existing.includes('MAYA_UPDATE_SIGNING_KEY')) throw Error('Signing secret already exists. Never replace the trust root of installed apps without a migration.');
   const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 3072 });
   const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
   const fingerprint = crypto.createHash('sha256').update(Buffer.from(publicKey(pem), 'base64')).digest('hex');
@@ -25,6 +24,6 @@ try {
   console.log('No APK signing key was changed, no branch pushed, and no release published. Configure APK signing separately.');
 } catch (_) {
   // Do not dump child-process buffers or private material on any failure.
-  console.error('Trust setup stopped. Check GitHub environment/secret permissions and whether the signing secret already exists. No existing key was overwritten.');
+  console.error('Trust setup stopped. Check GitHub environment/secret permissions and whether the signing secret already exists. Do not retry an uncertain write before checking the secret metadata; never replace an installed trust root.');
   process.exitCode = 1;
 }

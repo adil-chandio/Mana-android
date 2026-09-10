@@ -108,4 +108,38 @@ try {
     fakeTool('aapt', badging.replace('com.maya.ai', 'com.other')); assert.throws(() => prepare(args), /identity/);
   });
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+// Provisioning tests use a fake gh executable. No GitHub writes or production keys.
+const setupTmp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'maya-trust-setup-test-'));
+try {
+  const calls = path.join(setupTmp, 'calls.txt');
+  fs.writeFileSync(path.join(setupTmp, 'gh'), String.raw`#!/usr/bin/env node
+const fs = require('node:fs'), crypto = require('node:crypto'), a = process.argv.slice(2);
+fs.appendFileSync(process.env.MAYA_TEST_CALLS, a.join(' ') + '\n');
+if (a[0] === 'api' && a.includes('--paginate')) {
+  if (!a.includes('.secrets[].name')) process.exit(9);
+  console.log(process.env.MAYA_TEST_SCENARIO === 'existing' ? 'OTHER_SECRET\nMAYA_UPDATE_SIGNING_KEY' : 'OTHER_SECRET');
+} else if (a[0] === 'api') {
+  if (process.env.MAYA_TEST_SCENARIO === 'denied') process.exit(1);
+  console.log('{}');
+} else if (a[0] === 'secret' && a[1] === 'set') {
+  if (process.env.MAYA_TEST_SCENARIO === 'write-fails') process.exit(1);
+  const key = crypto.createPrivateKey(fs.readFileSync(0, 'utf8'));
+  if (key.asymmetricKeyType !== 'rsa' || key.asymmetricKeyDetails.modulusLength < 3072) process.exit(9);
+} else process.exit(9);
+`);
+  fs.chmodSync(path.join(setupTmp, 'gh'), 0o700);
+  function provision(scenario, explicit = true) {
+    fs.writeFileSync(calls, '');
+    const run = cp.spawnSync(process.execPath, ['tools/setup-update-trust.cjs', ...(explicit ? ['--create-once'] : [])], {
+      encoding: 'utf8', env: { PATH: setupTmp + path.delimiter + process.env.PATH, MAYA_TEST_CALLS: calls, MAYA_TEST_SCENARIO: scenario }
+    });
+    assert(!((run.stdout || '') + (run.stderr || '')).includes('PRIVATE KEY'));
+    return { ...run, calls: fs.readFileSync(calls, 'utf8') };
+  }
+  test('trust setup requires explicit provisioning', () => { const r = provision('missing', false); assert.equal(r.status, 1); assert.equal(r.calls, ''); });
+  test('trust setup stops before key creation when access is denied', () => { const r = provision('denied'); assert.equal(r.status, 1); assert(!r.calls.includes('secret set')); });
+  test('trust setup checks all secret pages and refuses an existing root', () => { const r = provision('existing'); assert.equal(r.status, 1); assert(r.calls.includes('--paginate')); assert(!r.calls.includes('secret set')); });
+  test('trust setup sends a strong ephemeral key over stdin (mock GitHub)', () => { const r = provision('missing'); assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /Public fingerprint: [a-f0-9]{64}/); assert(r.calls.includes('secret set MAYA_UPDATE_SIGNING_KEY')); });
+  test('failed trust-secret write is not reported as success', () => { const r = provision('write-fails'); assert.equal(r.status, 1); assert(!r.stdout.includes('saved')); });
+} finally { fs.rmSync(setupTmp, { recursive: true, force: true }); }
 console.log(`UPDATE JS/RELEASE TESTS PASS — ${passed}/${passed}. Android JVM/device tests are separate.`);
