@@ -25,7 +25,7 @@ The user tried multiple voices from **Audio Library**, choosing a Hindi female v
 - Regression tests added before the runtime edits: 7 of 8 initial cases failed; preserving an off-list reference already passed and was retained.
 - `tools/test-fish-selection.cjs`: **25/25 controlled behavioral cases** pass. Includes legacy/current reload, malformed obsolete settings, saved/missing/malformed IDs, off-list preservation, stale DOM, immediate persistence, save failure, no default on either transport, selected-reference Doctor, library races/ranking/cancellation, stopped audition and speech-only retry.
 - `npm test`: **1,122 checks pass** (the previous 1,097 plus these 25), with CSS/syntax checks. Existing fixture defaults now explicitly provide a reference for successful Fish speech; the old implicit-default assertion was replaced with an explicit no-substitution check, not removed. Three source guards follow the new commit helper; Doctor assertions now reject unsupported availability/fallback claims.
-- Added **4 JVM policy tests**: missing ID, whitespace, control character, oversized ID. Native build/JVM results pending CI for this source at initial receipt.
+- Added **4 JVM policy tests**: missing ID, whitespace, control character, oversized ID. CI [34463237952](https://github.com/adil-chandio/Mana-android/actions/runs/34463237952), source `e3697e2a73811e04d855e1de8624fe7474f294e2`, passed native compilation and **42/42 JVM tests**, zero failures/skips. APK identity/signature verification also passed.
 - `node tools/sync-version.cjs --check` and `git diff --check` pass. Canonical/public HTML and packaged Android copy are synchronized.
 - No real synthesis, phone settings inspection, physical speaker identity, recognition, wake or latency measurement was performed. A valid reference format is not proof that Fish still serves that ID or that the account/free model is available.
 
@@ -36,3 +36,13 @@ The user tried multiple voices from **Audio Library**, choosing a Hindi female v
 - Existing binary library/Doctor HTTP uses its bounded legacy bridge. STOP invalidates callbacks/UI; this phase does not add native socket abortion for that separate library transport. Streaming cancellation remains the existing native player implementation.
 - Version remains **5.17.1 / 83 for staged development builds**, NOT a new phone-install recommendation. Any distributed successor must be higher than 83 and signing-compatible. Update trust/bootstrap blockers remain.
 - Phase 3 needs approval: build a higher-code development candidate for physical streaming, selected-voice, mic/wake and latency acceptance. No Stable promotion based on these tests alone.
+
+## Native build receipt — not a phone-install recommendation
+
+- Run `34463237952`, job `102825722751`; source `e3697e2a73811e04d855e1de8624fe7474f294e2`.
+- Development output: 5.17.1 / 83, update trust `false`. No higher-code update or Stable release was published.
+- APK SHA-256: `1a385dcb2e1c547d9e4e39aa982a577869620b79ffbbbc962cfc0020cdae8216`.
+- Development signer SHA-256: `ba5f9e07a474cad5f8d8123c79e618f1a76976d7561d901d4df3f5a3da32d24a`.
+- Non-fatal CI warnings concern deprecated actions and cache restore. Workflow activation/permission blockers remain unchanged.
+
+Phase 2 implementation and automated validation stop here for review. The phone's actual saved ID, audible output and latency remain unverified. Phase 3 is not started by this change.
