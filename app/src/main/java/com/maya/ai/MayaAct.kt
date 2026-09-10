@@ -87,13 +87,13 @@ object MayaAct {
             if (killedCooldownActive()) {
                 out.put("ok", false)
                 out.put("why", "kill-switch laga hua hai — kuch der baad naya hukm do")
-                return out
+                return out.toString()
             }
             val action = json.optString("action", "")
             if (action != "tap" && action != "type" && action != "swipe" && action != "back") {
                 out.put("ok", false)
                 out.put("why", "namaloom action '" + action + "' — sirf tap/type/swipe/back")
-                return out
+                return out.toString()
             }
             /* vague command refusal: tap/type NEED a find label (no blind taps) */
             if ((action == "tap" || action == "type") &&
@@ -101,7 +101,7 @@ object MayaAct {
             ) {
                 out.put("ok", false)
                 out.put("why", "kis par? screen par us cheez ka NAAM do (verify-before-tap)")
-                return out
+                return out.toString()
             }
             synchronized(rate) {
                 val now = SystemClock.elapsedRealtime()
@@ -109,7 +109,7 @@ object MayaAct {
                 if (rate.size >= MAX_PER_MINUTE) {
                     out.put("ok", false)
                     out.put("why", "rate limit — 1 minute mein max " + MAX_PER_MINUTE + " actions")
-                    return out
+                    return out.toString()
                 }
                 rate.addLast(now)
             }
@@ -119,11 +119,11 @@ object MayaAct {
             out.put("queued", queue.size)
             out.put("note", "STOP MAYA AUTOMATION notification se foran band")
             if (!executing) drain(ctx.applicationContext)
-            return out
+            return out.toString()
         } catch (e: Exception) {
             out.put("ok", false)
             out.put("why", e.message ?: "enqueue masla")
-            return out
+            return out.toString()
         }
     }
 
