@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved by the user after code85 positive feedback. First implementation and CI verification are complete; **physical acceptance remains a separate gate**. N0 full physical acceptance and the whole N1 roadmap are not declared complete. N2 updater activation, memory migrations, new phone skills and cloud jobs were not performed.
+Approved by the user after code85 positive feedback. First implementation and CI verification are complete; **code86 phone acceptance FAILED: user reports typed and wake AI timeouts. Further N1 promotion is paused.** N0 full physical acceptance and the whole N1 roadmap are not declared complete. N2 updater activation, memory migrations, new phone skills and cloud jobs were not performed.
 
 ## Baseline protection
 
@@ -66,3 +66,45 @@ Verified on 2026-09-11:
 - No live phone/audio/network measurements, Stable promotion, GitHub Release publication or automated installation were performed. Subsequent documentation commits do not alter this binary.
 
 Updater trust remains false; signed bootstrap activation and a secure in-app upgrade remain N2 work requiring separate authorization. Per the approved structure, obtain agreement before another manual test distribution if updater activation is still blocked.
+
+
+## Manual test delivery approved — 2026-09-11
+
+The user approved offering the code86 manual test APK. The recorded artifact10187100137 was rechecked through GitHub API: present, not expired, ZIP5,672,701 bytes. A local download attempt failed with EOF at the redirected storage endpoint, so no attached APK or local binary inspection is claimed. Offer the exact verified artifact URL above, not another similarly named run or an older code. No new build/runtime change was made for delivery.
+
+First phone checks: compatible in-place install and existing data/voice retention, typed Chat, one foreground wake question, an in-window follow-up, and silent expiry requiring wake again. Do not uninstall/clear data if installation fails. Collect owned timing/status only if needed; no full logs or keys. Installation and physical N1 acceptance remain pending until the user reports results. Updater activation and Stable remain on hold.
+
+
+## Phone failure report — 2026-09-11: STOP N1 promotion
+
+User provided two code86 screenshots and the privacy-limited Device Test Status:
+
+- Typed record1: unknown route, timeout, no text/audio timing.
+- Wake record2: unknown route, timeout; native speech-end→final163ms, no text/audio timing.
+- Last AI turn2: timeout at15001ms; active no. Thinking/listening/speaking all no in the manual snapshot.
+- Wake enabled, service present/foreground/mic permission yes. Native ready, reason none/code0, age936ms; audio KHALI, Fish active no, app mic paused no.
+- Process-lifetime start attempts39 / ready callbacks36; current WebView starts14 / heard1 / wake match1 / errors11 / last error7.
+- Screenshots show FRIDAY selected, the bare-wake acknowledgement and AI thinking followed by the timeout notice. Persona selection is not established as the cause.
+
+Interpretation: at least one wake was matched and a recognized wake-origin input reached the AI turn. 163ms is the native end-to-final component, not full wake-to-answer latency. Both accepted typed and wake inputs failed before text-ready/Fish dispatch, so changing TTS identity or Fish latency is not indicated. Current false speaking/listening flags show terminal cleanup, not success. Recognition error7 is NO_MATCH; it does not explain the separate AI timeout or establish11 failed intentional wake trials. An unknown route here is an incomplete answer classification, not proof of an absent API key or a specific provider failure.
+
+### Read-only source/controlled diagnosis
+
+No runtime changes made for this report. Compared runtime code85 (`a00c48a`) and code86 (`33372b6`): overall AI budget remains15000ms; Gemini transport/model-discovery policy is unchanged by N1. Provider/phase/HTTP evidence is missing from the user-visible snapshot, although TURNS internally records a stage.
+
+A controlled fixture loaded the production model resolver, Gemini generation and TURNS pipeline from **both** source revisions, with an eligible fake backup available. Using an accelerated40ms overall deadline:
+
+| Injected condition | Both revisions' result | Fetch calls | Native bridge calls | Backup calls | Replies |
+|---|---|---:|---:|---:|---:|
+| Model discovery never returns headers | timeout / discovery-headers | 1 | 0 | 0 | 0 |
+| Generation headers arrive but JSON body never settles | timeout / provider-body | 1 | 0 | 0 | 0 |
+
+This reproduces a budget-starvation weakness: a single fetch/discovery/body can consume the entire turn budget, preventing the already-eligible backup from being attempted. With AbortController present, Gemini uses WebView fetch even when native HTTP bridges exist. These are structural observations and injected failures, **not proof of a real CORS issue, invalid key, quota refusal, network outage or the exact phone request that stalled**. The initial fixture attempt still used its stub resolver and was not valid evidence; the table uses the actual production resolver. No real API or user key was used.
+
+### Targeted repair approved — 2026-09-11
+
+Pause feature work. First expose only allowlisted provider/phase/HTTP/elapsed failure details and reproduce the shared typed/wake request path. Bound model discovery and provider attempts within the owned overall deadline so one pending request cannot silently starve an eligible fallback; evaluate the existing native transport consistently without weakening headers/cancellation or free-only policy. Do not merely increase15s or retry side-effect tools. Preserve selected Fish reference, text/speech independence, wake ownership and explicit STOP.
+
+The user answered “Ok” and authorized this narrow repair. Add controlled regression coverage for slow discovery/headers/body, backup eligibility, cancellation and no duplicate tool actions, then verify a higher-code recovery candidate and actual phone results. Do not recommend uninstall/clear data, a code85 downgrade, another code86 reinstall, or further N1/Stable promotion as a fix.
+
+Implementation follow-through: [5.18.1 / code87 AI-request repair](AI-REQUEST-REPAIR-5.18.1.md). This does not retroactively turn code86 phone acceptance into a success.

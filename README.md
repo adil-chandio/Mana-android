@@ -1,8 +1,8 @@
-> **N0/N1 development work — 5.18.0 / code86; phone test pending**
+> **AI-request recovery candidate — 5.18.1 / code87; phone validation pending.** Code86 failed on the phone: both typed and wake AI turns timed out before text/Fish. N1 feature promotion stays paused.
 >
-> The user reports code85 works well. This successor adds owned per-input timings and repairs follow-up expiry/stale microphone callbacks; it does not claim a measured voice speedup. Local: 1,176 checks; native CI: 60/60 tests and APK identity/signature checks pass. [Implementation and gates](docs/N1-CONVERSATION-5.18.0.md) · [Next-level structure](docs/NEXT-LEVEL-STRUCTURE.md).
+> Code87 bounds discovery/owned provider attempts inside the unchanged 15-second total, prefers compatible cancellable native HTTP, and adds privacy-safe request-stage/HTTP diagnostics. Selected Fish voice, eligibility rules and STOP protections are retained. Local verification: **1,208 checks**, including **32 new request-repair regressions**. [Repair, limits and phone protocol](docs/AI-REQUEST-REPAIR-5.18.1.md) · [Code86 failure evidence](docs/N1-CONVERSATION-5.18.0.md#phone-failure-report--2026-09-11-stop-n1-promotion).
 >
-> Secure updater activation remains blocked. No Stable publication or automatic phone update. The code85 receipt below is historical baseline evidence, not the new N1 artifact.
+> Android build receipt pending. No physical fix/speedup is claimed. Secure in-app updater activation, Stable publication and N2–N5 remain on hold. All older APK receipts below are historical, **not downgrade recommendations**.
 
 > **Development wake-recovery candidate — 5.17.3 / code 85 (phone validation pending)**
 >

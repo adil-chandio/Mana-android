@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>MAYA — Personal AI v4</title>
 <style>
-/* ================= MAYA v5.18.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+/* ================= MAYA v5.18.1 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
    Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
 :root{
   /* new tokens */
@@ -536,7 +536,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver"><span data-build-version>v5.18.0</span> — DEVELOPMENT TEST · phone validation pending</div>
+  <div class="ver"><span data-build-version>v5.18.1</span> — DEVELOPMENT TEST · phone validation pending</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,14 +561,14 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.18.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.18.1 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.18.0</span></small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.18.1</span></small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -729,7 +729,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.18.0</span></div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.18.1</span></div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -1208,7 +1208,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.18.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.18.1 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1223,7 +1223,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.18.0</span> · loading</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.18.1</span> · loading</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1289,8 +1289,8 @@ setTimeout(function(){
 
 <script>
 "use strict";
-/* ================= MAYA v5.18.0 — Doctor Build ================= */
-var MAYA_BUILD = { versionName: "5.18.0", versionCode: 86 };
+/* ================= MAYA v5.18.1 — Doctor Build ================= */
+var MAYA_BUILD = { versionName: "5.18.1", versionCode: 87 };
 window.__mayaJSOK = true;
 try { document.getElementById("dbgBadge").textContent = "v" + MAYA_BUILD.versionName + " · script loaded"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
@@ -1396,7 +1396,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.18.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.18.1 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -1549,7 +1549,7 @@ var SESSION_TIME = {
   },
   fail: function (r, reason) {
     if (!SESSION_TIME.live(r) || r.phase !== "submitted") return;
-    r.phase = ["timeout", "cancelled", "superseded", "interrupted", "unavailable", "error"].indexOf(reason) >= 0 ? reason : "error";
+    r.phase = ["timeout", "cancelled", "superseded", "interrupted", "unavailable", "error", "action-stopped"].indexOf(reason) >= 0 ? reason : "error";
   },
   summary: function (origin, metric) {
     metric = metric === "fishMs" ? "fishMs" : "textMs";
@@ -4734,10 +4734,11 @@ function deviceTestReport() {
   var last = rows.length ? rows[rows.length - 1] : null;
   if (last) {
     L.push("Last AI turn #" + count(last.id, 10000000) + ": " +
-      choice(last.result, ["done", "error", "timeout", "cancelled", "superseded", "interrupted", "unavailable"]) +
+      choice(last.result, ["done", "error", "timeout", "cancelled", "superseded", "interrupted", "unavailable", "action-stopped"]) +
       "; elapsed " + count(last.ms, 300000) + "ms (may be earlier than a local answer)");
   } else L.push("Last AI turn: not recorded");
   L.push("AI turn active: " + flag(!!t.active));
+  if (typeof t.diagnostic === "function") L.push(t.diagnostic());
   L.push("");
   if (typeof SESSION_TIME !== "undefined") L.push(SESSION_TIME.report(), "");
   if (typeof INPUT_SESSION !== "undefined") L.push("Input phase: " + INPUT_SESSION.phase + " (legacy bridges have weaker callback ownership)");
@@ -5543,7 +5544,7 @@ var TOOL_DECLS = [
     parameters: { type: "OBJECT", properties: { action: { type: "STRING", description: "tap | type | swipe | back | stop" }, find: { type: "STRING", description: "screen par wahi matn — button/field ka label" }, text: { type: "STRING", description: "sirf action=type ke liye" }, index: { type: "INTEGER", description: "same naam ke multiple elements mein kaunsa (0=default)" }, x1: { type: "INTEGER" }, y1: { type: "INTEGER" }, x2: { type: "INTEGER" }, y2: { type: "INTEGER" }, ms: { type: "INTEGER" } }, required: ["action"] } }
 ];
 async function execTool(name, args, turn){
-  if (turn) { TURNS.assert(turn); turn.stage = "tool"; }
+  if (turn) { TURNS.markTool(turn); turn.stage = "tool"; }
   args = args || {};
   var out;
 
@@ -5853,6 +5854,7 @@ async function resolveModels(turn){
   if (MODEL_CACHE && MODEL_CACHE.names && MODEL_CACHE.names.length && now - MODEL_CACHE.ts < 86400000) return MODEL_CACHE.names;
   try {
     var j = (await TURNS.json(turn, "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&key=" + encodeURIComponent(settings.apikey))).data;
+    if (turn) TURNS.assert(turn);
     var names = (j.models || [])
       .filter(function(m){ return (m.supportedGenerationMethods || []).indexOf("generateContent") >= 0; })
       .map(function(m){ return String(m.name || "").replace(/^models\//, ""); })
@@ -6026,24 +6028,30 @@ var BRAIN = {
   post: function (url, auth, payload, timeoutMs, cb, turn) {
     return BRAIN.request("POST", url, auth, payload, timeoutMs, cb, turn);
   },
-  request: function (method, url, auth, payload, timeoutMs, cb, turn) {
+  request: function (method, url, auth, payload, timeoutMs, cb, turn, extraHeaders) {
     if (turn) TURNS.assert(turn);
     var done = false, timer = null, id = null, xhr = null, off = function () {};
+    var phase = turn && turn.stage.indexOf("discovery") === 0 ? "discovery-response" : turn && turn.stage.indexOf("tool") === 0 ? "tool-response" : "provider-response";
+    if (turn) turn.stage = phase;
+    var audit = TURNS.requestStart(turn, phase, "xhr");
     function abortIO() {
       if (id) { try { if (window.MayaBridge.cancelHttpPost) window.MayaBridge.cancelHttpPost(id); } catch (e) {} }
       if (xhr) { try { xhr.abort(); } catch (e) {} }
     }
     function release() { clearTimeout(timer); off(); if (id) delete BRAIN.waiting[id]; }
-    function abort() { if (done) return; done = true; release(); abortIO(); }
-    function finish(status, body, cancelIO) {
+    function abort() { if (done) return; done = true; TURNS.requestEnd(audit, "aborted", 0); release(); abortIO(); }
+    function finish(status, body, cancelIO, reason) {
       if (done) return;
-      done = true; release(); if (cancelIO) abortIO();
-      if (!turn || TURNS.live(turn)) cb(status, body);
+      done = true; TURNS.requestEnd(audit, reason || (status ? (status >= 200 && status < 300 ? "ok" : "http-error") : "network"), status);
+      release(); if (cancelIO) abortIO();
+      if (!turn || TURNS.live(turn)) cb(status, body, audit);
     }
-    if (turn) timeoutMs = Math.max(1, Math.min(timeoutMs, Math.ceil(turn.deadline - TURNS.now())));
+    if (turn) timeoutMs = Math.max(1, Math.min(timeoutMs, TURNS.REQUEST_MS, Math.ceil(turn.deadline - TURNS.now())));
     off = TURNS.track(turn, abort);
-    timer = setTimeout(function () { finish(0, "timeout", true); }, timeoutMs);
-    if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge[method === "GET" ? "httpGetAsync" : "httpPostAsync"]) {
+    if (done) return abort;
+    timer = setTimeout(function () { finish(0, "timeout", true, "request-timeout"); }, timeoutMs);
+    if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge[method === "GET" ? "httpGetAsync" : "httpPostAsync"] && TURNS.bridgeCompatible({method: method, headers: extraHeaders})) {
+      if (audit) audit.transport = "native";
       id = "r" + (++BRAIN.reqSeq) + "_" + Date.now();
       BRAIN.waiting[id] = function (status, body) { finish(status, body); };
       try {
@@ -6056,10 +6064,13 @@ var BRAIN = {
     try {
       xhr = new XMLHttpRequest();
       xhr.open(method, url, true);
-      if (method === "POST") xhr.setRequestHeader("Content-Type", "application/json");
-      if (auth) xhr.setRequestHeader("Authorization", auth);
+      var headers = {};
+      if (method === "POST") headers["content-type"] = "application/json";
+      if (auth) headers.authorization = auth;
+      Object.keys(extraHeaders || {}).forEach(function (k) { headers[k.toLowerCase()] = extraHeaders[k]; });
+      Object.keys(headers).forEach(function (k) { xhr.setRequestHeader(k, headers[k]); });
       xhr.timeout = timeoutMs;
-      xhr.ontimeout = function () { finish(0, "timeout", true); };
+      xhr.ontimeout = function () { finish(0, "timeout", true, "request-timeout"); };
       xhr.onerror = function () { finish(0, "network"); };
       xhr.onload = function () { finish(xhr.status, xhr.responseText || ""); };
       xhr.send(payload);
@@ -6076,6 +6087,7 @@ var BRAIN = {
 
   ask: function (p, ki, msgs, cb, step, turn) {
     if (turn && !TURNS.live(turn)) return;
+    if (turn) turn.stage = "provider";
     step = step || 0;
     var keys = BRAIN.keys(p);
     var key = keys[ki] || "";
@@ -6104,6 +6116,7 @@ var BRAIN = {
         /* ⚡ P2a — dimaag ne tool maanga? Chalao aur nateeja wapas do */
         var tcalls = (m0 && m0.tool_calls && m0.tool_calls.length) ? m0.tool_calls : null;
         if (useTools && tcalls) {
+          TURNS.markTool(turn);
           BRAIN.free(p.id, ki);
           geminiChat.toolsUsed = true;
           AMAL.runCalls(tcalls, turn).then(function (results) {
@@ -6143,7 +6156,7 @@ var BRAIN = {
 
       /* ⚡ P2a — is provider ne `tools` qubool nahi kiya? Bina tools DOBARA
          koshish karo, aur aage ke liye yaad rakh lo. Dimaag marna nahi chahiye. */
-      if (useTools && (status === 400 || status === 422) ) {
+      if (useTools && (status === 400 || status === 422) && !(turn && TURNS.root(turn).toolsStarted)) {
         AMAL.markBad(p.id, msg);
         BRAIN.ask(p, ki, msgs, cb, 9, turn);          /* step 9 = tools band */
         return;
@@ -6492,13 +6505,16 @@ async function geminiChat(turn){
     var m = models[i];
     if (Date.now() < (modelCooldowns[m] || 0)) { DIMAAG.log("GEMINI/" + m, "QUOTA", "cooldown"); continue; }
     var got = await geminiTry(m, false, turn);
+    if (turn) TURNS.assert(turn);
     if (got && got.text) { DIMAAG.ok("GEMINI"); return got.text; }
+    if (turn && TURNS.root(turn).toolsStarted) return null; // Never restart a model after a tool step.
     var code = got ? got.code : "EMPTY";
 
     /* B1+B2 ka ilaj: 400 par KEY blackout NAHI — history saaf kar ke bina tools dobara */
     if (code === "BAD_REQUEST") {
       DIMAAG.historySuspect = true;
       var fixed = await geminiTry(m, true, turn);          /* sirf aakhri sawal, koi tool nahi */
+      if (turn) TURNS.assert(turn);
       if (fixed && fixed.text) {
         DIMAAG.fixes++;
         DIMAAG.log("GEMINI/" + m, null, "khud marammat: history saaf kar ke chal gaya");
@@ -6528,7 +6544,7 @@ async function geminiTry(m, plain, turn){
   var maxSteps = (_activeSkill && _activeSkill.deep) ? 5 : (FLAGS.on("sach") ? 4 : 2);
 
   for (var step = 0; step < maxSteps + 1; step++) {
-    if (turn) TURNS.assert(turn);
+    if (turn) { TURNS.assert(turn); turn.stage = "provider"; }
     var body = {
       systemInstruction: { parts: [{ text: sysPrompt() }] },
       contents: contents,
@@ -6563,6 +6579,7 @@ async function geminiTry(m, plain, turn){
     var parts = (cand && cand.content && cand.content.parts) || [];
     var fnCalls = parts.filter(function (p) { return p.functionCall; });
     if (fnCalls.length && step < maxSteps) {
+      TURNS.markTool(turn);
       geminiChat.toolsUsed = true;
       contents.push({ role: "model", parts: parts });
       for (var fc = 0; fc < fnCalls.length; fc++) {
@@ -7547,13 +7564,108 @@ var AMAL = {
 /* TURN CONTROLLER — one bounded AI request owner, independent of speech configuration. */
 var TURNS = {
   BUDGET_MS: 15000,
+  // The overall deadline is unchanged; a provider cannot consume every backup's time.
+  ATTEMPT_MS: 6500, REQUEST_MS: 5000, DISCOVERY_MS: 1500,
+  root: function (t) { return t && t.parent ? t.parent : t; },
+  provider: function (id) { return ["gemini", "groq", "cerebras", "mistral", "openrouter", "github", "nvidia", "zai", "llm7", "pollinations"].indexOf(id) >= 0 ? id : "unknown"; },
+  phase: function (s) { return ["planning", "discovery", "discovery-headers", "discovery-body", "discovery-response", "provider", "provider-headers", "provider-body", "provider-response", "tool", "tool-headers", "tool-body", "tool-response", "text-ready", "unavailable", "error", "action-stopped"].indexOf(s) >= 0 ? s : "unknown"; },
+  markTool: function (t) {
+    if (!t) return;
+    TURNS.assert(t); t.stage = "tool";
+    if (t.toolsStarted) return;
+    t.toolsStarted = true; TURNS.root(t).toolsStarted = true;
+    // No failover after a tool/permission step. Keep the existing whole-turn
+    // deadline for confirmation and intended tool-result continuation instead.
+    if (t.parent) {
+      clearTimeout(t.timer); t.deadline = t.parent.deadline;
+      t.timer = setTimeout(function () { TURNS.closeAttempt(t, "attempt-timeout"); }, Math.max(1, t.deadline - TURNS.now()));
+    }
+  },
+  closeAttempt: function (a, result) {
+    if (!a || a.state !== "active") return;
+    a.state = "terminal"; a.result = result; clearTimeout(a.timer);
+    a.cancels.forEach(function (c) { if (!c.done) { c.done = true; try { c.abort(); } catch (e) {} } });
+    a.cancels = []; a.off();
+    a.record.result = result; a.record.phase = TURNS.phase(a.stage); a.record.ms = Math.round(TURNS.now() - a.start);
+    if (a.parent.attempt === a) a.parent.attempt = null;
+    if (result !== "done") a.reject(TURNS.error(result));
+  },
+  attempt: async function (parent, provider, fn) {
+    TURNS.assert(parent);
+    var a = { parent: parent, id: parent.id, provider: TURNS.provider(provider), state: "active", stage: "provider", start: TURNS.now(), cancels: [] };
+    a.deadline = Math.min(parent.deadline, a.start + TURNS.ATTEMPT_MS);
+    a.aborted = new Promise(function (_, reject) { a.reject = reject; }); a.aborted.catch(function () {});
+    a.record = { provider: a.provider, phase: "provider", result: "pending", ms: 0 };
+    parent.attempts = parent.attempts || []; parent.attempts.push(a.record);
+    if (parent.attempts.length > 12) parent.attempts.shift();
+    parent.attempt = a;
+    a.off = function () {};
+    a.off = TURNS.track(parent, function () { TURNS.closeAttempt(a, parent.result || "cancelled"); });
+    if (a.state === "active") a.timer = setTimeout(function () { TURNS.closeAttempt(a, "attempt-timeout"); }, Math.max(1, a.deadline - TURNS.now()));
+    try {
+      var out = await TURNS.wait(a, Promise.resolve().then(function () { TURNS.assert(a); return fn(a); }));
+      TURNS.closeAttempt(a, out ? "done" : "empty");
+      return out;
+    } finally { if (a.state === "active") TURNS.closeAttempt(a, "error"); }
+  },
+  requestStart: function (t, phase, transport) {
+    if (!t) return null;
+    var root = TURNS.root(t);
+    var row = { provider: TURNS.provider(t.provider), phase: TURNS.phase(phase), transport: transport, http: 0, result: "pending", ms: 0, start: TURNS.now() };
+    root.requests = root.requests || []; root.requests.push(row);
+    if (root.requests.length > 12) root.requests.shift();
+    return row;
+  },
+  requestEnd: function (row, result, status) {
+    if (!row || row.result !== "pending") return;
+    row.result = result; row.http = typeof status === "number" && status >= 0 && status <= 599 ? Math.floor(status) : 0;
+    row.ms = Math.max(0, Math.round(TURNS.now() - row.start)); delete row.start;
+  },
+  xhrCompatible: function (init) {
+    init = init || {};
+    if (["GET", "POST"].indexOf(init.method || "GET") < 0) return false;
+    for (var key in init) if (["method", "headers", "body"].indexOf(key) < 0) return false;
+    return !init.headers || Object.prototype.toString.call(init.headers) === "[object Object]";
+  },
+  bridgeCompatible: function (init) {
+    init = init || {}; var method = init.method || "GET", h = init.headers || {}, key;
+    // Do not silently discard caller options or headers the fixed native API cannot represent.
+    if (!TURNS.xhrCompatible(init)) return false;
+    for (key in h) if (Object.prototype.hasOwnProperty.call(h, key)) {
+      if (key.toLowerCase() === "authorization" && typeof h[key] === "string") continue;
+      if (key.toLowerCase() === "content-type" && method === "POST" && h[key] === "application/json") continue;
+      if (key.toLowerCase() === "accept" && h[key] === (method === "POST" ? "application/json" : "*/*")) continue;
+      return false;
+    }
+    return true;
+  },
+  diagnostic: function () {
+    function pick(v, allowed) { return allowed.indexOf(v) >= 0 ? v : "unknown"; }
+    function num(v, max) { return typeof v === "number" && isFinite(v) && v >= 0 && v <= max ? Math.floor(v) : "unknown"; }
+    var t = TURNS.active || TURNS.history[TURNS.history.length - 1];
+    var L = ["AI REQUEST TRACE — fixed fields only; no keys, prompts, URLs or raw errors."];
+    if (!t) return L.concat(["No owned AI turn recorded."]).join("\n");
+    var results = ["pending", "done", "empty", "error", "timeout", "attempt-timeout", "cancelled", "superseded", "interrupted", "unavailable", "action-stopped", "ok", "http-error", "request-timeout", "network", "invalid-json", "aborted"];
+    L.push("Turn #" + num(t.id, 10000000) + " | phase: " + TURNS.phase(t.attempt ? t.attempt.stage : t.stage) + " | result: " + pick(t.result || "pending", results));
+    (Array.isArray(t.attempts) ? t.attempts : []).slice(-12).forEach(function (a, i) {
+      var active = t.attempt && t.attempt.record === a;
+      L.push("Attempt " + (i + 1) + ": " + TURNS.provider(a.provider) + " | " + TURNS.phase(active ? t.attempt.stage : a.phase) + " | " + pick(a.result, results) + " | elapsed " + num(active ? TURNS.now() - t.attempt.start : a.ms, 300000) + "ms");
+    });
+    (Array.isArray(t.requests) ? t.requests : []).slice(-12).forEach(function (r, i) {
+      L.push("Request " + (i + 1) + ": " + TURNS.provider(r.provider) + " | " + TURNS.phase(r.phase) + " | " + pick(r.transport, ["native", "xhr", "fetch"]) + " | HTTP " + num(r.http, 599) + " | " + pick(r.result, results) + " | elapsed " + num(r.result === "pending" ? TURNS.now() - r.start : r.ms, 300000) + "ms");
+    });
+    L.push("HTTP 0 means no HTTP response recorded, not an invalid-key verdict. A timeout does not identify the phone's network/provider cause.");
+    return L.join("\n");
+  },
   seq: 0, active: null, history: [],
   now: function () { return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now(); },
   error: function (reason) { var e = new Error("AI turn " + reason); e.name = "TurnCancelled"; e.reason = reason; return e; },
-  live: function (t) { return !t || (TURNS.active === t && t.state === "active"); },
+  live: function (t) { return !t || (TURNS.now() < t.deadline && (t.parent ? t.state === "active" && t.parent.attempt === t && TURNS.live(t.parent) : TURNS.active === t && t.state === "active")); },
   assert: function (t) {
     if (!t) return;
-    if (TURNS.live(t) && TURNS.now() >= t.deadline) TURNS.cancel("timeout");
+    var root = TURNS.root(t);
+    if (TURNS.active === root && root.state === "active" && TURNS.now() >= root.deadline) TURNS.cancel("timeout");
+    else if (t.parent && t.state === "active" && TURNS.now() >= t.deadline) TURNS.closeAttempt(t, "attempt-timeout");
     if (!TURNS.live(t)) throw TURNS.error(t.result || "cancelled");
   },
   begin: function () {
@@ -7582,10 +7694,11 @@ var TURNS = {
   },
   cleanup: function (t, result) {
     if (typeof SESSION_TIME !== "undefined" && result !== "done") SESSION_TIME.fail(t.measure, result);
+    if (TURNS.active === t && typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.active && INPUT_SESSION.phase === "submitted") INPUT_SESSION.phase = "idle";
     clearTimeout(t.timer); t.state = "terminal"; t.result = result;
     t.cancels.forEach(function (item) { if (!item.done) { item.done = true; try { item.abort(); } catch (e) {} } });
     t.cancels = [];
-    TURNS.history.push({ id: t.id, stage: t.stage, result: result, ms: Math.round(TURNS.now() - t.start) });
+    TURNS.history.push({ id: t.id, stage: t.stage, result: result, ms: Math.round(TURNS.now() - t.start), attempts: t.attempts || [], requests: t.requests || [] });
     if (TURNS.history.length > 20) TURNS.history.shift();
     try { pushLog("TURN " + t.id + ": " + t.stage + " / " + result); } catch (e) {}
     if (TURNS.active === t) {
@@ -7607,28 +7720,73 @@ var TURNS = {
   },
   json: async function (t, url, init) {
     TURNS.assert(t);
+    init = init || {};
+    var method = init.method || "GET", stage = t && t.stage.indexOf("discovery") === 0 ? "discovery" : t && t.stage.indexOf("tool") === 0 ? "tool" : "provider";
+    var max = stage === "discovery" ? TURNS.DISCOVERY_MS : TURNS.REQUEST_MS;
+    if (t) max = Math.max(1, Math.min(max, t.deadline - TURNS.now()));
+    var nativeOK = typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge[method === "GET" ? "httpGetAsync" : "httpPostAsync"] && TURNS.bridgeCompatible(init);
     var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-    var options = {}, key;
-    for (key in (init || {})) if (Object.prototype.hasOwnProperty.call(init, key)) options[key] = init[key];
-    if (controller) options.signal = controller.signal;
-    var off = TURNS.track(t, function () { if (controller) controller.abort(); });
-    var stage = t && t.stage.indexOf("discovery") === 0 ? "discovery" : t && t.stage.indexOf("tool") === 0 ? "tool" : "provider";
-    if (t) t.stage = stage + "-headers";
-    try {
-      // Chrome 55-65 has fetch but no AbortController: use cancellable XHR/native HTTP instead.
-      if (t && !controller) {
-        var packet = await TURNS.wait(t, new Promise(function (resolve) {
-          BRAIN.request(options.method || "GET", url, "", options.body || null, 15000,
-            function (status, body) { resolve({ status: status, body: body }); }, t);
-        }));
-        t.stage = stage + "-body";
-        return { response: { ok: packet.status >= 200 && packet.status < 300, status: packet.status }, data: JSON.parse(packet.body) };
+    if (nativeOK || (!controller && TURNS.xhrCompatible(init))) {
+      if (t) t.stage = stage + "-response";
+      var auth = "";
+      Object.keys(init.headers || {}).forEach(function (k) { if (k.toLowerCase() === "authorization") auth = init.headers[k]; });
+      var packet = await TURNS.wait(t, new Promise(function (resolve) {
+        BRAIN.request(method, url, auth, init.body || null, max, function (status, body, row) { resolve({status: status, body: body, row: row}); }, t, init.headers);
+      }));
+      TURNS.assert(t);
+      if (!packet.status) throw TURNS.error("request-failed");
+      var data;
+      try { data = JSON.parse(packet.body); }
+      catch (e) {
+        if (packet.status < 200 || packet.status >= 300) data = {};
+        else { if (packet.row) packet.row.result = "invalid-json"; throw TURNS.error("invalid-json"); }
       }
-      var response = await TURNS.wait(t, fetch(url, options));
-      if (t) t.stage = stage + "-body";
-      var data = await TURNS.wait(t, response.json());
+      return { response: { ok: packet.status >= 200 && packet.status < 300, status: packet.status }, data: data };
+    }
+    var options = {}, key;
+    for (key in init) if (Object.prototype.hasOwnProperty.call(init, key)) options[key] = init[key];
+    if (controller) options.signal = controller.signal;
+    var finished = false, status = 0, timer, rejectAbort;
+    var row = TURNS.requestStart(t, stage + "-headers", "fetch");
+    if (t) t.stage = stage + "-headers";
+    var aborted = new Promise(function (_, reject) { rejectAbort = reject; }); aborted.catch(function () {});
+    function abort(reason) {
+      if (finished) return;
+      finished = true;
+      if (controller) controller.abort();
+      TURNS.requestEnd(row, reason, status); rejectAbort(TURNS.error(reason));
+    }
+    var off = TURNS.track(t, function () { abort("aborted"); });
+    var callerSignal = init.signal;
+    function callerAbort() { abort("aborted"); }
+    if (callerSignal) {
+      if (callerSignal.aborted) callerAbort();
+      else if (callerSignal.addEventListener) callerSignal.addEventListener("abort", callerAbort);
+    }
+    timer = setTimeout(function () { abort("request-timeout"); }, max);
+    async function load() {
+      if (finished) throw TURNS.error("aborted"); TURNS.assert(t);
+      var response = await fetch(url, options);
+      if (finished) throw TURNS.error("aborted"); TURNS.assert(t);
+      status = response.status; if (row) row.http = status;
+      if (t) t.stage = stage + "-body"; if (row) row.phase = stage + "-body";
+      var data;
+      try { data = await response.json(); }
+      catch (e) {
+        if (finished) throw TURNS.error("aborted");
+        if (!response.ok) data = {};
+        else { TURNS.requestEnd(row, "invalid-json", status); throw TURNS.error("invalid-json"); }
+      }
+      if (finished) throw TURNS.error("aborted"); TURNS.assert(t);
+      TURNS.requestEnd(row, response.ok ? "ok" : "http-error", status);
       return { response: response, data: data };
-    } finally { off(); }
+    }
+    try { return await TURNS.wait(t, Promise.race([load(), aborted])); }
+    catch (e) { TURNS.requestEnd(row, "network", status); throw e; }
+    finally {
+      finished = true; clearTimeout(timer); off();
+      if (callerSignal && callerSignal.removeEventListener) callerSignal.removeEventListener("abort", callerAbort);
+    }
   }
 };
 
@@ -7667,10 +7825,15 @@ async function askAI(wasVoice, measure){
         TURNS.assert(turn); turn.stage = "provider";
         var it = order[i];
         try {
-          out = await TURNS.wait(turn, it.p.kind === "gemini" ? geminiChat(turn) : brainAsk(it.p, it.ki, msgs, turn));
+          out = await TURNS.attempt(turn, it.p.id, function (attempt) { return it.p.kind === "gemini" ? geminiChat(attempt) : brainAsk(it.p, it.ki, msgs, attempt); });
         } catch (e) {
           TURNS.assert(turn);
           DIMAAG.log(it.p.name || "Gemini", "NETWORK", "request failed");
+        }
+        if (!out && turn.toolsStarted) {
+          turn.stage = "action-stopped";
+          TURNS.notice("AI reply stopped after a tool step. Check the action result before retrying; no automatic tool replay was started.");
+          return;
         }
       }
     }
@@ -9367,7 +9530,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.18.0 — DOCTOR REPORT");
+  out.push("MAYA v5.18.1 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -10079,8 +10242,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.18.0"; } catch(e){}
-try { pushLog("MAYA v5.18.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.18.1"; } catch(e){}
+try { pushLog("MAYA v5.18.1 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)

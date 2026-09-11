@@ -16,7 +16,7 @@ function world(extra={}) {
   const a=html.indexOf('function deviceTestReport()'),b=html.indexOf('/* END DEVICE TEST REPORT */',a);
   assert(a>=0&&b>a,'read-only report implementation missing');vm.runInContext(html.slice(a,b),s);return s;
 }
-test('candidate is newer than installed code83',()=>assert(v.versionCode>83));
+test('candidate is newer than failed installed code86',()=>assert(v.versionCode>86));
 test('visible splash, subtitle and build label match release version',()=>{
   const dom=new JSDOM(html);const d=dom.window.document;
   for(const node of [d.querySelector('.ver'),d.querySelector('#subTitle'),d.querySelector('#hudBuild')]) assert(node.textContent.includes(v.versionName),node.textContent);
