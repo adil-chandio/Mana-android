@@ -7567,7 +7567,7 @@ var TURNS = {
   // The overall deadline is unchanged; a provider cannot consume every backup's time.
   ATTEMPT_MS: 6500, REQUEST_MS: 5000, DISCOVERY_MS: 1500,
   root: function (t) { return t && t.parent ? t.parent : t; },
-  provider: function (id) { return ["gemini", "groq", "cerebras", "mistral", "openrouter", "github", "nvidia", "zai", "llm7", "pollinations"].indexOf(id) >= 0 ? id : "unknown"; },
+  provider: function (id) { return ["gemini", "groq", "cerebras", "mistral", "openrouter", "github", "nvidia", "zai", "llm7", "pollen"].indexOf(id) >= 0 ? id : "unknown"; },
   phase: function (s) { return ["planning", "discovery", "discovery-headers", "discovery-body", "discovery-response", "provider", "provider-headers", "provider-body", "provider-response", "tool", "tool-headers", "tool-body", "tool-response", "text-ready", "unavailable", "error", "action-stopped"].indexOf(s) >= 0 ? s : "unknown"; },
   markTool: function (t) {
     if (!t) return;
