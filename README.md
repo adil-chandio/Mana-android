@@ -2,7 +2,7 @@
 >
 > Code87 bounds discovery/owned provider attempts inside the unchanged 15-second total, prefers compatible cancellable native HTTP, and adds privacy-safe request-stage/HTTP diagnostics. Selected Fish voice, eligibility rules and STOP protections are retained. Local verification: **1,208 checks**, including **32 new request-repair regressions**. [Repair, limits and phone protocol](docs/AI-REQUEST-REPAIR-5.18.1.md) · [Code86 failure evidence](docs/N1-CONVERSATION-5.18.0.md#phone-failure-report--2026-09-11-stop-n1-promotion).
 >
-> Android build receipt pending. No physical fix/speedup is claimed. Secure in-app updater activation, Stable publication and N2–N5 remain on hold. All older APK receipts below are historical, **not downgrade recommendations**.
+> Android CI: **60/60 native tests**, actual code87 APK identity/signature verified; same development signer as code86. Manual delivery agreement and phone test pending. No physical fix/speedup is claimed. Secure in-app updater activation, Stable publication and N2–N5 remain on hold. All older APK receipts below are historical, **not downgrade recommendations**.
 
 > **Development wake-recovery candidate — 5.17.3 / code 85 (phone validation pending)**
 >

@@ -30,7 +30,19 @@ Before runtime changes, the initial12-test regression suite passed3/12: stalled 
 - Version identity and exact canonical/packaged web assets checked. Every inline script parsed; diff whitespace checked.
 - All request tests use mocks/synthetic credentials, not real provider APIs. CI/JVM/APK checks are separate. No physical recognition/audibility/network success or typed/spoken latency sample is claimed.
 
-Android build receipt: **pending**. Expected candidate: `com.maya.ai`,5.18.1/code87,minSdk26,existing development signer,updater trustfalse. Do not distribute until receipt is verified. Protected workflow edits were not included.
+## Verified development build receipt — 2026-09-11
+
+- Runtime source: **`6f1d1b729c422be1fbca65b756d620c5d5980e46`** (request implementation `fac93a7` plus provider-identifier coverage). Branch `arena/01a089f7-mana-android`.
+- CI: https://github.com/adil-chandio/Mana-android/actions/runs/34573184122 ; job **103179623539**, success.
+- Native JVM: **60/60 passed**,0 failed,0 skipped. Local JS checks are separate from this unchanged legacy CI workflow.
+- Actual APK identity/signature checks passed: `com.maya.ai`,**5.18.1/code87**,minSdk26,development/debug,update trust**false**.
+- APK SHA-256: **`cb8a84a78bb143303c0b6ef1e78ae43f65eaaa6bdb090a2ebc14de7b643cd382`**.
+- Signer SHA-256: **`ba5f9e07a474cad5f8d8123c79e618f1a76976d7561d901d4df3f5a3da32d24a`** — same development signer recorded for code85/86. Physical in-place upgrade/data retention is still untested.
+- Artifact **MAYA-APK**, ID **10188615502**, ZIP **5,676,366 bytes**, expiredfalse at receipt; tied by API to the exact source/run above. APK is `app-debug.apk`. No local APK download/inspection or phone installation is claimed.
+- Earlier run34573112789 belongs to the pre-identifier-adjustment source, **not this delivery receipt**. Documentation-only commits after6f1d1b7 do not change this binary.
+- Protected workflow hashes remained unchanged and their edits were not staged. Nonfatal action-deprecation/cache400 warnings were not treated as permission to alter workflows.
+
+Candidate build verification is complete; phone acceptance is pending. A new manual distribution remains subject to user agreement because secure in-app updater activation is still blocked. No Release/Stable/trust activation or APK installation was performed.
 
 ## Phone gate after a verified, consented manual delivery
 
