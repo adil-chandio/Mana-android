@@ -1,6 +1,6 @@
 # 5.17.3 / code85 — wake recovery after phone feedback
 
-Date: 2026-09-10. User explicitly approved the targeted repair after supplying code84 Device Test Status screenshots. **Development candidate; physical wake acceptance pending.**
+Date: 2026-09-10. User explicitly approved the targeted repair after supplying code84 Device Test Status screenshots. **Development candidate; the user now reports it works well. Detailed device acceptance remains incomplete.**
 
 ## Evidence and limits
 
@@ -56,3 +56,10 @@ Only after this passes: SUNO STOP→wake, completion→wake, no self-trigger, wa
 - Non-fatal action deprecation/cache400 warnings remain; the two pre-existing workflow edits were neither altered nor staged.
 
 Subsequent documentation-only commits do not change this binary. Draft PR7 stays unmerged, production signing/bootstrap is not activated, and Stable stays on hold. Do not reinstall code84/83 for this repair. A distributed successor to installed code85 must have a higher version code.
+
+
+## Subsequent user feedback and next planning request
+
+After the code85 delivery and requested foreground wake trial, the user reported “Ok chal rha ha ache se” and requested a next-level structure. Record this as positive basic-use feedback, not a measured latency result or proof of all locked-screen/STOP/restart cases. No new failure was reported in that message. Preserve code85 as the user-reported working baseline while completing the remaining acceptance sheet.
+
+The next deliverable is [NEXT-LEVEL-STRUCTURE.md](NEXT-LEVEL-STRUCTURE.md): planning only, with separate approval gates. No runtime or APK change was made for that request.

@@ -12,9 +12,9 @@ function world() {
     settings: { wakeWord: true, autoListen: false, wakeDoor: 15, name: 'Boss', stt: 'ur-PK' },
     speaking: false, thinking: false, listening: false, NATIVE: true, rec: null,
     interimEl: {}, statusText: {}, calls: [], commands: [], bubbles: [],
-    setTimeout(fn) { const id = ++serial; timers.set(id, fn); return id; },
+    setTimeout(fn, ms) { const id = ++serial; timers.set(id, {fn, ms: ms || 0}); return id; },
     clearTimeout(id) { timers.delete(id); },
-    flush() { const all = [...timers.values()]; timers.clear(); all.forEach(fn => fn()); },
+    flush(maxMs = 1000) { const due = [...timers.entries()].filter(([, t]) => t.ms <= maxMs); due.forEach(([id]) => timers.delete(id)); due.forEach(([, t]) => t.fn()); },
     pushLog() {}, setOrb() {}, ensureAudio() {}, chime() {}, toast() {},
     addBubble(who, text) { s.bubbles.push(text); }, handleUserText(text) { s.commands.push(text); },
     FLAGS: { on: () => true },
@@ -51,7 +51,7 @@ test('manual microphone stop cancels a scheduled restart', () => {
 test('old native watchdog cannot end a new Fish utterance', () => {
   const s = world(); let ended = 0;
   s.AWAAZ.deviceDone = () => ended++; s.__nativeTtsWatch(12000);
-  s.AWAAZ.gen++; s.AWAAZ.engine = 'fish'; s.flush(); assert.equal(ended, 0);
+  s.AWAAZ.gen++; s.AWAAZ.engine = 'fish'; s.flush(12000); assert.equal(ended, 0);
 });
 test('bare Roman, Urdu and Hindi wake words listen, not execute a command', () => {
   for (const word of ['Maya', 'مایا', 'माया', 'Hey Maya!']) {

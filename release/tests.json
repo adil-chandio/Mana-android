@@ -1,6 +1,6 @@
 [
-  "Install 5.17.3 (85) over the existing app without uninstalling or clearing data. If Android rejects it, stop and report the installer message.",
-  "Confirm 5.17.3 in the header and code85 in MAYA Updates/DEVICE TEST STATUS. Confirm existing chats, memories, API configuration and saved Fish selection remain.",
+  "Install 5.18.0 (86) over the existing app without uninstalling or clearing data. If Android rejects it, stop and report the installer message.",
+  "Confirm 5.18.0 in the header and code86 in MAYA Updates/DEVICE TEST STATUS. Confirm existing chats, memories, API configuration and saved Fish selection remain.",
   "If a saved Fish reference exists, keep it. If the ID is missing, choose a Hindi female voice yourself from Audio Library; no name/default/first-result guessing.",
   "With wake OFF initially, submit a harmless question from Chat and Home. Text must appear even when Fish is unavailable; failures must not leave thinking stuck.",
   "Tap SUNO for the chosen voice. Confirm you actually hear the expected speaker. A configured label, HTTP200 or native playing event alone is not audible proof.",
@@ -15,5 +15,8 @@
   "Use Settings > SHOW DEVICE TEST STATUS for a limited manual snapshot. Do not share full Doctor/LAB logs or API keys; the new snapshot contains no transcripts or audio.",
   "Update Center must continue to show unconfigured trust rather than claim a secure update is available. Secure in-app delivery and Stable remain separate activation/device gates.",
   "Permission/start rejection must not show MIC READY or open battery settings automatically. Grant mic permission explicitly if requested, then toggle wake OFF/ON. Denied background/locked-screen access is not bypassed.",
-  "Switch wake OFF during startup; wait past the old boot/deadline window. No delayed callback or startup request may execute a command or silently enable wake again."
+  "Switch wake OFF during startup; wait past the old boot/deadline window. No delayed callback or startup request may execute a command or silently enable wake again.",
+  "With follow-up15, remain silent after a reply: mic must close on expiry; a later phrase without Maya must not run. Start a sentence inside the window and finish it safely; completion is still bounded.",
+  "With follow-up0, bare Maya may open one explicit mic session; subsequent commands need Maya again. Explicit tap mic must work independently of a closed follow-up window.",
+  "Check owned timing rows: typed/tap/wake/follow-up and provider/cache/local must be separate. SUNO, voice retry and old callbacks must not overwrite the main-reply sample. Playing is not audible proof."
 ]

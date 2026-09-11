@@ -537,7 +537,7 @@ Here's a thinking process:
       '🔑 Kotlin ab SAARE andaze bhejta hai (pehle sirf firstOrNull)');
     is(/CONFIDENCE_SCORES/.test(KT) && /o\.put\("c", conf\[i\]/.test(KT),
       '🔑 P8b: har andaze ka YAQEEN (confidence) bhi JS ko jata hai');
-    is(/EXTRA_MAX_RESULTS, 6\)/.test(KT.slice(KT.indexOf('fun listen'), KT.indexOf('fun listen') + 2000)),
+    is(/EXTRA_MAX_RESULTS, 6\)/.test(KT.slice(KT.indexOf('private fun listenSession'), KT.indexOf('fun stopListen'))),
       '🔑 P8b: MAIN MIC ke andaze 1 -> 6 (SUNO ki taqat ab zinda)');
     is(/__nativeSpeech\('" \+ jsEscape\(text\) \+\s*"','" \+ jsEscape\(arr\.toString\(\)\)/.test(KT.replace(/\s+/g, ' ')),
       'dono cheezein JS ko jati hain: pehla andaza + poori list');
@@ -890,7 +890,7 @@ Here's a thinking process:
 
     /* ── code mein juda ── */
     const src = HTML;
-    is(/BIJLI\.match\(stripped\)[\s\S]{0,900}askAI\(wasVoice\)/.test(src),
+    is(/BIJLI\.match\(stripped\)[\s\S]{0,900}askAI\(wasVoice, measure\)/.test(src),
       '🔑 BIJLI dimaag se PEHLE chalti hai, aur nakaam ho to dimaag ko de deti hai');
     const bj = src.slice(src.indexOf('var BIJLI = {'), src.indexOf('var IJAZAT = {'));
     is(/OK: \{ torch_control: 1/.test(bj) && bj.indexOf('IJAZAT.T[r.t] !== 1') > 0 && bj.indexOf('!BIJLI.OK[r.t]') > 0,
@@ -1191,7 +1191,7 @@ Here's a thinking process:
     is(!/6, 7 -> restart\(250\)/.test(live), '   → purana 250ms wala tez restart khatam');
     is(/report\("err"/.test(live) && /report\("start"/.test(live),
       '🔑 BUG 1: Kotlin ab har error aur har start REPORT karta hai');
-    is(/handleAll\(list: List<String>\)/.test(live) && /JSONArray/.test(live),
+    is(/handleAll\(list: List<String>, recognitionMs: Long\)/.test(live) && /JSONArray/.test(live),
       'saare andaze JSON bana kar JS ko jate hain');
     is(/MainActivity\.instance != null/.test(live) && /SAFE MODE/.test(KT),
       '🔒 app band ho to SAFE MODE bilkul waisa hi (Qanoon 2)');
@@ -1361,7 +1361,7 @@ Here's a thinking process:
     is((HTML.match(/try \{ SUKOON\.bolStart/g) || []).length >= 6 &&
        (HTML.match(/try \{ SUKOON\.bolEnd/g) || []).length >= 10 &&
        (HTML.match(/try \{ SUKOON\.sunStart/g) || []).length >= 2 &&
-       (HTML.match(/try \{ SUKOON\.sunEnd/g) || []).length >= 7,
+       (HTML.match(/try \{ SUKOON\.sunEnd/g) || []).length >= 6 && /catch\(e\)\{ stopListening\(\); toast\("Mic start/.test(HTML),
       'audio arbiter hooks retained; duplicate native completion hook intentionally removed');
     is(/function speak\(text, wasVoice\) \{[\s\S]{0,420}?SUKOON\.bolStart/.test(HTML),
       '🔑 speak() CALL ke waqt hi bolStart — fetch ki 1-2s mein bhi mic nahi khulta');

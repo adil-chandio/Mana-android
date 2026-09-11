@@ -394,6 +394,7 @@ class WakeWordService : Service() {
         recognitionActive = false
         var delivered = false
         var ready = false
+        val timing = com.maya.ai.voice.RecognitionTiming { SystemClock.elapsedRealtime() }
         try { sr?.destroy() } catch (e: Exception) {}
         /* 🎯 P8b — wahi seerhi jo MainActivity mein hai: on-device -> Google -> aam.
            Android 12+ par default AiAi ho sakta hai jo kaam hi nahi karta. */
@@ -408,7 +409,9 @@ class WakeWordService : Service() {
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(rmsdB: Float) {}
                 override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {}
+                override fun onEndOfSpeech() {
+                    if (running && session == recognitionGeneration && !delivered) timing.end()
+                }
                 override fun onError(error: Int) {
                     if (!running || session != recognitionGeneration || delivered) return
                     delivered = true; recognitionActive = false
@@ -453,7 +456,7 @@ class WakeWordService : Service() {
                     updateHealth(State.RETRY)
                     val all = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?: arrayListOf()
-                    if (all.isNotEmpty()) { handleAll(all); errStreak = 0 }
+                    if (all.isNotEmpty()) { handleAll(all, timing.endToFinal() ?: -1L); errStreak = 0 }
                     restart(400)
                 }
                 override fun onPartialResults(partialResults: Bundle?) {}
@@ -475,12 +478,12 @@ class WakeWordService : Service() {
         evalToApp("window.__wakeLog && window.__wakeLog('" + jsEsc(kind) + "','" + jsEsc(payload) + "')")
     }
 
-    private fun handleAll(list: List<String>) {
+    private fun handleAll(list: List<String>, recognitionMs: Long) {
         val arr = JSONArray()
         for (i in list.indices) { if (i >= 6) break; arr.put(list[i]) }
         val payload = arr.toString()
         if (MainActivity.instance != null) {
-            evalToApp("window.__wakeHeard && window.__wakeHeard('" + jsEsc(payload) + "')")
+            evalToApp("window.__wakeHeard && window.__wakeHeard('" + jsEsc(payload) + "',$recognitionMs)")
         } else {
             /* SAFE MODE: app band ho to KUCH NA KARO — v2.10.0 ka khud-app-kholna
                engine hi black screen ka mujrim nikla tha. */

@@ -1,3 +1,9 @@
+> **N0/N1 development work — 5.18.0 / code86; phone test pending**
+>
+> The user reports code85 works well. This successor adds owned per-input timings and repairs follow-up expiry/stale microphone callbacks; it does not claim a measured voice speedup. [Implementation and gates](docs/N1-CONVERSATION-5.18.0.md) · [Next-level structure](docs/NEXT-LEVEL-STRUCTURE.md).
+>
+> Secure updater activation remains blocked. No Stable publication or automatic phone update. The code85 receipt below is historical baseline evidence, not the new N1 artifact.
+
 > **Development wake-recovery candidate — 5.17.3 / code 85 (phone validation pending)**
 >
 > The user reports code84 typed Chat is fast and the explicitly selected Fish voice plays, but wake did not respond. Code85 preserves that chat/voice path; fixes a reproduced STOP/SUNO speech-exclusion leak; adds actual native wake status, readiness/failure diagnostics and honest indicators. No physical wake or latency improvement is claimed yet.
@@ -18,7 +24,7 @@
 
 # 🤖 MAYA — Personal AI Assistant
 
-**Version 5.17.3 (85) — Development device-test candidate • Android APK + Web PWA**
+**Version 5.18.0 (86) — Development device-test candidate • Android APK + Web PWA**
 
 MAYA = aap ka apna JARVIS — voice controlled AI assistant (Gemini brain),
 ab **asli Android app** (APK) ki soorat mein, native superpowers ke saath:

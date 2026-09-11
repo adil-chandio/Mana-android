@@ -680,9 +680,10 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
     /* ── 17e. NATIVE BRIDGE — asal fix ── */
     {
       const { w, bridge, state, EDGE_TTS } = edgeWorld();
-      let ok = 0, bad = 0;
+      let ok = 0, bad = 0, finish;
+      const finished = new Promise(resolve => { finish = resolve; });
       w.edgeTTS_speak('Assalam o alaikum', 'ur-PK-UzmaNeural', 'ur-PK', '+0%', '+0Hz',
-        () => ok++, () => bad++);
+        () => { ok++; finish(); }, () => { bad++; finish(); });
       is(bridge.calls.length === 1, 'native maujood ho to KOTLIN bridge chala (browser WebSocket nahi)');
       is(/^<speak /.test(bridge.calls[0].ssml) && bridge.calls[0].ssml.indexOf('Assalam o alaikum') > 0,
         'bridge ko poora tayyar SSML gaya');
@@ -690,7 +691,7 @@ const u16 = (b, o) => b[o] | (b[o + 1] << 8);
         'har request ka apna id (jawab ghalat jagah na gire)', bridge.calls[0].reqId);
       is(bridge.calls[0].timeoutMs > 0 && bridge.calls[0].timeoutMs < EDGE_TTS.TIMEOUT,
         'native ka timeout JS se chhota hai (JS aakhri pehredaar rahe)', bridge.calls[0].timeoutMs + 'ms');
-      await wait(20);
+      await Promise.race([finished, wait(500)]); // Completion-driven, with a bounded fixture deadline.
       is(ok === 1 && bad === 0, 'awaaz aa gayi aur onDone chala', 'ok=' + ok);
       is(state.played.length === 1, 'audio sach much baji', state.played[0]);
       const b = state.blobs[state.blobs.length - 1];

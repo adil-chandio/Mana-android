@@ -475,18 +475,26 @@ class MainActivity : AppCompatActivity() {
 
         /** Native STT — Google voice recognition (Urdu ur-PK supported) */
         @JavascriptInterface
-        fun listen(lang: String) {
+        fun listen(lang: String) { listenSession(lang, "") }
+
+        @JavascriptInterface
+        fun listenOwned(lang: String, owner: String) {
+            if (!Regex("mi[a-z0-9]{1,20}_[0-9]{1,12}").matches(owner)) return
+            listenSession(lang, owner)
+        }
+
+        private fun listenSession(lang: String, owner: String) {
             runOnUiThread {
                 if (ContextCompat.checkSelfPermission(
                         this@MainActivity, Manifest.permission.RECORD_AUDIO
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                     requestMicPermission()
-                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(9)")
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(9,'$owner')")
                     return@runOnUiThread
                 }
                 if (!SpeechRecognizer.isRecognitionAvailable(this@MainActivity)) {
-                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5)")
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5,'$owner')")
                     return@runOnUiThread
                 }
                 stopRecognizer()
@@ -514,29 +522,44 @@ class MainActivity : AppCompatActivity() {
                 }
                 val session = speechGeneration
                 var delivered = false
+                android.os.Handler(Looper.getMainLooper()).postDelayed({
+                    if (session == speechGeneration && !delivered) {
+                        delivered = true
+                        stopRecognizer()
+                        WakeWordService.resumeFromApp()
+                        evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(1,'$owner')")
+                    }
+                }, 30000)
+                val timing = com.maya.ai.voice.RecognitionTiming { android.os.SystemClock.elapsedRealtime() }
                 try {
                 recognizer = makeRecognizer().apply {
                     setRecognitionListener(object : RecognitionListener {
-                        override fun onReadyForSpeech(params: Bundle?) {}
-                        override fun onBeginningOfSpeech() {}
+                        override fun onReadyForSpeech(params: Bundle?) {
+                            if (session == speechGeneration && !delivered) evalAsync("window.__inputReady && window.__inputReady('$owner')")
+                        }
+                        override fun onBeginningOfSpeech() {
+                            if (session == speechGeneration && !delivered) evalAsync("window.__inputBegan && window.__inputBegan('$owner')")
+                        }
                         private var rmsTick = 0
                         override fun onRmsChanged(rmsdB: Float) {
                             rmsTick++
-                            if (rmsTick % 4 == 0) evalAsync("window.__nativeRms && window.__nativeRms(" + rmsdB + ")")
+                            if (session == speechGeneration && !delivered && rmsTick % 4 == 0) evalAsync("window.__nativeRms && window.__nativeRms(" + rmsdB + ",'$owner')")
                         }
                         override fun onBufferReceived(buffer: ByteArray?) {}
                         override fun onEndOfSpeech() {
-                            if (session == speechGeneration && !delivered) evalAsync("window.__speechTiming && window.__speechTiming('ended')")
+                            if (session != speechGeneration || delivered) return
+                            timing.end()
+                            evalAsync("window.__inputEnded && window.__inputEnded('$owner')")
                         }
                         override fun onError(error: Int) {
                             if (session != speechGeneration || delivered) return
                             delivered = true
-                            evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error)")
+                            evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error,'$owner')")
                         }
                         override fun onResults(results: Bundle?) {
                             if (session != speechGeneration || delivered) return
                             delivered = true
-                            evalAsync("window.__speechTiming && window.__speechTiming('final')")
+                            val recognitionMs = timing.endToFinal() ?: -1L
                             /* 🎙️ Android 3-5 andaze deta hai. Pehle sirf pehla liya jata tha
                                aur baqi phenk diye jate the — isi liye "Monarch" -> "منار" ban
                                jata tha. Ab SAARE andaze JS ko jate hain; SUNO un mein se wo
@@ -558,14 +581,14 @@ class MainActivity : AppCompatActivity() {
                             }
                             evalAsync(
                                 "window.__nativeSpeech && window.__nativeSpeech('" + jsEscape(text) +
-                                "','" + jsEscape(arr.toString()) + "')"
+                                "','" + jsEscape(arr.toString()) + "','$owner',$recognitionMs)"
                             )
                         }
                         override fun onPartialResults(partialResults: Bundle?) {
                             if (session != speechGeneration || delivered) return
                             val pt = partialResults
                                 ?.getStringArrayList("android.speech.extra.RESULTS")?.firstOrNull() ?: ""
-                            if (pt.isNotBlank()) evalAsync("window.__nativePartial && window.__nativePartial('" + jsEscape(pt) + "')")
+                            if (pt.isNotBlank()) evalAsync("window.__nativePartial && window.__nativePartial('" + jsEscape(pt) + "','$owner')")
                         }
                         override fun onEvent(eventType: Int, params: Bundle?) {}
                     })
@@ -574,7 +597,7 @@ class MainActivity : AppCompatActivity() {
                 } catch (_: Exception) {
                     stopRecognizer()
                     WakeWordService.resumeFromApp()
-                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5)")
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5,'$owner')")
                 }
             }
         }
