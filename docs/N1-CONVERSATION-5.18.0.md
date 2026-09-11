@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved by the user after code85 positive feedback. First implementation is complete locally; **native build and physical acceptance are separate gates**. N0 full physical acceptance and the whole N1 roadmap are not declared complete. N2 updater activation, memory migrations, new phone skills and cloud jobs were not performed.
+Approved by the user after code85 positive feedback. First implementation and CI verification are complete; **physical acceptance remains a separate gate**. N0 full physical acceptance and the whole N1 roadmap are not declared complete. N2 updater activation, memory migrations, new phone skills and cloud jobs were not performed.
 
 ## Baseline protection
 
@@ -38,7 +38,7 @@ This first slice does **not** infer a speedup, tune STT silence thresholds, shor
 - `RecognitionTimingTest`:6 native policy tests (missing/zero/duplicate/backward/excessive/independent listener markers).
 - Existing source-wiring assertions were updated for the explicit owner argument/helper extraction; existing voice-session fake timers now distinguish short handoffs from30-second limits.
 - One existing Edge fixture failed its20ms wall-clock assumption once, then passed on rerun. Its wait is now completion-driven with a500ms fixture deadline; no Edge runtime behavior was changed.
-- Expected aggregate: **1,176 local checks plus CSS/syntax**, **60 native JVM tests**. Final command/CI receipts follow below; these are not phone/audio measurements.
+- Verified aggregate: **1,176 local checks plus CSS/syntax pass**, **60/60 native JVM tests pass**. These are not phone/audio measurements.
 
 ## N0/N1 phone gate
 
@@ -53,4 +53,16 @@ For the new candidate, when approved for install:
 
 ## Build receipt
 
-Pending CI verification. Updater trust remains false; signed bootstrap activation and a secure in-app upgrade remain N2 work requiring separate authorization. Per the approved structure, obtain agreement before another manual test distribution if updater activation is still blocked.
+Verified on 2026-09-11:
+
+- Runtime source: `33372b6672b4d2f59b81355cb213917ada3e149b`.
+- [CI run34569009494](https://github.com/adil-chandio/Mana-android/actions/runs/34569009494), job `103166915579`: successful Android build, **60 passed / zero failed / zero skipped**; actual APK identity/signature verification passed.
+- Identity: `com.maya.ai`, **5.18.0 / code86 / minSdk26**, development/debug, update trust **false**.
+- CI APK SHA-256: `25737b7224b92ed0566e3b47e147b23509921c1c4c8c346552d87b0649e9f426` (APK, not ZIP).
+- Existing development signer SHA-256: `ba5f9e07a474cad5f8d8123c79e618f1a76976d7561d901d4df3f5a3da32d24a`.
+- Artifact `MAYA-APK`, ID `10187100137`, ZIP size **5,672,701 bytes**, not expired at receipt. Archive URL: https://github.com/adil-chandio/Mana-android/actions/runs/34569009494/artifacts/10187100137 . This is an archive receipt, not a claim of delivery/installation or local binary inspection.
+- A second run34569013396 for the same source also completed successfully; the receipt above is tied only to run34569009494.
+- Full local suite, version-sync and diff checks passed. Protected workflow files were not staged or changed. Nonfatal CI action-deprecation/cache400 warnings remain.
+- No live phone/audio/network measurements, Stable promotion, GitHub Release publication or automated installation were performed. Subsequent documentation commits do not alter this binary.
+
+Updater trust remains false; signed bootstrap activation and a secure in-app upgrade remain N2 work requiring separate authorization. Per the approved structure, obtain agreement before another manual test distribution if updater activation is still blocked.

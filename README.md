@@ -1,6 +1,6 @@
 > **N0/N1 development work — 5.18.0 / code86; phone test pending**
 >
-> The user reports code85 works well. This successor adds owned per-input timings and repairs follow-up expiry/stale microphone callbacks; it does not claim a measured voice speedup. [Implementation and gates](docs/N1-CONVERSATION-5.18.0.md) · [Next-level structure](docs/NEXT-LEVEL-STRUCTURE.md).
+> The user reports code85 works well. This successor adds owned per-input timings and repairs follow-up expiry/stale microphone callbacks; it does not claim a measured voice speedup. Local: 1,176 checks; native CI: 60/60 tests and APK identity/signature checks pass. [Implementation and gates](docs/N1-CONVERSATION-5.18.0.md) · [Next-level structure](docs/NEXT-LEVEL-STRUCTURE.md).
 >
 > Secure updater activation remains blocked. No Stable publication or automatic phone update. The code85 receipt below is historical baseline evidence, not the new N1 artifact.
 
