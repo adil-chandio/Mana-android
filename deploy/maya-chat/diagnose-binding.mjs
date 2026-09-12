@@ -2,13 +2,13 @@
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { Blocked, WORKER, checkArtifact, checkBuild, readUploadSource, activeDeployment, checkLogging } from './upload-version.mjs';
-export const APPROVED_DIAGNOSTIC_PARENT = '9d4260e1e8de32ab864badb02f5e0c0d843a1392';
+export const APPROVED_DIAGNOSTIC_PARENT = '8474da9e1b4254dfe20c2df4df066a4b2d535025';
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const own = (v, k) => object(v) && Object.hasOwn(v, k) ? v[k] : undefined;
 const shape = v => v === undefined ? 'missing' : v === null ? 'null' : Array.isArray(v) ? 'array' : ['string', 'boolean', 'number', 'object'].includes(typeof v) ? typeof v : 'invalid';
 const count = n => n === 0 ? 'none' : n === 1 ? 'one' : 'multiple';
 const boolean = v => v === undefined ? 'missing' : v === null ? 'null' : v === true ? 'true' : v === false ? 'false' : 'other';
-const KNOWN = Object.freeze(['name', 'type', 'staging', 'gateway', 'namespace', 'account_id', 'id', 'text', 'remote']);
+const KNOWN = Object.freeze(['name', 'type', 'staging', 'gateway', 'namespace', 'account_id', 'id', 'text', 'remote', 'raw']);
 // Only fixed keys and finite-state labels leave memory. Unknown names/values never do.
 export function projectBinding(bindings) {
   const list = Array.isArray(bindings) ? bindings : [];
@@ -22,7 +22,7 @@ export function projectBinding(bindings) {
     unknown_fields: count(keys.filter(k => !KNOWN.includes(k)).length),
     staging: boolean(own(ai, 'staging')), gateway_shape: shape(own(ai, 'gateway')),
     namespace_shape: shape(own(ai, 'namespace')), account_id_shape: shape(own(ai, 'account_id')),
-    id_shape: shape(own(ai, 'id')), text_shape: shape(own(ai, 'text')), remote: boolean(own(ai, 'remote')),
+    id_shape: shape(own(ai, 'id')), text_shape: shape(own(ai, 'text')), remote: boolean(own(ai, 'remote')), raw: boolean(own(ai, 'raw')),
     strict_ai_guard: ai && own(ai, 'type') === 'ai' && keys.every(k => ['name', 'type'].includes(k)) ? 'pass' : 'blocked'
   };
 }
@@ -96,7 +96,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     checkBuild(process.env);
     const bytes = await readFile(new URL('worker-upload.mjs', import.meta.url));
     const report = await diagnoseBinding({ env: process.env, bytes, source: readUploadSource() });
-    console.log('MAYA_AI_BINDING_READ_ONLY_V1');
+    console.log('MAYA_AI_BINDING_READ_ONLY_V2');
     for (const [field, state] of Object.entries(report)) console.log(`${field}=${state}`);
     console.log('READ_ONLY_COMPLETE_NO_UPLOAD_NO_DEPLOY_NO_AI_CALL');
   } catch (error) { console.error(`${bindingErrorCode(error)}_READ_ONLY_NO_UPLOAD`); process.exitCode = 1; }

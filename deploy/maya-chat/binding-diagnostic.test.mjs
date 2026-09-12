@@ -43,7 +43,7 @@ test('projection is finite-state only with unknown property names, nested object
   const r = projectBinding([{ name: 'AI', type: canary, staging: canary, remote: canary, gateway: { [canary]: canary },
     namespace: canary, account_id: canary, id: canary, text: canary, [canary]: canary }]);
   const labels = new Set(['missing', 'null', 'array', 'string', 'boolean', 'number', 'object', 'invalid', 'none', 'one', 'multiple', 'ai', 'true', 'false', 'other', 'pass', 'blocked']);
-  assert.equal(Object.keys(r).length, 13); for (const state of Object.values(r)) assert(labels.has(state));
+  assert.equal(Object.keys(r).length, 14); for (const state of Object.values(r)) assert(labels.has(state));
   assert(!JSON.stringify(r).includes(canary)); assert.equal(r.unknown_fields, 'one'); assert.equal(r.ai_type, 'other');
 });
 test('projection distinguishes missing/duplicate AI, malformed lists and ignores inherited fields', () => {
@@ -150,18 +150,46 @@ const gitPreload = `import cp from 'node:child_process';import {syncBuiltinESMEx
   cp.execFileSync=(cmd,args)=>{if(cmd!=='git')throw Error('${canary}');if(args.join(' ')==='rev-parse HEAD')return '${source.head}';
   if(args.join(' ')==='cat-file commit HEAD')return 'tree ${'0'.repeat(40)}\\nparent ${APPROVED_DIAGNOSTIC_PARENT}\\nauthor ${canary}\\n\\nsubject';throw Error('${canary}');};syncBuiltinESMExports();`;
 test('real CLI with synthetic source/API outputs only fixed labels and no identifiers/secrets', () => {
-  const f = fixture(); const preload = gitPreload + `const state=${JSON.stringify(f.state)};let n=0;
+  const f = fixture({ name: 'AI', type: 'ai', raw: false }); const preload = gitPreload + `const state=${JSON.stringify(f.state)};let n=0;
     globalThis.fetch=async(url,o)=>{n++;if(o.method!=='GET'||o.body||o.redirect!=='error'||o.credentials!=='omit')throw Error('${canary}');
     const suffix=new URL(url).pathname.split('/maya-chat')[1];const result=suffix==='/deployments'?state.deployments:suffix==='/script-settings'?state.settings:suffix==='/versions/${id}'?state.version:null;
     if(!result)throw Error('${canary}');return Response.json({success:true,result});};process.on('exit',()=>{if(n!==5)process.exitCode=9;});`;
   const c = cli(preload); assert.equal(c.status, 0, c.stderr); assert.equal(c.stderr, '');
-  const lines = c.stdout.trim().split('\n'); assert.equal(lines.length, 15);
-  assert.equal(lines[0], 'MAYA_AI_BINDING_READ_ONLY_V1'); assert.equal(lines.at(-1), 'READ_ONLY_COMPLETE_NO_UPLOAD_NO_DEPLOY_NO_AI_CALL');
-  assert(lines.includes('staging=false')); assert(lines.includes('strict_ai_guard=blocked'));
+  const lines = c.stdout.trim().split('\n'); assert.equal(lines.length, 16);
+  assert.equal(lines[0], 'MAYA_AI_BINDING_READ_ONLY_V2'); assert.equal(lines.at(-1), 'READ_ONLY_COMPLETE_NO_UPLOAD_NO_DEPLOY_NO_AI_CALL');
+  assert(lines.includes('raw=false')); assert(lines.includes('unknown_fields=none')); assert(lines.includes('strict_ai_guard=blocked'));
   for (const secret of [canary, id, otherId, ENV.CLOUDFLARE_API_TOKEN, ENV.CLOUDFLARE_ACCOUNT_ID]) assert(!c.stdout.includes(secret));
 });
 test('CLI local execution and raw Git failure have sanitized output', () => {
   const local = cli('', {}); assert.equal(local.status, 1); assert.equal(local.stdout, ''); assert.equal(local.stderr.trim(), 'CLOUDFLARE_BUILD_ONLY_READ_ONLY_NO_UPLOAD');
   const c = cli(`import cp from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';cp.execFileSync=()=>{throw Error('${canary}')};syncBuiltinESMExports();globalThis.fetch=()=>{throw Error('${canary}')};`);
   assert.equal(c.status, 1); assert.equal(c.stdout, ''); assert.equal(c.stderr.trim(), 'BINDING_DIAGNOSTIC_FAILED_READ_ONLY_NO_UPLOAD');
+});
+
+for (const [value, state] of [[undefined, 'missing'], [null, 'null'], [false, 'false'], [true, 'true'],
+  ['false', 'other'], [0, 'other'], [{ [canary]: canary }, 'other'], [[canary], 'other']]) {
+  test(`raw field emits only fixed category ${state}/${typeof value}, never relaxes strict guard`, async () => {
+    const f = fixture({ name: 'AI', type: 'ai', ...(value === undefined ? {} : { raw: value }) });
+    const report = await f.run();
+    assert.equal(report.raw, state); assert.equal(report.unknown_fields, 'none');
+    assert.equal(report.extra_fields, value === undefined ? 'none' : 'one');
+    assert.equal(report.strict_ai_guard, value === undefined ? 'pass' : 'blocked');
+    assert.equal(f.calls.length, 5); assert(f.calls.every(c => c.options.method === 'GET'));
+    assert(!JSON.stringify(report).includes(canary));
+  });
+}
+test('recognized raw field does not hide an additional unknown field or leak its name/value', () => {
+  const r = projectBinding([{ name: 'AI', type: 'ai', raw: false, [canary]: canary }]);
+  assert.equal(r.raw, 'false'); assert.equal(r.extra_fields, 'multiple');
+  assert.equal(r.unknown_fields, 'one'); assert.equal(r.strict_ai_guard, 'blocked');
+  assert(!JSON.stringify(r).includes(canary));
+});
+test('inherited raw is missing and does not influence exact own-key classification', () => {
+  const ai = Object.assign(Object.create({ raw: true }), { name: 'AI', type: 'ai' });
+  const r = projectBinding([ai]); assert.equal(r.raw, 'missing'); assert.equal(r.extra_fields, 'none'); assert.equal(r.strict_ai_guard, 'pass');
+});
+test('prior V1 diagnostic source cannot run V2', async () => {
+  const f = fixture(); await assert.rejects(f.run({ source: { head: ENV.WORKERS_CI_COMMIT_SHA,
+    parents: ['9d4260e1e8de32ab864badb02f5e0c0d843a1392'] } }), /BINDING_DIAGNOSTIC_SOURCE_NOT_APPROVED/);
+  assert.equal(f.calls.length, 0);
 });

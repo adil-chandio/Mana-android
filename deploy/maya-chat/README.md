@@ -1,3 +1,11 @@
+> **CURRENT MODE: read-only AI binding diagnostic V2 — 2026-09-13.**
+> See [BINDING-RAW-READ-ONLY.md](BINDING-RAW-READ-ONLY.md). Adds only the fixed
+> `raw` status to the previous diagnostic; no binding acceptance change.
+> `npm run upload` still runs tests and the read-only checker, never an upload.
+> Requires the direct child of `8474da9e1b4254dfe20c2df4df066a4b2d535025`.
+> Marker: `MAYA_AI_BINDING_READ_ONLY_V2`. A green build is NOT a fix or version
+> receipt. Chat stays OFF. All earlier banners below are historical.
+
 > **CURRENT MODE: read-only AI binding diagnostic — 2026-09-13.**
 > See [BINDING-READ-ONLY.md](BINDING-READ-ONLY.md). The configured `npm run upload`
 > now runs tests and `diagnose-binding.mjs` ONLY. Despite the inherited command
