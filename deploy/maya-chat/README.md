@@ -1,3 +1,12 @@
+> **CURRENT MODE: targeted read-only field-name check V3 — 2026-09-13.**
+> See [BINDING-NAME-READ-ONLY.md](BINDING-NAME-READ-ONLY.md). This deliberately
+> permits one bounded extra schema-key NAME in the build log, never its value.
+> No field guessing, binding acceptance change, upload, settings change or AI call.
+> `npm run upload` still invokes tests and only the read-only diagnostic.
+> Requires the direct child of `b2b8ceeb35effdd9c4be871f00dcacaa5a24a15d`.
+> Marker: `MAYA_AI_BINDING_READ_ONLY_V3`. Green means read-only completion, not a
+> fix or version receipt. Chat stays OFF. Earlier banners below are historical.
+
 > **CURRENT MODE: read-only AI binding diagnostic V2 — 2026-09-13.**
 > See [BINDING-RAW-READ-ONLY.md](BINDING-RAW-READ-ONLY.md). Adds only the fixed
 > `raw` status to the previous diagnostic; no binding acceptance change.

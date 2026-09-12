@@ -2,7 +2,7 @@
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { Blocked, WORKER, checkArtifact, checkBuild, readUploadSource, activeDeployment, checkLogging } from './upload-version.mjs';
-export const APPROVED_DIAGNOSTIC_PARENT = '8474da9e1b4254dfe20c2df4df066a4b2d535025';
+export const APPROVED_DIAGNOSTIC_PARENT = 'b2b8ceeb35effdd9c4be871f00dcacaa5a24a15d';
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const own = (v, k) => object(v) && Object.hasOwn(v, k) ? v[k] : undefined;
 const shape = v => v === undefined ? 'missing' : v === null ? 'null' : Array.isArray(v) ? 'array' : ['string', 'boolean', 'number', 'object'].includes(typeof v) ? typeof v : 'invalid';
@@ -25,6 +25,26 @@ export function projectBinding(bindings) {
     id_shape: shape(own(ai, 'id')), text_shape: shape(own(ai, 'text')), remote: boolean(own(ai, 'remote')), raw: boolean(own(ai, 'raw')),
     strict_ai_guard: ai && own(ai, 'type') === 'ai' && keys.every(k => ['name', 'type'].includes(k)) ? 'pass' : 'blocked'
   };
+}
+// V3 narrow disclosure: one extra schema key name, never its value or nested keys.
+// This is separate from the original finite-state projection above.
+export function projectExtraFieldName(bindings) {
+  const result = { extra_field_name_status: 'unavailable', extra_field_name: '-' };
+  if (!Array.isArray(bindings)) return result;
+  const matches = bindings.filter(b => own(b, 'name') === 'AI');
+  if (matches.length !== 1 || own(matches[0], 'type') !== 'ai') return result;
+  const keys = Object.keys(matches[0]).filter(k => !['name', 'type'].includes(k));
+  const unknown = keys.filter(k => !KNOWN.includes(k));
+  if (unknown.length === 0) return { ...result, extra_field_name_status: 'none' };
+  if (keys.length !== 1 || unknown.length !== 1) return { ...result, extra_field_name_status: 'ambiguous' };
+  const name = unknown[0];
+  // Reject log injection, URLs/IDs, long or credential-labelled names. Do not
+  // encode, hash, truncate or transform rejected data into another output channel.
+  if (!/^[a-z][A-Za-z_]{0,47}$/.test(name)
+    || /password|secret|token|credential|authorization|private|cookie/i.test(name)) {
+    return { ...result, extra_field_name_status: 'withheld' };
+  }
+  return { extra_field_name_status: 'name_only', extra_field_name: name };
 }
 const requireThat = (condition, code) => { if (!condition) throw new Blocked(code); };
 export function checkDiagnosticSource(env, source) {
@@ -83,7 +103,7 @@ export async function diagnoseBinding({ env, bytes, source, fetcher = globalThis
       const flag = name => bindings.find(b => b.name === name);
       requireThat(flag('ENABLE_CHAT')?.type === 'plain_text' && flag('ENABLE_CHAT').text === 'false'
         && flag('PAIRING_ENABLED')?.type === 'plain_text' && flag('PAIRING_ENABLED').text === 'true', 'DIAGNOSTIC_CHAT_OFF_PAIRING_ON_REQUIRED');
-      const report = projectBinding(bindings);
+      const report = { ...projectBinding(bindings), ...projectExtraFieldName(bindings) };
       requireThat(JSON.stringify(activeDeployment(await get('/deployments'))) === JSON.stringify(before), 'DIAGNOSTIC_ACTIVE_VERSION_CHANGED');
       checkLogging(await get('/script-settings')); check();
       return report;
@@ -96,7 +116,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     checkBuild(process.env);
     const bytes = await readFile(new URL('worker-upload.mjs', import.meta.url));
     const report = await diagnoseBinding({ env: process.env, bytes, source: readUploadSource() });
-    console.log('MAYA_AI_BINDING_READ_ONLY_V2');
+    console.log('MAYA_AI_BINDING_READ_ONLY_V3');
     for (const [field, state] of Object.entries(report)) console.log(`${field}=${state}`);
     console.log('READ_ONLY_COMPLETE_NO_UPLOAD_NO_DEPLOY_NO_AI_CALL');
   } catch (error) { console.error(`${bindingErrorCode(error)}_READ_ONLY_NO_UPLOAD`); process.exitCode = 1; }
