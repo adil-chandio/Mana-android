@@ -1,3 +1,33 @@
+> **Temporary read-only diagnostic mode — 2026-09-12.** The owner approved a
+> diagnostic after build `68862bd8-acef-4fc4-9bb4-9c0fdbd8ad6f` stopped with
+> `LOGGING_MUST_BE_OFF_NO_UPLOAD_STARTED`. That run passed its 45 tests in
+> Cloudflare, then stopped before any version POST. The screenshots do not
+> establish which API logging field failed the guard.
+>
+> **`npm run upload` now runs tests and `diagnose-logging.mjs`, NOT the uploader.**
+> It makes exactly one GET to the existing Worker's script-settings endpoint and
+> emits fixed ON/OFF/missing/null/shape labels only. It never fetches bindings,
+> sends Worker source, modifies settings, uploads versions, promotes traffic or
+> calls AI. Even when the original logging guard passes, it only reports.
+> The original uploader and its safety rules remain unchanged for inspection;
+> restoring the upload command requires a reviewed follow-up change.
+>
+> Look for `MAYA_LOGGING_DIAGNOSTIC_V1` through
+> `READ_ONLY_COMPLETE_NO_UPLOAD_NO_DEPLOY_NO_AI_CALL` in the build log.
+> A green diagnostic build is **not** a Worker upload/deployment receipt.
+> Missing or null values are reported, **not interpreted as disabled**.
+> No API token, raw response, destination name, tail service, key, conversation
+> or identifier is emitted. Same CI/branch/acknowledgement/artifact gates;
+> 30-second overall deadline, 64-KiB response cap, no redirects or retries.
+>
+> Local verification: 70/70 build-side tests (25 diagnostic + 45 original
+> uploader), plus the unchanged signed-Chat 102/102 tests. No real API was
+> called during local tests. The existing Worker bundle checksum is unchanged.
+>
+> The earlier upload instructions below are historical and remain paused while
+> this diagnostic command is active. Keep AI/logging settings unchanged and
+> do not press Promote, Deploy or Retry based on a green diagnostic alone.
+
 # Maya phone-friendly Worker upload — manual promotion only
 
 Prepared 2026-09-11 after explicit user approval to prepare/push the GitHub connection setup. **No Cloudflare account connection, version upload, active deployment or AI activation has been performed by this preparation.** This package bypasses the large mobile code editor. It does not require a PC, Termux, APK update, a new Worker/origin/database/key, or a token pasted into chat.

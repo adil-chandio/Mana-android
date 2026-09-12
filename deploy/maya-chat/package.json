@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "test": "node --test upload.test.mjs",
+    "test": "node --test upload.test.mjs diagnostic.test.mjs",
     "check": "node --check worker-upload.mjs && npm test",
-    "upload": "npm run check && node upload-version.mjs"
+    "upload": "npm run check && node diagnose-logging.mjs"
   }
 }
