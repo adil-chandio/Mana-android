@@ -1,3 +1,14 @@
+> **CURRENT MODE: read-only AI binding diagnostic — 2026-09-13.**
+> See [BINDING-READ-ONLY.md](BINDING-READ-ONLY.md). The configured `npm run upload`
+> now runs tests and `diagnose-binding.mjs` ONLY. Despite the inherited command
+> name, it does not upload, deploy, repair settings or invoke AI.
+> Five bounded GETs, finite-state output, no raw response/unknown field names/values.
+> Source must be the direct child of `9d4260e1e8de32ab864badb02f5e0c0d843a1392`.
+> Chat OFF, pairing ON, logging OFF and stable active deployment remain required.
+> Worker artifact and strict uploader are unchanged. A green build here means a
+> read-only check completed, **NOT** that a version was uploaded or the issue fixed.
+> All previous mode banners below are historical; do not run their commands.
+
 > **Current mode: validation diagnostic v1, Chat-OFF upload — 2026-09-13.**
 > See [VALIDATION-CYCLE.md](VALIDATION-CYCLE.md) for the approved limited cycle.
 > This build only uploads one unpublished version; it never enables Chat/promotes.

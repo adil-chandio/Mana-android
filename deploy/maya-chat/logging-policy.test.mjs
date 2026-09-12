@@ -59,10 +59,10 @@ test('sampling zero cannot disguise enabled telemetry', () => {
     assert.equal(loggingOffRepresentation({ ...canonical(), observability: obs }), 'blocked');
   }
 });
-test('active pipeline is upload-only again, not repair or diagnostic, with all regression tests retained', () => {
+test('active pipeline is read-only binding diagnostic, with all regression tests retained', () => {
   const pkg = JSON.parse(readFileSync(new URL('package.json', import.meta.url)));
-  assert.equal(pkg.scripts.upload, 'npm run check && node upload-version.mjs');
-  assert.equal(pkg.scripts.test, 'node --test upload.test.mjs diagnostic.test.mjs repair.test.mjs logging-policy.test.mjs');
+  assert.equal(pkg.scripts.upload, 'npm run check && node diagnose-binding.mjs');
+  assert.equal(pkg.scripts.test, 'node --test upload.test.mjs diagnostic.test.mjs repair.test.mjs logging-policy.test.mjs binding-diagnostic.test.mjs');
   const policy = readFileSync(new URL('logging-policy.mjs', import.meta.url), 'utf8');
   assert(!policy.includes('fetch(')); assert(!policy.includes('console.'));
 });
