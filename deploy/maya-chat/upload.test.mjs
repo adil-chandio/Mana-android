@@ -19,7 +19,9 @@ function fixture() {
     version: { id: activeId, resources: { script_runtime: { compatibility_date: '2026-09-11', compatibility_flags: [], usage_model: 'standard' }, bindings: [
       { name: 'DB', type: 'd1', database_id: dbId }, { name: 'APP_ORIGIN', type: 'plain_text', text: 'https://maya-chat.synthetic-test.workers.dev' },
       { name: 'OWNER_PUBLIC_JWK', type: 'plain_text', text: publicText }, { name: 'PAIRING_ENABLED', type: 'plain_text', text: 'true' },
-      { name: 'ENABLE_CHAT', type: 'plain_text', text: 'false' }
+      { name: 'ENABLE_CHAT', type: 'plain_text', text: 'false' },
+      { name: 'AI', type: 'ai' },
+      ...['FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS_CONFIRMED'].map(name => ({ name, type: 'plain_text', text: 'true' }))
     ] } }, calls: [], metadata: null, hook: null };
   const fetcher = async (url, options) => {
     const suffix = new URL(url).pathname.split('/maya-chat')[1]; state.calls.push({ url, options, suffix });
@@ -99,8 +101,8 @@ for (const extra of [{ name: 'AI', type: 'ai' }, { name: 'secret', type: 'secret
     const f = fixture(); f.state.version.resources.bindings.push(extra); await assert.rejects(f.run()); assert.equal(f.state.metadata, null);
   });
 }
-test('optional false review acknowledgements are preserved, never enabled', async () => {
-  const f = fixture(); f.state.version.resources.bindings.push({ name: 'MODEL_REVIEW_CONFIRMED', type: 'plain_text', text: 'false' });
+test('existing false review acknowledgements are preserved, never enabled', async () => {
+  const f = fixture(); f.state.version.resources.bindings.find(b => b.name === 'MODEL_REVIEW_CONFIRMED').text = 'false';
   await f.run(); assert.equal(f.state.metadata.bindings.find(b => b.name === 'MODEL_REVIEW_CONFIRMED').text, 'false');
 });
 for (const [name, value] of [['PAIRING_ENABLED', 'false'], ['ENABLE_CHAT', 'true'], ['ENABLE_CHAT', false],
@@ -230,13 +232,13 @@ test('raw Git source reads are bounded, shell-free, and retain shallow-clone par
 });
 test('Qwen candidate metadata identifies the new pinned artifact while every binding remains inherited', async () => {
   const f = fixture(); await f.run();
-  assert.equal(bytes.byteLength, 76459);
-  assert.equal(SHA256, 'df11a78f2355982c9efdd53ae8bafefd236544a429bdc9edf12183edfa9bf0f7');
-  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-qwen-off-df11a78f');
-  assert.match(f.state.metadata.annotations['workers/message'], /Qwen.*AI OFF/);
+  assert.equal(bytes.byteLength, 83087);
+  assert.equal(SHA256, '589b28829e2154c06232c167c02ce5cbc9df0e68fb839af31830e79b9502db70');
+  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-qwen-diag-589b2882');
+  assert.match(f.state.metadata.annotations['workers/message'], /Qwen.*Chat OFF/);
   assert(bytes.includes(Buffer.from('@cf/qwen/qwen3-30b-a3b-fp8')));
   assert.equal(f.state.metadata.bindings.length, f.state.version.resources.bindings.length);
-  assert(!f.state.metadata.bindings.some(b => b.name === 'AI'));
+  assert.deepEqual(f.state.metadata.bindings.find(b => b.name === 'AI'), { name: 'AI', type: 'ai' });
 });
 test('CLI source gate blocks unrelated future commits before any API request', () => {
   const preload = `import cp from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';
@@ -281,4 +283,66 @@ test('real CLI Qwen path uses synthetic source/API, makes exactly one version PO
   assert.equal(receipt.aiEnabled, false); assert.equal(receipt.promoted, false);
   assert(!cli.stdout.includes(publicText)); assert(!cli.stdout.includes(ENV.CLOUDFLARE_API_TOKEN)); assert(!cli.stdout.includes('PRIVATE_CANARY'));
   assert.match(cli.stdout, /Active traffic was NOT changed/);
+});
+
+test('diagnostic upload preserves all nine current bindings and true review flags while Chat stays OFF', async () => {
+  const f = fixture(); f.state.logging = { observability: null, logpush: false, tail_consumers: null };
+  const before = structuredClone(f.state.version.resources.bindings);
+  const receipt = await f.run();
+  assert.equal(receipt.aiEnabled, false); assert.equal(receipt.promoted, false);
+  assert.deepEqual(f.state.metadata.bindings, before.sort((a, b) => a.name.localeCompare(b.name)));
+  assert.equal(f.state.calls.length, 9);
+  assert.equal(f.state.calls.filter(c => c.options.method === 'POST').length, 1);
+  assert(f.state.calls.every(c => !c.url.includes('/ai/') && !c.url.includes('/d1/')));
+  assert.equal(f.state.deployments.deployments[0].versions[0].version_id, activeId);
+});
+for (const name of ['AI', 'FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS_CONFIRMED']) {
+  test(`diagnostic requires existing ${name}, never synthesizes a missing binding`, async () => {
+    const f = fixture(); f.state.version.resources.bindings = f.state.version.resources.bindings.filter(b => b.name !== name);
+    await assert.rejects(f.run(), /BINDINGS_REQUIRE_REVIEW/); assert.equal(f.state.metadata, null);
+  });
+}
+for (const extra of [{ type: 'plain_text', text: 'ai' }, { gateway: { id: 'PRIVATE_GATEWAY' } },
+  { staging: true }, { staging: false }, { namespace: 'PRIVATE_NAMESPACE' }, { account_id: 'a'.repeat(32) }]) {
+  test(`AI binding does not silently discard or add unreviewed options ${Object.keys(extra).join('/')}`, async () => {
+    const f = fixture(); Object.assign(f.state.version.resources.bindings.find(b => b.name === 'AI'), extra);
+    await assert.rejects(f.run(), /EXISTING_AI_BINDING_REQUIRED/); assert.equal(f.state.metadata, null);
+  });
+}
+for (const name of ['FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS_CONFIRMED']) {
+  test(`${name} remains an exact validated string acknowledgement, never coerced`, async () => {
+    for (const value of [true, false, null, 'TRUE', 'true ', '', 'unknown']) {
+      const f = fixture(); f.state.version.resources.bindings.find(b => b.name === name).text = value;
+      await assert.rejects(f.run()); assert.equal(f.state.metadata, null);
+    }
+  });
+}
+test('Chat ON is still blocked even with the now-approved AI binding and review flags', async () => {
+  const f = fixture(); f.state.version.resources.bindings.find(b => b.name === 'ENABLE_CHAT').text = 'true';
+  await assert.rejects(f.run(), /AI_OFF_PAIRING_ON_REQUIRED/); assert.equal(f.state.metadata, null);
+});
+test('same-count unknown binding cannot replace a required AI/review binding', async () => {
+  for (const name of ['AI', 'MODEL_REVIEW_CONFIRMED']) {
+    const f = fixture(); f.state.version.resources.bindings.find(b => b.name === name).name = 'UNKNOWN';
+    await assert.rejects(f.run(), /UNREVIEWED_BINDING/); assert.equal(f.state.metadata, null);
+  }
+});
+test('mixed true/false review flags are preserved exactly, with no enable step', async () => {
+  const f = fixture(); f.state.version.resources.bindings.find(b => b.name === 'FREE_PLAN_CONFIRMED').text = 'false';
+  const before = structuredClone(f.state.version.resources.bindings);
+  await f.run(); assert.deepEqual(f.state.metadata.bindings, before.sort((a, b) => a.name.localeCompare(b.name)));
+});
+test('post-upload change to a review acknowledgement fails without retry or rollback', async () => {
+  const f = fixture(); f.state.hook = suffix => {
+    if (suffix === '/versions/' + newId) return Response.json({ success: true, result: { id: newId, resources: {
+      ...f.state.version.resources, bindings: f.state.version.resources.bindings.map(b => b.name === 'MODEL_REVIEW_CONFIRMED' ? { ...b, text: 'false' } : b)
+    } } });
+  };
+  await assert.rejects(f.run(), /UPLOADED_CONFIGURATION_MISMATCH_VERSION_MAY_EXIST_NOT_PROMOTED/);
+  assert.equal(f.state.calls.filter(c => c.options.method === 'POST').length, 1);
+});
+test('prior Qwen upload source cannot run the new diagnostic uploader', async () => {
+  const f = fixture(); await assert.rejects(f.run({ source: { head: ENV.WORKERS_CI_COMMIT_SHA,
+    parents: ['8ef51c86572e770d7d7916724dcb2e8f61802438'] } }), /UPLOAD_SOURCE_NOT_APPROVED/);
+  assert.equal(f.state.calls.length, 0);
 });

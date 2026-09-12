@@ -1,3 +1,18 @@
+> **Current mode: validation diagnostic v1, Chat-OFF upload — 2026-09-13.**
+> See [VALIDATION-CYCLE.md](VALIDATION-CYCLE.md) for the approved limited cycle.
+> This build only uploads one unpublished version; it never enables Chat/promotes.
+> Artifact: 83,087 bytes, SHA256
+> `589b28829e2154c06232c167c02ce5cbc9df0e68fb839af31830e79b9502db70`.
+> Requires the direct successor of approved parent `96e98a6e764acd324b33365a3a61f98018b82496`.
+> Deliberately preserves the existing standard AI binding and three reviewed text
+> flags, exactly nine allowlisted bindings, while requiring ENABLE_CHAT=false.
+> No missing binding is created, no value is enabled, no logging policy weakened.
+> Local results: 161 build-side tests, 196 runtime tests, 18 local browser groups.
+> Model output acceptance remains unchanged; diagnostics reveal only fixed categories.
+>
+> **Earlier banners and QWEN-UPLOAD.md below are historical**, not current artifact,
+> source-parent, binding-policy or approval instructions. No blind Retry.
+
 > **Current mode: approved Qwen AI-OFF upload only — 2026-09-13.**
 > See [QWEN-UPLOAD.md](QWEN-UPLOAD.md) for exact scope, evidence and precautions.
 > Artifact: 76,459 bytes, SHA256

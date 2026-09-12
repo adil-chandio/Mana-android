@@ -8,8 +8,8 @@ import { pathToFileURL } from 'node:url';
 import { loggingOffRepresentation } from './logging-policy.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
-export const APPROVED_UPLOAD_PARENT = '8ef51c86572e770d7d7916724dcb2e8f61802438';
-export const SHA256 = 'df11a78f2355982c9efdd53ae8bafefd236544a429bdc9edf12183edfa9bf0f7';
+export const APPROVED_UPLOAD_PARENT = '96e98a6e764acd324b33365a3a61f98018b82496';
+export const SHA256 = '589b28829e2154c06232c167c02ce5cbc9df0e68fb839af31830e79b9502db70';
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const HEX32 = /^[a-f0-9]{32}$/i;
 const ACKS = ['FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS_CONFIRMED'];
@@ -18,7 +18,7 @@ export class Blocked extends Error {
 }
 const requireThat = (condition, code) => { if (!condition) throw new Blocked(code); };
 export function checkArtifact(bytes) {
-  requireThat(bytes?.byteLength === 76459 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
+  requireThat(bytes?.byteLength === 83087 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
 }
 export function checkBuild(env) {
   requireThat(env.WORKERS_CI === '1' && env.CI === 'true', 'CLOUDFLARE_BUILD_ONLY');
@@ -67,12 +67,16 @@ export async function preserveConfiguration(version, expectedId) {
     && (!runtime.limits || Object.keys(runtime.limits).length === 0)
     && [undefined, 'standard'].includes(runtime.usage_model), 'UNREVIEWED_RUNTIME_CONFIGURATION');
   const bindings = resources?.bindings;
-  requireThat(Array.isArray(bindings) && bindings.length >= 5 && bindings.length <= 8, 'BINDINGS_REQUIRE_REVIEW');
+  requireThat(Array.isArray(bindings) && bindings.length === 9, 'BINDINGS_REQUIRE_REVIEW');
   const seen = new Map(), preserved = [];
   for (const b of bindings) {
     requireThat(b && typeof b.name === 'string' && !seen.has(b.name), 'DUPLICATE_OR_INVALID_BINDING');
     seen.set(b.name, b);
-    if (b.name === 'DB') {
+    if (b.name === 'AI') {
+      // Preserve only the existing standard Workers AI binding, not a gateway or options.
+      requireThat(b.type === 'ai' && Object.keys(b).every(k => ['name', 'type'].includes(k)), 'EXISTING_AI_BINDING_REQUIRED');
+      preserved.push({ name: 'AI', type: 'ai' });
+    } else if (b.name === 'DB') {
       const id = b.database_id ?? b.id;
       requireThat(b.type === 'd1' && UUID.test(id || '') && (!b.database_id || !b.id || b.database_id === b.id)
         && Object.keys(b).every(k => ['name', 'type', 'id', 'database_id'].includes(k)), 'EXISTING_DB_REQUIRED');
@@ -84,8 +88,8 @@ export async function preserveConfiguration(version, expectedId) {
       preserved.push({ name: b.name, type: 'plain_text', text: b.text });
     }
   }
-  requireThat(seen.has('DB') && seen.get('PAIRING_ENABLED')?.text === 'true'
-    && seen.get('ENABLE_CHAT')?.text === 'false' && ACKS.every(name => !seen.has(name) || seen.get(name).text === 'false'), 'AI_OFF_PAIRING_ON_REQUIRED');
+  requireThat(seen.has('DB') && seen.has('AI') && seen.get('PAIRING_ENABLED')?.text === 'true'
+    && seen.get('ENABLE_CHAT')?.text === 'false' && ACKS.every(name => ['true', 'false'].includes(seen.get(name)?.text)), 'AI_OFF_PAIRING_ON_REQUIRED');
   const origin = seen.get('APP_ORIGIN')?.text;
   requireThat(typeof origin === 'string' && /^https:\/\/maya-chat\.[a-z0-9-]+\.workers\.dev$/.test(origin), 'FINAL_ORIGIN_REQUIRED');
   const text = seen.get('OWNER_PUBLIC_JWK')?.text;
@@ -148,10 +152,10 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
       requireThat(JSON.stringify(activeDeployment(await api('/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
       checkLogging(await api('/script-settings')); check();
       const metadata = { ...configuration, annotations: {
-        'workers/message': 'Maya Qwen text candidate. AI OFF. Manual promotion required. Recheck current settings before promotion.',
+        'workers/message': 'Maya Qwen validation diagnostic v1. Chat OFF. Preserve bindings. Manual promotion required.',
         'workers/commit_sha': build.commit,
         'workers/repository_url': 'https://github.com/adil-chandio/Mana-android',
-        'workers/tag': 'maya-qwen-off-df11a78f'
+        'workers/tag': 'maya-qwen-diag-589b2882'
       } };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
