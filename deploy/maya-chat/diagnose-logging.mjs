@@ -1,7 +1,7 @@
 // Temporary build-side, read-only diagnostic. No upload or deployment path.
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { Blocked, WORKER, checkArtifact, checkBuild, checkLogging } from './upload-version.mjs';
+import { Blocked, WORKER, checkArtifact, checkBuild, legacyCheckLogging as checkLogging } from './upload-version.mjs';
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const own = (object, key) => isObject(object) && Object.hasOwn(object, key) ? object[key] : undefined;
 const shape = value => value === undefined ? 'missing' : value === null ? 'null' : isObject(value) ? 'object' : Array.isArray(value) ? 'array' : 'invalid';

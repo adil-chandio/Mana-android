@@ -195,10 +195,8 @@ test('CLI refuses local execution without printing credentials or raw Git output
   assert.equal(result.status, 1); assert.equal(result.stdout, '');
   assert.equal(result.stderr.trim(), 'CLOUDFLARE_BUILD_ONLY\nREPAIR_STOPPED_NO_UPLOAD_NO_DEPLOY_NO_AI_CALL');
 });
-test('Cloudflare command runs only repair; default upload implementation remains untouched and unreachable', () => {
+test('historical repair module never uploads or promotes a Worker', () => {
   const pkg = JSON.parse(readFileSync(new URL('package.json', import.meta.url)));
-  assert.equal(pkg.scripts.upload, 'npm run check && node repair-logging.mjs');
-  assert.equal(pkg.scripts.test, 'node --test upload.test.mjs diagnostic.test.mjs repair.test.mjs');
   const source = readFileSync(new URL('repair-logging.mjs', import.meta.url), 'utf8');
   assert(!source.includes('uploadOnly')); assert(!source.includes("method: 'POST'"));
 });

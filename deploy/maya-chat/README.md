@@ -1,3 +1,55 @@
+> **Current mode: AI-OFF version upload only — 2026-09-12.** The owner
+> approved the logging-format compatibility fix and one upload-only build.
+> `npm run upload` again runs tests followed by `upload-version.mjs`.
+> It does **not** execute `repair-logging.mjs` or make any logging PATCH.
+> It uploads at most one unpublished version and never promotes live traffic.
+>
+> **Evidence and correction:** diagnostic build
+> `8f501026-9997-4a84-b95f-8b60f172d0ec` returned `observability:null`,
+> `logpush:false`, and `tail_consumers:null`. The later, explicitly approved
+> logging-OFF PATCH was acknowledged by Cloudflare, but repair build
+> `aa2e7340-79d1-485e-ba40-a237b9032ae3` read the same null representation
+> and refused to call it explicit-OFF. Its active deployment was unchanged.
+> That was a verifier/serialization mismatch, not a successful Worker upload.
+>
+> Cloudflare's own `normalizeObservability` in the pinned source below treats
+> null observability as disabled global/log/trace enable flags. Defaults such
+> as `persist:true` or `invocation_logs:true` do not themselves enable a
+> disabled channel. This differs from newly created Workers being configured
+> with logging enabled by their creation flow.
+>
+> https://github.com/cloudflare/workers-sdk/blob/164e4fb11c32ae4ad255998bcdc17dc5a3a74ec6/packages/deploy-helpers/src/deploy/helpers/config-diffs.ts
+>
+> `logging-policy.mjs` recognizes that null representation, or a validated
+> explicit global OFF object. It still requires an explicit false Logpush flag
+> and present null/empty standard tail list; streaming-tail consumers must be
+> absent, null or empty. Empty-list null serialization was observed after the
+> accepted `tail_consumers:[]` PATCH. Missing observability, booleans supplied
+> as strings, malformed objects/lists, unexpected fields, nonempty exports,
+> true channel overrides and nonempty streaming tails remain blocked.
+> Enabled flags are checked independently of sampling rates or persistence.
+> No request changes settings to make the guard pass.
+>
+> This is configuration-normalization evidence, not a blanket assertion about
+> all Cloudflare audit logs, platform data retention or future configuration.
+> Logging is checked before and after upload; any drift stops the uploader.
+> The three review acknowledgements and inference activation remain closed.
+>
+> The historical diagnostic uses a frozen `legacyCheckLogging` predicate so
+> its `previous_guard` field remains comparable to the earlier screenshots.
+> The active uploader uses only the new policy, with no legacy fallback.
+> Historical repair remains source-parent-gated and is not called by the
+> dashboard command. All earlier notes below are historical, not instructions
+> to run another repair or promote a version.
+>
+> Local verification: **136/136 build-side tests**, including the observed
+> null response through the full upload path, logging drift, enabled channel
+> overrides, streaming tails, malformed data and all historical tests. The
+> Worker artifact is unchanged: 74,788 bytes, SHA256
+> `8105db539ef8d49415e6c37addfcabe282e7edcb1c5d7889c17ac8294752fd29`.
+> Actual upload success still requires the Cloudflare build receipt and
+> separate operator review; do not promote or retry blindly.
+
 > **Current mode: approved logging-OFF repair only — 2026-09-12.**
 > The owner's successful diagnostic showed `observability=null`,
 > `global_enabled=missing`, `logpush=false`, and `tail_consumers=null`.

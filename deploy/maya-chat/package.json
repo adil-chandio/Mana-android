@@ -7,8 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test upload.test.mjs diagnostic.test.mjs repair.test.mjs",
+    "test": "node --test upload.test.mjs diagnostic.test.mjs repair.test.mjs logging-policy.test.mjs",
     "check": "node --check worker-upload.mjs && npm test",
-    "upload": "npm run check && node repair-logging.mjs"
+    "upload": "npm run check && node upload-version.mjs"
   }
 }

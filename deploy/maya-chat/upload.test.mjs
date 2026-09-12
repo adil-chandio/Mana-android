@@ -183,3 +183,23 @@ test('default Wrangler is intentionally nondeployable; package has no dependenci
   const pkg = JSON.parse(readFileSync(new URL('package.json', import.meta.url))); assert.equal(pkg.dependencies, undefined);
   assert.deepEqual(Object.keys(pkg.scripts).sort(), ['check', 'test', 'upload']); assert(pkg.scripts.upload.startsWith('npm run check &&'));
 });
+test('real observed null logging shape permits one version upload, no settings PATCH or deployment mutation', async () => {
+  const f = fixture(); f.state.logging = { observability: null, logpush: false, tail_consumers: null };
+  const result = await f.run(); assert.equal(result.promoted, false); assert.equal(result.aiEnabled, false);
+  assert.equal(f.state.calls.length, 9); assert.equal(f.state.calls.filter(c => c.options.method === 'POST').length, 1);
+  assert(f.state.calls.every(c => c.options.method === 'GET' || c.options.method === 'POST' && c.suffix === '/versions'));
+  assert.equal(f.state.metadata.bindings.find(b => b.name === 'DB').database_id, dbId);
+  assert.equal(f.state.metadata.bindings.find(b => b.name === 'OWNER_PUBLIC_JWK').text, publicText);
+});
+test('logging enabled after a canonical-null preflight still blocks before upload', async () => {
+  const f = fixture(); f.state.logging = { observability: null, logpush: false, tail_consumers: null };
+  f.state.hook = suffix => { if (suffix === '/versions/' + activeId) f.state.logging.observability = { enabled: true }; };
+  await assert.rejects(f.run(), /LOGGING_MUST_BE_OFF_NO_UPLOAD_STARTED/); assert.equal(f.state.metadata, null);
+});
+test('enabled child channel or streaming consumer blocks before upload even under global OFF', async () => {
+  for (const extra of [{ observability: { enabled: false, logs: { enabled: true } } },
+    { observability: { enabled: false, traces: { enabled: true } } }, { streaming_tail_consumers: [{ service: 'private' }] }]) {
+    const f = fixture(); Object.assign(f.state.logging, extra);
+    await assert.rejects(f.run(), /LOGGING_MUST_BE_OFF_NO_UPLOAD_STARTED/); assert.equal(f.state.metadata, null);
+  }
+});

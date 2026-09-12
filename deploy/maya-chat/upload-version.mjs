@@ -3,6 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { createHash, webcrypto } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { loggingOffRepresentation } from './logging-policy.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
 export const SHA256 = '8105db539ef8d49415e6c37addfcabe282e7edcb1c5d7889c17ac8294752fd29';
@@ -32,10 +33,14 @@ export function activeDeployment(result) {
     && first.versions[0].percentage === 100 && UUID.test(first.versions[0].version_id || ''), 'SINGLE_ACTIVE_VERSION_REQUIRED');
   return { id: first.id, version: first.versions[0].version_id };
 }
-export function checkLogging(settings) {
-  // A disabled global observability switch dominates retained sampling options.
+// Frozen old predicate, used only to keep historical diagnostic reports honest.
+export function legacyCheckLogging(settings) {
+  // Historical behavior; NOT the current uploader's verification policy.
   requireThat(settings?.observability?.enabled === false && settings.logpush !== true
     && (settings.tail_consumers === undefined || Array.isArray(settings.tail_consumers) && settings.tail_consumers.length === 0), 'LOGGING_MUST_BE_OFF');
+}
+export function checkLogging(settings) {
+  requireThat(loggingOffRepresentation(settings) !== 'blocked', 'LOGGING_MUST_BE_OFF');
 }
 export async function preserveConfiguration(version, expectedId) {
   requireThat(version?.id === expectedId, 'VERSION_ID_MISMATCH');
