@@ -116,10 +116,8 @@ test('local CLI refuses credentials-free execution without emitting report or ra
   assert.equal(result.status, 1); assert.equal(result.stdout, '');
   assert.equal(result.stderr.trim(), 'CLOUDFLARE_BUILD_ONLY_READ_ONLY_NO_UPLOAD');
 });
-test('dashboard npm run upload command is now diagnostic-only, with no fallback uploader', () => {
+test('diagnostic module remains read-only with no fallback uploader', () => {
   const pkg = JSON.parse(readFileSync(new URL('package.json', import.meta.url)));
-  assert.equal(pkg.scripts.upload, 'npm run check && node diagnose-logging.mjs');
-  assert.equal(pkg.scripts.test, 'node --test upload.test.mjs diagnostic.test.mjs');
   assert.equal(pkg.dependencies, undefined);
   const source = readFileSync(new URL('diagnose-logging.mjs', import.meta.url), 'utf8');
   assert(!source.includes('uploadOnly')); assert(!source.includes("method: 'POST'"));

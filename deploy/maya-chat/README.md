@@ -1,3 +1,59 @@
+> **Current mode: approved logging-OFF repair only — 2026-09-12.**
+> The owner's successful diagnostic showed `observability=null`,
+> `global_enabled=missing`, `logpush=false`, and `tail_consumers=null`.
+> The original guard remains unchanged; null is not reclassified as OFF.
+>
+> The owner explicitly approved saving logging settings as OFF and verifying
+> the readback. `npm run upload` now runs tests and **`repair-logging.mjs`**.
+> This is NOT a Worker version upload or live promotion. Do not change the
+> dashboard command to `wrangler deploy` or invoke `upload-version.mjs`.
+>
+> The repair reads the active deployment and current script settings, accepts
+> only the observed null state or an already-explicitly-OFF configuration,
+> rechecks the active deployment, and sends **at most one PATCH** to this
+> existing Worker's `/script-settings` endpoint. The fixed JSON contains only:
+> `logpush:false`, `tail_consumers:[]`, `observability.enabled:false`, and
+> explicit `false` log/trace/invocation/persistence flags with empty export
+> destination lists. It does not patch tags, bindings, variables, keys,
+> compatibility, routes, subdomains, databases, versions, source, billing or AI.
+> Unexpected nonempty streaming-tail consumers stop it before any write;
+> undocumented streaming-tail mutation fields are not sent.
+>
+> A separate GET must return **explicit** OFF values and empty lists; null or
+> incomplete readback is reported as **not verified**, even after an accepted
+> PATCH. The active deployment ID/traffic selection is checked again, without
+> writing a deployment or attempting rollback. Only whitelisted state labels,
+> boolean result flags, a fixed request-stage label and HTTP status are logged.
+> There is no raw response, destination identifier, tail service, API token,
+> Git author data, browser key, conversation or other secret output.
+>
+> Gates: same artifact/Workers-CI/account/branch/acknowledgement checks; the
+> checkout SHA must match the CI SHA and have exactly one parent, the approved
+> diagnostic commit `98bd0d37e2ca06c9d4d23139c31ac1d88697157e`. This prevents
+> unrelated future pushes from silently reapplying this repair. Git parent
+> headers are read with `git cat-file` so shallow clones are supported.
+> Bound: 30 seconds for API work, 64 KiB per reply, at most six API requests,
+> no redirects, retries, alternate endpoint fallback, rollback or enable step.
+> Already-explicit OFF skips PATCH. Manual retries of the same approved commit
+> could reapply an OFF request if the previous outcome was uncertain: **do not
+> retry blindly**. This is not a durable exactly-once transaction.
+>
+> Successful repair marker: `LOGGING_OFF_VERIFIED_NO_UPLOAD_NO_DEPLOY_NO_AI_CALL`.
+> Failure marker: `REPAIR_STOPPED_NO_UPLOAD_NO_DEPLOY_NO_AI_CALL`.
+> `patch_attempted` / `patch_acknowledged` distinguish an uncertain request
+> from an accepted write; acceptance alone is not an OFF verification.
+> The uploader and Worker artifact remain unchanged. Restoring upload mode,
+> any live promotion, or AI enablement requires a separate reviewed step.
+>
+> Local verification: 102/102 build-side tests (32 repair + 25 diagnostic +
+> 45 original uploader), plus the unchanged signed-Chat 102/102 tests. The
+> original uploader and 74,788-byte Worker checksum are unchanged.
+>
+> API contract checked: https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/settings/methods/edit/
+>
+> **Earlier diagnostic and upload notes below are historical, not the active
+> command for this approved repair.**
+
 > **Temporary read-only diagnostic mode — 2026-09-12.** The owner approved a
 > diagnostic after build `68862bd8-acef-4fc4-9bb4-9c0fdbd8ad6f` stopped with
 > `LOGGING_MUST_BE_OFF_NO_UPLOAD_STARTED`. That run passed its 45 tests in
