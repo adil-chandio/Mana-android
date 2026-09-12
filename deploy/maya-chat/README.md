@@ -1,3 +1,18 @@
+> **Current mode: approved Qwen AI-OFF upload only — 2026-09-13.**
+> See [QWEN-UPLOAD.md](QWEN-UPLOAD.md) for exact scope, evidence and precautions.
+> Artifact: 76,459 bytes, SHA256
+> `df11a78f2355982c9efdd53ae8bafefd236544a429bdc9edf12183edfa9bf0f7`.
+> Existing upload-only command and all config/logging protections are retained.
+> New raw-Git gate permits only the direct successor of approved parent
+> `8ef51c86572e770d7d7916724dcb2e8f61802438`; unrelated future commits cannot upload.
+> 142 build-side tests passed locally. No logging PATCH, AI binding/call, key/DB
+> write or live promotion. One invocation may upload at most one version;
+> manual Retry of the same commit is NOT safe exactly-once delivery.
+>
+> **Everything below records historical phases**, not current artifact pins,
+> commands, test counts, approval or live-Qwen evidence. Do not rerun old repair
+> builds or infer a successful version receipt before the current build completes.
+
 > **Current mode: AI-OFF version upload only — 2026-09-12.** The owner
 > approved the logging-format compatibility fix and one upload-only build.
 > `npm run upload` again runs tests followed by `upload-version.mjs`.

@@ -1,12 +1,15 @@
 // Build-side uploader. Not imported by the Worker or any browser asset.
-// No dependencies, shell commands, token output, config files or deployment API.
+// No dependencies, shell interpretation, token output or deployment API.
+// Two bounded local Git reads bind this upload to its approved source parent.
 import { readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { createHash, webcrypto } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { loggingOffRepresentation } from './logging-policy.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
-export const SHA256 = '8105db539ef8d49415e6c37addfcabe282e7edcb1c5d7889c17ac8294752fd29';
+export const APPROVED_UPLOAD_PARENT = '8ef51c86572e770d7d7916724dcb2e8f61802438';
+export const SHA256 = 'df11a78f2355982c9efdd53ae8bafefd236544a429bdc9edf12183edfa9bf0f7';
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const HEX32 = /^[a-f0-9]{32}$/i;
 const ACKS = ['FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS_CONFIRMED'];
@@ -15,7 +18,7 @@ export class Blocked extends Error {
 }
 const requireThat = (condition, code) => { if (!condition) throw new Blocked(code); };
 export function checkArtifact(bytes) {
-  requireThat(bytes?.byteLength === 74788 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
+  requireThat(bytes?.byteLength === 76459 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
 }
 export function checkBuild(env) {
   requireThat(env.WORKERS_CI === '1' && env.CI === 'true', 'CLOUDFLARE_BUILD_ONLY');
@@ -26,6 +29,19 @@ export function checkBuild(env) {
   const token = env.CLOUDFLARE_API_TOKEN;
   requireThat(typeof token === 'string' && token.length >= 20 && token.length <= 4096 && !/\s/.test(token), 'CLOUDFLARE_MANAGED_TOKEN_REQUIRED');
   return { accountId: env.CLOUDFLARE_ACCOUNT_ID, token, commit: env.WORKERS_CI_COMMIT_SHA };
+}
+export function checkUploadSource(env, source) {
+  requireThat(source?.head === env.WORKERS_CI_COMMIT_SHA && source?.head !== APPROVED_UPLOAD_PARENT
+    && Array.isArray(source?.parents) && source.parents.length === 1
+    && source.parents[0] === APPROVED_UPLOAD_PARENT, 'UPLOAD_SOURCE_NOT_APPROVED');
+}
+export function readUploadSource(run = execFileSync) {
+  // Raw commit headers preserve parents even in shallow Workers Builds clones.
+  // Never print raw Git output; a Git error becomes a fixed CLI error code.
+  const options = { encoding: 'utf8', timeout: 5000, maxBuffer: 16384, stdio: ['ignore', 'pipe', 'pipe'] };
+  const head = run('git', ['rev-parse', 'HEAD'], options).trim();
+  const headers = run('git', ['cat-file', 'commit', 'HEAD'], options).split('\n\n')[0];
+  return { head, parents: headers.split('\n').filter(line => line.startsWith('parent ')).map(line => line.slice(7)) };
 }
 export function activeDeployment(result) {
   const first = result?.deployments?.[0];
@@ -103,8 +119,8 @@ async function readEnvelope(response, check, cleanup) {
     return parsed.result;
   } finally { reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
-export async function uploadOnly({ env, bytes, fetcher = globalThis.fetch, timeoutMs = 60000 }) {
-  checkArtifact(bytes); const build = checkBuild(env);
+export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetch, timeoutMs = 60000 }) {
+  checkArtifact(bytes); const build = checkBuild(env); checkUploadSource(env, source);
   const base = `https://api.cloudflare.com/client/v4/accounts/${build.accountId}/workers/scripts/${WORKER}`;
   const abort = new AbortController(), cleanup = []; let closed = false, postStarted = false, reject;
   const deadline = Date.now() + timeoutMs;
@@ -132,10 +148,10 @@ export async function uploadOnly({ env, bytes, fetcher = globalThis.fetch, timeo
       requireThat(JSON.stringify(activeDeployment(await api('/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
       checkLogging(await api('/script-settings')); check();
       const metadata = { ...configuration, annotations: {
-        'workers/message': 'Maya diagnostic-only candidate. AI OFF. Manual promotion required. Recheck current settings before promotion.',
+        'workers/message': 'Maya Qwen text candidate. AI OFF. Manual promotion required. Recheck current settings before promotion.',
         'workers/commit_sha': build.commit,
         'workers/repository_url': 'https://github.com/adil-chandio/Mana-android',
-        'workers/tag': 'maya-ai-off-8105db53'
+        'workers/tag': 'maya-qwen-off-df11a78f'
       } };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
@@ -161,7 +177,9 @@ export async function uploadOnly({ env, bytes, fetcher = globalThis.fetch, timeo
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const bytes = await readFile(new URL('worker-upload.mjs', import.meta.url));
-    const receipt = await uploadOnly({ env: process.env, bytes });
+    checkBuild(process.env);
+    const source = readUploadSource();
+    const receipt = await uploadOnly({ env: process.env, bytes, source });
     console.log(JSON.stringify(receipt));
     console.log('Uploaded an AI-OFF version only. Active traffic was NOT changed. Review in Cloudflare before any manual promotion.');
   } catch (error) {

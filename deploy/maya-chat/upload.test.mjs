@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { BRANCH, SHA256, checkArtifact, checkBuild, activeDeployment, checkLogging, preserveConfiguration, uploadOnly } from './upload-version.mjs';
+import { BRANCH, SHA256, APPROVED_UPLOAD_PARENT, checkUploadSource, readUploadSource, checkArtifact, checkBuild, activeDeployment, checkLogging, preserveConfiguration, uploadOnly } from './upload-version.mjs';
 const bytes = readFileSync(new URL('worker-upload.mjs', import.meta.url));
 const activeId = '11111111-1111-4111-8111-111111111111', newId = '22222222-2222-4222-8222-222222222222';
 const deploymentId = '33333333-3333-4333-8333-333333333333', dbId = '44444444-4444-4444-8444-444444444444';
+const SOURCE = { head: 'a'.repeat(40), parents: [APPROVED_UPLOAD_PARENT] };
 const ENV = { WORKERS_CI: '1', CI: 'true', WORKERS_CI_BRANCH: BRANCH, WORKERS_CI_COMMIT_SHA: 'a'.repeat(40),
   MAYA_UPLOAD_APPROVED: 'diagnostic-only-v1', CLOUDFLARE_ACCOUNT_ID: 'b'.repeat(32), CLOUDFLARE_API_TOKEN: 'synthetic-token-for-offline-tests' };
 const pair = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
@@ -37,7 +38,7 @@ function fixture() {
     else throw Error('Unexpected fixture route');
     return Response.json({ success: true, result });
   };
-  return { state, run: (override = {}) => uploadOnly({ env: { ...ENV }, bytes, fetcher, ...override }) };
+  return { state, run: (override = {}) => uploadOnly({ env: { ...ENV }, bytes, source: SOURCE, fetcher, ...override }) };
 }
 test('artifact is exact approved byte sequence with no substitution', () => {
   checkArtifact(bytes); assert(readFileSync(new URL('ARTIFACT.sha256', import.meta.url), 'utf8').startsWith(SHA256));
@@ -202,4 +203,82 @@ test('enabled child channel or streaming consumer blocks before upload even unde
     const f = fixture(); Object.assign(f.state.logging, extra);
     await assert.rejects(f.run(), /LOGGING_MUST_BE_OFF_NO_UPLOAD_STARTED/); assert.equal(f.state.metadata, null);
   }
+});
+
+test('Qwen upload source must be the single direct successor of the owner-approved parent', async () => {
+  assert.doesNotThrow(() => checkUploadSource(ENV, SOURCE));
+  for (const source of [undefined, {}, { ...SOURCE, head: 'c'.repeat(40) }, { ...SOURCE, parents: [] },
+    { ...SOURCE, parents: [APPROVED_UPLOAD_PARENT, 'd'.repeat(40)] },
+    { ...SOURCE, parents: ['d'.repeat(40)] }, { ...SOURCE, parents: APPROVED_UPLOAD_PARENT }]) {
+    const f = fixture(); await assert.rejects(f.run({ source }), /UPLOAD_SOURCE_NOT_APPROVED/);
+    assert.equal(f.state.calls.length, 0);
+  }
+  assert.throws(() => checkUploadSource({ ...ENV, WORKERS_CI_COMMIT_SHA: APPROVED_UPLOAD_PARENT },
+    { head: APPROVED_UPLOAD_PARENT, parents: [APPROVED_UPLOAD_PARENT] }), /UPLOAD_SOURCE_NOT_APPROVED/);
+});
+test('raw Git source reads are bounded, shell-free, and retain shallow-clone parent headers', () => {
+  const calls = [];
+  const result = readUploadSource((binary, args, options) => {
+    calls.push(args.join(' ')); assert.equal(binary, 'git');
+    assert.equal(options.timeout, 5000); assert.equal(options.maxBuffer, 16384);
+    assert.deepEqual(options.stdio, ['ignore', 'pipe', 'pipe']);
+    if (args.join(' ') === 'rev-parse HEAD') return SOURCE.head + '\n';
+    assert.equal(args.join(' '), 'cat-file commit HEAD');
+    return `tree ${'0'.repeat(40)}\nparent ${APPROVED_UPLOAD_PARENT}\nauthor PRIVATE_CANARY\n\nparent fake-message-parent`;
+  });
+  assert.deepEqual(result, SOURCE); assert.equal(calls.length, 2);
+});
+test('Qwen candidate metadata identifies the new pinned artifact while every binding remains inherited', async () => {
+  const f = fixture(); await f.run();
+  assert.equal(bytes.byteLength, 76459);
+  assert.equal(SHA256, 'df11a78f2355982c9efdd53ae8bafefd236544a429bdc9edf12183edfa9bf0f7');
+  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-qwen-off-df11a78f');
+  assert.match(f.state.metadata.annotations['workers/message'], /Qwen.*AI OFF/);
+  assert(bytes.includes(Buffer.from('@cf/qwen/qwen3-30b-a3b-fp8')));
+  assert.equal(f.state.metadata.bindings.length, f.state.version.resources.bindings.length);
+  assert(!f.state.metadata.bindings.some(b => b.name === 'AI'));
+});
+test('CLI source gate blocks unrelated future commits before any API request', () => {
+  const preload = `import cp from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';
+    cp.execFileSync=(binary,args)=>args[0]==='rev-parse'?'${SOURCE.head}\\n':'tree ${'0'.repeat(40)}\\nparent ${'d'.repeat(40)}\\n\\nPRIVATE_CANARY';
+    syncBuiltinESMExports();globalThis.fetch=()=>{throw Error('NETWORK_MUST_NOT_RUN')};`;
+  const cli = spawnSync(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(preload), 'upload-version.mjs'],
+    { cwd: new URL('.', import.meta.url), env: ENV, encoding: 'utf8' });
+  assert.equal(cli.status, 1); assert.equal(cli.stdout, ''); assert.equal(cli.stderr.trim(), 'UPLOAD_SOURCE_NOT_APPROVED');
+});
+test('CLI Git read failure is sanitized; raw error and credentials never printed', () => {
+  const preload = `import cp from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';
+    cp.execFileSync=()=>{throw Error('PRIVATE_CANARY')};syncBuiltinESMExports();
+    globalThis.fetch=()=>{throw Error('NETWORK_MUST_NOT_RUN')};`;
+  const cli = spawnSync(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(preload), 'upload-version.mjs'],
+    { cwd: new URL('.', import.meta.url), env: ENV, encoding: 'utf8' });
+  assert.equal(cli.status, 1); assert.equal(cli.stdout, ''); assert.equal(cli.stderr.trim(), 'LOCAL_CHECK_FAILED');
+});
+test('real CLI Qwen path uses synthetic source/API, makes exactly one version POST, no promotion or PATCH', () => {
+  const f = fixture(); f.state.logging = { observability: null, logpush: false, tail_consumers: null };
+  const preload = `import cp from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';
+    cp.execFileSync=(binary,args)=>{if(binary!=='git')throw Error('wrong binary');
+      if(args.join(' ')==='rev-parse HEAD')return '${SOURCE.head}\\n';
+      if(args.join(' ')==='cat-file commit HEAD')return 'tree ${'0'.repeat(40)}\\nparent ${APPROVED_UPLOAD_PARENT}\\nauthor PRIVATE_CANARY\\n\\nsubject';
+      throw Error('wrong Git request')};syncBuiltinESMExports();let posts=0,calls=0,metadata;
+    globalThis.fetch=async(url,opts)=>{calls++;const path=new URL(url).pathname.split('/maya-chat')[1];let result;
+      if(opts.method==='POST'){if(path!=='/versions'||++posts!==1)throw Error('unexpected POST');
+        metadata=JSON.parse(await opts.body.get('metadata').text());result={id:'${newId}'};}
+      else{if(opts.method!=='GET')throw Error('mutation forbidden');
+        if(path==='/deployments')result=${JSON.stringify(f.state.deployments)};
+        else if(path==='/script-settings')result=${JSON.stringify(f.state.logging)};
+        else if(path==='/versions/${activeId}')result=${JSON.stringify(f.state.version)};
+        else if(path==='/versions/${newId}')result={id:'${newId}',resources:{bindings:metadata.bindings,
+          script_runtime:{compatibility_date:'2026-09-11',compatibility_flags:[],usage_model:'standard'}}};
+        else throw Error('unexpected endpoint');}
+      return Response.json({success:true,result});};
+    process.on('exit',()=>{if(posts!==1||calls!==9)process.exitCode=9});`;
+  const cli = spawnSync(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(preload), 'upload-version.mjs'],
+    { cwd: new URL('.', import.meta.url), env: ENV, encoding: 'utf8' });
+  assert.equal(cli.status, 0); assert.equal(cli.stderr, '');
+  const receipt = JSON.parse(cli.stdout.split('\n')[0]);
+  assert.equal(receipt.sha256, SHA256); assert.equal(receipt.version, newId);
+  assert.equal(receipt.aiEnabled, false); assert.equal(receipt.promoted, false);
+  assert(!cli.stdout.includes(publicText)); assert(!cli.stdout.includes(ENV.CLOUDFLARE_API_TOKEN)); assert(!cli.stdout.includes('PRIVATE_CANARY'));
+  assert.match(cli.stdout, /Active traffic was NOT changed/);
 });
