@@ -105,6 +105,19 @@ class NativeChatActivityTest {
         assertTrue(field<Button>("check").isEnabled)
         noTransport()
     }
+    @Test fun disabledSendAndIdleStopHaveDistinctVisualStates() {
+        for (name in listOf("send", "stop")) {
+            val button = field<Button>(name)
+            val enabled = intArrayOf(android.R.attr.state_enabled)
+            assertNotEquals(button.textColors.defaultColor, button.textColors.getColorForState(enabled, 0))
+            assertNotEquals(button.backgroundTintList!!.defaultColor, button.backgroundTintList!!.getColorForState(enabled, 0))
+        }
+        assertFalse(field<Button>("send").isEnabled)
+        fill(); assertTrue(field<Button>("send").isEnabled)
+        val job = pending(); assertTrue(field<Button>("stop").isEnabled)
+        field<Button>("stop").performClick(); cancelled(job)
+        assertFalse(field<Button>("stop").isEnabled); noTransport()
+    }
     @Test fun tabsPreserveDraftConsentAndCompletedContextWithoutSending() {
         completedHistory(); fill()
         for (name in listOf("checks", "info", "chat")) {

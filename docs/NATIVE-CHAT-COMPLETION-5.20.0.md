@@ -49,13 +49,13 @@ paths caused the old phone readiness or repeated-OK results.
 
 ## Automated coverage
 
-Added thirteen Robolectric Activity tests, with Android resources and API 28:
+Added fourteen Robolectric Activity tests, with Android resources and API 28:
 opening with no transport, in-Activity tab preservation, Back cancel/confirmed
 exit, STOP on another tab, stale result versus newer job, background clearing and
 safe report retention, destroy-without-onStop fencing, explicit Clear/cancel,
 public-key-confirmation cancellation, redacted diagnostic clipboard, saved-state/
 recreation privacy, both obscured-touch flags, and fixed STOP placement across
-compact measured sizes. Synthetic jobs are injected via test-only reflection;
+compact measured sizes, and distinct enabled/disabled Send/STOP colors. Synthetic jobs are injected via test-only reflection;
 no production injection or readiness-bypass API is added. No real key, provider,
 model, audio, service action or HTTP request is used by these UI tests.
 

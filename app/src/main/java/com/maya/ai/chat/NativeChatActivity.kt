@@ -189,6 +189,8 @@ class NativeChatActivity : AppCompatActivity() {
             } catch (e: NativeChatProtocol.Rejected) { status.text = errorText(e.code, false); paint() }
         }
         stop = actionButton("STOP local wait") { stopActive("Stopped locally.") }.apply { tag = "global_stop" }
+        buttonColors(send, Color.rgb(125, 225, 204), Color.rgb(13, 35, 30))
+        buttonColors(stop, Color.rgb(255, 174, 183), Color.rgb(55, 19, 27))
         button("Clear local chat") {
             confirm("Clear this local chat?", "Remove this screen's draft/history and stop its local wait. This does not delete your key, erase provider records or refund usage.") {
                 stopActive("Cleared local chat."); session.clear(); draft.setText(""); consent.isChecked = false; renderHistory(); paint()
@@ -434,8 +436,13 @@ class NativeChatActivity : AppCompatActivity() {
     private fun actionButton(title: String, action: () -> Unit) = Button(this).apply {
         text = title; textSize = 14f; isAllCaps = false; minWidth = 0; minHeight = dp(48)
         filterTouchesWhenObscured = true; isSaveEnabled = false
-        backgroundTintList = ColorStateList.valueOf(Color.rgb(40, 46, 59))
-        setTextColor(Color.rgb(231, 229, 241)); setOnClickListener { action() }
+        buttonColors(this, Color.rgb(40, 46, 59), Color.rgb(231, 229, 241))
+        setOnClickListener { action() }
+    }
+    private fun buttonColors(button: Button, fill: Int, text: Int) {
+        val states = arrayOf(intArrayOf(android.R.attr.state_enabled), intArrayOf())
+        button.backgroundTintList = ColorStateList(states, intArrayOf(fill, Color.rgb(28, 32, 42)))
+        button.setTextColor(ColorStateList(states, intArrayOf(text, Color.rgb(141, 149, 165))))
     }
     private fun labelView(value: String, size: Float = 15f) = TextView(this).apply {
         text = value; textSize = size; setTextColor(Color.rgb(231, 229, 241)); setPadding(0, dp(8), 0, dp(8)); isSaveEnabled = false
