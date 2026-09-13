@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content"><meta name="theme-color" content="#101017"><title>Maya — private text Chat</title><link rel="stylesheet" href="/chat/style.css"><script type="module" src="/chat/app.mjs"></script></head>
+<body>
+<a class="skip-link" href="#message">Skip to message</a>
+<main>
+<header><div class="brand"><span class="brand-mark" aria-hidden="true">M</span><div><p class="eyebrow">MAYA · TEXT CHAT</p><h1>A space to talk.</h1></div></div><a class="pairing-link" href="/">Browser pairing</a><p class="scope">Text only. Not an agent: no voice, tools, media, browsing or phone actions. APK and Fish voice are separate.</p></header>
+<section class="notice" aria-label="Connection boundaries"><strong id="connection-note">No model response verified in this page yet.</strong><p>No automatic AI requests. The owner controls server access; this page does not show whether Chat is currently enabled.</p></section>
+<section id="conversation" aria-labelledby="chat-title">
+<div class="section-heading"><h2 id="chat-title">Your conversation</h2><span class="pill">Tab memory only</span></div>
+<aside class="memory-warning" aria-labelledby="memory-title"><strong id="memory-title">Refresh = new conversation</strong><p id="memory-note">Stay on this page for follow-ups. Refreshing, navigating away or clearing loses this local conversation.</p></aside>
+<p id="context">Context: 0 messages. No silent trimming or retries.</p><p id="context-note" class="context-note">New conversation: no earlier messages are available in this page.</p>
+<div id="empty-state"><span aria-hidden="true">M</span><p>Start with a message.</p><small>Replies and follow-ups stay here until you leave or clear this page.</small></div>
+<ol id="messages" aria-label="Conversation"></ol>
+<form id="composer"><div class="composer-heading"><label for="message">Your message</label><span id="draft-count">0 / 2,000</span></div><textarea id="message" rows="3" maxlength="2000" aria-describedby="draft-count context-note memory-note limits" placeholder="Write a message…"></textarea>
+<p id="limits" class="fine">Up to 2,000 characters per message · 6,000 in context · 5 admitted attempts/minute · 50/day. Limits do not guarantee free AI capacity. Enter adds a new line; only Send submits.</p>
+<label class="consent"><input id="consent" type="checkbox"><span>I agree to send this conversation to Cloudflare for AI processing. I will use non-sensitive test text during setup.</span></label>
+<p class="fine privacy-note">Each Send includes the available completed conversation. Messages are not saved in browser storage. Clearing here does not erase provider records or refund usage.</p>
+<div class="actions"><button id="send" type="submit" disabled>Send message</button><button id="stop" type="button" disabled>STOP local wait</button><button id="clear" type="button">Clear local chat</button></div></form>
+<div class="result"><p id="status" role="status" aria-live="polite">Ready. No AI request sent.</p><p id="timing" class="fine" role="status" aria-live="polite">Local wait time will appear after a text attempt finishes or stops.</p></div>
+<p class="fine">Timing includes key/signing work, network and server wait; it is not model-only speed. It stays in this tab, not telemetry.</p><p class="fine">STOP ends only this tab's wait. Remote work may continue and usage may count. Failed messages are excluded from future context. No automatic resend.</p>
+</section>
+<details id="access-panel"><summary>Private access check <span class="fine">· optional, no AI</span></summary><div class="details-body"><h2 id="checks-title">Check this browser's access</h2><p>Uses your saved browser key. It does not create or register a key. The button sends two identical empty signed requests: first accepted, repeat rejected. It never calls AI.</p><button id="check" type="button">Test access + replay (no AI)</button><p class="fine">One-time diagnostic, not a login session, proof that Chat is enabled or a step to repeat before each message.</p></div></details>
+<footer>Qwen3-30B-A3B-FP8 via Cloudflare Workers AI · Model weights: Apache-2.0.<br>validation diagnostic v1 · null compatibility v1 · response timing v1 · mobile chat v1 · native key slot v1<br>Availability is checked per request, not guaranteed. Browser leave warnings may not appear, especially on mobile; do not rely on them to save this chat.<br>Use the registered browser. Never paste private keys, passwords, OTPs or provider tokens here.</footer>
+<dialog id="clear-dialog" aria-labelledby="clear-title" aria-describedby="clear-description"><h2 id="clear-title">Clear this local chat?</h2><p id="clear-description">This removes the draft and conversation from this tab and stops its local wait. It does not delete your browser key, erase provider records or confirm remote cancellation.</p><button id="keep" type="button" autofocus>Keep chat</button><button id="confirm-clear" type="button">Clear local chat</button></dialog>
+</main></body></html>

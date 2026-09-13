@@ -82,6 +82,13 @@ class MainActivity : AppCompatActivity() {
        engine "shak wale" haal mein maana jata hai; koi bhi bol de to clear. */
     @Volatile private var ttsEverSpoke = false
     private var recognizer: SpeechRecognizer? = null
+    // Object allocation is not proof of an active recognition session.
+    private var recognitionActive = false
+    private var speechGeneration = 0L
+    @Volatile private var httpClosed = false
+    private val httpDeadlines = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+    private val httpRequests = java.util.concurrent.ConcurrentHashMap<String, com.maya.ai.net.CancelableRequest>()
+    private var fishPlayer: com.maya.ai.voice.FishStreamPlayer? = null
 
     /* ================= LIFECYCLE ================= */
 
@@ -126,7 +133,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.9.5 • silent-TTS fix (init-retry + watchdog + media stream)", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA " + BuildConfig.VERSION_NAME + " • Update Center", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -201,6 +208,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        httpClosed = true
+        httpDeadlines.shutdownNow()
+        httpRequests.values.forEach { it.cancel() }; httpRequests.clear()
+        fishPlayer?.stop(); fishPlayer = null
         instance = null
         stopRecognizer()
         try { tts?.stop(); tts?.shutdown() } catch (e: Exception) {}
@@ -210,6 +221,45 @@ class MainActivity : AppCompatActivity() {
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+    }
+
+    /** Read-only local readiness; no preference writes, service starts or remote page evaluation. */
+    fun nativeChatReady(result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) {
+        val policy = com.maya.ai.chat.NativeChatReadiness
+        try {
+            val state = policy.main(isFinishing || isDestroyed, httpRequests.isNotEmpty(), recognitionActive,
+                tts?.isSpeaking == true, webView.url in listOf(
+                    "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html"))
+            if (state != com.maya.ai.chat.NativeChatReadiness.Reason.READY) { result(state); return }
+            webView.evaluateJavascript(policy.LOCAL_SCRIPT) { result(policy.fromJavascript(it)) }
+        } catch (_: Exception) { result(com.maya.ai.chat.NativeChatReadiness.Reason.UNKNOWN) }
+    }
+
+    /** Explicit native Sunao/setup only. No JS bridge method, key export UI or preference writes. */
+    fun prepareNativeFish(text: String?, wanted: () -> Boolean, result: (com.maya.ai.chat.NativeFishPolicy.Result) -> Unit) {
+        val policy = com.maya.ai.chat.NativeFishPolicy
+        fun unavailable() = result(com.maya.ai.chat.NativeFishPolicy.Result.Error(com.maya.ai.chat.NativeFishPolicy.Code.UNAVAILABLE))
+        if (!wanted()) return
+        nativeChatReady { ready ->
+            if (!wanted()) return@nativeChatReady
+            if (ready != com.maya.ai.chat.NativeChatReadiness.Reason.READY) {
+                result(com.maya.ai.chat.NativeFishPolicy.Result.Error(com.maya.ai.chat.NativeFishPolicy.Code.ASSISTANT_BUSY))
+            } else try {
+                if (isFinishing || isDestroyed || webView.url !in listOf(
+                        "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                    unavailable(); return@nativeChatReady
+                }
+                webView.evaluateJavascript(policy.script(text)) { raw ->
+                    if (!wanted()) return@evaluateJavascript
+                    try {
+                        if (instance !== this || isFinishing || isDestroyed || httpRequests.isNotEmpty() || recognitionActive ||
+                            tts?.isSpeaking == true || webView.url !in listOf(
+                                "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) unavailable()
+                        else result(policy.decode(raw, text != null))
+                    } catch (_: Exception) { unavailable() }
+                }
+            } catch (_: Exception) { unavailable() }
+        }
     }
 
     /* ================= WEBVIEW CLIENT ================= */
@@ -247,6 +297,13 @@ class MainActivity : AppCompatActivity() {
             request: WebResourceRequest
         ): Boolean {
             val url = request.url
+            if (url.toString() == com.maya.ai.chat.NativeChatActivity.OPEN_LINK) {
+                if (request.isForMainFrame && request.hasGesture() && view.url in listOf(
+                        "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                    startActivity(Intent(this@MainActivity, com.maya.ai.chat.NativeChatActivity::class.java))
+                }
+                return true
+            }
             // apni app — andar khule (v4.0.1: file:// fallback bhi WebView ke andar)
             if (url.host == VIRTUAL_HOST || url.scheme == "file") return false
             return try {
@@ -350,7 +407,9 @@ class MainActivity : AppCompatActivity() {
     /* ================= STT ================= */
 
     private fun stopRecognizer() {
-        try { recognizer?.destroy(); recognizer = null } catch (e: Exception) {}
+        recognitionActive = false
+        speechGeneration++
+        try { recognizer?.destroy(); recognizer = null } catch (e: Exception) { recognitionActive = recognizer != null }
     }
 
     /* ================= JS BRIDGE ================= */
@@ -358,7 +417,15 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.9.5-native"
+        fun appVersion(): String = BuildConfig.VERSION_NAME + "-native"
+
+        /** Navigation only. JS cannot provide an APK URL or trigger installation. */
+        @JavascriptInterface
+        fun openUpdates() {
+            runOnUiThread {
+                startActivity(Intent(this@MainActivity, com.maya.ai.update.UpdateActivity::class.java))
+            }
+        }
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
@@ -441,20 +508,42 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { try { tts?.stop() } catch (e: Exception) {} }
         }
 
+        /** Fixed Fish streaming output; no alternate voice or arbitrary network destination. */
+        @JavascriptInterface
+        fun fishStreamSpeak(body: String, headers: String, id: String) {
+            runOnUiThread {
+                if (fishPlayer == null) fishPlayer = com.maya.ai.voice.FishStreamPlayer(this@MainActivity) { request, event, status ->
+                    evalAsync("window.__fishStreamEvent && window.__fishStreamEvent('$request','$event',$status)")
+                }
+                fishPlayer?.speak(body, headers, id)
+            }
+        }
+
+        @JavascriptInterface
+        fun fishStreamStop() { runOnUiThread { fishPlayer?.stop() } }
+
         /** Native STT — Google voice recognition (Urdu ur-PK supported) */
         @JavascriptInterface
-        fun listen(lang: String) {
+        fun listen(lang: String) { listenSession(lang, "") }
+
+        @JavascriptInterface
+        fun listenOwned(lang: String, owner: String) {
+            if (!Regex("mi[a-z0-9]{1,20}_[0-9]{1,12}").matches(owner)) return
+            listenSession(lang, owner)
+        }
+
+        private fun listenSession(lang: String, owner: String) {
             runOnUiThread {
                 if (ContextCompat.checkSelfPermission(
                         this@MainActivity, Manifest.permission.RECORD_AUDIO
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                     requestMicPermission()
-                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(7)")
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(9,'$owner')")
                     return@runOnUiThread
                 }
                 if (!SpeechRecognizer.isRecognitionAvailable(this@MainActivity)) {
-                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5)")
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5,'$owner')")
                     return@runOnUiThread
                 }
                 stopRecognizer()
@@ -480,21 +569,49 @@ class MainActivity : AppCompatActivity() {
                        bhi response tez rehta hai. */
                     putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 1200)
                 }
+                val session = speechGeneration
+                var delivered = false
+                android.os.Handler(Looper.getMainLooper()).postDelayed({
+                    if (session == speechGeneration && !delivered) {
+                        delivered = true
+                        stopRecognizer()
+                        WakeWordService.resumeFromApp()
+                        evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(1,'$owner')")
+                    }
+                }, 30000)
+                val timing = com.maya.ai.voice.RecognitionTiming { android.os.SystemClock.elapsedRealtime() }
+                try {
+                recognitionActive = true
                 recognizer = makeRecognizer().apply {
                     setRecognitionListener(object : RecognitionListener {
-                        override fun onReadyForSpeech(params: Bundle?) {}
-                        override fun onBeginningOfSpeech() {}
+                        override fun onReadyForSpeech(params: Bundle?) {
+                            if (session == speechGeneration && !delivered) evalAsync("window.__inputReady && window.__inputReady('$owner')")
+                        }
+                        override fun onBeginningOfSpeech() {
+                            if (session == speechGeneration && !delivered) evalAsync("window.__inputBegan && window.__inputBegan('$owner')")
+                        }
                         private var rmsTick = 0
                         override fun onRmsChanged(rmsdB: Float) {
                             rmsTick++
-                            if (rmsTick % 4 == 0) evalAsync("window.__nativeRms && window.__nativeRms(" + rmsdB + ")")
+                            if (session == speechGeneration && !delivered && rmsTick % 4 == 0) evalAsync("window.__nativeRms && window.__nativeRms(" + rmsdB + ",'$owner')")
                         }
                         override fun onBufferReceived(buffer: ByteArray?) {}
-                        override fun onEndOfSpeech() { evalAsync("window.__nativePartial && window.__nativePartial('')") }
+                        override fun onEndOfSpeech() {
+                            if (session != speechGeneration || delivered) return
+                            timing.end()
+                            evalAsync("window.__inputEnded && window.__inputEnded('$owner')")
+                        }
                         override fun onError(error: Int) {
-                            evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error)")
+                            if (session != speechGeneration || delivered) return
+                            recognitionActive = false
+                            delivered = true
+                            evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error,'$owner')")
                         }
                         override fun onResults(results: Bundle?) {
+                            if (session != speechGeneration || delivered) return
+                            recognitionActive = false
+                            delivered = true
+                            val recognitionMs = timing.endToFinal() ?: -1L
                             /* 🎙️ Android 3-5 andaze deta hai. Pehle sirf pehla liya jata tha
                                aur baqi phenk diye jate the — isi liye "Monarch" -> "منار" ban
                                jata tha. Ab SAARE andaze JS ko jate hain; SUNO un mein se wo
@@ -511,22 +628,28 @@ class MainActivity : AppCompatActivity() {
                                    parha hi nahi jata tha — ab SUNO isay bhi dekhta hai. */
                                 val o = JSONObject()
                                 o.put("t", all[i])
-                                if (conf != null && i < conf.size) o.put("c", conf[i].toDouble())
+                                if (conf != null && i < conf.size && conf[i].isFinite() && conf[i] in 0f..1f) o.put("c", conf[i].toDouble())
                                 arr.put(o)
                             }
                             evalAsync(
                                 "window.__nativeSpeech && window.__nativeSpeech('" + jsEscape(text) +
-                                "','" + jsEscape(arr.toString()) + "')"
+                                "','" + jsEscape(arr.toString()) + "','$owner',$recognitionMs)"
                             )
                         }
                         override fun onPartialResults(partialResults: Bundle?) {
+                            if (session != speechGeneration || delivered) return
                             val pt = partialResults
                                 ?.getStringArrayList("android.speech.extra.RESULTS")?.firstOrNull() ?: ""
-                            if (pt.isNotBlank()) evalAsync("window.__nativePartial && window.__nativePartial('" + jsEscape(pt) + "')")
+                            if (pt.isNotBlank()) evalAsync("window.__nativePartial && window.__nativePartial('" + jsEscape(pt) + "','$owner')")
                         }
                         override fun onEvent(eventType: Int, params: Bundle?) {}
                     })
                     startListening(intent)
+                }
+                } catch (_: Exception) {
+                    stopRecognizer()
+                    WakeWordService.resumeFromApp()
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5,'$owner')")
                 }
             }
         }
@@ -650,12 +773,12 @@ class MainActivity : AppCompatActivity() {
                 if (start) {
                     if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO)
                         != PackageManager.PERMISSION_GRANTED) {
+                        WakeWordService.updateHealth(com.maya.ai.voice.WakeStatus.State.ERROR, com.maya.ai.voice.WakeStatus.Reason.PERMISSION, 9)
                         requestMicPermission()
                         return false
                     }
-                    WakeWordService.start(this@MainActivity)
                     prefs().edit().putBoolean("wake", true).apply()
-                    true
+                    WakeWordService.start(this@MainActivity)
                 } else {
                     WakeWordService.stop(this@MainActivity)
                     prefs().edit().putBoolean("wake", false).apply()
@@ -663,6 +786,11 @@ class MainActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) { false }
         }
+
+        /** Explicit local read, fixed fields only. No transcript/keys/raw exception messages. */
+        @JavascriptInterface
+        fun wakeStatus(): String = WakeWordService.statusJson().put("micPermission",
+            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED).toString()
 
         /** YouTube v2 — innertube JSON + consent cookie fallback (pakka videoId) */
         @JavascriptInterface
@@ -1113,32 +1241,67 @@ class MainActivity : AppCompatActivity() {
          * base64 is liye ke jawab mein quotes/newlines JS string ko na toren.
          */
         @JavascriptInterface
-        fun httpPostAsync(url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) {
+        fun httpPostAsync(url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) =
+            httpAsync("POST", url, authHeader, body, reqId, timeoutMs)
+
+        @JavascriptInterface
+        fun httpGetAsync(url: String, authHeader: String, reqId: String, timeoutMs: Int) =
+            httpAsync("GET", url, authHeader, "", reqId, timeoutMs)
+
+        private fun httpAsync(method: String, url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) {
+            if (httpClosed) return
+            val job = com.maya.ai.net.CancelableRequest()
+            if (httpRequests.putIfAbsent(reqId, job) != null) return
+            if (httpClosed) { httpRequests.remove(reqId, job); job.cancel(); return }
+            // A suspended WebView must not leave a slow/dripping socket alive indefinitely.
+            val deadline = try {
+                httpDeadlines.schedule(Runnable { job.cancel() }, timeoutMs.coerceIn(1, 25000).toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            } catch (_: java.util.concurrent.RejectedExecutionException) {
+                httpRequests.remove(reqId, job); job.cancel(); return
+            }
             Thread {
                 var code = 0
                 var txt = ""
                 try {
                     val conn = URL(url).openConnection() as HttpURLConnection
-                    conn.requestMethod = "POST"
-                    conn.doOutput = true
-                    conn.connectTimeout = if (timeoutMs > 0) timeoutMs else 12000
-                    conn.readTimeout = if (timeoutMs > 0) timeoutMs else 25000
-                    conn.setRequestProperty("Content-Type", "application/json")
-                    conn.setRequestProperty("Accept", "application/json")
+                    if (!job.attach(conn)) return@Thread
+                    conn.requestMethod = method
+                    conn.instanceFollowRedirects = false
+                    conn.doOutput = method == "POST"
+                    conn.connectTimeout = timeoutMs.coerceIn(1, 25000)
+                    conn.readTimeout = timeoutMs.coerceIn(1, 25000)
+                    if (method == "POST") conn.setRequestProperty("Content-Type", "application/json")
+                    conn.setRequestProperty("Accept", if (method == "POST") "application/json" else "*/*")
                     if (authHeader.isNotEmpty()) conn.setRequestProperty("Authorization", authHeader)
-                    conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    if (job.cancelled) return@Thread
+                    if (method == "POST") conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                     code = conn.responseCode
-                    txt = (if (code in 200..399) conn.inputStream else conn.errorStream)
-                        ?.bufferedReader()?.use { it.readText() } ?: ""
-                    conn.disconnect()
-                } catch (e: Exception) {
-                    code = 0
-                    txt = e.message ?: "network error"
+                    val stream = if (code in 200..399) conn.inputStream else conn.errorStream
+                    txt = stream?.bufferedReader()?.use { reader ->
+                        val out = StringBuilder()
+                        val buffer = CharArray(8192)
+                        while (!job.cancelled) {
+                            val n = reader.read(buffer)
+                            if (n < 0) break
+                            if (out.length + n > 8_000_000) throw java.io.IOException("Response too large")
+                            out.append(buffer, 0, n)
+                        }
+                        out.toString()
+                    } ?: ""
+                } catch (_: Exception) {
+                    code = 0; txt = "network error" // Do not return URLs, auth or raw exception text.
+                } finally {
+                    deadline.cancel(false); job.close(); httpRequests.remove(reqId, job)
                 }
-                val b64 = Base64.encodeToString(txt.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-                evalAsync("window.__httpDone && window.__httpDone('" + jsEscape(reqId) + "'," + code + ",'" + b64 + "')")
+                if (!job.cancelled) {
+                    val b64 = Base64.encodeToString(txt.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+                    evalAsync("window.__httpDone && window.__httpDone('" + jsEscape(reqId) + "'," + code + ",'" + b64 + "')")
+                }
             }.start()
         }
+
+        @JavascriptInterface
+        fun cancelHttpPost(reqId: String) { httpRequests.remove(reqId)?.cancel() }
 
         @JavascriptInterface
         fun httpGet(url: String, authHeader: String): String {
@@ -1463,40 +1626,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun prefs() = getSharedPreferences("maya", Context.MODE_PRIVATE)
 
-    /* ═══ Issue 1: LISTENER NEVER DIES ═══
-       Tecno/HiOS background mic services ko maar deta hai. Pehle wake service
-       sirf tab start hoti thi jab user switch dabata tha. Ab: har app-open par,
-       agar saved pref kehti hai wake ON tha, to service dobara start + battery
-       whitelist ka nudge (ek dialog, sirf jab exemption abhi nahi mili). */
+    /** Recheck the saved switch at execution time; never move the Activity away
+     * from the foreground to show battery settings while acquiring its mic. */
     private fun ensureWakeAlive() {
-        try {
-            if (!prefs().getBoolean("wake", false)) return
-            /* wake-regression: 1.5s par JS apna boot-start khud karta hai
-               (index.html INIT -> setWakeService(true)). 2.5s par start karte
-               hain taake WebView ke pehle mic session (greeting/HAAL) se
-               double-start ka shor na ho. */
-            android.os.Handler(Looper.getMainLooper()).postDelayed({
-                try {
-                    if (WakeWordService.instance == null) WakeWordService.start(this@MainActivity)
-                    /* wake-regression: battery dialog har app-open par Nahi —
-                       sirf PEHLI dafa (pref flag). Har khulne par system dialog
-                       foreground mic session ko disturb karta tha. */
-                    val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                    if (!pm.isIgnoringBatteryOptimizations(packageName) &&
-                        !prefs().getBoolean("bat_asked", false)
-                    ) {
-                        prefs().edit().putBoolean("bat_asked", true).apply()
-                        try {
-                            Toast.makeText(this@MainActivity,
-                                "Listener hamesha zinda rakhne ke liye battery optimization OFF karo \uD83D\uDD0B",
-                                Toast.LENGTH_LONG).show()
-                            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                Uri.parse("package:" + packageName)))
-                        } catch (e: Exception) {}
-                    }
-                } catch (e: Exception) {}
-            }, 2500)
-        } catch (e: Exception) {}
+        if (!prefs().getBoolean("wake", false)) return
+        android.os.Handler(Looper.getMainLooper()).postDelayed({
+            if (!prefs().getBoolean("wake", false) || isFinishing || isDestroyed) return@postDelayed
+            if (WakeWordService.instance == null) WakeWordService.start(this@MainActivity)
+        }, 2500)
     }
 
     private fun evalAsync(js: String) {
@@ -1519,8 +1656,8 @@ class MainActivity : AppCompatActivity() {
        ═══════════════════════════════════════════════════════════════════ */
     var lastRecognizerKind: String = "-"
 
-    fun makeRecognizer(): SpeechRecognizer {
-        if (Build.VERSION.SDK_INT >= 31) {
+    fun makeRecognizer(preferOnDevice: Boolean = true): SpeechRecognizer {
+        if (preferOnDevice && Build.VERSION.SDK_INT >= 31) {
             try {
                 if (SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {
                     lastRecognizerKind = "on-device"
@@ -1579,9 +1716,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestMicPermission() {
-        ActivityCompat.requestPermissions(
-            this, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_PERMS
-        )
+        runOnUiThread {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_PERMS)
+        }
     }
 
     private fun requestNotificationPermission() {

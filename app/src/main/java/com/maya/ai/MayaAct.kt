@@ -140,6 +140,9 @@ object MayaAct {
         report(ctx, killJson("STOP — sab automation foran band, 60s cooldown"))
     }
 
+    /** Read-only native Chat readiness; does not stop, enqueue or authorize actions. */
+    fun hasPendingActions(): Boolean = executing || synchronized(queue) { queue.isNotEmpty() }
+
     /** MainActivity.mayaStatus() */
     fun status(): String {
         val o = JSONObject()

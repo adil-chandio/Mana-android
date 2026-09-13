@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>MAYA — Personal AI v4</title>
 <style>
-/* ================= MAYA v4.1.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+/* ================= MAYA v5.22.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
    Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
 :root{
   /* new tokens */
@@ -536,7 +536,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver">v5.9.5 — 🎚️ SUKOON — awaaz kabhi nahi kategi · mic-larai khatam · wake word sach mein zinda</div>
+  <div class="ver"><span data-build-version>v5.22.0</span> — DEVELOPMENT TEST · phone validation pending</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,14 +561,14 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.9.5 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.22.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.9.5 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.22.0</span></small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -729,7 +729,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.9.5</div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.22.0</span></div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -751,6 +751,18 @@ nav{padding:8px 10px 10px}
 
     <!-- ============ SETTINGS (video jaisa tree) ============ -->
     <section class="tab" id="tab-set">
+      <div class="ui-card">
+        <div class="ui-card-h">PRIVATE TEXT CHAT · NATIVE</div>
+        <div class="ui-hint">Separate secure Chat inside the APK. Its own Android Keystore identity; no browser or phone actions. Optional selected-Fish playback requires confirmation. Leaving the screen clears its conversation.</div>
+        <a class="ui-btn" id="nativePrivateChatLink" href="maya-private-chat://open">OPEN PRIVATE TEXT CHAT</a>
+        <div class="ui-hint" id="nativePrivateChatHint">Also available through the Maya Text Chat launcher icon. Sunao needs the original Maya already open; text uses the authorized APK key.</div>
+      </div>
+      <div class="ui-card">
+        <div class="ui-card-h">MAYA UPDATE CENTER</div>
+        <div class="ui-hint">Check signed Stable/Beta APK releases, read changes, download and install with Android confirmation. No background downloads.</div>
+        <button type="button" class="ui-btn" id="openUpdatesBtn">CHECK APP UPDATES</button>
+        <div class="ui-hint" id="updateCenterHint">A separate MAYA Updates launcher icon also opens native recovery without this screen.</div>
+      </div>
 
       <!-- ================= v4.1.0 IRONCLAD — UI KIT v5 markup =================
            Har control ka contract docs/SETTINGS-UI-ARCHITECTURE.md mein hai.
@@ -875,9 +887,9 @@ nav{padding:8px 10px 10px}
           <div class="ui-field">
             <div class="ui-label">🎙️ AWAAZ ENGINE</div>
             <select class="ui-input ui-select" id="sVoiceEngine">
-              <option value="auto">🪄 Auto — neural, warna phone (behtareen)</option>
+              <option value="auto">🪄 Auto — configured Fish voice stays selected</option>
               <option value="neural">🎭 Sirf Neural — Gemini studio awaaz</option>
-              <option value="fish">🐟 Sirf Fish Audio — BE-HISAAB + ANDAAZ</option>
+              <option value="fish">🐟 Fish Audio — selected voice, streaming</option>
               <option value="edge">🌊 Sirf Edge TTS — MUFT aur BE-HISAAB</option>
               <option value="device">📱 Sirf Phone — 0 data, foran</option>
               <option value="off">🔇 Band — Maya khamosh</option>
@@ -897,20 +909,20 @@ nav{padding:8px 10px 10px}
             <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sNeuralWifi"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
           </div>
           <div class="ui-row">
-            <div class="ui-row-txt">🐟 Fish Audio S2.1 Pro <small>(be-hisaab + MOOD zinda — sab se pehle yehi bolti hai)</small></div>
+            <div class="ui-row-txt">🐟 Fish Audio <small>(s2.1-pro-free only — provider limits apply; selected voice preserved)</small></div>
             <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFishOn"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
           </div>
           <div class="ui-row">
-            <div class="ui-row-txt">⚡ Fast short replies <small>(small answers skip Fish Audio and speak instantly via Edge/phone — default OFF)</small></div>
+            <div class="ui-row-txt">⚡ Fast short replies <small>(fewer AI retries; selected Fish/Neural voice stays unchanged)</small></div>
             <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFastShort"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
           </div>
           <div class="ui-field">
-            <div class="ui-label">🐟 FISH API KEY <small>(fish.audio/app/api-keys — muft, card nahi lagta)</small></div>
+            <div class="ui-label">🐟 FISH API KEY <small>(fish.audio/app/api-keys — no paid-model fallback)</small></div>
             <input class="ui-input" id="sFishKey" type="password" placeholder="Fish key yahan paste karo">
             <div class="ui-hint">Sirf yehi engine aap ke 9 MOOD (🤗 Warm, 🤫 Whisper, 🎭 Funny) samajhti hai — Edge par wo bekaar ho jate hain. ⚠️ Aap ke jumle Fish ke server par model behtar banane ke liye rakhe ja sakte hain.</div>
           </div>
           <div class="ui-field">
-            <div class="ui-label">🐟 FISH AWAAZ <small>(khaali = default)</small></div>
+            <div class="ui-label">🐟 FISH AWAAZ <small>(select a voice for streaming)</small></div>
             <select class="ui-input ui-select" id="sFishVoice"></select>
             <div class="ui-row" style="margin-top:8px">
               <button type="button" class="ui-btn ui-btn-ghost" id="fishLib">📚 AWAAZ LIBRARY LAO</button>
@@ -1097,6 +1109,13 @@ nav{padding:8px 10px 10px}
       </div>
 
       <div class="ui-card">
+        <div class="ui-card-h">DEVICE TEST — development candidate</div>
+        <button type="button" class="ui-btn ui-btn-ghost" id="deviceTestStatus">SHOW DEVICE TEST STATUS</button>
+        <div class="ui-hint">Read-only state, timing and wake counters. No API keys, chat, voice IDs or audio. Tap again to refresh; nothing is uploaded.</div>
+        <pre class="ui-pre" id="deviceTestOut" style="display:none">No snapshot yet.</pre>
+      </div>
+
+      <div class="ui-card">
         <div class="ui-card-h">🧪 MAYA LAB — naye hisse (switch se chalu karo)</div>
         <div class="ui-note">Har naya hissa yahan se ON/OFF hota hai. Kuch bura lage to OFF kar do — Maya foran purane tareeqe par aa jayegi. Nayi APK ka intezar nahi.</div>
 
@@ -1185,7 +1204,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <div class="ui-card">
-        <div class="ui-card-h">🚀 MAYA v4.1 — KYA NAYA HAI</div>
+        <div class="ui-card-h">MAYA v4.1 — HISTORICAL FEATURE NOTES</div>
         <div class="phase"><span class="st">✅</span><span><b>IRONCLAD Settings UI</b> — custom sliders/switches, har purane WebView par visible</span></div>
         <div class="phase"><span class="st">✅</span><span><b>Measured layout</b> — scroll ab JS se naapi gayi height par (kabhi clip nahi hota)</span></div>
         <div class="phase"><span class="st">✅</span><span><b>UI CHECK</b> — khud test kar ke batata hai kaunsa control dikh raha hai</span></div>
@@ -1195,7 +1214,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.9.5 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.22.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1210,7 +1229,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.9.5 · OK</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.22.0</span> · loading</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1276,17 +1295,45 @@ setTimeout(function(){
 
 <script>
 "use strict";
-/* ================= MAYA v2.1.1 — Doctor Build ================= */
+/* ================= MAYA v5.22.0 — Doctor Build ================= */
+var MAYA_BUILD = { versionName: "5.22.0", versionCode: 93 };
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.9.5 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v" + MAYA_BUILD.versionName + " · script loaded"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
+
+/* Native text screen navigation only; no content or key is forwarded. */
+(function () {
+  var link = document.getElementById("nativePrivateChatLink");
+  if (!link) return;
+  link.addEventListener("click", function (event) {
+    if (!window.MayaBridge) {
+      event.preventDefault();
+      document.getElementById("nativePrivateChatHint").textContent = "This entry requires the Android APK. No browser registration or automatic navigation was performed.";
+    }
+  });
+})();
+
+/* Native update navigation; deliberately no URLs, download or install API in JS. */
+(function () {
+  var b = document.getElementById("openUpdatesBtn");
+  if (!b) return;
+  b.addEventListener("click", function () {
+    var h = document.getElementById("updateCenterHint");
+    if (window.MayaBridge && window.MayaBridge.openUpdates) {
+      try { window.MayaBridge.openUpdates(); }
+      catch (e) { if (h) h.textContent = "Could not open Update Center. Use the MAYA Updates launcher icon."; }
+    } else if (h) h.textContent = "Requires an updater-enabled Android APK. Browser/PWA and older APKs cannot install this update from here.";
+  });
+})();
 
 /* ---------- SETTINGS (v1 migration ke saath) ---------- */
 var DEFAULTS = { name:"Sir", apikey:"", groqKey:"", ghKey:"", cerebrasKey:"", mistralKey:"", orKey:"", nvidiaKey:"", zaiKey:"", llm7Key:"", ttsKey:"", voiceEngine:"auto", gVoice:"Kore", voiceMood:"auto", neuralWifiOnly:false, neuralMaxChars:1400, edgeTTS:true, edgeVoice:"", fishKey:"", fishVoice:"", fishVoiceName:"", fishTemp:0.35, fishOn:true, trustMode:false, fastShort:false, wakeDoor:15, micZoom:0.8, micNear:true, ttsModel:"", city:"Hyderabad", stt:"ur-PK", tts:"ur-PK", rate:1.0, pitch:1.05, voiceName:"", voiceArtist:"maya", model:"auto", autoListen:false, voiceOn:true, wakeWord:false, turbo:true, notifSpeak:false, batteryAlert:true, gender:"male", phone:"", musicApp:"youtube", favSong:"", ytChannel:"", assistName:"Maya", gfMode:false, persona:"maya", remember:true, convoMode:false, lang:"roman-ur", proactive:false, theme:"obsidian", accent:"#FF7A1A", radius:18, fontScale:1, edgeGlow:false };
 var settings = Object.assign({}, DEFAULTS);
 try {
   var s1 = JSON.parse(localStorage.getItem("maya_settings") || "null");
-  var s0 = JSON.parse(localStorage.getItem("jarvisSettings") || "null"); // v1 se upgrade
+  var s0 = null;
+  // A corrupt obsolete v1 record must not discard valid current settings.
+  try { s0 = JSON.parse(localStorage.getItem("jarvisSettings") || "null"); } catch (e) {}
   [s0, s1].forEach(function(src){ if (src) Object.keys(src).forEach(function(k){ settings[k] = src[k]; }); });
 } catch(e){}
 function saveSettings(){ localStorage.setItem("maya_settings", JSON.stringify(settings)); }
@@ -1367,7 +1414,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.9.5 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.22.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -1440,36 +1487,175 @@ document.addEventListener("visibilitychange", function(){ if (document.visibilit
 /* ---------- NATIVE BRIDGE (APK build — window.MayaBridge) ---------- */
 var NATIVE = !!(window.MayaBridge);
 var lastWasVoice = false;
-window.__nativeTtsDone = function(v2){ /* v5.9.5 unified handler — old version dropped callbacks */
-  try { var _why = String(v2 || "");
-    if (_why && _why !== "done" && typeof pushLog === "function") pushLog("TTS: device tier " + _why);
-  } catch(e){}
-  speaking = false;
-  try { SUKOON.bolEnd(); } catch (e) {}
-  try { if (AWAAZ.deviceDone) AWAAZ.deviceDone(); } catch (e) {}
-  afterSpeak(lastWasVoice);
+window.__nativeTtsDone = function(v2){
+  // One completion owner. Old Android callbacks cannot end Fish/new speech.
+  if (typeof AWAAZ === "undefined" || typeof AWAAZ.deviceDone !== "function") return;
+  if (window.__ttsWatchT) clearTimeout(window.__ttsWatchT);
+  window.__ttsWatchT = null;
+  var complete = AWAAZ.deviceDone;
+  AWAAZ.deviceDone = null;
+  complete();
 };
-/* v5.9.5: Kotlin 12s utterance watchdog — system TTS ka onDone/onError bhool jaye
-   (Tecno/HiOS par aam) to JS khud azaad ho jata hai, mic-pipeline atki nahi. */
 window.__nativeTtsWatch = function(ms){
-  try {
-    if (window.__ttsWatchT) { clearTimeout(window.__ttsWatchT); window.__ttsWatchT = null; }
-    window.__ttsWatchT = setTimeout(function(){
-      window.__ttsWatchT = null;
-      if (typeof speaking !== "undefined" && speaking) {
-        try { pushLog("TTS: native utterance watchdog — atka device TTS azaad"); } catch(e){}
-        window.__nativeTtsDone("watchdog");
-      }
-    }, ms || 12000);
-  } catch(e){}
+  if (window.__ttsWatchT) clearTimeout(window.__ttsWatchT);
+  var gen = AWAAZ.gen;
+  window.__ttsWatchT = setTimeout(function(){
+    window.__ttsWatchT = null;
+    if (gen === AWAAZ.gen && AWAAZ.engine === "device") window.__nativeTtsDone("watchdog");
+  }, ms || 12000);
 };
+// Local duration-only evidence: never store transcripts, keys or audio here.
+var VOICE_TIME = {
+  turn: 0, ended: 0, final: 0, requested: 0, audio: 0,
+  reset: function () { VOICE_TIME.turn++; VOICE_TIME.ended = 0; VOICE_TIME.final = 0; VOICE_TIME.requested = 0; VOICE_TIME.audio = 0; },
+  now: function () { return window.performance && performance.now ? performance.now() : Date.now(); },
+  playing: function () {
+    if (VOICE_TIME.audio) return;
+    VOICE_TIME.audio = VOICE_TIME.now();
+    pushLog("VOICE TIMING: Fish request-to-playing=" + Math.round(VOICE_TIME.audio - VOICE_TIME.requested) + "ms" +
+      (VOICE_TIME.final ? "; final-transcript-to-playing=" + Math.round(VOICE_TIME.audio - VOICE_TIME.final) + "ms" : ""));
+    try { NAAP.mark("voice"); } catch (e) {}
+  }
+};
+window.__speechTiming = function(stage, owner){
+  if (!listening || (typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.matches(owner))) return;
+  if (stage === "ended") VOICE_TIME.ended = VOICE_TIME.now();
+  if (stage === "final") {
+    VOICE_TIME.final = VOICE_TIME.now();
+    if (VOICE_TIME.ended) pushLog("VOICE TIMING: speech-end-to-final=" + Math.round(VOICE_TIME.final - VOICE_TIME.ended) + "ms");
+  }
+};
+/* OWNED CONVERSATION METRICS */
+// Only scalar timings and allowlisted state. In-memory ring, no content or transport.
+var SESSION_TIME = {
+  seq: 0, current: null, rows: [], audio: null,
+  now: function () { return window.performance && performance.now ? performance.now() : Date.now(); },
+  duration: function (v) { return typeof v === "number" && isFinite(v) && v >= 0 && v <= 300000 ? Math.round(v) : null; },
+  live: function (r) { return !!r && SESSION_TIME.current === r && (typeof INPUT_EPOCH === "undefined" || r.epoch === INPUT_EPOCH); },
+  begin: function (voice, meta, epoch) {
+    var m = meta && typeof meta === "object" ? meta : {};
+    var origin = voice ? (["tap", "wake", "followup", "auto"].indexOf(m.origin) >= 0 ? m.origin : "unknown") : "typed";
+    var r = { id: ++SESSION_TIME.seq, epoch: epoch, origin: origin, start: SESSION_TIME.now(), route: "unknown", phase: "submitted",
+      recognitionMs: voice ? SESSION_TIME.duration(m.recognitionMs) : null, textMs: null, finalTextMs: null, fishMs: null };
+    SESSION_TIME.current = r; SESSION_TIME.audio = null; SESSION_TIME.rows.push(r);
+    if (SESSION_TIME.rows.length > 20) SESSION_TIME.rows.shift();
+    return r;
+  },
+  text: function (r, route) {
+    if (!SESSION_TIME.live(r) || r.textMs !== null || r.phase !== "submitted") return;
+    r.textMs = SESSION_TIME.duration(SESSION_TIME.now() - r.start);
+    r.finalTextMs = ["tap", "wake", "followup", "auto"].indexOf(r.origin) >= 0 ? r.textMs : null;
+    r.route = ["provider", "cache", "local"].indexOf(route) >= 0 ? route : "unknown"; r.phase = "text-ready";
+  },
+  output: function (r, gen, engine) {
+    if (!SESSION_TIME.live(r) || r.phase !== "text-ready" || engine !== "fish") return;
+    SESSION_TIME.audio = { row: r, gen: gen, start: SESSION_TIME.now() }; r.phase = "preparing";
+  },
+  playing: function (gen) {
+    var a = SESSION_TIME.audio;
+    if (!a || a.gen !== gen || !SESSION_TIME.live(a.row) || a.row.fishMs !== null) return;
+    a.row.fishMs = SESSION_TIME.duration(SESSION_TIME.now() - a.start); a.row.phase = "playing";
+  },
+  stopAudio: function () {
+    var a = SESSION_TIME.audio; SESSION_TIME.audio = null;
+    if (a && SESSION_TIME.live(a.row) && ["preparing", "playing"].indexOf(a.row.phase) >= 0) a.row.phase = "audio-cancelled";
+  },
+  terminal: function (r, failed) {
+    if (!SESSION_TIME.live(r)) return;
+    if (["preparing", "playing", "text-ready"].indexOf(r.phase) >= 0) r.phase = failed ? "voice-error" : "done";
+    if (SESSION_TIME.audio && SESSION_TIME.audio.row === r) SESSION_TIME.audio = null;
+  },
+  fail: function (r, reason) {
+    if (!SESSION_TIME.live(r) || r.phase !== "submitted") return;
+    r.phase = ["timeout", "cancelled", "superseded", "interrupted", "unavailable", "error", "action-stopped"].indexOf(reason) >= 0 ? reason : "error";
+  },
+  summary: function (origin, metric) {
+    metric = metric === "fishMs" ? "fishMs" : "textMs";
+    var samples = SESSION_TIME.rows.filter(function (r) { return r.origin === origin && r.route === "provider" && r[metric] !== null; })
+      .map(function (r) { return r[metric]; }).sort(function (a, b) { return a - b; });
+    var n = samples.length;
+    return { count: n, median: n ? (samples[Math.floor((n - 1) / 2)] + samples[Math.floor(n / 2)]) / 2 : null, worst: n ? samples[n - 1] : null };
+  },
+  report: function () {
+    function ms(v) { return v === null ? "not recorded" : v + "ms"; }
+    var L = ["OWNED CONVERSATION TIMING (last 20 accepted inputs; not all wake attempts)"];
+    SESSION_TIME.rows.slice(-5).forEach(function (r) {
+      L.push("#" + r.id + " " + r.origin + " / " + r.route + " / " + r.phase);
+      L.push("Recognition end-to-final (native same clock): " + ms(r.recognitionMs));
+      L.push("Input accepted-to-text shown (WebView): " + ms(r.textMs) + " | Final received-to-text: " + ms(r.finalTextMs));
+      L.push("Fish app dispatch-to-playing event: " + ms(r.fishMs) + " (not audible proof)");
+    });
+    ["typed", "tap", "wake", "followup"].forEach(function (origin) {
+      var s = SESSION_TIME.summary(origin);
+      L.push(origin + " provider text samples=" + s.count + "; median=" + ms(s.median) + "; worst=" + ms(s.worst));
+      var a = SESSION_TIME.summary(origin, "fishMs");
+      L.push(origin + " provider Fish-start samples=" + a.count + "; median=" + ms(a.median) + "; worst=" + ms(a.worst));
+    });
+    L.push("Cache/local excluded from provider summaries. Unowned replies, auditions and retries excluded. Missing is not zero.");
+    return L.join("\n");
+  }
+};
+
+// A JS owner is echoed by the new native bridge. Legacy bridges remain usable,
+// but cannot provide the same stale-callback guarantee or native duration evidence.
+var INPUT_SESSION = {
+  seq: 0, nonce: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), active: null, phase: "idle",
+  begin: function (origin, until) {
+    INPUT_SESSION.stop();
+    var a = { id: "mi" + INPUT_SESSION.nonce + "_" + (++INPUT_SESSION.seq), origin: origin, until: until || 0, deadline: Date.now() + 30000, began: false,
+      owned: !!(NATIVE && window.MayaBridge && typeof window.MayaBridge.listenOwned === "function"), timer: null, limit: null };
+    INPUT_SESSION.active = a; INPUT_SESSION.phase = "starting";
+    function expire() {
+      if (INPUT_SESSION.active !== a) return;
+      stopListening(); INPUT_SESSION.phase = "expired";
+      if (a.origin === "followup") KAAN.DARWAZA.close();
+    }
+    if (a.until) a.timer = setTimeout(expire, Math.max(0, a.until - Date.now()));
+    a.limit = setTimeout(expire, 30000);
+    return a;
+  },
+  matches: function (owner) {
+    var a = INPUT_SESSION.active;
+    if (!a || (a.owned ? owner !== a.id : owner !== undefined && owner !== a.id)) return false;
+    if (Date.now() >= a.deadline || (a.until && !a.began && Date.now() >= a.until)) {
+      stopListening(); INPUT_SESSION.phase = "expired"; KAAN.DARWAZA.close(); return false;
+    }
+    return true;
+  },
+  began: function (owner) {
+    if (!INPUT_SESSION.matches(owner)) return;
+    var a = INPUT_SESSION.active; a.began = true; clearTimeout(a.timer); a.timer = null; INPUT_SESSION.phase = "hearing";
+  },
+  accept: function (owner, nativeMs) {
+    if (!INPUT_SESSION.matches(owner)) return null;
+    var a = INPUT_SESSION.active;
+    var m = { origin: a.origin, recognitionMs: a.owned ? SESSION_TIME.duration(nativeMs) : null };
+    INPUT_SESSION.stop(); INPUT_SESSION.phase = "submitted"; return m;
+  },
+  stop: function () {
+    var a = INPUT_SESSION.active;
+    if (a) { clearTimeout(a.timer); clearTimeout(a.limit); INPUT_SESSION.phase = "cancelled"; }
+    INPUT_SESSION.active = null;
+  }
+};
+window.__inputReady = function (owner) { if (INPUT_SESSION.matches(owner)) { INPUT_SESSION.phase = "listening"; setOrb("listening"); } };
+window.__inputBegan = function (owner) { INPUT_SESSION.began(owner); };
+window.__inputEnded = function (owner) { if (INPUT_SESSION.matches(owner)) { INPUT_SESSION.phase = "finalizing"; setOrb("finalizing"); } };
+/* END OWNED CONVERSATION */
+
 window.__nativeTtsStatus = function(s){
   try { pushLog("TTS ENGINE: " + s + " — on-device awaaz is session mein off"); } catch(e){}
 };
 /* 🎙️ Android ab SAARE andaze bhejta hai (pehle sirf pehla aata tha).
    SUNO un mein se behtareen chunta hai, Roman Urdu banata hai, aur
    pise hue naam (Monarch / Instagram / Funk Taka) theek karta hai. */
-window.__nativeSpeech = function(text, altsJson){
+window.__nativeSpeech = function(text, altsJson, owner, recognitionMs){
+  if (!listening) return;
+  var inputMeta;
+  if (typeof INPUT_SESSION !== "undefined") {
+    inputMeta = INPUT_SESSION.accept(owner, recognitionMs);
+    if (!inputMeta) return;
+  }
   listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle");
   var alts = [];
   try { if (altsJson) alts = JSON.parse(altsJson); } catch (e) { alts = []; }
@@ -1489,10 +1675,11 @@ window.__nativeSpeech = function(text, altsJson){
         pushLog("SUNO: \"" + String(SUNO.last.raw).slice(0, 26) + "\" -> \"" + String(said).slice(0, 26) + "\"");
     }
   } catch (e) { said = text || ""; }
-  if (said && said.trim()) handleUserText(said.trim(), true);
+  if (said && said.trim()) handleUserText(said.trim(), true, inputMeta);
 };
-window.__nativePartial = function(t){ try { interimEl.textContent = t || ""; } catch(e){} };
-window.__nativeRms = function(db){
+window.__nativePartial = function(t, owner){ if (!listening || (typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.matches(owner))) return; try { interimEl.textContent = t || ""; } catch(e){} };
+window.__nativeRms = function(db, owner){
+  if (!listening || (typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.matches(owner))) return;
   try {
     /* Issue 2 mic pickup: log amplitude every 12th RMS sample (~every 3s)
        so weak-pickup complaints can be verified from the system log. */
@@ -1503,9 +1690,11 @@ window.__nativeRms = function(db){
     document.querySelectorAll(".micbar").forEach(function(el){ el.style.width = pct + "%"; });
   } catch(e){}
 };
-window.__nativeSpeechErr = function(code){
+window.__nativeSpeechErr = function(code, owner){
+  if (!listening || (typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.matches(owner))) return;
+  if (typeof INPUT_SESSION !== "undefined") { INPUT_SESSION.stop(); INPUT_SESSION.phase = "error"; }
   listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle"); interimEl.textContent = "";
-  var m = { 1:"Network timeout", 2:"Network error", 3:"Mic masla", 4:"Recognizer busy", 5:"Voice service error", 6:"Koi awaz nahi mili", 7:"Mic permission nahi" }[code] || "Voice error";
+  var m = { 1:"Recognition network timeout", 2:"Recognition network error", 3:"Mic audio error", 4:"Recognition server error", 5:"Voice input service error", 6:"Koi awaaz nahi mili", 7:"Awaaz samajh nahi aayi", 8:"Recognizer busy", 9:"Mic permission nahi", 10:"Recognition rate limit", 11:"Recognition server disconnected", 12:"Input language unsupported", 13:"Input language model unavailable" }[code] || "Voice error";
   toast(m);
   addBubble("ai", m + ". " + (code === 5 || code === 2 ? "Google app / voice service check karo aur dobara try karo." : "Dobara try karo, " + settings.name + "."));
 };
@@ -3090,6 +3279,7 @@ var AWAAZ = {
   speak: function (text, cb) {
     cb = cb || {};
     AWAAZ.stop();
+    try { if (typeof showVoiceNotice === "function") showVoiceNotice(""); } catch (e) {}
     AWAAZ.gen++;
     var gen = AWAAZ.gen;
     var c = AWAAZ.cfg();
@@ -3111,6 +3301,34 @@ var AWAAZ = {
     }
 
     if (!c.on || c.mode === "off") { AWAAZ.setEngine("off"); done(); return; }
+
+    function selectedFailure(engine, code) {
+      if (gen !== AWAAZ.gen || finished) return;
+      AWAAZ.err = code; AWAAZ.errText = engine === "fish" ? FISH.why(code) : AWAAZ.why(code);
+      AWAAZ.paint();
+      var message = "Selected " + engine + " voice unavailable (" + code + "). Voice unchanged. Tap the reply speaker to retry.";
+      try { if (typeof toast === "function") toast(message); } catch (e) {}
+      try { if (typeof showVoiceNotice === "function") showVoiceNotice(message, cb.onRetry ? function () { if (gen === AWAAZ.gen) cb.onRetry(); } : null); } catch (e) {}
+      try { if (cb.onError) cb.onError(code); } catch (e) {}
+      done();
+    }
+    // Explicit selections never fall through to a different voice/provider.
+    // Auto with a configured Fish account also preserves the selected Fish voice.
+    var lockedFish = c.mode === "fish" || (c.mode === "auto" && c.fish && typeof FISH !== "undefined" && !!FISH.key());
+    if (lockedFish) {
+      AWAAZ.setEngine("fish");
+      if (cb.onStart) cb.onStart("fish");
+      AWAAZ.fish(text, done, function (code) { selectedFailure("fish", code); });
+      return;
+    }
+    if (c.mode === "neural") {
+      AWAAZ.setEngine("neural");
+      var reason = AWAAZ.blockReason(text);
+      if (reason) { selectedFailure("neural", reason); return; }
+      if (cb.onStart) cb.onStart("neural");
+      AWAAZ.neural(text, done, function (code) { selectedFailure("neural", code); });
+      return;
+    }
 
     /* ─── SEERHI: 1) Gemini neural   2) EDGE (be-hisaab)   3) muft neural   4) phone ───
        Har teh apni nakami agli teh ko de deti hai — khamoshi kabhi nahi hoti.
@@ -3189,8 +3407,11 @@ var AWAAZ = {
 
   /* ---------- sab kuch rok do ---------- */
   stop: function () {
+    if (typeof SESSION_TIME !== "undefined") SESSION_TIME.stopAudio();
     AWAAZ.gen++;
     AWAAZ.deviceDone = null;
+    if (window.__ttsWatchT) clearTimeout(window.__ttsWatchT);
+    window.__ttsWatchT = null;
     try { if (AWAAZ.audio) { AWAAZ.audio.pause(); AWAAZ.audio.onended = null; AWAAZ.audio.onerror = null; AWAAZ.audio = null; } } catch (e) {}
     for (var i = 0; i < AWAAZ.xhrs.length; i++) { try { AWAAZ.xhrs[i].abort(); } catch (e) {} }
     AWAAZ.xhrs = [];
@@ -3199,6 +3420,10 @@ var AWAAZ = {
     try { if (typeof FISH === "object" && FISH) FISH.stop(); } catch (e) {}
     try { if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge.stopSpeak) window.MayaBridge.stopSpeak(); } catch (e) {}
     try { if (typeof synth !== "undefined" && synth) synth.cancel(); } catch (e) {}
+    // Cancelled output has no terminal callback owner. Release its JS exclusion here,
+    // retaining echo tail and never overwriting an APP_SUN microphone owner.
+    try { if (typeof speaking !== "undefined") speaking = false; } catch (e) {}
+    try { if (typeof SUKOON !== "undefined" && SUKOON.haal === "BOL_RAHI") SUKOON.bolEnd(); } catch (e) {}
   },
 
   /* ---------- Doctor / status ke liye ---------- */
@@ -3837,6 +4062,7 @@ var FISH = {
   LIB: "https://api.fish.audio/model",
   MODEL: "s2.1-pro-free",
   TIMEOUT: 25000,
+  streamPending: null,
   MAXCHARS: 4000,     /* is se lamba matn tukron mein jayega */
 
   audio: null,
@@ -3849,6 +4075,7 @@ var FISH = {
   cool: 0,            /* 429 / 402 ke baad thori der haath na lagao */
   COOL: 300000,
   lib: null,          /* awaaz ki library (jab mangwai jaye) */
+  libSeq: 0,
   loadLib: function () {
     if (FISH.lib) return FISH.lib;
     try {
@@ -3887,10 +4114,14 @@ var FISH = {
 
   /* har code ka insani matlab — DOCTOR aur status yehi bolte hain */
   WHY: {
-    OK:       "Fish zinda hai — muft aur be-hisaab",
+    OK:       "Fish response received; playback and quota are separate checks.",
+    INTERRUPTED: "Audio focus changed. Selected voice stopped; tap the reply speaker to retry.",
+    VOICE_MISSING: "No saved Fish voice ID. Choose a named voice from Audio Library; no default or replacement voice will be used. Text chat still works.",
+    VOICE_INVALID: "Saved Fish voice ID is invalid. It has not been erased. Choose a voice from Audio Library; text chat still works.",
+    CANCELLED: "Voice/library request cancelled. Retry explicitly when ready.",
     KEY_MISSING: "Fish ki key nahi dali (fish.audio/app/api-keys — muft, card nahi lagta)",
     KEY_BAD:  "Key ghalat ya khatam ho gayi (401) — nayi key banao",
-    PAYMENT:  "402 — muft window band ho gayi ya balance khatam. Fish ne 31 Aug 2026 wala free daur khatam kar diya lagta hai",
+    PAYMENT:  "Fish returned 402 for the free-model request. No paid model or replacement voice will be used.",
     FORBIDDEN:"403 — is key ko ijazat nahi (shayad free model band hai)",
     RATE:     "429 — Fair Use ki hadd lag gayi, thori der baad khud chal jayega",
     BUSY:     "503 — Fish ka server abhi busy hai",
@@ -3914,23 +4145,27 @@ var FISH = {
   },
   voice: function () {
     var s = (typeof settings === "object" && settings) ? settings : {};
-    return String(s.fishVoice || "").trim();
+    return FISH.validVoiceId(s.fishVoice) ? s.fishVoice : "";
   },
 
-  /* Chal sakta hai? Sach bolo — jhooti koshish mein waqt zaya na ho. */
-  ready: function () {
+  // Legacy blank/default and missing IDs cannot identify a stable speaker.
+  // Classification is read-only: never guess from a title or overwrite saved data.
+  validVoiceId: function (id) { return typeof id === "string" && id.length >= 1 && id.length <= 200 && !/[^A-Za-z0-9_-]/.test(id); },
+  selection: function () {
     var s = (typeof settings === "object" && settings) ? settings : {};
-    if (s.fishOn === false) return false;
-    if (!FISH.key()) return false;
-    if (!FISH.native()) return false;          /* browser mein CORS rokta hai */
-    if (Date.now() < FISH.cool) return false;
-    return true;
+    var id = s.fishVoice;
+    if (FISH.validVoiceId(id)) return { state: "reference", id: id };
+    if (id !== undefined && id !== null && id !== "") return { state: "invalid", id: "" };
+    return { state: s.fishVoiceName ? "missing-id" : "legacy-or-unset", id: "" };
   },
+  ready: function () { return FISH.block() === ""; },
   block: function () {
     var s = (typeof settings === "object" && settings) ? settings : {};
     if (s.fishOn === false) return "OFF";
     if (!FISH.key()) return "KEY_MISSING";
     if (!FISH.native()) return "BROWSER";
+    if (FISH.selection().state === "invalid") return "VOICE_INVALID";
+    if (!FISH.voice()) return "VOICE_MISSING";
     if (Date.now() < FISH.cool) return "RATE";
     return "";
   },
@@ -3961,6 +4196,7 @@ var FISH = {
   },
 
   body: function (text, mood) {
+    if (!FISH.voice()) throw new Error("Select a named Fish voice first");
     var s = (typeof settings === "object" && settings) ? settings : {};
     var o = {
       /* 🗣️ LEHJA: Fish matn se zubaan pehchanta hai. Latin bhejenge to
@@ -3970,7 +4206,7 @@ var FISH = {
       format: "mp3",
       mp3_bitrate: 128,
       latency: "balanced",
-      chunk_length: 300,
+      chunk_length: 100,
       normalize: true,
       /* 🎯 Fish docs: "temperature — higher is more VARIED, lower is more
          CONSISTENT". 0.7 par har turn ka lehja badal jata tha ("alag alag
@@ -4072,11 +4308,39 @@ var FISH = {
     var list = AWAAZ.chunks(String(text || ""), FISH.MAXCHARS);
     if (!list.length) { onDone(); return; }
 
+    // Snapshot voice/prosody once; settings changes cannot alter later chunks.
+    var bodies = list.map(function (part) { return FISH.body(part, mood); });
+    var headers = FISH.headers();
+    if (window.MayaBridge && typeof window.MayaBridge.fishStreamSpeak === "function") {
+      function streamPart(idx) {
+        if (gen !== AWAAZ.gen) return;
+        if (idx >= bodies.length) { FISH.spoke++; onDone(); return; }
+        var id = "fs" + (++FISH.seq) + "_" + Date.now();
+        var startedAt = Date.now();
+        FISH.streamPending = { id: id, gen: gen, started: false,
+          timer: setTimeout(function () {
+            var pending = FISH.streamPending;
+            if (!pending || pending.id !== id) return;
+            FISH.streamPending = null;
+            try { window.MayaBridge.fishStreamStop(); } catch (e) {}
+            if (gen === AWAAZ.gen) onFail("TIMEOUT");
+          }, 215000),
+          playing: function () { FISH.lastMs = Date.now() - startedAt; },
+          done: function () { streamPart(idx + 1); },
+          fail: onFail
+        };
+        try { window.MayaBridge.fishStreamSpeak(bodies[idx], headers, id); }
+        catch (e) { window.__fishStreamEvent(id, "error", 0); }
+      }
+      streamPart(0);
+      return;
+    }
+
     function one(idx) {
       if (gen !== AWAAZ.gen) return;
       if (idx >= list.length) { FISH.spoke++; onDone(); return; }
       var t0 = Date.now();
-      FISH.req("POST", FISH.API, FISH.headers(), FISH.body(list[idx], mood), function (status, b64, ctype, err) {
+      FISH.req("POST", FISH.API, headers, bodies[idx], function (status, b64, ctype, err) {
         if (gen !== AWAAZ.gen) return;
         FISH.lastHttp = status;
         FISH.lastMs = Date.now() - t0;
@@ -4096,13 +4360,17 @@ var FISH = {
   },
 
   stop: function () {
-    var k;
-    for (k in FISH.pend) {
-      if (Object.prototype.hasOwnProperty.call(FISH.pend, k)) {
-        try { clearTimeout(FISH.pend[k].to); } catch (e) {}
+    if (FISH.testCancel) { var reset = FISH.testCancel; FISH.testCancel = null; reset(); }
+    if (FISH.streamPending) clearTimeout(FISH.streamPending.timer);
+    FISH.streamPending = null;
+    try { if (window.MayaBridge && window.MayaBridge.fishStreamStop) window.MayaBridge.fishStreamStop(); } catch (e) {}
+
+    var k, pending = FISH.pend; FISH.pend = {};
+    for (k in pending) {
+      if (Object.prototype.hasOwnProperty.call(pending, k)) {
+        try { clearTimeout(pending[k].to); pending[k].cb(0, "", "", "cancelled"); } catch (e) {}
       }
     }
-    FISH.pend = {};
     try {
       if (FISH.audio) {
         FISH.audio.pause();
@@ -4123,13 +4391,16 @@ var FISH = {
   },
 
   /* 🎀 PYARI — kai talash ek sath, phir zanana/Hindi-Urdu wali oopar
-     (user ko Gemini ki "Kore" jaisi meethi zanana awaaz chahiye) */
-  SWEET: /(female|woman|girl|ladki|aurat|zanana|sweet|soft|cute|warm|gentle|meethi|pyari|didi|behen|lady|she|her|anchor|rj)/i,
-  MALEISH: /(male|man|boy|ladka|mard|deep|bass|guy|bhai|sir\b|uncle)/i,
+     (rank suggestions only; the user previews and chooses a voice) */
+  SWEET: /\b(female|woman|girl|ladki|aurat|zanana|sweet|soft|cute|warm|gentle|meethi|pyari|didi|behen|lady|she|her|anchor|rj)\b/i,
+  MALEISH: /\b(male|man|boy|ladka|mard|deep|bass|guy|bhai|sir|uncle)\b/i,
   pyari: function (cb) {
+    var group = ++FISH.libSeq;
     var qs = ["hindi", "urdu", "female", "indian", "girl"], got = [], seen = {}, left = qs.length, err = "";
     function done() {
       if (--left > 0) return;
+      if (group !== FISH.libSeq || err === "CANCELLED") { cb(null, "CANCELLED"); return; }
+      if (!got.length) { cb(null, err || "No matching voices found; saved selection unchanged."); return; }
       /* score: zanana + pasand + Hindi/Urdu zubaan */
       var i, v, sc;
       for (i = 0; i < got.length; i++) {
@@ -4137,12 +4408,13 @@ var FISH = {
         sc = 0;
         if (FISH.SWEET.test(v.title + " " + (v.tags || ""))) sc += 60;
         if (FISH.MALEISH.test(v.title + " " + (v.tags || ""))) sc -= 80;
-        if (/hi|ur|hin|urd/.test(String(v.langs || ""))) sc += 40;
+        if (/\b(hi|ur|hin|urd|hindi|urdu)\b/i.test(String(v.langs || ""))) sc += 40;
         sc += Math.min(30, Math.round((v.likes || 0) / 10));
         v.sc = sc;
       }
       got.sort(function (a, b) { return b.sc - a.sc; });
       FISH.lib = got.slice(0, 40);
+      try { localStorage.setItem("maya_fishlib", JSON.stringify(FISH.lib)); } catch (e) {}
       cb(FISH.lib, got.length ? "" : (err || "kuch nahi mila"));
     }
     var k;
@@ -4153,13 +4425,15 @@ var FISH = {
           var i;
           for (i = 0; i < L.length; i++) if (!seen[L[i].id]) { seen[L[i].id] = 1; got.push(L[i]); }
           done();
-        });
+        }, group);
       })(qs[k]);
     }
   },
 
   /* ─── awaaz ki library (public voices) ─── */
-  library: function (q, cb) {
+  library: function (q, cb, group) {
+    var publish = !group;
+    if (!group) group = ++FISH.libSeq;
     if (!FISH.key()) { cb(null, "KEY_MISSING"); return; }
     if (!FISH.native()) { cb(null, "BROWSER"); return; }
     /* Fish ki API `language` filter deti hai — ab Hindi/Urdu awaazein saamne aayengi */
@@ -4169,7 +4443,8 @@ var FISH = {
               "&language=" + lg + (lg === "ur" ? "&language=hi" : "") +
               (q ? ("&title=" + encodeURIComponent(q)) : "");
     FISH.req("GET", url, JSON.stringify({ "Authorization": "Bearer " + FISH.key() }), "", function (status, b64, ctype, err) {
-      var c = FISH.code(status);
+      if (group !== FISH.libSeq) { cb(null, "CANCELLED"); return; }
+      var c = err === "cancelled" ? "CANCELLED" : FISH.code(status);
       if (c !== "OK") { FISH.lastErr = FISH.readErr(b64) || err; cb(null, c); return; }
       var txt = "";
       try { txt = decodeURIComponent(escape(atob(String(b64 || "").replace(/\s+/g, "")))); }
@@ -4179,7 +4454,7 @@ var FISH = {
         var j = JSON.parse(txt), i, m;
         for (i = 0; i < (j.items || []).length; i++) {
           m = j.items[i];
-          if (!m || !m._id) continue;
+          if (!m || !FISH.validVoiceId(m._id)) continue;
           out.push({
             id: m._id,
             title: String(m.title || "bay-naam"),
@@ -4189,9 +4464,9 @@ var FISH = {
           });
         }
       } catch (e) { cb(null, "DECODE"); return; }
-      FISH.lib = out;
+      if (publish) FISH.lib = out;
       /* 🔒 list mehfooz — restart ke baad bhi awaaz ka NAAM dikhe, hex id nahi */
-      try { localStorage.setItem("maya_fishlib", JSON.stringify(out.slice(0, 60))); } catch (e) {}
+      try { if (publish) localStorage.setItem("maya_fishlib", JSON.stringify(out.slice(0, 60))); } catch (e) {}
       cb(out, "");
     });
   },
@@ -4219,19 +4494,22 @@ var FISH = {
       return;
     }
 
-    var k = FISH.key();
-    say("🔑 Key: " + k.slice(0, 6) + "…" + k.slice(-4) + "  (" + k.length + " harf)");
-    say("🎯 Model: " + FISH.MODEL);
-    say("🎙️ Awaaz: " + (FISH.voice() || "(default)"));
-    say("");
-    say("📡 Fish se sach poocha ja raha hai…");
+    var blocked = FISH.block();
+    if (blocked) {
+      say(FISH.why(blocked));
+      onDone({ verdict: blocked, ok: false, text: lines.join("\n") }); return;
+    }
+    say("Fish key configured (not displayed).");
+    say("Model: " + FISH.MODEL);
+    say("Selected reference: " + FISH.voice());
+    say("Checking synthesis only; this does not prove audible playback or unlimited quota.");
 
     var t0 = Date.now();
     FISH.req("POST", FISH.API, FISH.headers(),
-      JSON.stringify({ text: "Salam", format: "mp3", latency: "balanced" }),
+      FISH.body("Salam", "warm"),
       function (status, b64, ctype, err) {
         var ms = Date.now() - t0;
-        var c = FISH.code(status);
+        var c = err === "cancelled" ? "CANCELLED" : FISH.code(status);
         var msg = (c === "OK") ? "" : (FISH.readErr(b64) || err || "");
         var bytes = 0;
         try { bytes = Math.round(String(b64 || "").length * 3 / 4); } catch (e) {}
@@ -4243,20 +4521,17 @@ var FISH = {
         say("");
 
         var verdict = c, ok = false;
-        if (c === "OK" && bytes > 500) {
+        if (c === "OK" && bytes > 500 && /^audio\//i.test(ctype || "")) {
           ok = true; verdict = "OK";
-          say("✅ ZINDA HAI. Muft window abhi bhi khuli hai.");
+          say("Selected-reference synthesis returned audio. Playback is not yet verified.");
           say("   " + bytes + " bytes ki MP3 " + ms + " ms mein aa gayi.");
-          say("   Koi rozana hadd nahi (Fair Use) — Maya ab jitna chahe bole.");
+          say("Quota/free-tier availability can change; no unlimited-use guarantee.");
         } else if (c === "OK") {
           verdict = "NO_AUDIO";
-          say("⚠️ Fish ne 200 kaha magar audio khaali thi (" + bytes + " bytes).");
+          say("HTTP 200 did not contain a usable audio response (" + bytes + " bytes). Playback is not verified.");
         } else if (c === "PAYMENT") {
-          say("🚨 YEHI WO DIN THA JIS KA DAR THA.");
-          say("   402 ka matlab: s2.1-pro-free ka muft daur BAND ho gaya");
-          say("   (blog par 31 August 2026 likha tha) ya balance khatam hai.");
-          say("   Maya ko koi nuqsan nahi — awaaz khud 🌊 Edge par chali jayegi,");
-          say("   jo abhi bhi muft aur be-hisaab hai.");
+          say("Fish returned 402 for this free-model request. Check account/free-tier availability.");
+          say("No paid-model retry and no Edge, device or other speaker substitution.");
         } else if (c === "KEY_BAD") {
           say("❌ Key qubool nahi hui (401).");
           say("   fish.audio/app/api-keys par ja kar nayi key banao.");
@@ -4275,8 +4550,8 @@ var FISH = {
 
         say("");
         say("── Ab kya hoga ──");
-        if (ok) say("🐟 Fish pehle bolegi. Nakaam ho to 🎭 Gemini → 🌊 Edge → 📱 phone.");
-        else say("🐟 Fish skip hogi. Maya 🎭 Gemini → 🌊 Edge → 📱 phone par bolegi — khamoshi nahi hogi.");
+        if (ok) say("Test the selected voice with SUNO to check playback.");
+        else say("Selected Fish voice unavailable. No automatic voice replacement; fix the error and retry.");
 
         FISH.lastErr = msg;
         onDone({ verdict: verdict, ok: ok, http: status, ms: ms, bytes: bytes, msg: msg, text: lines.join("\n") });
@@ -4308,23 +4583,55 @@ window.__binDone = function (reqId, status, b64, ctype, err) {
   p.cb(+status || 0, String(b64 || ""), String(ctype || ""), String(err || ""));
 };
 
+window.__fishStreamEvent = function (id, event, status) {
+  var p = FISH.streamPending;
+  if (!p || p.id !== id || p.gen !== AWAAZ.gen) return;
+  if (event === "playing") {
+    if (p.started) return;
+    p.started = true; FISH.lastHttp = 200; p.playing();
+    try { VOICE_TIME.playing(); } catch (e) {}
+    if (typeof SESSION_TIME !== "undefined") SESSION_TIME.playing(p.gen);
+    try { SUKOON.bolStart(); setOrb("speaking"); } catch (e) {}
+    return;
+  }
+  if (event !== "done" && event !== "error" && event !== "timeout" && event !== "interrupted") return;
+  clearTimeout(p.timer); FISH.streamPending = null;
+  if (event === "done" && p.started) { FISH.lastErr = ""; p.done(); return; }
+  FISH.lastHttp = +status || 0;
+  var code = event === "interrupted" ? "INTERRUPTED" : event === "timeout" ? "TIMEOUT" : (status ? FISH.code(+status) : "DECODE");
+  if (code === "OK") code = "NO_AUDIO";
+  FISH.lastErr = FISH.why(code);
+  if (code === "RATE" || code === "PAYMENT") { FISH.cool = Date.now() + FISH.COOL; FISH.persist(); }
+  p.fail(code);
+};
+
 FISH.restore();
 
 /* ---------- PUBLIC API: poori app sirf isi se bolti hai ---------- */
 function speak(text, wasVoice) {
+  var measure = arguments[2];
   var clean = cleanSpeech(text);
   lastWasVoice = wasVoice;
   if (!clean) { AWAAZ.stop(); afterSpeak(wasVoice); return; }
   try { SUKOON.bolStart(); } catch (e) {}   /* 🎚️ fetch ki 1-2s bhi cover — mic abhi nahi khul sakta */
+  var voiceFailed = false;
+  try { VOICE_TIME.requested = VOICE_TIME.now(); VOICE_TIME.audio = 0; } catch (e) {}
   AWAAZ.speak(clean, {
+    onRetry: function () {
+      if (thinking || listening) { toast("Stop the current request/microphone before retrying speech."); return; }
+      speak(text, false);
+    },
+    onError: function () { voiceFailed = true; },
     onStart: function (eng) {
-      speaking = true; try { SUKOON.bolStart(); } catch (e) {} setOrb("speaking");
-      try { NAAP.mark("voice"); NAAP.cur && (NAAP.cur.engine = eng || AWAAZ.engine); } catch (e) {}   /* 📊 P0 */
+      if (typeof SESSION_TIME !== "undefined") SESSION_TIME.output(measure, AWAAZ.gen, eng);
+      speaking = true; try { SUKOON.bolStart(); } catch (e) {} setOrb(eng === "fish" ? "buffering" : "speaking");
+      try { if (eng !== "fish") NAAP.mark("voice"); NAAP.cur && (NAAP.cur.engine = eng || AWAAZ.engine); } catch (e) {}   /* 📊 P0 */
     },
     onDone: function () {
+      if (typeof SESSION_TIME !== "undefined") SESSION_TIME.terminal(measure, voiceFailed);
       speaking = false; try { SUKOON.bolEnd(); } catch (e) {}
       try { NAAP.end({ engine: AWAAZ.engine, saaf: (NAAP.cur && NAAP.cur.saafHit) || 0 }); } catch (e) {}  /* 📊 P0 */
-      afterSpeak(wasVoice);
+      afterSpeak(voiceFailed ? false : wasVoice);
     }
   });
 }
@@ -4347,22 +4654,143 @@ function afterSpeak(wasVoice){
     try {
       if (typeof KAAN !== "undefined" && KAAN.DARWAZA.isOpen()) {
         KAAN.DARWAZA.open();                       /* baat chal rahi hai -> waqt barha do */
-        setTimeout(startListening, 350);
+        scheduleListening(600);
       }
     } catch (e) {}
     return;
   }
-  if (settings.autoListen) setTimeout(startListening, 350);
+  if (settings.autoListen) scheduleListening(600);
 }
 
-function reply(text, wasVoice, link){
+function reply(text, wasVoice, link, measure, timingRoute){
   /* 🤝 SACH — model par bharosa nahi, JAANCH. Aakhri amal sure:false tha aur
      jawab mein "bhej diya / ho gaya" likha hai? To app KHUD theek kar degi. */
   try { if (typeof HAQEEQAT !== "undefined") text = HAQEEQAT.check(text); } catch (e) {}
+  try { if (wasVoice && VOICE_TIME.final) pushLog("VOICE TIMING: final-transcript-to-reply=" + Math.round(VOICE_TIME.now() - VOICE_TIME.final) + "ms"); } catch (e) {}
   addBubble("ai", text, link);
+  if (typeof SESSION_TIME !== "undefined") SESSION_TIME.text(measure, timingRoute);
   chatHist.push({ role:"model", text:text }); persistChat();
-  speak(text, wasVoice);
+  speak(text, wasVoice, measure);
 }
+
+/* Non-answer statuses never replace the Home answer or enter conversation history. */
+function showNotice(kind, message) {
+  ["tab-home", "tab-chat"].forEach(function (id) {
+    var host = document.getElementById(id);
+    if (!host) return;
+    var node = host.querySelector("." + kind + "-notice");
+    if (!node && message) {
+      node = document.createElement("div"); node.className = "ui-hint " + kind + "-notice";
+      node.setAttribute("role", "status");
+      node.style.cssText = "padding:10px;margin:8px 0;border:1px solid var(--line);border-radius:8px;flex-shrink:0";
+      host.insertBefore(node, host.firstChild);
+    }
+    if (node) { node.textContent = message || ""; node.style.display = message ? "block" : "none"; }
+  });
+}
+function showTurnNotice(message) { showNotice("turn", message); }
+function showVoiceNotice(message, retry) {
+  showNotice("voice", message);
+  if (!message) return;
+  document.querySelectorAll(".voice-notice").forEach(function (node) {
+    var settingsButton = document.createElement("button"); settingsButton.type = "button";
+    settingsButton.className = "ui-btn ui-btn-ghost"; settingsButton.textContent = "Voice settings";
+    settingsButton.addEventListener("click", function () {
+      showTab("set");
+      var group = document.getElementById("grp-voice"); if (group) group.classList.add("is-open");
+      fishFillVoices();
+      var picker = document.getElementById("sFishVoice");
+      if (picker) { if (picker.scrollIntoView) picker.scrollIntoView({ block: "center" }); picker.focus(); }
+    });
+    node.appendChild(settingsButton);
+    if (retry) {
+      var button = document.createElement("button"); button.type = "button";
+      button.className = "ui-btn ui-btn-ghost"; button.textContent = "Retry voice only";
+      button.addEventListener("click", retry); node.appendChild(button);
+    }
+  });
+}
+
+/* Read-only manual snapshot. Deliberately exclude transcript, logs, keys, IDs and URLs. */
+function deviceTestReport() {
+  function count(v, max) { return typeof v === "number" && isFinite(v) && v >= 0 && v <= max ? String(Math.floor(v)) : "unknown"; }
+  function flag(v) { return v === true ? "yes" : v === false ? "no" : "unknown"; }
+  function choice(v, allowed) { return allowed.indexOf(v) >= 0 ? v : "unknown"; }
+  function duration(a, b) {
+    if (typeof a !== "number" || typeof b !== "number" || !isFinite(a) || !isFinite(b) || a <= 0 || b < a || b - a > 300000) return "not recorded";
+    return Math.round(b - a) + "ms";
+  }
+  var s = typeof settings === "object" && settings ? settings : {};
+  var v = typeof VOICE_TIME === "object" && VOICE_TIME ? VOICE_TIME : {};
+  var k = typeof KAAN === "object" && KAAN ? KAAN : {};
+  var t = typeof TURNS === "object" && TURNS ? TURNS : {};
+  var fish = typeof FISH === "object" && FISH ? FISH : {};
+  var engine = typeof AWAAZ === "object" && AWAAZ ? AWAAZ.engine : "";
+  var selection = "unknown";
+  try { if (fish.selection) selection = choice(fish.selection().state, ["reference", "invalid", "missing-id", "legacy-or-unset"]); } catch (e) {}
+  var build = typeof MAYA_BUILD === "object" ? MAYA_BUILD : {};
+  var L = ["MAYA DEVICE TEST — v" + (build.versionName || "unknown") + " (" + count(build.versionCode, 2100000000) + ")",
+    "Development candidate; device acceptance pending.",
+    "Read-only manual snapshot. No chat, keys, voice IDs, audio or upload.", "",
+    "Thinking: " + flag(typeof thinking === "boolean" ? thinking : null) +
+      " | Listening: " + flag(typeof listening === "boolean" ? listening : null) +
+      " | Speaking/preparing: " + flag(typeof speaking === "boolean" ? speaking : null),
+    "Configured engine: " + choice(s.voiceEngine, ["auto", "fish", "neural", "edge", "device", "off"]),
+    "Last engine: " + choice(engine, ["fish", "neural", "edge", "device", "off", "free"]),
+    "Fish selection: " + selection + " (reference format only, not provider/playback validation)",
+    "Current Fish playing event: " + flag(!!(fish.streamPending && fish.streamPending.started)) + " (not audible proof)", "",
+    "Last available main-reply timing markers:",
+    "Speech-end to final transcript: " + duration(v.ended, v.final),
+    "Fish request to playing event: " + duration(v.requested, v.audio),
+    "Final transcript to playing event: " + duration(v.final, v.audio),
+    "Missing markers are not zero latency. Auditions/retries/local replies may not match the last AI turn.", ""];
+  if (typeof SESSION_TIME !== "undefined") {
+    var legacyIndex = L.indexOf("Last available main-reply timing markers:");
+    if (legacyIndex >= 0) L.splice(legacyIndex, 6); // Owned evidence replaces old uncorrelated markers.
+  }
+  var rows = Array.isArray(t.history) ? t.history : [];
+  var last = rows.length ? rows[rows.length - 1] : null;
+  if (last) {
+    L.push("Last AI turn #" + count(last.id, 10000000) + ": " +
+      choice(last.result, ["done", "error", "timeout", "cancelled", "superseded", "interrupted", "unavailable", "action-stopped"]) +
+      "; elapsed " + count(last.ms, 300000) + "ms (may be earlier than a local answer)");
+  } else L.push("Last AI turn: not recorded");
+  L.push("AI turn active: " + flag(!!t.active));
+  if (typeof t.diagnostic === "function") L.push(t.diagnostic());
+  L.push("");
+  if (typeof SESSION_TIME !== "undefined") L.push(SESSION_TIME.report(), "");
+  if (typeof INPUT_SESSION !== "undefined") L.push("Input phase: " + INPUT_SESSION.phase + " (legacy bridges have weaker callback ownership)");
+  if (typeof KAAN !== "undefined" && KAAN.DARWAZA) L.push("Follow-up window: " + KAAN.DARWAZA.left() + "s remaining; requires wake again when closed.");
+  L.push("Wake enabled: " + flag(s.wakeWord));
+  if (typeof WAKE_STATUS === "object" && WAKE_STATUS) {
+    var nativeWake = WAKE_STATUS.read();
+    L.push("Native wake: " + nativeWake.state + " | Reason: " + nativeWake.reason + " | Code: " + (nativeWake.error === null ? "unknown" : nativeWake.error));
+    L.push("Service present: " + nativeWake.servicePresent + " | Foreground: " + nativeWake.foreground + " | Mic permission: " + nativeWake.micPermission);
+    L.push("Native audio state: " + nativeWake.audioState + " | Fish active: " + nativeWake.fishOutputActive + " | App mic paused: " + nativeWake.appMicPaused);
+    L.push("Native lifetime start attempts: " + count(nativeWake.starts, 10000000) + " | Ready callbacks: " + count(nativeWake.ready, 10000000) + " | State age: " + count(nativeWake.ageMs, 9007199254740991) + "ms");
+    L.push("Ready is a recent native callback, not proof of detection. Missing bridge/status means unknown.");
+  }
+  L.push("Wake callbacks observed in this WebView session (not native service health):");
+  L.push("Starts: " + count(k.starts, 10000000) + " | Heard: " + count(k.heard, 10000000) + " | Wake matches: " + count(k.woke, 10000000));
+  L.push("Blocked callbacks: " + count(k.skips, 10000000));
+  L.push("Errors: " + count(k.errs, 10000000) + " | Last recognition error code: " + count(k.lastErr, 13));
+  L.push("Foreground and locked-screen results must be checked separately on the phone.");
+  return L.join("\n");
+}
+/* END DEVICE TEST REPORT */
+
+/* DEVICE TEST WIRING */
+(function () {
+  var button = document.getElementById("deviceTestStatus");
+  if (!button) return;
+  button.addEventListener("click", function () {
+    var out = document.getElementById("deviceTestOut");
+    if (!out) return;
+    out.textContent = deviceTestReport();
+    out.style.display = "block";
+  });
+})();
+/* END DEVICE TEST WIRING */
 
 /* ---------- TEST VOICE (AWAAZ SUNO) — bolta bhi hai, batata bhi hai ---------- */
 function testMayaVoice() {
@@ -4380,7 +4808,8 @@ function testMayaVoice() {
     onDone: function () {
       speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
       var st = AWAAZ.status();
-      if (st.engine === "neural") toast("🎭 NEURAL bola — " + vLabel);
+      if (st.engine === "fish") toast(st.err ? "Fish error — voice unchanged; retry" : "Selected Fish voice test completed");
+      else if (st.engine === "neural") toast("🎭 NEURAL bola — " + vLabel);
       else toast("📱 PHONE ki awaaz — " + (st.why || "neural abhi maujood nahi"));
       paintAwaaz();
     }
@@ -4390,14 +4819,37 @@ function testMayaVoice() {
 /* ---------- STT ---------- */
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 var rec = null;
-function startListening(){
+var listenTimer = null;
+function scheduleListening(delay, explicitWake){
+  if (listenTimer) clearTimeout(listenTimer);
+  var gen = AWAAZ.gen;
+  listenTimer = setTimeout(function(){
+    listenTimer = null;
+    if (gen !== AWAAZ.gen || listening || thinking || speaking) return;
+    if (explicitWake && !settings.wakeWord) return;
+    if (!explicitWake && !settings.wakeWord && !settings.autoListen) return;
+    if (!explicitWake && settings.wakeWord && !KAAN.DARWAZA.isOpen()) return;
+    startListening(explicitWake ? "wake" : settings.wakeWord ? "followup" : "auto");
+  }, delay);
+}
+function startListening(origin){
+  origin = ["wake", "followup", "auto"].indexOf(origin) >= 0 ? origin : "tap";
+  if (typeof INPUT_EPOCH !== "undefined") INPUT_EPOCH++;
+  if (typeof TURNS !== "undefined") TURNS.cancel("interrupted");
+  if (listenTimer) clearTimeout(listenTimer); listenTimer = null;
+  if (!listening && !thinking) { VOICE_TIME.reset(); AWAAZ.stop(); speaking = false; }
   if (NATIVE) {
     if (listening) { stopListening(); return; }
     if (thinking) return;
     ensureAudio(); chime(660, 0.08);
     listening = true; try { SUKOON.sunStart(); } catch (e) {} setOrb("listening"); interimEl.textContent = "🎧 Native mic sun raha hai...";
-    try { window.MayaBridge.listen(settings.stt); }
-    catch(e){ listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle"); toast("Mic start nahi ho saka"); }
+    var ownedInput = typeof INPUT_SESSION !== "undefined" ? INPUT_SESSION.begin(origin, origin === "followup" ? KAAN.DARWAZA.until : 0) : null;
+    if (ownedInput) setOrb("mic-starting");
+    try {
+      if (ownedInput && ownedInput.owned) window.MayaBridge.listenOwned(settings.stt, ownedInput.id);
+      else window.MayaBridge.listen(settings.stt);
+    }
+    catch(e){ stopListening(); toast("Mic start nahi ho saka"); }
     return;
   }
   if (!SR) { reply("Sir, is browser mein voice input support nahi — Chrome try karo. Filhaal type kar ke baat kar sakte hain.", false); return; }
@@ -4405,18 +4857,29 @@ function startListening(){
   if (thinking) return;
   ensureAudio(); chime(660, 0.08);
   try { rec = new SR(); } catch(e){ return; }
+  var inputSession = rec;
+  var browserOwner = typeof INPUT_SESSION !== "undefined" ? INPUT_SESSION.begin(origin, origin === "followup" ? KAAN.DARWAZA.until : 0) : null;
+  rec.onspeechstart = function () { if (rec === inputSession && browserOwner) INPUT_SESSION.began(browserOwner.id); };
+  rec.onspeechend = function () { if (rec === inputSession && browserOwner) window.__inputEnded(browserOwner.id); };
   rec.lang = settings.stt; rec.interimResults = true; rec.maxAlternatives = 1;
   listening = true; try { SUKOON.sunStart(); } catch (e) {} setOrb("listening"); interimEl.textContent = "";
   rec.onresult = function(e){
+    if (rec !== inputSession) return;
     var fin = "", intr = "";
     for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) fin += e.results[i][0].transcript;
       else intr += e.results[i][0].transcript;
     }
     if (intr) interimEl.textContent = intr;
-    if (fin && fin.trim()) { interimEl.textContent = ""; handleUserText(fin.trim(), true); }
+    if (fin && fin.trim()) {
+      var meta = browserOwner ? INPUT_SESSION.accept(browserOwner.id, null) : undefined;
+      if (browserOwner && !meta) return;
+      interimEl.textContent = ""; handleUserText(fin.trim(), true, meta);
+    }
   };
   rec.onerror = function(e){
+    if (rec !== inputSession) return;
+    if (browserOwner) INPUT_SESSION.stop();
     listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle"); interimEl.textContent = "";
     var m = {
       "not-allowed": "Mic ki permission nahi mili — browser settings mein microphone allow karo (page HTTPS par hona chahiye).",
@@ -4427,12 +4890,15 @@ function startListening(){
     }[e.error] || "Voice error — dobara try karo.";
     if (m) { addBubble("ai", m); pushLog("MIC ERROR: " + e.error); }
   };
-  rec.onend = function(){ listening = false; try { SUKOON.sunEnd(); } catch (e) {} interimEl.textContent = ""; if (!speaking) setOrb("idle"); };
-  try { rec.start(); } catch(e){ listening = false; try { SUKOON.sunEnd(); } catch (e) {} }
+  rec.onend = function(){ if (rec !== inputSession) return; if (browserOwner) INPUT_SESSION.stop(); listening = false; try { SUKOON.sunEnd(); } catch (e) {} interimEl.textContent = ""; if (!speaking) setOrb("idle"); };
+  try { rec.start(); } catch(e){ if (browserOwner) INPUT_SESSION.stop(); listening = false; try { SUKOON.sunEnd(); } catch (e) {} }
 }
 function stopListening(){
+  if (typeof INPUT_SESSION !== "undefined") INPUT_SESSION.stop();
+  if (listenTimer) clearTimeout(listenTimer); listenTimer = null;
   if (NATIVE) { try { window.MayaBridge.stopListen(); } catch(e){} }
-  if (rec) { try { rec.stop(); } catch(e){} }
+  if (rec) { var oldRec = rec; rec = null; oldRec.onresult = oldRec.onerror = oldRec.onend = null; try { if (oldRec.abort) oldRec.abort(); else oldRec.stop(); } catch(e){} }
+  interimEl.textContent = "";
   listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle");
 }
 
@@ -4442,7 +4908,7 @@ function setOrb(state){
   setCharState(state);
   micBtn.classList.toggle("listening", state === "listening");
   dot.className = "dot" + (state === "listening" ? " listening" : state === "thinking" ? " thinking" : "");
-  var map = { idle:"MAYA READY", listening:"SUN RAHI HOON...", thinking:"SOCH RAHI HOON...", speaking:"BOL RAHI HOON..." };
+  var map = { "mic-starting":"MIC START HO RAHA HAI...", finalizing:"BAAT PEHCHAN RAHI HOON...", idle:"MAYA READY", listening:"SUN RAHI HOON...", thinking:"SOCH RAHI HOON...", speaking:"BOL RAHI HOON...", buffering:"FISH AAWAAZ TAYYAR HO RAHI HAI..." };
   chatState.textContent = map[state] || "MAYA READY";
   statusText.textContent = state === "idle" ? "TAP TO SPEAK" : map[state] || "";
   statusPill.textContent = (NATIVE ? "APK • " : "") + DIMAAG.pill();
@@ -4454,7 +4920,7 @@ var charStatusEl = document.getElementById("charStatus");
 function setCharState(state){
   if (!mayaChar) return;
   mayaChar.dataset.state = state;
-  var labels = { idle:"TAP TO SPEAK", listening:"\uD83D\uDC42\uFE0F LISTENING...", thinking:"\uD83E\uDDE0 THINKING...", speaking:"\uD83D\uDDE3\uFE0F SPEAKING..." };
+  var labels = { "mic-starting":"MIC STARTING...", finalizing:"RECOGNIZING...", idle:"TAP TO SPEAK", listening:"\uD83D\uDC42\uFE0F LISTENING...", thinking:"\uD83E\uDDE0 THINKING...", speaking:"\uD83D\uDDE3\uFE0F SPEAKING..." };
   if (charStatusEl) charStatusEl.textContent = labels[state] || "TAP TO SPEAK";
   var hairs = mayaChar.querySelectorAll(".char-hair");
   var hc = { idle:"#22d3ee", listening:"#34d399", thinking:"#fbbf24", speaking:"#818cf8" };
@@ -4522,8 +4988,13 @@ function addBubble(who, text, link){
 })();
 
 /* ---------- MAIN HANDLER ---------- */
-function stripWake(t){ return t.replace(/^\s*(hey\s+)?(maya|maywa|mya|maaya|boss)[\s,.!:-]*/i, "").trim(); }
+function stripWake(t){ return String(t || "").replace(KAAN.PREFIX, "").trim(); }
 function handleUserText(text, wasVoice){
+  var measure = typeof SESSION_TIME !== "undefined" ? SESSION_TIME.current : null;
+  if (measure) measure.bound = true;
+  var inputEpoch = typeof INPUT_EPOCH === "undefined" ? 0 : INPUT_EPOCH;
+  function currentInput() { return typeof INPUT_EPOCH === "undefined" || INPUT_EPOCH === inputEpoch; }
+  if (!wasVoice) VOICE_TIME.reset();
   var stripped = stripWake(text) || text;
   /* 🛑 AMAL kill words — pehle STOP, phir kuch aur (guardrail) */
   try { if (typeof MAYA_AMAL !== "undefined" && MAYA_AMAL.isStop(stripped)) { MAYA_AMAL.stop(); return; } } catch (e) {}
@@ -4538,9 +5009,9 @@ function handleUserText(text, wasVoice){
 
   /* ⟲ / 📜 — ye do sawal app khud jaanti hai */
   if (typeof LEDGER !== "undefined" && FLAGS.on("ijazat")) {
-    if (LEDGER.ASK_TODAY.test(stripped)) { reply(LEDGER.today(), wasVoice); return; }
+    if (LEDGER.ASK_TODAY.test(stripped)) { reply(LEDGER.today(), wasVoice, null, measure, "local"); return; }
     if (LEDGER.ASK_UNDO.test(stripped)) {
-      LEDGER.undo().then(function (r) { reply(r.say, wasVoice); });
+      LEDGER.undo().then(function (r) { if (currentInput()) reply(r.say, wasVoice, null, measure, "local"); });
       return;
     }
   }
@@ -4554,13 +5025,14 @@ function handleUserText(text, wasVoice){
         BIJLI.mark(m.tool);
         try { NAAP.mark("tool"); NAAP.cur && (NAAP.cur.tool = m.tool); } catch (e) {}
         execTool(m.tool, m.args).then(function (out) {
+          if (!currentInput()) return;
           var ms = (new Date()).getTime() - t0;
           pushLog("BIJLI: " + m.tool + " " + ms + "ms (dimaag se pehle)");
           var okb = !!(out && out.ok !== false && out.done !== false);
-          if (!okb) { askAI(wasVoice); return; }          /* nakaam? dimaag ko de do */
+          if (!okb) { askAI(wasVoice, measure); return; }          /* nakaam? dimaag ko de do */
           try { NAAP.mark("brain"); NAAP.cur && (NAAP.cur.brain = "\u26A1 BIJLI"); TRACE.brain("\u26A1 BIJLI", ms); } catch (e) {}
-          reply(BIJLI.say(m.tool, m.args, out), wasVoice);
-        }, function () { askAI(wasVoice); });
+          reply(BIJLI.say(m.tool, m.args, out), wasVoice, null, measure, "local");
+        }, function () { if (currentInput()) askAI(wasVoice, measure); });
       })(_bm);
       return;
     }
@@ -4569,7 +5041,7 @@ function handleUserText(text, wasVoice){
   /* 👑 MALIK — "tumhe kis ne banaya?" ka jawab dimaag se poochhne ki zaroorat nahi */
   if (typeof MALIK !== "undefined" && FLAGS.on("malik") && MALIK.ASK.test(stripped)) {
     NAAP.mark("brain");
-    reply(MALIK.pick(stripped, false), wasVoice);
+    reply(MALIK.pick(stripped, false), wasVoice, null, measure, "local");
     pushLog("MALIK: ta'aruf diya");
     return;
   }
@@ -4578,19 +5050,19 @@ function handleUserText(text, wasVoice){
   if (local) {
     if (local.reply !== "") {
       if (local.url) setTimeout(function(){ openURL(local.url); }, 900);
-      reply(local.reply, wasVoice, local.link);
+      reply(local.reply, wasVoice, local.link, measure, "local");
       pushLog("CMD: " + stripped.slice(0, 34));
     }
     return;
   }
   _activeSkill = skillFor(stripped);
   var st = trySmalltalk(stripped);
-  if (st) { reply(st, wasVoice); return; }
+  if (st) { reply(st, wasVoice, null, measure, "local"); return; }
   if (!settings.apikey && !settings.groqKey && !settings.ghKey) {
-    reply("Ye sawal ke liye mujhe dimaag chahiye, " + settings.name + " — Settings (⚙️) mein FREE Gemini ya Groq key daalo (2 minute ka kaam). Local commands chal rahe hain!", wasVoice);
+    reply("Ye sawal ke liye mujhe dimaag chahiye, " + settings.name + " — Settings (⚙️) mein FREE Gemini ya Groq key daalo (2 minute ka kaam). Local commands chal rahe hain!", wasVoice, null, measure, "local");
     return;
   }
-  askAI(wasVoice);
+  askAI(wasVoice, measure);
 }
 
 /* ---------- MEMORY ---------- */
@@ -4965,25 +5437,26 @@ function sysPrompt(){
 var WMO = {0:"saaf aasman",1:"thoda saaf",2:"badal chhaye hue",3:"ghane badal",45:"dhund",48:"dhund",51:"halki boondabandi",53:"boondabandi",55:"tez boondabandi",56:"barf bari",57:"barf bari",61:"halki barish",63:"barish",65:"tez barish",66:"barf bari",67:"barf bari",71:"halki barf",73:"barf bari",75:"tez barf bari",77:"barf ke kanay",80:"baarish ke chhinte",81:"baarish",82:"bohat tez baarish",85:"barf bari",86:"barf bari",95:"toofan o graaj",96:"toofan o graaj (ballay)",99:"tez toofan o graaj"};
 var CITY_CACHE = {};
 function pad2(n){ return (n < 10 ? "0" : "") + n; }
-async function geoCity(city){
+async function geoCity(city, turn){
   var key = String(city || "Hyderabad").toLowerCase();
   if (CITY_CACHE[key]) return CITY_CACHE[key];
   var g = null;
   try {
-    var r = await fetch("https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&name=" + encodeURIComponent(city)).then(function(x){ return x.json(); });
+    var r = (await TURNS.json(turn, "https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&name=" + encodeURIComponent(city))).data;
     g = r && r.results && r.results[0];
   } catch(e){}
+  if (turn) TURNS.assert(turn);
   var c = g ? { lat: g.latitude, lon: g.longitude, name: g.name + (g.country_code ? ", " + g.country_code : "") }
             : { lat: 25.396, lon: 68.377, name: "Hyderabad, PK" };
   CITY_CACHE[key] = c;
   return c;
 }
-async function fetchWeather(cityName){
+async function fetchWeather(cityName, turn){
   try {
-    var c = await geoCity(cityName || settings.city || "Hyderabad");
+    var c = await geoCity(cityName || settings.city || "Hyderabad", turn);
     var url = "https://api.open-meteo.com/v1/forecast?latitude=" + c.lat + "&longitude=" + c.lon +
       "&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1";
-    var d = await fetch(url).then(function(x){ return x.json(); });
+    var d = (await TURNS.json(turn, url)).data;
     var cur = d.current || {};
     var mx = d.daily && d.daily.temperature_2m_max ? d.daily.temperature_2m_max[0] : null;
     var mn = d.daily && d.daily.temperature_2m_min ? d.daily.temperature_2m_min[0] : null;
@@ -5088,7 +5561,8 @@ var TOOL_DECLS = [
   { name: "maya_act", description: "AMAL: kisi doosri app ke screen element par TAP karo, text field mein TYPE karo, swipe, ya back. find mein wahi matn do jo SCREEN par likha hai (Maya pehle use dhoondh kar verify karti hai — andha tap kabhi nahi). Sirf user ke saaf hukm par; banking/finance apps aur password/OTP fields hamesha refused hain. action=stop se foran band.",
     parameters: { type: "OBJECT", properties: { action: { type: "STRING", description: "tap | type | swipe | back | stop" }, find: { type: "STRING", description: "screen par wahi matn — button/field ka label" }, text: { type: "STRING", description: "sirf action=type ke liye" }, index: { type: "INTEGER", description: "same naam ke multiple elements mein kaunsa (0=default)" }, x1: { type: "INTEGER" }, y1: { type: "INTEGER" }, x2: { type: "INTEGER" }, y2: { type: "INTEGER" }, ms: { type: "INTEGER" } }, required: ["action"] } }
 ];
-async function execTool(name, args){
+async function execTool(name, args, turn){
+  if (turn) { TURNS.markTool(turn); turn.stage = "tool"; }
   args = args || {};
   var out;
 
@@ -5103,7 +5577,15 @@ async function execTool(name, args){
   }
   if (typeof IJAZAT !== "undefined" && IJAZAT.need(name)) {
     var _yes = false;
-    try { _yes = await IJAZAT.ask(name, args); } catch (e) { _yes = false; }
+    var _off = function () {};
+    try {
+      var _approval = IJAZAT.ask(name, args);
+      var _pending = IJAZAT.pend;
+      if (turn) _off = TURNS.track(turn, function () { if (_pending) _pending(false); });
+      _yes = await TURNS.wait(turn, _approval);
+    } catch (e) { _yes = false; }
+    finally { _off(); }
+    if (turn) TURNS.assert(turn);
     if (!_yes) {
       var _n = { ok: false, done: false, state: "failed", sure: true, note: "user ne ijazat nahi di",
                  sach: "User ne IJAZAT NAHI DI. Ye kaam nahi hua \u2014 aur ye bilkul theek hai. Zid mat karo." };
@@ -5111,6 +5593,7 @@ async function execTool(name, args){
       return _n;
     }
   }
+  if (turn) TURNS.assert(turn);
   var _before;
   try { _before = LEDGER.snap(name, args); } catch (e) {}
 
@@ -5183,7 +5666,7 @@ async function execTool(name, args){
         out = { learned: true, total: customSkills.length };
       } else out = { learned: false };
     } else if (name === "prayer_times") {
-      var pt = await prayerTimes();
+      var pt = await prayerTimes(turn);
       out = pt ? { city: settings.city, timings: pt } : { error: "namaz times nahi mile — internet check" };
     } else if (name === "read_messages") {
       if (!NATIVE) out = { error: "sirf APK" };
@@ -5220,14 +5703,14 @@ async function execTool(name, args){
       if (NATIVE) { try { ob1 = parseInt(window.MayaBridge.brightness(Math.max(5, Math.min(100, parseInt(args.percent, 10) || 50))), 10); } catch(e){} }
       out = ob1 === -2 ? { done: false, note: "permission dialog khula hai — allow kar ke dobara" } : (ob1 >= 0 ? { done: true, level: ob1 } : { done: false });
     } else if (name === "web_search") {
-      out = await webSearch(String(args.query || ""));
+      out = await webSearch(String(args.query || ""), turn);
     } else if (name === "wiki_search") {
-      out = await wikiLookup(String(args.query || ""));
+      out = await wikiLookup(String(args.query || ""), turn);
     } else if (name === "list_files") {
       out = await listFilesAction(String(args.folder || "downloads"));
     } else if (name === "open_file") {
       var fo = fileFind(String(args.name || ""));
-      if (!fo && NATIVE) { await listFilesAction("downloads"); fo = fileFind(String(args.name || "")); }
+      if (!fo && NATIVE) { await listFilesAction("downloads"); if (turn) TURNS.assert(turn); fo = fileFind(String(args.name || "")); }
       if (fo) { var oko = false; try { oko = window.MayaBridge.openFile(fo.uri, fo.type) === true; } catch(e){} out = oko ? { done: true, file: fo.name } : { done: false, note: "kholne wala app nahi mila" }; }
       else out = { done: false, note: "file nahi mili — pehle list_files se check karo" };
     } else if (name === "share_file") {
@@ -5242,21 +5725,14 @@ async function execTool(name, args){
       chatHist.slice(-200).forEach(function(h){ if (sq && h.text.toLowerCase().indexOf(sq) >= 0) hits.push((h.role === "user" ? "USER: " : "MAYA: ") + h.text.slice(0, 150)); });
       out = { matches: hits.slice(0, 12), total: hits.length };
     } else if (name === "run_javascript") {
-      out = await sandboxRun(String(args.code || ""), String(args.input || ""));
+      out = await sandboxRun(String(args.code || ""), String(args.input || ""), turn);
     } else if (name === "web_fetch") {
       var wurl = String(args.url || "");
       if (!/^https?:\/\//.test(wurl)) { out = { error: "poora URL do (https://...)" }; }
       else {
         var wtxt = "";
-        if (NATIVE && window.MayaBridge.httpGet) {
-          var wr = JSON.parse(window.MayaBridge.httpGet(wurl, ""));
-          if (wr.status >= 200 && wr.status < 300) wtxt = htmlToText(wr.body).slice(0, 3000);
-        } else {
-          try {
-            var wf = await fetch(wurl);
-            if (wf.ok) wtxt = htmlToText(await wf.text()).slice(0, 3000);
-          } catch (e) {}
-        }
+        var wr = await nativeGet(wurl, turn);
+        if (wr.status >= 200 && wr.status < 300) wtxt = htmlToText(wr.body).slice(0, 3000);
         out = wtxt ? { ok: true, text: wtxt } : { error: "page nahi khul saka (site block ya JS-only page ho sakta hai)" };
       }
     } else if (name === "diary_write") {
@@ -5318,7 +5794,7 @@ async function execTool(name, args){
         } catch(e){ out = { error: String(e && e.message || e) }; }
       }
     } else if (name === "get_weather") {
-      out = await fetchWeather(args.city);
+      out = await fetchWeather(args.city, turn);
     } else if (name === "battery_status") {
       var bat = null;
       if (NATIVE) { try { bat = JSON.parse(window.MayaBridge.battery()); } catch(e){} }
@@ -5351,6 +5827,7 @@ async function execTool(name, args){
       out = { error: "unknown tool: " + name };
     }
   } catch (e) { out = { error: String(e && e.message || e) }; }
+  if (turn) TURNS.assert(turn);
   /* 🤝 SACH: har tool ke jawab mein `sure` jur jata hai — kya kaam SACH MEIN hua? */
   try { if (typeof HAQEEQAT !== "undefined" && FLAGS.on("sach")) out = HAQEEQAT.wrap(name, out); } catch (e) {}
   /* 📜 roznamcha + ⟲ undo ki halat + 📊 trace */
@@ -5388,12 +5865,14 @@ function modelScore(n){
   if (/preview|exp|thinking|8b|live|image|audio|native|tts|embedding|aqa|imagen|veo|gemma|robotics/.test(n)) s -= 800;
   return s;
 }
-async function resolveModels(){
+async function resolveModels(turn){
+  if (turn) { TURNS.assert(turn); turn.stage = "discovery"; }
   if (settings.model !== "auto") return [settings.model];
   var now = Date.now();
   if (MODEL_CACHE && MODEL_CACHE.names && MODEL_CACHE.names.length && now - MODEL_CACHE.ts < 86400000) return MODEL_CACHE.names;
   try {
-    var j = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&key=" + encodeURIComponent(settings.apikey)).then(function(x){ return x.json(); });
+    var j = (await TURNS.json(turn, "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&key=" + encodeURIComponent(settings.apikey))).data;
+    if (turn) TURNS.assert(turn);
     var names = (j.models || [])
       .filter(function(m){ return (m.supportedGenerationMethods || []).indexOf("generateContent") >= 0; })
       .map(function(m){ return String(m.name || "").replace(/^models\//, ""); })
@@ -5405,6 +5884,7 @@ async function resolveModels(){
     pushLog("MODELS RESOLVED: " + MODEL_CACHE.names[0] + " (+" + (MODEL_CACHE.names.length - 1) + " backup)");
     return MODEL_CACHE.names;
   } catch(e) {
+    if (turn) TURNS.assert(turn);
     return MODELS;
   }
 }
@@ -5563,29 +6043,57 @@ var BRAIN = {
   },
 
   /* ---------- ek HTTP POST: APK mein bridge (CORS nahi, UI jam nahi), warna XHR ---------- */
-  post: function (url, auth, payload, timeoutMs, cb) {
-    var done = false;
-    function finish(status, body) { if (done) return; done = true; cb(status, body); }
-
-    if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge.httpPostAsync) {
-      var id = "r" + (++BRAIN.reqSeq) + "_" + Date.now();
-      BRAIN.waiting[id] = function (status, body) { delete BRAIN.waiting[id]; finish(status, body); };
-      setTimeout(function () { if (BRAIN.waiting[id]) { delete BRAIN.waiting[id]; finish(0, "timeout"); } }, timeoutMs + 3000);
-      try { window.MayaBridge.httpPostAsync(url, auth, payload, id, timeoutMs); }
-      catch (e) { delete BRAIN.waiting[id]; finish(0, String(e && e.message || e)); }
-      return;
+  post: function (url, auth, payload, timeoutMs, cb, turn) {
+    return BRAIN.request("POST", url, auth, payload, timeoutMs, cb, turn);
+  },
+  request: function (method, url, auth, payload, timeoutMs, cb, turn, extraHeaders) {
+    if (turn) TURNS.assert(turn);
+    var done = false, timer = null, id = null, xhr = null, off = function () {};
+    var phase = turn && turn.stage.indexOf("discovery") === 0 ? "discovery-response" : turn && turn.stage.indexOf("tool") === 0 ? "tool-response" : "provider-response";
+    if (turn) turn.stage = phase;
+    var audit = TURNS.requestStart(turn, phase, "xhr");
+    function abortIO() {
+      if (id) { try { if (window.MayaBridge.cancelHttpPost) window.MayaBridge.cancelHttpPost(id); } catch (e) {} }
+      if (xhr) { try { xhr.abort(); } catch (e) {} }
     }
-    var xhr = new XMLHttpRequest();
+    function release() { clearTimeout(timer); off(); if (id) delete BRAIN.waiting[id]; }
+    function abort() { if (done) return; done = true; TURNS.requestEnd(audit, "aborted", 0); release(); abortIO(); }
+    function finish(status, body, cancelIO, reason) {
+      if (done) return;
+      done = true; TURNS.requestEnd(audit, reason || (status ? (status >= 200 && status < 300 ? "ok" : "http-error") : "network"), status);
+      release(); if (cancelIO) abortIO();
+      if (!turn || TURNS.live(turn)) cb(status, body, audit);
+    }
+    if (turn) timeoutMs = Math.max(1, Math.min(timeoutMs, TURNS.REQUEST_MS, Math.ceil(turn.deadline - TURNS.now())));
+    off = TURNS.track(turn, abort);
+    if (done) return abort;
+    timer = setTimeout(function () { finish(0, "timeout", true, "request-timeout"); }, timeoutMs);
+    if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge[method === "GET" ? "httpGetAsync" : "httpPostAsync"] && TURNS.bridgeCompatible({method: method, headers: extraHeaders})) {
+      if (audit) audit.transport = "native";
+      id = "r" + (++BRAIN.reqSeq) + "_" + Date.now();
+      BRAIN.waiting[id] = function (status, body) { finish(status, body); };
+      try {
+        if (method === "GET") window.MayaBridge.httpGetAsync(url, auth, id, timeoutMs);
+        else window.MayaBridge.httpPostAsync(url, auth, payload, id, timeoutMs);
+      }
+      catch (e) { finish(0, "network", true); }
+      return abort;
+    }
     try {
-      xhr.open("POST", url, true);
-      xhr.setRequestHeader("Content-Type", "application/json");
-      if (auth) xhr.setRequestHeader("Authorization", auth);
+      xhr = new XMLHttpRequest();
+      xhr.open(method, url, true);
+      var headers = {};
+      if (method === "POST") headers["content-type"] = "application/json";
+      if (auth) headers.authorization = auth;
+      Object.keys(extraHeaders || {}).forEach(function (k) { headers[k.toLowerCase()] = extraHeaders[k]; });
+      Object.keys(headers).forEach(function (k) { xhr.setRequestHeader(k, headers[k]); });
       xhr.timeout = timeoutMs;
-    } catch (e) { finish(0, "open fail"); return; }
-    xhr.ontimeout = function () { finish(0, "timeout"); };
-    xhr.onerror = function () { finish(0, "network"); };
-    xhr.onload = function () { finish(xhr.status, xhr.responseText || ""); };
-    try { xhr.send(payload); } catch (e) { finish(0, "send fail"); }
+      xhr.ontimeout = function () { finish(0, "timeout", true, "request-timeout"); };
+      xhr.onerror = function () { finish(0, "network"); };
+      xhr.onload = function () { finish(xhr.status, xhr.responseText || ""); };
+      xhr.send(payload);
+    } catch (e) { finish(0, "send fail", true); }
+    return abort;
   },
 
   /* ---------- OpenAI-shakl provider se baat ---------- */
@@ -5595,7 +6103,9 @@ var BRAIN = {
     return BRAIN.REASONER.test(String(model || "")) ? 1400 : 400;
   },
 
-  ask: function (p, ki, msgs, cb, step) {
+  ask: function (p, ki, msgs, cb, step, turn) {
+    if (turn && !TURNS.live(turn)) return;
+    if (turn) turn.stage = "provider";
     step = step || 0;
     var keys = BRAIN.keys(p);
     var key = keys[ki] || "";
@@ -5614,6 +6124,7 @@ var BRAIN = {
     var auth = key ? ("Bearer " + key) : "";
     DIMAAG.calls++;
     BRAIN.post(p.url, auth, payload, 22000, function (status, body) {
+      if (turn && !TURNS.live(turn)) return;
       var data = null;
       try { data = JSON.parse(body); } catch (e) {}
       if (status >= 200 && status < 300) {
@@ -5623,14 +6134,16 @@ var BRAIN = {
         /* ⚡ P2a — dimaag ne tool maanga? Chalao aur nateeja wapas do */
         var tcalls = (m0 && m0.tool_calls && m0.tool_calls.length) ? m0.tool_calls : null;
         if (useTools && tcalls) {
+          TURNS.markTool(turn);
           BRAIN.free(p.id, ki);
           geminiChat.toolsUsed = true;
-          AMAL.runCalls(tcalls).then(function (results) {
+          AMAL.runCalls(tcalls, turn).then(function (results) {
+            if (turn && !TURNS.live(turn)) return;
             var next = msgs.slice(0);
             next.push({ role: "assistant", content: m0.content || "", tool_calls: tcalls });
             for (var z = 0; z < results.length; z++) next.push(results[z]);
-            BRAIN.ask(p, ki, next, cb, step + 1);
-          }, function () { cb("EMPTY"); });
+            BRAIN.ask(p, ki, next, cb, step + 1, turn);
+          }, function () { if (!turn || TURNS.live(turn)) cb("EMPTY"); });
           return;
         }
 
@@ -5661,9 +6174,9 @@ var BRAIN = {
 
       /* ⚡ P2a — is provider ne `tools` qubool nahi kiya? Bina tools DOBARA
          koshish karo, aur aage ke liye yaad rakh lo. Dimaag marna nahi chahiye. */
-      if (useTools && (status === 400 || status === 422) ) {
+      if (useTools && (status === 400 || status === 422) && !(turn && TURNS.root(turn).toolsStarted)) {
         AMAL.markBad(p.id, msg);
-        BRAIN.ask(p, ki, msgs, cb, 9);          /* step 9 = tools band */
+        BRAIN.ask(p, ki, msgs, cb, 9, turn);          /* step 9 = tools band */
         return;
       }
 
@@ -5671,7 +6184,7 @@ var BRAIN = {
       if ((code === "MODEL_404" || code === "BAD_REQUEST") && /model|decommission|deprecat|not found|does not exist/i.test(msg)) {
         DIMAAG.log(p.name, "MODEL", model + " → " + msg.slice(0, 50));
         BRAIN.dropModel(p, model);
-        BRAIN.discover(p, key);
+        if (!turn) BRAIN.discover(p, key); // Avoid the synchronous model-discovery bridge inside an active turn.
         cb("MODEL"); return;
       }
       if (code === "QUOTA") { BRAIN.chill(p.id, ki, DIMAAG.isDayQuota(data || {}) ? 3600000 : 90000, "QUOTA"); }
@@ -5679,7 +6192,7 @@ var BRAIN = {
       else if (code === "SERVER") { BRAIN.chill(p.id, ki, 120000, "SERVER"); }
       DIMAAG.log(p.name + (keys.length > 1 ? " key" + (ki + 1) : ""), code, msg);
       cb(code);
-    });
+    }, turn);
   },
 
   /* ---------- mara hua model list se nikaalo ---------- */
@@ -5995,26 +6508,31 @@ var DIMAAG = {
 };
 
 /* --- Provider 1: Gemini pool (tools ke saath) --- */
-async function geminiChat(){
+async function geminiChat(turn){
+  if (turn) TURNS.assert(turn);
   var gate = DIMAAG.geminiReady();
   if (gate) { DIMAAG.log("GEMINI", gate); return null; }
 
   /* B3: 5 nahi, sirf 2 model — ek sawal par quota 5 guna zaya nahi hota */
-  var all = await resolveModels();
+  var all = await resolveModels(turn);
   var models = all.slice(0, 2);
   var quotaHit = false;
 
   for (var i = 0; i < models.length; i++) {
+    if (turn) TURNS.assert(turn);
     var m = models[i];
     if (Date.now() < (modelCooldowns[m] || 0)) { DIMAAG.log("GEMINI/" + m, "QUOTA", "cooldown"); continue; }
-    var got = await geminiTry(m, false);
+    var got = await geminiTry(m, false, turn);
+    if (turn) TURNS.assert(turn);
     if (got && got.text) { DIMAAG.ok("GEMINI"); return got.text; }
+    if (turn && TURNS.root(turn).toolsStarted) return null; // Never restart a model after a tool step.
     var code = got ? got.code : "EMPTY";
 
     /* B1+B2 ka ilaj: 400 par KEY blackout NAHI — history saaf kar ke bina tools dobara */
     if (code === "BAD_REQUEST") {
       DIMAAG.historySuspect = true;
-      var fixed = await geminiTry(m, true);          /* sirf aakhri sawal, koi tool nahi */
+      var fixed = await geminiTry(m, true, turn);          /* sirf aakhri sawal, koi tool nahi */
+      if (turn) TURNS.assert(turn);
       if (fixed && fixed.text) {
         DIMAAG.fixes++;
         DIMAAG.log("GEMINI/" + m, null, "khud marammat: history saaf kar ke chal gaya");
@@ -6026,7 +6544,7 @@ async function geminiChat(){
     }
     if (code === "KEY_BAD") { DIMAAG.keyBadUntil = Date.now() + 600000; geminiChat.keyErr = true; return null; }
     if (code === "QUOTA") { quotaHit = true; if (got.dayQuota) { DIMAAG.dayQuotaUntil = Date.now() + 3600000; DIMAAG.lastCode = "QUOTA_DAY"; return null; } continue; }
-    if (code === "MODEL_404") { if (!geminiChat._r404) { geminiChat._r404 = true; MODEL_CACHE = null; saveModelCache(); return await geminiChat(); } continue; }
+    if (code === "MODEL_404") { if (!geminiChat._r404) { geminiChat._r404 = true; MODEL_CACHE = null; saveModelCache(); return await geminiChat(turn); } continue; }
   }
   geminiChat._r404 = false;
   if (quotaHit) DIMAAG.lastCode = "QUOTA";
@@ -6035,7 +6553,8 @@ async function geminiChat(){
 geminiChat.keyErr = false;
 
 /* Ek model par ek koshish. plain = true -> koi tool nahi, sirf aakhri sawal. */
-async function geminiTry(m, plain){
+async function geminiTry(m, plain, turn){
+  if (turn) { TURNS.assert(turn); turn.stage = "provider"; }
   var url = "https://generativelanguage.googleapis.com/v1beta/models/" + m + ":generateContent?key=" + encodeURIComponent(settings.apikey);
   var contents = plain ? [{ role: "user", parts: [{ text: DIMAAG.lastUser() }] }] : DIMAAG.contents(8);
   if (!contents.length) return { code: "BAD_REQUEST", info: "khali history" };
@@ -6043,6 +6562,7 @@ async function geminiTry(m, plain){
   var maxSteps = (_activeSkill && _activeSkill.deep) ? 5 : (FLAGS.on("sach") ? 4 : 2);
 
   for (var step = 0; step < maxSteps + 1; step++) {
+    if (turn) { TURNS.assert(turn); turn.stage = "provider"; }
     var body = {
       systemInstruction: { parts: [{ text: sysPrompt() }] },
       contents: contents,
@@ -6054,9 +6574,10 @@ async function geminiTry(m, plain){
     var res, data = {};
     DIMAAG.calls++;
     try {
-      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    } catch (e) { DIMAAG.log("GEMINI/" + m, "NETWORK", String(e && e.message || e).slice(0, 60)); return { code: "NETWORK" }; }
-    try { data = await res.json(); } catch (e) { data = {}; }
+      var fetched = await TURNS.json(turn, url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      res = fetched.response; data = fetched.data;
+      if (turn) TURNS.assert(turn);
+    } catch (e) { if (turn) TURNS.assert(turn); DIMAAG.log("GEMINI/" + m, "NETWORK", "request failed"); return { code: "NETWORK" }; }
 
     if (!res.ok) {
       var code = DIMAAG.classify(res.status, data);
@@ -6076,15 +6597,18 @@ async function geminiTry(m, plain){
     var parts = (cand && cand.content && cand.content.parts) || [];
     var fnCalls = parts.filter(function (p) { return p.functionCall; });
     if (fnCalls.length && step < maxSteps) {
+      TURNS.markTool(turn);
       geminiChat.toolsUsed = true;
       contents.push({ role: "model", parts: parts });
       for (var fc = 0; fc < fnCalls.length; fc++) {
+        if (turn) TURNS.assert(turn);
         var name = fnCalls[fc].functionCall.name;
         pushLog("AI TOOL: " + name);
         try { NAAP.mark("tool"); NAAP.cur && (NAAP.cur.tool = name); } catch (e) {}   /* 📊 P0 */
         var result;
-        try { result = await execTool(name, fnCalls[fc].functionCall.args || {}); }
+        try { result = await TURNS.wait(turn, execTool(name, fnCalls[fc].functionCall.args || {}, turn)); }
         catch (e) { result = { error: String(e && e.message || e) }; }
+        if (turn) TURNS.assert(turn);
         contents.push({ role: "user", parts: [{ functionResponse: { name: name, response: result } }] });
       }
       continue;
@@ -6911,9 +7435,10 @@ var AMAL = {
   },
 
   /* ─── tool calls chalao aur nateeje wapas do (OpenAI shakl) ─── */
-  runCalls: async function (calls) {
+  runCalls: async function (calls, turn) {
     var out = [], i, c, name, args, res;
     for (i = 0; i < calls.length && i < 4; i++) {
+      if (turn) TURNS.assert(turn);
       c = calls[i];
       name = (c && c.function && c.function.name) || "";
       args = {};
@@ -6921,8 +7446,9 @@ var AMAL = {
       args = AMAL.alias(name, args);
       if (typeof pushLog === "function") pushLog("AI TOOL: " + name + " (pool)");
       try { NAAP.mark("tool"); NAAP.cur && (NAAP.cur.tool = name); } catch (e) {}
-      try { res = await execTool(name, args); }
+      try { res = await TURNS.wait(turn, execTool(name, args, turn)); }
       catch (e) { res = { error: String((e && e.message) || e) }; }
+      if (turn) TURNS.assert(turn);
       out.push({
         role: "tool",
         tool_call_id: c.id || ("call_" + i),
@@ -7053,86 +7579,314 @@ var AMAL = {
   }
 };
 
+/* TURN CONTROLLER — one bounded AI request owner, independent of speech configuration. */
+var TURNS = {
+  BUDGET_MS: 15000,
+  // The overall deadline is unchanged; a provider cannot consume every backup's time.
+  ATTEMPT_MS: 6500, REQUEST_MS: 5000, DISCOVERY_MS: 1500,
+  root: function (t) { return t && t.parent ? t.parent : t; },
+  provider: function (id) { return ["gemini", "groq", "cerebras", "mistral", "openrouter", "github", "nvidia", "zai", "llm7", "pollen"].indexOf(id) >= 0 ? id : "unknown"; },
+  phase: function (s) { return ["planning", "discovery", "discovery-headers", "discovery-body", "discovery-response", "provider", "provider-headers", "provider-body", "provider-response", "tool", "tool-headers", "tool-body", "tool-response", "text-ready", "unavailable", "error", "action-stopped"].indexOf(s) >= 0 ? s : "unknown"; },
+  markTool: function (t) {
+    if (!t) return;
+    TURNS.assert(t); t.stage = "tool";
+    if (t.toolsStarted) return;
+    t.toolsStarted = true; TURNS.root(t).toolsStarted = true;
+    // No failover after a tool/permission step. Keep the existing whole-turn
+    // deadline for confirmation and intended tool-result continuation instead.
+    if (t.parent) {
+      clearTimeout(t.timer); t.deadline = t.parent.deadline;
+      t.timer = setTimeout(function () { TURNS.closeAttempt(t, "attempt-timeout"); }, Math.max(1, t.deadline - TURNS.now()));
+    }
+  },
+  closeAttempt: function (a, result) {
+    if (!a || a.state !== "active") return;
+    a.state = "terminal"; a.result = result; clearTimeout(a.timer);
+    a.cancels.forEach(function (c) { if (!c.done) { c.done = true; try { c.abort(); } catch (e) {} } });
+    a.cancels = []; a.off();
+    a.record.result = result; a.record.phase = TURNS.phase(a.stage); a.record.ms = Math.round(TURNS.now() - a.start);
+    if (a.parent.attempt === a) a.parent.attempt = null;
+    if (result !== "done") a.reject(TURNS.error(result));
+  },
+  attempt: async function (parent, provider, fn) {
+    TURNS.assert(parent);
+    var a = { parent: parent, id: parent.id, provider: TURNS.provider(provider), state: "active", stage: "provider", start: TURNS.now(), cancels: [] };
+    a.deadline = Math.min(parent.deadline, a.start + TURNS.ATTEMPT_MS);
+    a.aborted = new Promise(function (_, reject) { a.reject = reject; }); a.aborted.catch(function () {});
+    a.record = { provider: a.provider, phase: "provider", result: "pending", ms: 0 };
+    parent.attempts = parent.attempts || []; parent.attempts.push(a.record);
+    if (parent.attempts.length > 12) parent.attempts.shift();
+    parent.attempt = a;
+    a.off = function () {};
+    a.off = TURNS.track(parent, function () { TURNS.closeAttempt(a, parent.result || "cancelled"); });
+    if (a.state === "active") a.timer = setTimeout(function () { TURNS.closeAttempt(a, "attempt-timeout"); }, Math.max(1, a.deadline - TURNS.now()));
+    try {
+      var out = await TURNS.wait(a, Promise.resolve().then(function () { TURNS.assert(a); return fn(a); }));
+      TURNS.closeAttempt(a, out ? "done" : "empty");
+      return out;
+    } finally { if (a.state === "active") TURNS.closeAttempt(a, "error"); }
+  },
+  requestStart: function (t, phase, transport) {
+    if (!t) return null;
+    var root = TURNS.root(t);
+    var row = { provider: TURNS.provider(t.provider), phase: TURNS.phase(phase), transport: transport, http: 0, result: "pending", ms: 0, start: TURNS.now() };
+    root.requests = root.requests || []; root.requests.push(row);
+    if (root.requests.length > 12) root.requests.shift();
+    return row;
+  },
+  requestEnd: function (row, result, status) {
+    if (!row || row.result !== "pending") return;
+    row.result = result; row.http = typeof status === "number" && status >= 0 && status <= 599 ? Math.floor(status) : 0;
+    row.ms = Math.max(0, Math.round(TURNS.now() - row.start)); delete row.start;
+  },
+  xhrCompatible: function (init) {
+    init = init || {};
+    if (["GET", "POST"].indexOf(init.method || "GET") < 0) return false;
+    for (var key in init) if (["method", "headers", "body"].indexOf(key) < 0) return false;
+    return !init.headers || Object.prototype.toString.call(init.headers) === "[object Object]";
+  },
+  bridgeCompatible: function (init) {
+    init = init || {}; var method = init.method || "GET", h = init.headers || {}, key;
+    // Do not silently discard caller options or headers the fixed native API cannot represent.
+    if (!TURNS.xhrCompatible(init)) return false;
+    for (key in h) if (Object.prototype.hasOwnProperty.call(h, key)) {
+      if (key.toLowerCase() === "authorization" && typeof h[key] === "string") continue;
+      if (key.toLowerCase() === "content-type" && method === "POST" && h[key] === "application/json") continue;
+      if (key.toLowerCase() === "accept" && h[key] === (method === "POST" ? "application/json" : "*/*")) continue;
+      return false;
+    }
+    return true;
+  },
+  diagnostic: function () {
+    function pick(v, allowed) { return allowed.indexOf(v) >= 0 ? v : "unknown"; }
+    function num(v, max) { return typeof v === "number" && isFinite(v) && v >= 0 && v <= max ? Math.floor(v) : "unknown"; }
+    var t = TURNS.active || TURNS.history[TURNS.history.length - 1];
+    var L = ["AI REQUEST TRACE — fixed fields only; no keys, prompts, URLs or raw errors."];
+    if (!t) return L.concat(["No owned AI turn recorded."]).join("\n");
+    var results = ["pending", "done", "empty", "error", "timeout", "attempt-timeout", "cancelled", "superseded", "interrupted", "unavailable", "action-stopped", "ok", "http-error", "request-timeout", "network", "invalid-json", "aborted"];
+    L.push("Turn #" + num(t.id, 10000000) + " | phase: " + TURNS.phase(t.attempt ? t.attempt.stage : t.stage) + " | result: " + pick(t.result || "pending", results));
+    (Array.isArray(t.attempts) ? t.attempts : []).slice(-12).forEach(function (a, i) {
+      var active = t.attempt && t.attempt.record === a;
+      L.push("Attempt " + (i + 1) + ": " + TURNS.provider(a.provider) + " | " + TURNS.phase(active ? t.attempt.stage : a.phase) + " | " + pick(a.result, results) + " | elapsed " + num(active ? TURNS.now() - t.attempt.start : a.ms, 300000) + "ms");
+    });
+    (Array.isArray(t.requests) ? t.requests : []).slice(-12).forEach(function (r, i) {
+      L.push("Request " + (i + 1) + ": " + TURNS.provider(r.provider) + " | " + TURNS.phase(r.phase) + " | " + pick(r.transport, ["native", "xhr", "fetch"]) + " | HTTP " + num(r.http, 599) + " | " + pick(r.result, results) + " | elapsed " + num(r.result === "pending" ? TURNS.now() - r.start : r.ms, 300000) + "ms");
+    });
+    L.push("HTTP 0 means no HTTP response recorded, not an invalid-key verdict. A timeout does not identify the phone's network/provider cause.");
+    return L.join("\n");
+  },
+  seq: 0, active: null, history: [],
+  now: function () { return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now(); },
+  error: function (reason) { var e = new Error("AI turn " + reason); e.name = "TurnCancelled"; e.reason = reason; return e; },
+  live: function (t) { return !t || (TURNS.now() < t.deadline && (t.parent ? t.state === "active" && t.parent.attempt === t && TURNS.live(t.parent) : TURNS.active === t && t.state === "active")); },
+  assert: function (t) {
+    if (!t) return;
+    var root = TURNS.root(t);
+    if (TURNS.active === root && root.state === "active" && TURNS.now() >= root.deadline) TURNS.cancel("timeout");
+    else if (t.parent && t.state === "active" && TURNS.now() >= t.deadline) TURNS.closeAttempt(t, "attempt-timeout");
+    if (!TURNS.live(t)) throw TURNS.error(t.result || "cancelled");
+  },
+  begin: function () {
+    TURNS.cancel("superseded");
+    var t = { id: ++TURNS.seq, state: "active", stage: "planning", start: TURNS.now(), cancels: [] };
+    t.deadline = t.start + TURNS.BUDGET_MS;
+    t.aborted = new Promise(function (_, reject) { t.reject = reject; });
+    t.aborted.catch(function () {}); // A cancel before the first await is still handled.
+    TURNS.active = t;
+    t.timer = setTimeout(function () { if (TURNS.active === t) TURNS.cancel("timeout"); }, TURNS.BUDGET_MS);
+    try { if (typeof showTurnNotice === "function") showTurnNotice(""); } catch (e) {}
+    return t;
+  },
+  track: function (t, abort) {
+    if (!t) return function () {};
+    var item = { abort: abort, done: false };
+    if (!TURNS.live(t)) { abort(); return function () {}; }
+    t.cancels.push(item);
+    return function () { item.done = true; };
+  },
+  wait: function (t, promise) {
+    if (!t) return Promise.resolve(promise);
+    var pending = Promise.resolve(promise);
+    try { TURNS.assert(t); } catch (e) { pending.catch(function () {}); return Promise.reject(e); }
+    return Promise.race([pending, t.aborted]).then(function (value) { TURNS.assert(t); return value; });
+  },
+  cleanup: function (t, result) {
+    if (typeof SESSION_TIME !== "undefined" && result !== "done") SESSION_TIME.fail(t.measure, result);
+    if (TURNS.active === t && typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.active && INPUT_SESSION.phase === "submitted") INPUT_SESSION.phase = "idle";
+    clearTimeout(t.timer); t.state = "terminal"; t.result = result;
+    t.cancels.forEach(function (item) { if (!item.done) { item.done = true; try { item.abort(); } catch (e) {} } });
+    t.cancels = [];
+    TURNS.history.push({ id: t.id, stage: t.stage, result: result, ms: Math.round(TURNS.now() - t.start), attempts: t.attempts || [], requests: t.requests || [] });
+    if (TURNS.history.length > 20) TURNS.history.shift();
+    try { pushLog("TURN " + t.id + ": " + t.stage + " / " + result); } catch (e) {}
+    if (TURNS.active === t) {
+      TURNS.active = null; thinking = false;
+      try { interimEl.textContent = ""; } catch (e) {}
+      try { if (typeof speaking === "undefined" || !speaking) setOrb("idle"); } catch (e) {}
+    }
+  },
+  cancel: function (reason) {
+    var t = TURNS.active;
+    if (!t) return;
+    reason = reason || "cancelled";
+    TURNS.cleanup(t, reason); t.reject(TURNS.error(reason));
+    if (reason === "timeout") TURNS.notice("AI request timed out. You can send another message. Check any completed actions before retrying.");
+  },
+  finish: function (t, result) { if (t && TURNS.live(t)) TURNS.cleanup(t, result || "done"); },
+  notice: function (text) {
+    try { if (typeof showTurnNotice === "function") showTurnNotice(text); else toast(text); } catch (e) {}
+  },
+  json: async function (t, url, init) {
+    TURNS.assert(t);
+    init = init || {};
+    var method = init.method || "GET", stage = t && t.stage.indexOf("discovery") === 0 ? "discovery" : t && t.stage.indexOf("tool") === 0 ? "tool" : "provider";
+    var max = stage === "discovery" ? TURNS.DISCOVERY_MS : TURNS.REQUEST_MS;
+    if (t) max = Math.max(1, Math.min(max, t.deadline - TURNS.now()));
+    var nativeOK = typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge[method === "GET" ? "httpGetAsync" : "httpPostAsync"] && TURNS.bridgeCompatible(init);
+    var controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    if (nativeOK || (!controller && TURNS.xhrCompatible(init))) {
+      if (t) t.stage = stage + "-response";
+      var auth = "";
+      Object.keys(init.headers || {}).forEach(function (k) { if (k.toLowerCase() === "authorization") auth = init.headers[k]; });
+      var packet = await TURNS.wait(t, new Promise(function (resolve) {
+        BRAIN.request(method, url, auth, init.body || null, max, function (status, body, row) { resolve({status: status, body: body, row: row}); }, t, init.headers);
+      }));
+      TURNS.assert(t);
+      if (!packet.status) throw TURNS.error("request-failed");
+      var data;
+      try { data = JSON.parse(packet.body); }
+      catch (e) {
+        if (packet.status < 200 || packet.status >= 300) data = {};
+        else { if (packet.row) packet.row.result = "invalid-json"; throw TURNS.error("invalid-json"); }
+      }
+      return { response: { ok: packet.status >= 200 && packet.status < 300, status: packet.status }, data: data };
+    }
+    var options = {}, key;
+    for (key in init) if (Object.prototype.hasOwnProperty.call(init, key)) options[key] = init[key];
+    if (controller) options.signal = controller.signal;
+    var finished = false, status = 0, timer, rejectAbort;
+    var row = TURNS.requestStart(t, stage + "-headers", "fetch");
+    if (t) t.stage = stage + "-headers";
+    var aborted = new Promise(function (_, reject) { rejectAbort = reject; }); aborted.catch(function () {});
+    function abort(reason) {
+      if (finished) return;
+      finished = true;
+      if (controller) controller.abort();
+      TURNS.requestEnd(row, reason, status); rejectAbort(TURNS.error(reason));
+    }
+    var off = TURNS.track(t, function () { abort("aborted"); });
+    var callerSignal = init.signal;
+    function callerAbort() { abort("aborted"); }
+    if (callerSignal) {
+      if (callerSignal.aborted) callerAbort();
+      else if (callerSignal.addEventListener) callerSignal.addEventListener("abort", callerAbort);
+    }
+    timer = setTimeout(function () { abort("request-timeout"); }, max);
+    async function load() {
+      if (finished) throw TURNS.error("aborted"); TURNS.assert(t);
+      var response = await fetch(url, options);
+      if (finished) throw TURNS.error("aborted"); TURNS.assert(t);
+      status = response.status; if (row) row.http = status;
+      if (t) t.stage = stage + "-body"; if (row) row.phase = stage + "-body";
+      var data;
+      try { data = await response.json(); }
+      catch (e) {
+        if (finished) throw TURNS.error("aborted");
+        if (!response.ok) data = {};
+        else { TURNS.requestEnd(row, "invalid-json", status); throw TURNS.error("invalid-json"); }
+      }
+      if (finished) throw TURNS.error("aborted"); TURNS.assert(t);
+      TURNS.requestEnd(row, response.ok ? "ok" : "http-error", status);
+      return { response: response, data: data };
+    }
+    try { return await TURNS.wait(t, Promise.race([load(), aborted])); }
+    catch (e) { TURNS.requestEnd(row, "network", status); throw e; }
+    finally {
+      finished = true; clearTimeout(timer); off();
+      if (callerSignal && callerSignal.removeEventListener) callerSignal.removeEventListener("abort", callerAbort);
+    }
+  }
+};
+
 /* --- OpenAI-shakl providers ab BRAIN POOL sambhalta hai --- */
-function brainAsk(p, ki, msgs){
+function brainAsk(p, ki, msgs, turn){
   return new Promise(function (res) {
-    BRAIN.ask(p, ki, msgs, function (err, out) { res(err ? null : out); });
+    BRAIN.ask(p, ki, msgs, function (err, out) { res(err ? null : out); }, 0, turn);
   });
 }
 
 /* --- Main: kabhi rukne wala nahi --- */
-async function askAI(wasVoice){
-  DIMAAG.reset();
-  var lu = DIMAAG.lastUser();
-  if (lu) {
-    var ck = cacheKey(lu);
-    var cv = replyCache[ck];
-    if (cv && Date.now() - cv.t < 21600000 && cv.text) {
-      pushLog("CACHE HIT (turant)");
-      DIMAAG.log("CACHE", null, "yaad tha");
-      reply(cv.text, wasVoice);
-      return;
+async function askAI(wasVoice, measure){
+  var turn = TURNS.begin();
+  turn.measure = measure;
+  var timingRoute = "provider";
+  try {
+    if (typeof stopListening === "function") stopListening();
+    thinking = true; setOrb("thinking");
+    DIMAAG.reset();
+    var lu = DIMAAG.lastUser();
+    var out = null;
+    if (lu) {
+      var cv = replyCache[cacheKey(lu)];
+      if (cv && Date.now() - cv.t < 21600000 && cv.text) {
+        out = cv.text; timingRoute = "cache"; DIMAAG.log("CACHE", null, "cached answer");
+      }
+    }
+    geminiChat.keyErr = false; geminiChat.toolsUsed = false;
+    if (!out) {
+      var need = lu ? needsTools(lu) : false;
+      var all = BRAIN.plan(need), keyed = [], keyless = [], i;
+      for (i = 0; i < all.length; i++) (all[i].p.keyless ? keyless : keyed).push(all[i]);
+      var order = (settings.fastShort === true ? keyed.slice(0, 2) : keyed.slice(0, 4)).concat(keyless);
+      var msgs = DIMAAG.msgs(need);
+      for (i = 0; i < order.length && !out; i++) {
+        TURNS.assert(turn); turn.stage = "provider";
+        var it = order[i];
+        try {
+          out = await TURNS.attempt(turn, it.p.id, function (attempt) { return it.p.kind === "gemini" ? geminiChat(attempt) : brainAsk(it.p, it.ki, msgs, attempt); });
+        } catch (e) {
+          TURNS.assert(turn);
+          DIMAAG.log(it.p.name || "Gemini", "NETWORK", "request failed");
+        }
+        if (!out && turn.toolsStarted) {
+          turn.stage = "action-stopped";
+          TURNS.notice("AI reply stopped after a tool step. Check the action result before retrying; no automatic tool replay was started.");
+          return;
+        }
+      }
+    }
+    TURNS.assert(turn);
+    if (!out) {
+      DIMAAG.lastCode = DIMAAG.verdict() || DIMAAG.lastCode;
+      out = DIMAAG.localAnswer(lu);
+      if (out) { timingRoute = "local"; DIMAAG.log("LOCAL", null, "offline answer"); aiState.provider = "LOCAL"; }
+      if (!out) {
+        turn.stage = "unavailable"; aiState.provider = "—";
+        // No timer retries: a new attempt requires another explicit user action.
+        TURNS.notice(DIMAAG.failMessage() + " Send again when ready; no automatic retry is scheduled.");
+        return;
+      }
+    }
+    turn.stage = "text-ready";
+    try {
+      NAAP.mark("brain"); var _bn = aiState.provider || BRAIN.lastUsed || "?";
+      if (NAAP.cur) NAAP.cur.brain = _bn;
+      TRACE.brain(_bn, (NAAP.cur && NAAP.cur.m.brain) || 0);
+    } catch (e) {}
+    try { if (lu && !geminiChat.toolsUsed && out.length < 400) cachePut(cacheKey(lu), out); } catch (e) {}
+    thinking = false;
+    reply(out, wasVoice, null, measure, timingRoute); // Text is retained even if optional speech fails.
+  } catch (e) {
+    if (TURNS.live(turn)) {
+      turn.stage = "error";
+      TURNS.notice("AI request failed safely. You can type or tap the microphone again. Check completed actions before retrying.");
+    }
+  } finally {
+    if (TURNS.live(turn)) {
+      // Do not replace speech preparation/playback status with an old thinking label.
+      TURNS.finish(turn, turn.stage === "text-ready" ? "done" : turn.stage);
     }
   }
-  thinking = true; setOrb("thinking");
-  geminiChat.keyErr = false;
-  geminiChat.toolsUsed = false;
-
-  /* Issue 3 latency: per-turn timing markers in the system log
-     (t0 = askAI entry, t1 = brain answer ready). */
-  try { pushLog("T: brain start"); } catch (e) {}
-  var need = lu ? needsTools(lu) : false;
-  var tBrain0 = (new Date()).getTime();
-  var all = BRAIN.plan(need), keyed = [], keyless = [], i;
-  for (i = 0; i < all.length; i++) (all[i].p.keyless ? keyless : keyed).push(all[i]);
-  /* 4 keyed koshishein, phir keyless teh — jo hamesha zinda hoti hai */
-  /* Issue 3: fewer serial brain attempts per turn. Default keeps the
-     battle-tested 4-keyed chain; settings.fastShort tightens it to 2. */
-  var order = (settings.fastShort === true ? keyed.slice(0, 2) : keyed.slice(0, 4)).concat(keyless);
-  var msgs = DIMAAG.msgs(need);
-  var out = null;
-
-  for (i = 0; i < order.length && !out; i++) {
-    var it = order[i];
-    if (it.p.kind === "gemini") { try { out = await geminiChat(); } catch (e) { DIMAAG.log("Gemini", "NETWORK", String(e && e.message || e).slice(0, 60)); } }
-    else { try { out = await brainAsk(it.p, it.ki, msgs); } catch (e) { DIMAAG.log(it.p.name, "NETWORK", String(e && e.message || e).slice(0, 60)); } }
-  }
-
-  if (out) {
-    askAI._retried = false;
-    try {
-      NAAP.mark("brain");
-      var _bn = aiState.provider || BRAIN.lastUsed || "?";
-      NAAP.cur && (NAAP.cur.brain = _bn);
-      TRACE.brain(_bn, (NAAP.cur && NAAP.cur.m.brain) || 0);
-    } catch (e) {}   /* 📊 P0 */
-    thinking = false; setOrb("idle");
-    if (lu && !geminiChat.toolsUsed && out.length < 400) cachePut(cacheKey(lu), out);
-    reply(out, wasVoice);
-    return;
-  }
-  thinking = false; setOrb("idle");
-
-  var code = DIMAAG.verdict() || DIMAAG.lastCode;
-  DIMAAG.lastCode = code;
-  var loc0 = DIMAAG.localAnswer(lu);
-  if (loc0) { DIMAAG.log("LOCAL", null, "offline jawab"); aiState.provider = "LOCAL"; reply(loc0, wasVoice); return; }
-
-  var worthRetry = (code === "QUOTA" || code === "SERVER" || code === "NETWORK" || code === "TIMEOUT" || code === "EMPTY");
-  if (worthRetry && !askAI._retried && navigator.onLine !== false) {
-    askAI._retried = true;
-    var wait = Math.min(Math.max(lastRetryDelay || 30000, 5000), 45000);
-    aiState.provider = "COOLDOWN";
-    toast("Sab " + order.length + " dimaag thak gaye — " + Math.round(wait / 1000) + "s baad KHUD dobara try karungi");
-    pushLog("RETRY IN " + Math.round(wait / 1000) + "s (" + code + ")");
-    setTimeout(function(){ askAI(wasVoice); }, wait);
-    return;
-  }
-  askAI._retried = false;
-  aiState.provider = "—";
-
-  try { NAAP.cur && (NAAP.cur.err = code); } catch (e) {}   /* 📊 P0 */
-  reply(DIMAAG.failMessage(), wasVoice);
 }
 
 function openURL(u){ var w = window.open(u, "_blank"); if (!w) { try { location.href = u; } catch(e){} } }
@@ -7218,11 +7972,11 @@ window.__photoTaken = async function(b64){
 
 /* ---------- NAMAZ TIMES (Aladhan — free, Pakistan method) ---------- */
 var prayerCache = null;
-async function prayerTimes(){
+async function prayerTimes(turn){
   try {
     var today = new Date().toISOString().slice(0, 10);
     if (prayerCache && prayerCache.d === today) return prayerCache;
-    var r = await nativeGet("https://api.aladhan.com/v1/timingsByCity?city=" + encodeURIComponent(settings.city || "Hyderabad") + "&country=Pakistan&method=1");
+    var r = await nativeGet("https://api.aladhan.com/v1/timingsByCity?city=" + encodeURIComponent(settings.city || "Hyderabad") + "&country=Pakistan&method=1", turn);
     if (!r.body) return null;
     var j = JSON.parse(r.body);
     var t = j && j.data && j.data.timings;
@@ -7273,6 +8027,7 @@ var MAYA_AMAL = {
     return MAYA_AMAL.STOP_WORDS.some(function (w) { return s === w || s.indexOf(w) === 0; });
   },
   stop: function () {
+    try { if (typeof KAAN !== "undefined") KAAN.DARWAZA.close(); } catch (e) {}
     try { window.MayaBridge.mayaStop && window.MayaBridge.mayaStop(); } catch (e) {}
     try { pushLog("\uD83D\uDED1 AMAL: STOP — automation foran band"); } catch (e) {}
     try { toast("\uD83D\uDED1 Maya automation band"); } catch (e) {}
@@ -7357,14 +8112,20 @@ setInterval(function(){
 }, 60000);
 
 /* ---------- WEB SHARK (Phase 8): search + wiki ---------- */
-async function nativeGet(url){
+async function nativeGet(url, turn){
+  if (turn) {
+    TURNS.assert(turn);
+    return TURNS.wait(turn, new Promise(function (resolve) {
+      BRAIN.request("GET", url, "", null, 10000, function (status, body) { resolve({ status: status, body: body }); }, turn);
+    }));
+  }
   if (NATIVE && window.MayaBridge.httpGet) {
     try { var r = JSON.parse(window.MayaBridge.httpGet(url, "")); return { status: r.status, body: r.body || "" }; } catch(e){ return { status: 0, body: "" }; }
   }
   try { var f = await fetch(url); return { status: f.status, body: f.ok ? await f.text() : "" }; } catch(e){ return { status: 0, body: "" }; }
 }
-async function webSearch(q){
-  var res = await nativeGet("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(q));
+async function webSearch(q, turn){
+  var res = await nativeGet("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(q), turn);
   var html = res.body || "";
   var results = [];
   var re = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
@@ -7378,9 +8139,9 @@ async function webSearch(q){
   }
   return results.length ? { results: results } : { error: "kuch nahi mila" };
 }
-async function wikiLookup(q){
+async function wikiLookup(q, turn){
   var lang = /[\u0600-\u06FF]/.test(q) ? "ur" : "en";
-  var res = await nativeGet("https://" + lang + ".wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(q.trim().replace(/\s+/g, "_")));
+  var res = await nativeGet("https://" + lang + ".wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(q.trim().replace(/\s+/g, "_")), turn);
   if (res.status !== 200 || !res.body) return { error: "page nahi mila" };
   try {
     var j = JSON.parse(res.body);
@@ -7406,17 +8167,25 @@ async function listFilesAction(folder){
 }
 
 /* ---------- AGENT MODE: JS Sandbox (safe cage — no DOM, no data access) ---------- */
-function sandboxRun(code, input){
+function sandboxRun(code, input, turn){
   return new Promise(function(resolve){
     var workerSrc = 'self.onmessage=function(e){var logs=[];var console={log:function(){for(var i=0;i<arguments.length;i++)logs.push(String(arguments[i]))}};' +
       'Promise.resolve().then(function(){var AF=Object.getPrototypeOf(async function(){}).constructor;var fn=new AF("input","console","\"use strict\";"+e.data.code);return fn(e.data.input)})' +
       '.then(function(r){var o;try{o=typeof r==="string"?r:JSON.stringify(r)}catch(x){o=String(r)}self.postMessage({ok:true,result:o,logs:logs.slice(0,5)})})' +
       '.catch(function(err){self.postMessage({ok:false,error:String(err&&err.message||err),logs:logs.slice(0,5)})})};';
-    var finish = function(o){ resolve(o); };
+    var finished = false, off = function () {}, blobUrl = null, w = null, to = null;
+    var finish = function(o){
+      if (finished) return; finished = true; clearTimeout(to); off();
+      try { if (w) w.terminate(); if (blobUrl) URL.revokeObjectURL(blobUrl); } catch (e) {}
+      resolve(o);
+    };
     try {
       if (typeof Worker === "undefined") throw new Error("no-worker");
-      var w = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: "application/javascript" })));
-      var to = setTimeout(function(){ try { w.terminate(); } catch(e){} finish({ error: "timeout (8s) — code atka" }); }, 8000);
+      if (turn) TURNS.assert(turn);
+      blobUrl = URL.createObjectURL(new Blob([workerSrc], { type: "application/javascript" }));
+      w = new Worker(blobUrl);
+      if (turn) off = TURNS.track(turn, function () { finish({ error: "cancelled" }); });
+      to = setTimeout(function(){ try { w.terminate(); } catch(e){} finish({ error: "timeout (8s) — code atka" }); }, 8000);
       w.onmessage = function(ev){
         clearTimeout(to);
         try { w.terminate(); } catch(e){}
@@ -7429,6 +8198,7 @@ function sandboxRun(code, input){
       };
       w.postMessage({ code: code, input: input });
     } catch (e) {
+      if (turn) { finish({ error: "Isolated worker unavailable; code was not run on the UI thread." }); return; }
       /* Fallback: bina worker (old WebView) — try/catch cage */
       try {
         var AF2 = Object.getPrototypeOf(async function(){}).constructor;
@@ -7531,6 +8301,7 @@ var SUKOON = {
     if (SUKOON._bolT) { clearTimeout(SUKOON._bolT); SUKOON._bolT = null; }
     SUKOON._bolT = setTimeout(function () {
       if (SUKOON.haal === "BOL_RAHI") {
+        if (typeof FISH !== "undefined" && FISH.streamPending) { SUKOON.bolStart(); return; }
         try { pushLog("SUKOON: TTS watchdog — 45s BOL_RAHI atka tha, khud azad"); } catch (e) {}
         try { if (typeof speaking !== "undefined") speaking = false; } catch (e) {}
         SUKOON.bolEnd();
@@ -7598,15 +8369,9 @@ var KAAN = {
   /* wake word SHURU mein hona chahiye — beech ya aakhir mein nahi.
      "Maya yeh karo" ✅   ·   "chalo Maya yeh karo" ❌   ·   "yeh karo" ❌ */
   FILLER: /^(hey|hay|hi|hello|o|arey|are|oye|acha|suno|sun)$/i,
+  PREFIX: /^\s*(?:(?:hey|hay|hi|hello|o|arey|are|oye|acha|suno|sun)[\s,]+)?(?:maya|maaya|maywa|mya|boss|مایا|مايا|माया|باس)(?=$|[\s,.!?،؟:؛-])[\s,.!?،؟:؛-]*/i,
   atStart: function (t) {
-    var q = String(t || "").trim().toLowerCase();
-    q = q.replace(/^[\s,."'\u060C\u061F!?-]+/, "");
-    var w = q.split(/\s+/);
-    var i = 0;
-    /* "hey Maya" / "o Maya" chalega, magar "chalo Maya yeh karo" NAHI */
-    if (w.length > 1 && KAAN.FILLER.test(w[0])) i = 1;
-    var first = w[i] || "";
-    return KAAN.SURE.test(first) || KAAN.WAKE.test(first);
+    return KAAN.PREFIX.test(String(t || ""));
   },
 
   push: function (kind, data) {
@@ -7768,45 +8533,79 @@ window.__wakeLog = function (kind, data) {
   try { if (typeof WAKE_DOT !== "undefined" && WAKE_DOT.log) WAKE_DOT.log(String(kind || "")); } catch (e) {}
 };
 
-/* wake-regression: listening indicator — Kotlin service ke __wakeLog
-   events se chalta hai (gate/start = sun rahi, voice = awaaz mili,
-   skip/err/sulah = intezar). Mic ki ASLI halat nazar aati hai. */
+/* NATIVE WAKE STATUS */
+var WAKE_STATUS = {
+  clean: function (raw) {
+    var o = raw && typeof raw === "object" ? raw : {};
+    function pick(value, allowed) { return allowed.indexOf(value) >= 0 ? value : "unknown"; }
+    function num(value) { return typeof value === "number" && isFinite(value) && value >= 0 && value <= 9007199254740991 ? Math.floor(value) : null; }
+    function flag(value) { return value === true ? "yes" : value === false ? "no" : "unknown"; }
+    var s = {
+      state: pick(o.state, ["stopped", "requested", "foreground", "starting", "ready", "blocked", "retry", "error", "unknown"]),
+      reason: pick(o.reason, ["none", "permission", "start_rejected", "foreground_rejected", "unavailable", "speech", "app_mic", "echo_tail", "fish_output", "recognizer_error", "deadline", "start_failed", "stale"]),
+      error: typeof o.error === "number" && o.error >= 0 && o.error <= 13 && Math.floor(o.error) === o.error ? o.error : null,
+      ageMs: num(o.ageMs), starts: num(o.starts), ready: num(o.ready),
+      servicePresent: flag(o.servicePresent), foreground: flag(o.foreground), micPermission: flag(o.micPermission),
+      fishOutputActive: flag(o.fishOutputActive), appMicPaused: flag(o.appMicPaused),
+      audioState: pick(o.audioState, ["KHALI", "BOL_RAHI", "APP_SUN"])
+    };
+    if (s.state === "ready" && (s.servicePresent !== "yes" || s.foreground !== "yes" || s.micPermission !== "yes")) s.state = "unknown";
+    if (s.state === "ready" && (s.ageMs === null || s.ageMs >= 35000)) { s.state = "unknown"; s.reason = "stale"; }
+    return s;
+  },
+  read: function () {
+    try { return WAKE_STATUS.clean(JSON.parse(window.MayaBridge.wakeStatus())); }
+    catch (e) { return WAKE_STATUS.clean(null); }
+  },
+  receive: function (raw) {
+    var s = WAKE_STATUS.clean(raw);
+    var labels = { stopped: "WAKE STOPPED", requested: "WAKE START REQUESTED", foreground: "WAKE SERVICE ON", starting: "MIC STARTING", ready: "MIC READY", blocked: "WAKE PAUSED", retry: "WAKE RETRY", error: "WAKE ERROR", unknown: "WAKE UNCONFIRMED" };
+    WAKE_DOT.set(s.state === "ready" ? "" : "dim", labels[s.state]);
+    // Silence can only make readiness UNKNOWN, never manufacture a green indicator.
+    if (s.state === "ready" && settings.wakeWord) {
+      WAKE_DOT.t = setTimeout(function () { WAKE_DOT.set("dim", "WAKE UNCONFIRMED"); }, Math.max(1, 35000 - s.ageMs));
+    }
+    return s;
+  },
+  refresh: function () { return WAKE_STATUS.receive(WAKE_STATUS.rawRead()); },
+  rawRead: function () {
+    try { return JSON.parse(window.MayaBridge.wakeStatus()); } catch (e) { return null; }
+  }
+};
+// Pull current native truth, not a possibly delayed event payload. No network/polling.
+window.__wakeState = function () { WAKE_STATUS.refresh(); };
+
 var WAKE_DOT = {
   el: null, t: null,
   ensure: function () {
     if (WAKE_DOT.el || !NATIVE) return WAKE_DOT.el;
     try {
       var st = document.createElement("style");
-      st.textContent = "#wakeDot{position:fixed;right:6px;top:26px;z-index:998;display:none;align-items:center;gap:5px;padding:2px 7px;border-radius:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);font:9px/1.4 monospace;cursor:default}#wakeDot i{width:6px;height:6px;border-radius:50%;background:#39D98A;display:inline-block;animation:wakePulse 1.4s ease-in-out infinite}@keyframes wakePulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.25)}}#wakeDot.dim i{background:#8a8a96;animation:none}#wakeDot.loud i{background:#FFD166;animation-duration:.5s}";
+      st.textContent = "#wakeDot{position:fixed;right:6px;top:26px;z-index:998;display:none;align-items:center;gap:5px;padding:2px 7px;border-radius:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);font:9px/1.4 monospace;cursor:default}#wakeDot i{width:6px;height:6px;border-radius:50%;background:#39D98A;display:inline-block}#wakeDot.dim i{background:#8a8a96}";
       document.head.appendChild(st);
       var d = document.createElement("div");
-      d.id = "wakeDot"; d.innerHTML = "<i></i><span>MAYA SUN RAHI</span>";
-      document.body.appendChild(d);
-      WAKE_DOT.el = d;
+      d.id = "wakeDot"; d.innerHTML = "<i></i><span>WAKE UNCONFIRMED</span>";
+      document.body.appendChild(d); WAKE_DOT.el = d;
     } catch (e) {}
     return WAKE_DOT.el;
   },
   set: function (mode, txt) {
     try {
+      if (WAKE_DOT.t) { clearTimeout(WAKE_DOT.t); WAKE_DOT.t = null; }
       var el = WAKE_DOT.ensure();
       if (!NATIVE || !settings.wakeWord) { if (el) el.style.display = "none"; return; }
       if (!el) return;
-      el.style.display = "flex";
-      el.className = mode || "";
-      el.querySelector("span").textContent = txt || "MAYA SUN RAHI";
-      if (WAKE_DOT.t) { clearTimeout(WAKE_DOT.t); WAKE_DOT.t = null; }
-      if (mode === "dim") WAKE_DOT.t = setTimeout(function () { WAKE_DOT.set("", "MAYA SUN RAHI"); }, 4000);
+      el.style.display = "flex"; el.className = mode || "dim";
+      if (mode === "" && txt === "MIC READY") el.className = "";
+      el.querySelector("span").textContent = txt || "WAKE UNCONFIRMED";
     } catch (e) {}
   },
-  log: function (kind) {
-    if (kind === "gate" || kind === "start") WAKE_DOT.set("", "MAYA SUN RAHI");
-    else if (kind === "voice") WAKE_DOT.set("loud", "AWAAZ MILI\u2026");
-    else if (kind === "skip" || kind === "err" || kind === "err8" || kind === "sulah") WAKE_DOT.set("dim", "INTEZAAR\u2026");
-  }
+  log: function () {} // Legacy log counters are not recognizer-ready evidence.
 };
 
 /* Kotlin ab SAARE andaze bhejta hai — faisla yahan hota hai */
-window.__wakeHeard = function (payload) {
+window.__wakeHeard = function (payload, recognitionMs) {
+  if (!settings.wakeWord) return; // Reject queued native results after the user switches wake OFF.
   var alts = [];
   try { alts = JSON.parse(payload); } catch (e) { alts = [String(payload || "")]; }
   if (!alts || !alts.length) return;
@@ -7857,14 +8656,14 @@ window.__wakeHeard = function (payload) {
   var open = KAAN.DARWAZA.open();
 
   if (cmd && cmd.replace(/[^a-z\u0600-\u06FF\u0900-\u097F]/gi, "").length >= 3) {
-    handleUserText(cmd, true);                        /* "Maya <hukm>" -> seedha kaam */
+    handleUserText(cmd, true, { origin: viaDoor ? "followup" : "wake", recognitionMs: recognitionMs }); /* "Maya <hukm>" -> seedha kaam */
     return;
   }
   /* sirf "Maya" -> Ji Boss + suno */
   try { chime(880, 0.1); chime(1175, 0.16, 0.12); } catch (e) {}
   try { statusText.textContent = "\uD83D\uDC42 JI " + String(settings.name || "BOSS").toUpperCase() + "? BOLIYE..."; } catch (e) {}
   addBubble("ai", "\uD83D\uDC42 Ji " + settings.name + "? Boliye..." + (open ? ("  \uD83D\uDEAA " + open + "s") : ""));
-  setTimeout(startListening, 400);
+  scheduleListening(400, true);
 };
 
 window.__wakeErr = function(code){
@@ -8410,7 +9209,7 @@ function labPaint(){
 
 /* ═══ 🐟 FISH — library, test, aur DOCTOR ═══ */
 (function(){
-  var lb = $("#fishLib"), tb = $("#fishTest"), db = $("#fishDoctor");
+  var lb = $("#fishLib"), tb = $("#fishTest"), db = $("#fishDoctor"), libraryView = 0;
 
   /* 📚 awaaz ki library */
   if (lb) lb.addEventListener("click", function () {
@@ -8421,18 +9220,20 @@ function labPaint(){
       if (h) { h.className = "ui-hint warn"; h.textContent = "⚠️ " + FISH.why(blk); }
       return;
     }
+    var view = ++libraryView;
     lb.disabled = true;
     var old = lb.textContent;
     lb.textContent = "📚 AA RAHI HAI…";
     if (h) { h.className = "ui-hint"; h.textContent = "📚 Fish se awaazein mangwai ja rahi hain…"; }
     FISH.library("", function (list, code) {
       lb.disabled = false; lb.textContent = old;
+      if (view !== libraryView) return;
       if (!list) {
         if (h) { h.className = "ui-hint warn"; h.textContent = "❌ " + code + " — " + (FISH.lastErr || FISH.why(code)); }
         return;
       }
       fishFillVoices();
-      if (h) { h.className = "ui-hint ok"; h.textContent = "✅ " + list.length + " awaazein aa gayin — upar se chuno, phir SUNO dabao, phir SAVE."; }
+      if (h) { h.className = "ui-hint ok"; h.textContent = "✅ " + list.length + " awaazein aa gayin — upar se chuno, SUNO dabao. Selection is saved immediately."; }
       pushLog("FISH LIBRARY: " + list.length + " awaazein");
     });
   });
@@ -8447,12 +9248,14 @@ function labPaint(){
       if (h) { h.className = "ui-hint warn"; h.textContent = "⚠️ " + FISH.why(blk); }
       return;
     }
+    var view = ++libraryView;
     pb.disabled = true;
     var old = pb.textContent;
     pb.textContent = "🎀 DHOOND RAHI HOON…";
     if (h) { h.className = "ui-hint"; h.textContent = "🎀 Hindi/Urdu ki zanana awaazein dhoondi ja rahi hain… (5 talash)"; }
     FISH.pyari(function (list, code) {
       pb.disabled = false; pb.textContent = old;
+      if (view !== libraryView) return;
       if (!list || !list.length) {
         if (h) { h.className = "ui-hint warn"; h.textContent = "❌ " + (code || "kuch nahi mila") + " — " + (FISH.lastErr || ""); }
         return;
@@ -8460,7 +9263,7 @@ function labPaint(){
       fishFillVoices();
       if (h) {
         h.className = "ui-hint ok";
-        h.textContent = "🎀 " + list.length + " awaazein — sab se pyari sab se upar. Ek chuno → 🐟 SUNO dabao → pasand aaye to SAVE.";
+        h.textContent = "🎀 " + list.length + " awaazein — Hindi/female tags ranked first, not a gender guarantee. Ek chuno → 🐟 SUNO dabao. Selection is saved immediately.";
       }
       pushLog("FISH PYARI: " + list.length + " awaazein");
     });
@@ -8469,6 +9272,7 @@ function labPaint(){
   /* 🐟 awaaz suno */
   if (tb) tb.addEventListener("click", function () {
     if (tb.disabled) return;
+    if (!fishCommitSelection()) return;
     var h = $("#fishHint");
     var blk = FISH.block();
     if (blk) {
@@ -8480,37 +9284,34 @@ function labPaint(){
     var old = tb.textContent;
     tb.textContent = "🐟 AA RAHI HAI…";
     var mood = AWAAZ.moodId();
-    /* 🔊 jo awaaz DROPDOWN mein chuni hai wohi sunao (pehle purani bajti thi) */
-    var sel = $("#sFishVoice");
-    if (sel && sel.value !== settings.fishVoice) {
-      settings.fishVoice = sel.value || "";
-      settings.fishVoiceName = (sel.options[sel.selectedIndex] || {}).textContent || "";
-      saveSettings();
-    }
     if (h) { h.className = "ui-hint"; h.textContent = "🐟 " + (FISH.voiceName() || "auto") + " \u2014 " + mood + " andaaz…"; }
     AWAAZ.stop(); AWAAZ.gen++;
-    var gen = AWAAZ.gen, t0 = Date.now();
+    var gen = AWAAZ.gen, t0 = Date.now(), testedName = FISH.voiceName(), testedId = FISH.voice();
+    function resetTest() { tb.disabled = false; tb.textContent = old; }
+    FISH.testCancel = resetTest;
     var sample = "Assalam-o-alaikum " + ((settings && settings.name) || "Boss") + "! Main " +
                  ((settings && settings.assistName) || "Maya") +
                  " hoon. Ye Fish Audio ki awaaz hai — aur ab main andaaz bhi badal sakti hoon.";
-    speaking = true; try { SUKOON.bolStart(); } catch (e) {} setOrb("speaking");
+    speaking = true; try { SUKOON.bolStart(); } catch (e) {} setOrb("buffering");
     FISH.speak(sample, mood,
       function () {
-        speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
-        tb.disabled = false; tb.textContent = old;
         if (gen !== AWAAZ.gen) return;
+        resetTest();
+        if (FISH.testCancel === resetTest) FISH.testCancel = null;
+        speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
         if (h) {
           h.className = "ui-hint ok";
-          h.textContent = "✅ Bol diya — 🎤 " + (FISH.voiceName() || "auto") + "  •  " + mood +
+          h.textContent = "✅ Bol diya — 🎤 " + (testedName || testedId) + "  •  " + mood +
                           " andaaz  •  " + ((Date.now() - t0) / 1000).toFixed(1) + " sec  •  mehfooz ✓";
         }
-        pushLog("FISH OK: " + mood + " / " + (FISH.voice() || "default") + " (" + (Date.now() - t0) + "ms)");
-        fishPaintHint();
+        pushLog("FISH OK: " + mood + " / " + testedId + " (" + (Date.now() - t0) + "ms)");
+        if (FISH.voice() !== testedId && h) h.textContent += " Current selection changed after this sample started.";
       },
       function (code) {
-        speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
-        tb.disabled = false; tb.textContent = old;
         if (gen !== AWAAZ.gen) return;
+        resetTest();
+        if (FISH.testCancel === resetTest) FISH.testCancel = null;
+        speaking = false; try { SUKOON.bolEnd(); } catch (e) {} setOrb("idle");
         if (h) {
           h.className = "ui-hint warn";
           h.textContent = "❌ " + code + " — " + FISH.why(code) + (FISH.lastErr ? ("\n↳ " + FISH.lastErr) : "");
@@ -8686,17 +9487,22 @@ window.selectArtist = function(id) { settings.voiceArtist = id; saveSettings(); 
 
 
 function setWakeService(on){
+  if (!on && typeof INPUT_SESSION !== "undefined") {
+    KAAN.DARWAZA.close();
+    if (INPUT_SESSION.active && ["wake", "followup"].indexOf(INPUT_SESSION.active.origin) >= 0) stopListening();
+  }
   if (!NATIVE) { toast("Wake word sirf APK version mein hai"); return; }
   try {
     window.MayaBridge.setPrefString && (window.MayaBridge.setPrefString('wake_lang', settings.stt || 'en-IN'),
       window.MayaBridge.setPrefString('mic_zoom', String(settings.micZoom === undefined ? 0.8 : settings.micZoom)),
       window.MayaBridge.setPref('sukoon', FLAGS.on('sukoon')),
-      window.MayaBridge.setPref('mic_near', settings.micNear !== false)), window.MayaBridge.wakeService(on);
-    if (on) { try { if (!window.MayaBridge.batteryUnrestricted()) window.MayaBridge.requestBatteryUnrestricted(); } catch(e){} }
-    toast(on ? "\uD83D\uDC42 Wake word ON — ab 'Maya' ya 'Boss' bolo" : "Wake word OFF");
+      window.MayaBridge.setPref('mic_near', settings.micNear !== false));
+    var accepted = window.MayaBridge.wakeService(on);
+    // Do not launch a battery-settings Activity while acquiring the foreground mic.
+    toast(on ? (accepted === true ? "Wake start requested — mic readiness check ho rahi hai" : "Wake start nahi hui — Device Test Status dekhein; mic permission ke baad OFF/ON karein") : "Wake word OFF");
     pushLog("WAKE WORD: " + (on ? "ON" : "OFF"));
   } catch(e){ toast("Wake service start nahi hui"); }
-  try { if (typeof WAKE_DOT !== "undefined" && WAKE_DOT.set) WAKE_DOT.set("", ""); } catch (e2) {}
+  try { if (typeof WAKE_STATUS !== "undefined") WAKE_STATUS.refresh(); } catch (e2) {}
   hudRefresh();
 }
 
@@ -8742,7 +9548,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.9.5 — DOCTOR REPORT");
+  out.push("MAYA v5.22.0 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -8820,6 +9626,8 @@ function sendText(){
   txt.value = ""; stopListening(); handleUserText(v, false);
 }
 $("#qStop").addEventListener("click", function(){
+  INPUT_EPOCH++; TURNS.cancel("cancelled");
+  try { if (typeof MAYA_AMAL !== "undefined") MAYA_AMAL.stop(); } catch (e) {}
   stopListening();
   geminiTTS_stop();
   if (NATIVE) { try { window.MayaBridge.stopSpeak(); } catch(e){} }
@@ -8911,22 +9719,24 @@ function edgePaintHint(){
     h.textContent = "⚠️ Sirf APK mein chalti hai — browser ka WebSocket Microsoft ke zaroori headers nahi bhej sakta. Abhi ki pasand: " + v;
   }
 }
-/* 🐟 FISH ka awaaz picker — library aa jaye to usse, warna sirf "default" */
+/* Fish picker preserves the saved reference; a blank value is setup, never a default speaker. */
 function fishFillVoices(){
   var fs = $("#sFishVoice"), i, o, L;
   if (!fs || typeof FISH !== "object" || !FISH) return;
   /* 🔒 settings hamesha SACH hai — dropdown nahi. (Pehle boot ke waqt dropdown
      khali hota tha aur SAVE dabate hi fishVoice "" ho kar KHO jati thi.) */
   var sv = (typeof settings === "object" && settings) ? settings : {};
-  var keep = sv.fishVoice || fs.value || "";
+  var keep = FISH.validVoiceId(sv.fishVoice) ? sv.fishVoice : "";
   L = FISH.loadLib() || [];
   fs.innerHTML = "";
   o = document.createElement("option");
-  o.value = ""; o.textContent = "🪄 Default awaaz (Fish khud chunta hai)";
+  o.value = ""; o.disabled = true; o.textContent = "Choose an Audio Library voice — no automatic default";
   fs.appendChild(o);
   for (i = 0; i < L.length; i++) {
+    if (!L[i] || !FISH.validVoiceId(L[i].id)) continue;
     o = document.createElement("option");
     o.value = L[i].id;
+    o.setAttribute("data-fish-name", String(L[i].title || ""));
     o.textContent = L[i].title + (L[i].langs ? ("  [" + L[i].langs + "]") : "") + (L[i].likes ? ("  ❤" + L[i].likes) : "");
     fs.appendChild(o);
   }
@@ -8937,6 +9747,7 @@ function fishFillVoices(){
     if (!found) {
       o = document.createElement("option");
       o.value = keep;
+      o.setAttribute("data-fish-name", String(sv.fishVoiceName || ""));
       o.textContent = "🎙️ " + (sv.fishVoiceName || (keep.slice(0, 8) + "\u2026")) + "   (mehfooz)";
       fs.appendChild(o);
     }
@@ -8949,19 +9760,31 @@ function fishFillVoices(){
   if (!fs.__wired) {
     fs.__wired = true;
     fs.addEventListener("change", function () {
-      var id = fs.value || "";
-      var nm = "";
-      var LL = FISH.loadLib() || [], z;
-      for (z = 0; z < LL.length; z++) if (LL[z].id === id) { nm = LL[z].title; break; }
-      settings.fishVoice = id;
-      settings.fishVoiceName = nm;
-      saveSettings();
-      pushLog("FISH AWAAZ: " + (nm || id || "auto") + " (mehfooz)");
-      toast(id ? ("\uD83C\uDFA4 " + (nm || "awaaz") + " \u2014 mehfooz \u2713") : "\uD83E\uDE84 Auto awaaz");
+      if (!fishCommitSelection()) return;
       fishPaintHint();
     });
   }
   fishPaintHint();
+}
+
+// Only explicit picker change/Test may commit a rendered nonblank reference.
+function fishCommitSelection() {
+  var el = $("#sFishVoice"), opt = el && el.options[el.selectedIndex];
+  if (!opt || opt.disabled || !FISH.validVoiceId(opt.value) || !opt.hasAttribute("data-fish-name")) {
+    fishFillVoices(); return true; // Unhydrated/invalid DOM cannot erase saved data.
+  }
+  if (opt.value === settings.fishVoice) return true;
+  var oldId = settings.fishVoice, oldName = settings.fishVoiceName;
+  settings.fishVoice = opt.value; settings.fishVoiceName = opt.getAttribute("data-fish-name") || "";
+  try { saveSettings(); }
+  catch (e) {
+    if (oldId === undefined) delete settings.fishVoice; else settings.fishVoice = oldId;
+    if (oldName === undefined) delete settings.fishVoiceName; else settings.fishVoiceName = oldName;
+    fishFillVoices(); toast("Voice could not be saved. Previous selection unchanged; try again.");
+    return false;
+  }
+  toast("Fish voice saved: " + (settings.fishVoiceName || settings.fishVoice));
+  fishPaintHint(); return true;
 }
 
 /* Sach bolne wala hint */
@@ -8972,12 +9795,14 @@ function fishPaintHint(){
   if (st.ready) {
     h.className = "ui-hint ok";
     var vn = FISH.voiceName();
-    h.textContent = "✅ Tayyar" + (vn ? ("  •  🎤 " + vn) : "  •  🪄 auto awaaz") +
+    h.textContent = "Configured (not playback-tested)" + (vn ? ("  •  🎤 " + vn) : "  •  🪄 auto awaaz") +
                     (st.spoke ? ("  •  " + st.spoke + " dafa boli") : "") +
                     "  •  lehja: " + (FISH.temp() <= 0.4 ? "sthir" : "jazbaati");
   } else {
     h.className = "ui-hint warn";
     h.textContent = "⚠️ " + FISH.why(st.block || "KEY_MISSING");
+    if (FISH.selection().state === "missing-id") h.textContent += " A saved name exists, but a name alone cannot recover its voice ID.";
+    if (FISH.selection().state === "legacy-or-unset") h.textContent += " An old blank/Default setting cannot identify your former speaker.";
   }
 }
 
@@ -9166,7 +9991,7 @@ sysPrompt = function(){
 
 /* ---------- speak WRAP (persona voice tuning) ---------- */
 var _speakCore = speak;
-speak = function(text, wasVoice){
+speak = function(text, wasVoice, measure){
   var _r = settings.rate, _p = settings.pitch;
   try {
     var per = persona(), pr = per.rate, pp = per.pitch;
@@ -9174,7 +9999,7 @@ speak = function(text, wasVoice){
     if (settings.convoMode) pr *= 0.95;
     settings.rate = _r * pr; settings.pitch = _p * pp;
   } catch(e){}
-  try { return _speakCore(text, wasVoice); }
+  try { return _speakCore(text, wasVoice, measure); }
   finally { settings.rate = _r; settings.pitch = _p; }
 };
 
@@ -9227,14 +10052,25 @@ handleUserText = function(text, wasVoice){
 
 /* ---------- interaction timestamp (proactive ke liye) ---------- */
 var _hutInteract = handleUserText;
-handleUserText = function(t, w){ MAYA_V4.lastInteract = Date.now(); return _hutInteract(t, w); };
+var INPUT_EPOCH = 0;
+handleUserText = function(t, w, meta){
+  if (!String(t || "").trim()) return;
+  INPUT_EPOCH++; TURNS.cancel("superseded");
+  stopListening(); AWAAZ.stop(); speaking = false;
+  try { SUKOON.bolEnd(); } catch (e) {}
+  showTurnNotice(""); showVoiceNotice("");
+  var measure = typeof SESSION_TIME !== "undefined" ? SESSION_TIME.begin(w, meta, INPUT_EPOCH) : null;
+  MAYA_V4.lastInteract = Date.now();
+  try { return _hutInteract(t, w); }
+  finally { if (measure && !measure.bound && measure.phase === "submitted") measure.phase = "untracked"; }
+};
 var MAYA_V4 = { lastInteract: Date.now(), proactiveTimer: null };
 
 /* ---------- HOME WIRING ---------- */
 try { $("#micHome").addEventListener("click", startListening); } catch(e){}
 try {
   $("#homeTxt").addEventListener("keydown", function(e){
-    if (e.key === "Enter") { var v = this.value.trim(); if (!v) return; this.value = ""; handleUserText(v, true); }
+    if (e.key === "Enter") { var v = this.value.trim(); if (!v) return; this.value = ""; handleUserText(v, false); }
   });
 } catch(e){}
 /* home quick actions — home par raho, voice reply */
@@ -9424,8 +10260,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.9.5"; } catch(e){}
-try { pushLog("MAYA v5.9.5 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.22.0"; } catch(e){}
+try { pushLog("MAYA v5.22.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
@@ -9684,7 +10520,7 @@ var MayaUI = (function () {
     for (i = 0; i < reopen.length; i++) delCls(reopen[i], "is-open");
 
     var out = [];
-    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v5.9.5");
+    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 " + (typeof MAYA_BUILD === "object" ? "v" + MAYA_BUILD.versionName : "version unavailable"));
     out.push("WEBVIEW: Chrome " + (window.__webviewMajor || "?") + (window.__oldWebview ? " (PURANA)" : ""));
     out.push("");
     out.push("VISIBLE: " + okc + "   INVISIBLE: " + bad + (bad ? "  \u274C" : "  \u2705"));

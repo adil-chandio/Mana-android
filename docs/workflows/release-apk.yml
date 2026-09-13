@@ -1,0 +1,114 @@
+name: Release MAYA APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Beta for explicit device testing; Stable only after device approval'
+        type: choice
+        options: [beta, stable]
+        default: beta
+        required: true
+      device_approved:
+        description: 'I verified this build on a device (required for Stable)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: maya-release-publisher
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'adil-chandio/Mana-android'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: maya-release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts && npm test
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Validate approval, signing configuration and immutable version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ inputs.channel }}
+          APPROVED: ${{ inputs.device_approved }}
+          MAYA_UPDATE_SIGNING_KEY: ${{ secrets.MAYA_UPDATE_SIGNING_KEY }}
+          MAYA_APK_KEYSTORE_B64: ${{ secrets.MAYA_APK_KEYSTORE_B64 }}
+          MAYA_APK_STORE_PASSWORD: ${{ secrets.MAYA_APK_STORE_PASSWORD }}
+          MAYA_APK_KEY_ALIAS: ${{ secrets.MAYA_APK_KEY_ALIAS }}
+          MAYA_APK_KEY_PASSWORD: ${{ secrets.MAYA_APK_KEY_PASSWORD }}
+          MAYA_EXPECTED_APK_CERT_SHA256: ${{ vars.MAYA_EXPECTED_APK_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          if [ "$CHANNEL" = stable ] && [ "$APPROVED" != true ]; then
+            echo 'Stable publishing requires explicit device approval.' >&2; exit 1
+          fi
+          for name in MAYA_UPDATE_SIGNING_KEY MAYA_APK_KEYSTORE_B64 MAYA_APK_STORE_PASSWORD MAYA_APK_KEY_ALIAS MAYA_APK_KEY_PASSWORD MAYA_EXPECTED_APK_CERT_SHA256; do
+            if [ -z "${!name}" ]; then echo "Missing release configuration: $name" >&2; exit 1; fi
+          done
+          node tools/update-release.cjs public-key | sed 's/^/MAYA_UPDATE_PUBLIC_KEY_B64=/' >> "$GITHUB_ENV"
+          umask 077
+          printf '%s' "$MAYA_APK_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/maya-release.keystore"
+          echo "MAYA_APK_KEYSTORE=$RUNNER_TEMP/maya-release.keystore" >> "$GITHUB_ENV"
+          TAG=$(node -e 'const v=require("./release/version.json"); console.log(`v${v.versionName}-${process.env.CHANNEL}.${v.versionCode}`)')
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          # Fail on API errors; do not mistake authorization/network failures for a missing release.
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --slurp > "$RUNNER_TEMP/releases.json"
+          node - "$RUNNER_TEMP/releases.json" "$TAG" <<'NODE'
+          const fs=require('fs'),v=require('./release/version.json');
+          const releases=JSON.parse(fs.readFileSync(process.argv[2])).flat();
+          const codes=releases.map(r=>/-(?:beta|stable)\.(\d+)$/.exec(r.tag_name||'')).filter(Boolean).map(m=>Number(m[1]));
+          if(releases.some(r=>r.tag_name===process.argv[3]) || codes.some(n=>n>=v.versionCode))
+            throw Error('Version must be globally newer than published Beta AND Stable builds. Never overwrite release assets.');
+          NODE
+      - name: Test native policy and build signed release
+        env:
+          MAYA_APK_STORE_PASSWORD: ${{ secrets.MAYA_APK_STORE_PASSWORD }}
+          MAYA_APK_KEY_ALIAS: ${{ secrets.MAYA_APK_KEY_ALIAS }}
+          MAYA_APK_KEY_PASSWORD: ${{ secrets.MAYA_APK_KEY_PASSWORD }}
+        run: |
+          sdkmanager 'platforms;android-34' 'build-tools;34.0.0'
+          gradle testDebugUnitTest assembleRelease --no-daemon --stacktrace
+      - name: Verify APK and sign update manifest
+        env:
+          MAYA_UPDATE_SIGNING_KEY: ${{ secrets.MAYA_UPDATE_SIGNING_KEY }}
+          MAYA_EXPECTED_APK_CERT_SHA256: ${{ vars.MAYA_EXPECTED_APK_CERT_SHA256 }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          export MAYA_BUILD_TOOLS="$ANDROID_HOME/build-tools/34.0.0"
+          node tools/update-release.cjs prepare app/build/outputs/apk/release/app-release.apk "$CHANNEL" "$RUNNER_TEMP/update-release"
+      - name: Publish complete release (draft until every asset is uploaded)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          flags=()
+          if [ "$CHANNEL" = beta ]; then flags+=(--prerelease); fi
+          gh release create "$TAG" --draft "${flags[@]}" --target "$GITHUB_SHA" \
+            --title "MAYA $TAG" --notes-file release/notes.md
+          gh release upload "$TAG" "$RUNNER_TEMP/update-release/MAYA.apk" \
+            "$RUNNER_TEMP/update-release/update.json" "$RUNNER_TEMP/update-release/update.sig"
+          if [ "$CHANNEL" = stable ]; then
+            gh release edit "$TAG" --draft=false --latest
+          else
+            gh release edit "$TAG" --draft=false --latest=false
+          fi
+      - name: Remove ephemeral private signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/maya-release.keystore"

@@ -58,6 +58,8 @@ const TOOLSRC = HTML.slice(TD_A, TD_B);
 function world(flags) {
   const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously', url: 'https://appassets.androidplatform.net/' });
   const w = dom.window;
+    // Scheduler state behavior is exercised separately in test-voice-session.cjs.
+    w.scheduleListening = function (delay) { w.setTimeout(function () { w.startListening(); }, delay); };
   w.pushLog = () => {};
   w.$ = () => null;
   w.NATIVE = false;
@@ -535,7 +537,7 @@ Here's a thinking process:
       '🔑 Kotlin ab SAARE andaze bhejta hai (pehle sirf firstOrNull)');
     is(/CONFIDENCE_SCORES/.test(KT) && /o\.put\("c", conf\[i\]/.test(KT),
       '🔑 P8b: har andaze ka YAQEEN (confidence) bhi JS ko jata hai');
-    is(/EXTRA_MAX_RESULTS, 6\)/.test(KT.slice(KT.indexOf('fun listen'), KT.indexOf('fun listen') + 2000)),
+    is(/EXTRA_MAX_RESULTS, 6\)/.test(KT.slice(KT.indexOf('private fun listenSession'), KT.indexOf('fun stopListen'))),
       '🔑 P8b: MAIN MIC ke andaze 1 -> 6 (SUNO ki taqat ab zinda)');
     is(/__nativeSpeech\('" \+ jsEscape\(text\) \+\s*"','" \+ jsEscape\(arr\.toString\(\)\)/.test(KT.replace(/\s+/g, ' ')),
       'dono cheezein JS ko jati hain: pehla andaza + poori list');
@@ -712,9 +714,9 @@ Here's a thinking process:
     const src = HTML;
 
     /* ── BUG A: awaaz kho jati thi ── */
-    is(/var keep = sv\.fishVoice \|\| fs\.value/.test(src),
+    is(/var keep = FISH\.validVoiceId\(sv\.fishVoice\) \? sv\.fishVoice : ""/.test(src),
       '🔑 SETTINGS ab sach hai, dropdown nahi (boot par khali dropdown SAVE karta to awaaz mit jati thi)');
-    is(/fs\.__wired[\s\S]{0,420}settings\.fishVoice = id[\s\S]{0,120}saveSettings\(\)/.test(src),
+    is(/fs\.__wired[\s\S]{0,200}fishCommitSelection\(\)/.test(src) && /settings\.fishVoice = opt\.value[\s\S]{0,150}saveSettings\(\)/.test(src),
       '🔑 awaaz chunte hi FORAN mehfooz — SAVE dabane ka intezar nahi');
     is(/fishVoice SETFORM se BAHAR hai/.test(src) && !/{ id: "sFishVoice",   key: "fishVoice"/.test(src),
       '🔑 fishVoice ab SETFORM se bahar — khali dropdown use mita nahi sakta');
@@ -725,7 +727,7 @@ Here's a thinking process:
     is(/fishVoiceName:""/.test(src.replace(/\s/g, '')), 'naya khana DEFAULTS mein maujood');
 
     /* ── BUG B: SUNO purani awaaz bajata tha ── */
-    is(/jo awaaz DROPDOWN mein chuni hai wohi sunao/.test(src),
+    is(/if \(tb\.disabled\) return;\s*if \(!fishCommitSelection\(\)\) return;[\s\S]{0,80}FISH\.block\(\)/.test(src),
       '🔑 🐟 SUNO ab DROPDOWN wali awaaz bajata hai (pehle purani bajti thi)');
 
     /* ── lehja sthir ── */
@@ -888,7 +890,7 @@ Here's a thinking process:
 
     /* ── code mein juda ── */
     const src = HTML;
-    is(/BIJLI\.match\(stripped\)[\s\S]{0,900}askAI\(wasVoice\)/.test(src),
+    is(/BIJLI\.match\(stripped\)[\s\S]{0,900}askAI\(wasVoice, measure\)/.test(src),
       '🔑 BIJLI dimaag se PEHLE chalti hai, aur nakaam ho to dimaag ko de deti hai');
     const bj = src.slice(src.indexOf('var BIJLI = {'), src.indexOf('var IJAZAT = {'));
     is(/OK: \{ torch_control: 1/.test(bj) && bj.indexOf('IJAZAT.T[r.t] !== 1') > 0 && bj.indexOf('!BIJLI.OK[r.t]') > 0,
@@ -1104,6 +1106,8 @@ Here's a thinking process:
     const KSRC = HTML.slice(HB, HE);
     const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously' });
     const w = dom.window;
+    // Scheduler state behavior is exercised separately in test-voice-session.cjs.
+    w.scheduleListening = function (delay) { w.setTimeout(function () { w.startListening(); }, delay); };
     w.settings = { name: 'Boss', wakeWord: true, stt: 'ur-PK' };
     w.speaking = false; w.thinking = false; w.listening = false;
     w.said = [];
@@ -1187,7 +1191,7 @@ Here's a thinking process:
     is(!/6, 7 -> restart\(250\)/.test(live), '   → purana 250ms wala tez restart khatam');
     is(/report\("err"/.test(live) && /report\("start"/.test(live),
       '🔑 BUG 1: Kotlin ab har error aur har start REPORT karta hai');
-    is(/handleAll\(list: List<String>\)/.test(live) && /JSONArray/.test(live),
+    is(/handleAll\(list: List<String>, recognitionMs: Long\)/.test(live) && /JSONArray/.test(live),
       'saare andaze JSON bana kar JS ko jate hain');
     is(/MainActivity\.instance != null/.test(live) && /SAFE MODE/.test(KT),
       '🔒 app band ho to SAFE MODE bilkul waisa hi (Qanoon 2)');
@@ -1207,6 +1211,8 @@ Here's a thinking process:
     const HE = HTML.indexOf('window.__wakeErr = function');
     const dom = new JSDOM('<!doctype html><body></body>', { runScripts: 'dangerously' });
     const w = dom.window;
+    // Scheduler state behavior is exercised separately in test-voice-session.cjs.
+    w.scheduleListening = function (delay) { w.setTimeout(function () { w.startListening(); }, delay); };
     w.settings = { name: 'Boss', wakeWord: true, wakeDoor: 15, micZoom: 0.8 };
     w.speaking = false; w.thinking = false; w.listening = false;
     w.said = []; w.bub = [];
@@ -1302,8 +1308,8 @@ Here's a thinking process:
 
     /* VAD */
     is(/KHAMOSHI KA PEHRA/.test(WS) && /gateOn/.test(WS), '🎧 khamoshi ka pehra (VAD) maujood');
-    is(/if \(vadEnabled\(\)\) startGate\(\) else actuallyStart\(\)/.test(WS),
-      '🔑 sannate mein recognizer BILKUL nahi chalta ("mic on/off" ka ilaj)');
+    is(/private fun vadEnabled\(\): Boolean = false/.test(WS),
+      'wake recognizer owns the microphone from the first syllable (no lossy VAD handoff)');
     is(/rec\.release\(\)[\s\S]{0,120}MicKit\.release\(\)[\s\S]{0,140}actuallyStart/.test(WS),
       '🔒 mic pehle CHHORA jata hai, phir recognizer (dono ek sath nahi)');
     is(/over > 10\.0/.test(WS) && /loud >= 3/.test(WS),
@@ -1314,7 +1320,7 @@ Here's a thinking process:
       '🎯 Android 12+ ka on-device recognizer (offline)');
     is(/googlequicksearchbox[\s\S]{0,200}GoogleRecognitionService/.test(MA),
       '🎯 warna Google ka recognizer ZABARDASTI (AiAi bug ka ilaj)');
-    is(/lastRecognizerKind/.test(MA) && /MainActivity\.instance\?\.makeRecognizer\(\)/.test(WS),
+    is(/lastRecognizerKind/.test(MA) && /MainActivity\.instance\?\.makeRecognizer\(preferOnDevice\)/.test(WS),
       'wake service bhi wahi seerhi istemal karti hai');
 
     /* doctor */
@@ -1353,10 +1359,10 @@ Here's a thinking process:
 
     /* ── speak/listen ke SAARE raaste cover ── */
     is((HTML.match(/try \{ SUKOON\.bolStart/g) || []).length >= 6 &&
-       (HTML.match(/try \{ SUKOON\.bolEnd/g) || []).length >= 11 &&
+       (HTML.match(/try \{ SUKOON\.bolEnd/g) || []).length >= 10 &&
        (HTML.match(/try \{ SUKOON\.sunStart/g) || []).length >= 2 &&
-       (HTML.match(/try \{ SUKOON\.sunEnd/g) || []).length >= 7,
-      '🧲 speaking/listening ke 25 jagah SUKOON ke hook lage (koi raasta nahi chhoota)');
+       (HTML.match(/try \{ SUKOON\.sunEnd/g) || []).length >= 6 && /catch\(e\)\{ stopListening\(\); toast\("Mic start/.test(HTML),
+      'audio arbiter hooks retained; duplicate native completion hook intentionally removed');
     is(/function speak\(text, wasVoice\) \{[\s\S]{0,420}?SUKOON\.bolStart/.test(HTML),
       '🔑 speak() CALL ke waqt hi bolStart — fetch ki 1-2s mein bhi mic nahi khulta');
 
@@ -1395,7 +1401,7 @@ Here's a thinking process:
       '📏 echo tail JS aur Kotlin mein DONO 550ms (ek ka 300, doosre ka 800 nahi)');
 
     /* ── watchdog bhi gate ka hukam maanta hai ── */
-    is(/watchdogRuns = 0[\s\S]{0,300}?if \(haalBlock\(\) == null\)/.test(WS),
+    is(/watchdogRuns = 0[\s\S]{0,300}?if \(haalBlock\(\) == null && !recognitionActive\)/.test(WS),
       '🔑 har-12-minute wala recognizer-reset ab HAAL poochhta hai (awaaz kaatne ka scheduled chance khatam)');
 
     /* ── instance lifecycle ── */
@@ -1415,11 +1421,11 @@ Here's a thinking process:
       '👁️ KAAN report mein HAAL + roko ki ginti nazar aati hai');
 
     /* ── version qanoon ── */
-    is(/appVersion\(\): String = "5\.9\.5-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1,
+    is(/appVersion\(\): String = BuildConfig.VERSION_NAME \+ "-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1,
       '🩹 BONUS — appVersion() ka purana 4.3.0 jhoot bhi ab qatl');
-    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.9.5') > 0 &&
-       /versionCode 74/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')),
-      '🏷️ poore app mein VERSION v5.9.5 (cache saaf, splash saaf, APK saaf)');
+    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v' + require('../release/version.json').versionName) > 0 &&
+       /versionCode \(releaseVersion.versionCode/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')),
+      '🏷️ shared release version drives APK and cache (cache saaf, splash saaf, APK saaf)');
     is(HTML.indexOf('5.8.0') === -1, 'kahi purana 5.8.0 version nazar nahi aata');
 
     /* ── v5.9.1 hotfix — doctor ka jhoota button ab ASAL hai ── */
