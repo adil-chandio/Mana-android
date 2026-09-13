@@ -10,7 +10,10 @@ import { snapshotAIBinding } from './ai-binding-snapshot.mjs';
 import { API_STAGES, summarizeApiFailure } from './api-failure-summary.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
-export const APPROVED_UPLOAD_PARENT = 'f6e26dde0ccdb8911b1359f1755e76fb69f229d0';
+export const APPROVED_UPLOAD_PARENT = 'e427b05bf15c07f0facd1ba824422ee308c60ece';
+// Owner-supplied public fingerprint. Build-side enrollment guard only, not a secret
+// or an application/Worker credential. No environment override or slot creation.
+export const APPROVED_APK_KEY_ID = '5FaZUK5cZuVFDEOUvAxqTvNME99OgM0YEPmpxxlpAfQ';
 export const SHA256 = '23dab1613dd0bbce327a617c4b29611320726b0a831b8330a8b3f1d45eafa7db';
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const HEX32 = /^[a-f0-9]{32}$/i;
@@ -128,6 +131,18 @@ export async function preserveConfiguration(version, expectedId) {
   return { main_module: 'worker-upload.mjs', compatibility_date: runtime.compatibility_date,
     compatibility_flags: [], usage_model: 'standard', bindings: preserved.sort((a, b) => a.name.localeCompare(b.name)) };
 }
+/** This enrollment upload requires the owner's exact already-deployed APK slot. */
+export function checkApkEnrollment(configuration) {
+  const binding = configuration?.bindings?.find(b => b.name === 'APK_PUBLIC_JWK');
+  requireThat(configuration?.bindings?.length === 10 && binding?.type === 'plain_text'
+    && typeof binding.text === 'string', 'APK_ENROLLMENT_KEY_REQUIRED');
+  try {
+    const key = JSON.parse(binding.text);
+    requireThat(key && Object.keys(key).sort().join(',') === 'crv,kty,x,y', 'APK_ENROLLMENT_KEY_MISMATCH');
+    const canonical = JSON.stringify({ crv: key.crv, kty: key.kty, x: key.x, y: key.y });
+    requireThat(createHash('sha256').update(canonical).digest('base64url') === APPROVED_APK_KEY_ID, 'APK_ENROLLMENT_KEY_MISMATCH');
+  } catch { throw new Blocked('APK_ENROLLMENT_KEY_MISMATCH'); }
+}
 // Raw API output stays memory-only; only bounded numeric error codes may be projected.
 async function readEnvelope(response, check, cleanup, onFailure) {
   requireThat(response && response.headers.get('content-type')?.split(';')[0].trim() === 'application/json'
@@ -180,6 +195,7 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
       const before = activeDeployment(await api('active_deployment', '/deployments')); check();
       checkLogging(await api('logging_preflight', '/script-settings')); check();
       const configuration = await preserveConfiguration(await api('source_version', `/versions/${before.version}`), before.version); check();
+      checkApkEnrollment(configuration); check();
       requireLatestActive(await api('latest_preflight', LATEST_VERSION_PATH), before.version); check();
       requireThat(JSON.stringify(activeDeployment(await api('active_recheck', '/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
       checkLogging(await api('logging_recheck', '/script-settings')); check();
@@ -201,6 +217,7 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
       const uploaded = await api('version_upload', '/versions?bindings_inherit=strict', form); check();
       requireThat(UUID.test(uploaded?.id || ''), 'INVALID_UPLOAD_RECEIPT');
       const observed = await preserveConfiguration(await api('uploaded_version', `/versions/${uploaded.id}`), uploaded.id); check();
+      checkApkEnrollment(observed); check();
       requireThat(JSON.stringify(observed.bindings.find(b => b.name === 'AI'))
         === JSON.stringify(configuration.bindings.find(b => b.name === 'AI')), 'INHERITED_AI_METADATA_MISMATCH');
       requireThat(JSON.stringify(observed) === JSON.stringify(configuration), 'UPLOADED_CONFIGURATION_MISMATCH');
@@ -208,7 +225,7 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
       checkLogging(await api('logging_readback', '/script-settings')); check();
       return { worker: WORKER, version: uploaded.id, previousActiveVersion: before.version,
         commit: build.commit, sha256: SHA256, aiEnabled: false, promoted: false,
-        aiBindingInherited: true, aiBindingVerified: true, latestMatchedActiveBeforeUpload: true };
+        aiBindingInherited: true, aiBindingVerified: true, latestMatchedActiveBeforeUpload: true, apkKeyVerified: true };
     })()]);
   } catch (error) {
     // A timed-out/error POST may have created an unpublished version. Never retry.

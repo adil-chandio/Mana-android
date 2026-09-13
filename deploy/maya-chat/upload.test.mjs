@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { BRANCH, SHA256, APPROVED_UPLOAD_PARENT, checkUploadSource, readUploadSource, checkArtifact, checkBuild, activeDeployment, checkLogging, preserveConfiguration, uploadOnly, uploadFailureDetails, requireLatestActive, LATEST_VERSION_PATH } from './upload-version.mjs';
+import { BRANCH, SHA256, APPROVED_UPLOAD_PARENT, APPROVED_APK_KEY_ID, checkApkEnrollment, checkUploadSource, readUploadSource, checkArtifact, checkBuild, activeDeployment, checkLogging, preserveConfiguration, uploadOnly, uploadFailureDetails, requireLatestActive, LATEST_VERSION_PATH } from './upload-version.mjs';
 import { API_STAGES, summarizeApiFailure } from './api-failure-summary.mjs';
 const bytes = readFileSync(new URL('worker-upload.mjs', import.meta.url));
 const activeId = '11111111-1111-4111-8111-111111111111', newId = '22222222-2222-4222-8222-222222222222';
@@ -14,12 +14,16 @@ const ENV = { WORKERS_CI: '1', CI: 'true', WORKERS_CI_BRANCH: BRANCH, WORKERS_CI
 const pair = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
 const full = await webcrypto.subtle.exportKey('jwk', pair.publicKey);
 const publicText = JSON.stringify({ crv: full.crv, kty: full.kty, x: full.x, y: full.y });
+// PUBLIC enrollment input only; no private key exists in this test/repository.
+// The real CLI's immutable fingerprint guard is exercised without bypass flags.
+const apkPublicText = '{"crv":"P-256","kty":"EC","x":"dOICrzXNz6ujFYIEeGVYlfuHS8Zj3imlOaT78E5dv28","y":"gNGg8c8w7xZivSsV-fiW8NYatygziop3u6-JQYibcY0"}';
 function fixture() {
   const state = { deployments: { deployments: [{ id: deploymentId, strategy: 'percentage', versions: [{ version_id: activeId, percentage: 100 }] }] },
     latest: { items: [{ id: activeId }] },
     logging: { observability: { enabled: false }, logpush: false, tail_consumers: [] },
     version: { id: activeId, resources: { script_runtime: { compatibility_date: '2026-09-11', compatibility_flags: [], usage_model: 'standard' }, bindings: [
       { name: 'DB', type: 'd1', database_id: dbId }, { name: 'APP_ORIGIN', type: 'plain_text', text: 'https://maya-chat.synthetic-test.workers.dev' },
+      { name: 'APK_PUBLIC_JWK', type: 'plain_text', text: apkPublicText },
       { name: 'OWNER_PUBLIC_JWK', type: 'plain_text', text: publicText }, { name: 'PAIRING_ENABLED', type: 'plain_text', text: 'true' },
       { name: 'ENABLE_CHAT', type: 'plain_text', text: 'false' },
       { name: 'AI', type: 'ai', project: { id: 'SYNTHETIC_PROJECT_ONLY', nested: { enabled: false, entries: [null, 'opaque'] } } },
@@ -65,7 +69,7 @@ test('only Workers Builds, exact session branch and explicit upload acknowledgem
 });
 test('successful upload makes exactly one POST to versions, no deployment/settings/DB mutation', async () => {
   const f = fixture(), receipt = await f.run();
-  assert.equal(receipt.promoted, false); assert.equal(receipt.aiEnabled, false); assert.equal(receipt.version, newId); assert.equal(receipt.previousActiveVersion, activeId);
+  assert.equal(receipt.promoted, false); assert.equal(receipt.aiEnabled, false); assert.equal(receipt.apkKeyVerified, true); assert.equal(receipt.version, newId); assert.equal(receipt.previousActiveVersion, activeId);
   assert.equal(f.state.calls.length, 11); assert.equal(f.state.calls.filter(c => c.options.method === 'POST').length, 1);
   for (const c of f.state.calls) {
     assert.equal(new URL(c.url).origin, 'https://api.cloudflare.com'); assert(c.url.includes('/workers/scripts/maya-chat/'));
@@ -665,16 +669,50 @@ test('optional APK public binding is separately validated and byte-preserved; ne
   const apkPair = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
   const { crv, kty, x, y } = await webcrypto.subtle.exportKey('jwk', apkPair.publicKey);
   const text = JSON.stringify({ crv, kty, x, y });
-  const f = fixture(); f.state.version.resources.bindings.push({ name: 'APK_PUBLIC_JWK', type: 'plain_text', text });
+  const f = fixture();
+  f.state.version.resources.bindings.find(b => b.name === 'APK_PUBLIC_JWK').text = text;
+  const generic = await preserveConfiguration(f.state.version, activeId);
+  assert.equal(generic.bindings.find(b => b.name === 'APK_PUBLIC_JWK').text, text);
+  await assert.rejects(f.run(), /APK_ENROLLMENT_KEY_MISMATCH_NO_UPLOAD_STARTED/);
+  f.state.version.resources.bindings.find(b => b.name === 'APK_PUBLIC_JWK').text = apkPublicText;
   await f.run(); assert.equal(f.state.metadata.bindings.length, 10);
-  assert.equal(f.state.metadata.bindings.find(b => b.name === 'APK_PUBLIC_JWK').text, text);
+  assert.equal(f.state.metadata.bindings.find(b => b.name === 'APK_PUBLIC_JWK').text, apkPublicText);
   assert.equal(f.state.metadata.bindings.find(b => b.name === 'OWNER_PUBLIC_JWK').text, publicText);
-  const old = fixture(); await old.run(); assert.equal(old.state.metadata.bindings.length, 9);
-  assert(!old.state.metadata.bindings.some(b => b.name === 'APK_PUBLIC_JWK'));
+  const old = fixture(); old.state.version.resources.bindings = old.state.version.resources.bindings.filter(b => b.name !== 'APK_PUBLIC_JWK');
+  assert.equal((await preserveConfiguration(old.state.version, activeId)).bindings.length, 9);
+  await assert.rejects(old.run(), /APK_ENROLLMENT_KEY_REQUIRED_NO_UPLOAD_STARTED/);
+  assert.equal(old.state.metadata, null);
 });
 for (const value of ['', '{}', publicText, JSON.stringify({ ...JSON.parse(publicText), d: 'PRIVATE' }), 'x'.repeat(513), publicText.replace('{', '{"x":"duplicate",'), publicText.replace('{', '{"\\u0078":"duplicate",')])
   test(`invalid/duplicate APK binding denied (${value.length} chars) before POST`, async () => {
-    const f = fixture(); f.state.version.resources.bindings.push({ name: 'APK_PUBLIC_JWK', type: 'plain_text', text: value });
+    const f = fixture(); f.state.version.resources.bindings.find(b => b.name === 'APK_PUBLIC_JWK').text = value;
     await assert.rejects(f.run(), /APK_PUBLIC_KEY_REQUIRED|APK_KEY_MUST_BE_SEPARATE/);
     assert(!f.state.calls.some(c => c.options.method === 'POST'));
   });
+
+
+test('enrollment profile binds the reviewed immediate parent and exact owner-approved public fingerprint', async () => {
+  assert.equal(APPROVED_UPLOAD_PARENT, 'e427b05bf15c07f0facd1ba824422ee308c60ece');
+  assert.equal(APPROVED_APK_KEY_ID, '5FaZUK5cZuVFDEOUvAxqTvNME99OgM0YEPmpxxlpAfQ');
+  const f = fixture(); const configuration = await preserveConfiguration(f.state.version, activeId);
+  assert.doesNotThrow(() => checkApkEnrollment(configuration));
+  const jwk = JSON.parse(apkPublicText);
+  f.state.version.resources.bindings.find(b => b.name === 'APK_PUBLIC_JWK').text = JSON.stringify({ y:jwk.y, x:jwk.x, kty:jwk.kty, crv:jwk.crv }, null, 2);
+  await f.run(); // whitespace/member order do not rotate the identity; bytes still preserved
+});
+test('APK readback drift after POST fails without retry/promotion or key repair', async () => {
+  const f = fixture(); f.state.hook = suffix => {
+    if (suffix === '/versions/' + newId) return Response.json({ success:true, result: { id:newId, resources: {
+      ...f.state.version.resources,
+      bindings:f.state.version.resources.bindings.filter(b=>b.name!=='APK_PUBLIC_JWK')
+    } } });
+  };
+  await assert.rejects(f.run(), /APK_ENROLLMENT_KEY_REQUIRED_VERSION_MAY_EXIST_NOT_PROMOTED/);
+  assert.equal(f.state.calls.filter(c=>c.options.method==='POST').length,1);
+});
+test('native-build ancestors and consumed browser upload parent cannot trigger this enrollment upload', async () => {
+  for (const parent of ['f6e26dde0ccdb8911b1359f1755e76fb69f229d0','d0990e83ede72c06afc6865ddff43984b3a1daf0','90a34b0fe30ab217e1905fe4c253880e0d3f45b0']) {
+    const f = fixture(); await assert.rejects(f.run({source:{head:SOURCE.head,parents:[parent]}}),/UPLOAD_SOURCE_NOT_APPROVED/);
+    assert.equal(f.state.calls.length,0);
+  }
+});
