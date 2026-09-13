@@ -20,7 +20,7 @@ function fixture() {
       { name: 'DB', type: 'd1', database_id: dbId }, { name: 'APP_ORIGIN', type: 'plain_text', text: 'https://maya-chat.synthetic-test.workers.dev' },
       { name: 'OWNER_PUBLIC_JWK', type: 'plain_text', text: publicText }, { name: 'PAIRING_ENABLED', type: 'plain_text', text: 'true' },
       { name: 'ENABLE_CHAT', type: 'plain_text', text: 'false' },
-      { name: 'AI', type: 'ai' },
+      { name: 'AI', type: 'ai', project: { id: 'SYNTHETIC_PROJECT_ONLY', nested: { enabled: false, entries: [null, 'opaque'] } } },
       ...['FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS_CONFIRMED'].map(name => ({ name, type: 'plain_text', text: 'true' }))
     ] } }, calls: [], metadata: null, hook: null };
   const fetcher = async (url, options) => {
@@ -35,7 +35,11 @@ function fixture() {
       assert.deepEqual(Buffer.from(await options.body.get('worker-upload.mjs').arrayBuffer()), bytes);
       assert.equal(options.body.get('worker-upload.mjs').type, 'application/javascript+module'); result = { id: newId };
     } else if (suffix === '/versions/' + newId) result = { id: newId, resources: {
-      bindings: state.metadata.bindings, script_runtime: { compatibility_date: state.metadata.compatibility_date, compatibility_flags: [], usage_model: 'standard' }
+      bindings: state.metadata.bindings.map(b => {
+        if (b.name !== 'AI') return b;
+        assert.deepEqual(b, { name: 'AI', type: 'inherit', version_id: activeId });
+        return state.version.resources.bindings.find(original => original.name === 'AI');
+      }), script_runtime: { compatibility_date: state.metadata.compatibility_date, compatibility_flags: [], usage_model: 'standard' }
     } };
     else throw Error('Unexpected fixture route');
     return Response.json({ success: true, result });
@@ -230,15 +234,15 @@ test('raw Git source reads are bounded, shell-free, and retain shallow-clone par
   });
   assert.deepEqual(result, SOURCE); assert.equal(calls.length, 2);
 });
-test('Qwen candidate metadata identifies the new pinned artifact while every binding remains inherited', async () => {
+test('Qwen candidate metadata identifies the artifact and pins AI inheritance while preserving other bindings', async () => {
   const f = fixture(); await f.run();
   assert.equal(bytes.byteLength, 83087);
   assert.equal(SHA256, '589b28829e2154c06232c167c02ce5cbc9df0e68fb839af31830e79b9502db70');
-  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-qwen-diag-589b2882');
+  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-diag-inherit-589b2882');
   assert.match(f.state.metadata.annotations['workers/message'], /Qwen.*Chat OFF/);
   assert(bytes.includes(Buffer.from('@cf/qwen/qwen3-30b-a3b-fp8')));
   assert.equal(f.state.metadata.bindings.length, f.state.version.resources.bindings.length);
-  assert.deepEqual(f.state.metadata.bindings.find(b => b.name === 'AI'), { name: 'AI', type: 'ai' });
+  assert.deepEqual(f.state.metadata.bindings.find(b => b.name === 'AI'), { name: 'AI', type: 'inherit', version_id: activeId });
 });
 test('CLI source gate blocks unrelated future commits before any API request', () => {
   const preload = `import cp from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';
@@ -265,12 +269,15 @@ test('real CLI Qwen path uses synthetic source/API, makes exactly one version PO
       throw Error('wrong Git request')};syncBuiltinESMExports();let posts=0,calls=0,metadata;
     globalThis.fetch=async(url,opts)=>{calls++;const path=new URL(url).pathname.split('/maya-chat')[1];let result;
       if(opts.method==='POST'){if(path!=='/versions'||++posts!==1)throw Error('unexpected POST');
-        metadata=JSON.parse(await opts.body.get('metadata').text());result={id:'${newId}'};}
+        metadata=JSON.parse(await opts.body.get('metadata').text());
+        if(JSON.stringify(metadata.bindings.find(b=>b.name==='AI'))!==JSON.stringify({name:'AI',type:'inherit',version_id:'${activeId}'}))throw Error('wrong inheritance');
+        if(JSON.stringify(metadata).includes('SYNTHETIC_PROJECT_ONLY'))throw Error('opaque metadata submitted');
+        result={id:'${newId}'};}
       else{if(opts.method!=='GET')throw Error('mutation forbidden');
         if(path==='/deployments')result=${JSON.stringify(f.state.deployments)};
         else if(path==='/script-settings')result=${JSON.stringify(f.state.logging)};
         else if(path==='/versions/${activeId}')result=${JSON.stringify(f.state.version)};
-        else if(path==='/versions/${newId}')result={id:'${newId}',resources:{bindings:metadata.bindings,
+        else if(path==='/versions/${newId}')result={id:'${newId}',resources:{bindings:metadata.bindings.map(b=>b.name==='AI'?${JSON.stringify(f.state.version.resources.bindings.find(b=>b.name==='AI'))}:b),
           script_runtime:{compatibility_date:'2026-09-11',compatibility_flags:[],usage_model:'standard'}}};
         else throw Error('unexpected endpoint');}
       return Response.json({success:true,result});};
@@ -281,6 +288,8 @@ test('real CLI Qwen path uses synthetic source/API, makes exactly one version PO
   const receipt = JSON.parse(cli.stdout.split('\n')[0]);
   assert.equal(receipt.sha256, SHA256); assert.equal(receipt.version, newId);
   assert.equal(receipt.aiEnabled, false); assert.equal(receipt.promoted, false);
+  assert.equal(receipt.aiBindingInherited, true); assert.equal(receipt.aiBindingVerified, true);
+  assert(!cli.stdout.includes('SYNTHETIC_PROJECT_ONLY')); assert(!cli.stdout.includes('project'));
   assert(!cli.stdout.includes(publicText)); assert(!cli.stdout.includes(ENV.CLOUDFLARE_API_TOKEN)); assert(!cli.stdout.includes('PRIVATE_CANARY'));
   assert.match(cli.stdout, /Active traffic was NOT changed/);
 });
@@ -290,7 +299,7 @@ test('diagnostic upload preserves all nine current bindings and true review flag
   const before = structuredClone(f.state.version.resources.bindings);
   const receipt = await f.run();
   assert.equal(receipt.aiEnabled, false); assert.equal(receipt.promoted, false);
-  assert.deepEqual(f.state.metadata.bindings, before.sort((a, b) => a.name.localeCompare(b.name)));
+  assert.deepEqual(f.state.metadata.bindings, before.map(b => b.name === 'AI' ? { name: 'AI', type: 'inherit', version_id: activeId } : b).sort((a, b) => a.name.localeCompare(b.name)));
   assert.equal(f.state.calls.length, 9);
   assert.equal(f.state.calls.filter(c => c.options.method === 'POST').length, 1);
   assert(f.state.calls.every(c => !c.url.includes('/ai/') && !c.url.includes('/d1/')));
@@ -330,7 +339,7 @@ test('same-count unknown binding cannot replace a required AI/review binding', a
 test('mixed true/false review flags are preserved exactly, with no enable step', async () => {
   const f = fixture(); f.state.version.resources.bindings.find(b => b.name === 'FREE_PLAN_CONFIRMED').text = 'false';
   const before = structuredClone(f.state.version.resources.bindings);
-  await f.run(); assert.deepEqual(f.state.metadata.bindings, before.sort((a, b) => a.name.localeCompare(b.name)));
+  await f.run(); assert.deepEqual(f.state.metadata.bindings, before.map(b => b.name === 'AI' ? { name: 'AI', type: 'inherit', version_id: activeId } : b).sort((a, b) => a.name.localeCompare(b.name)));
 });
 test('post-upload change to a review acknowledgement fails without retry or rollback', async () => {
   const f = fixture(); f.state.hook = suffix => {
@@ -344,5 +353,93 @@ test('post-upload change to a review acknowledgement fails without retry or roll
 test('prior Qwen upload source cannot run the new diagnostic uploader', async () => {
   const f = fixture(); await assert.rejects(f.run({ source: { head: ENV.WORKERS_CI_COMMIT_SHA,
     parents: ['8ef51c86572e770d7d7916724dcb2e8f61802438'] } }), /UPLOAD_SOURCE_NOT_APPROVED/);
+  assert.equal(f.state.calls.length, 0);
+});
+
+function uploadedVersionWithAI(f, ai) {
+  return Response.json({ success: true, result: { id: newId, resources: {
+    script_runtime: f.state.version.resources.script_runtime,
+    bindings: f.state.metadata.bindings.map(b => b.name === 'AI' ? ai : b)
+  } } });
+}
+test('AI inheritance pins exact active UUID; opaque project is absent from multipart and receipt', async () => {
+  const f = fixture(), before = structuredClone(f.state.version), receipt = await f.run();
+  assert.deepEqual(f.state.version, before);
+  assert.deepEqual(f.state.metadata.bindings.find(b => b.name === 'AI'), { name: 'AI', type: 'inherit', version_id: activeId });
+  assert.equal(receipt.aiBindingInherited, true); assert.equal(receipt.aiBindingVerified, true);
+  for (const value of [JSON.stringify(f.state.metadata), JSON.stringify(receipt)]) {
+    assert(!value.includes('SYNTHETIC_PROJECT_ONLY')); assert(!value.includes('"project"')); assert(!value.includes('latest'));
+  }
+  assert.equal(f.state.calls.length, 9);
+  assert(f.state.calls.every(c => c.options.method === 'GET' || c.url.endsWith('/versions?bindings_inherit=strict')));
+});
+test('opaque project values are preserved by inheritance, not reconstructed or coerced', async () => {
+  for (const value of [null, 'SYNTHETIC_PROJECT_ONLY', 7, false, { nested: ['SYNTHETIC_PROJECT_ONLY', null] }]) {
+    const f = fixture(); f.state.version.resources.bindings.find(b => b.name === 'AI').project = value;
+    const receipt = await f.run(); assert.equal(receipt.aiBindingVerified, true);
+    assert.deepEqual(f.state.metadata.bindings.find(b => b.name === 'AI'), { name: 'AI', type: 'inherit', version_id: activeId });
+  }
+});
+test('documented name/type-only AI is also inherited, never synthesized', async () => {
+  const f = fixture(); delete f.state.version.resources.bindings.find(b => b.name === 'AI').project;
+  assert.equal((await f.run()).aiBindingVerified, true);
+  assert.equal(f.state.metadata.bindings.find(b => b.name === 'AI').type, 'inherit');
+});
+test('full AI readback is key-order-independent and preserves nested array order', async () => {
+  const f = fixture(); f.state.hook = suffix => {
+    if (suffix === '/versions/' + newId) return uploadedVersionWithAI(f, { type: 'ai',
+      project: { nested: { entries: [null, 'opaque'], enabled: false }, id: 'SYNTHETIC_PROJECT_ONLY' }, name: 'AI' });
+  };
+  assert.equal((await f.run()).aiBindingVerified, true);
+});
+for (const ai of [
+  { name: 'AI', type: 'ai' }, { name: 'AI', type: 'ai', project: null },
+  { name: 'AI', type: 'ai', project: { id: 'OTHER_PRIVATE_PROJECT' } },
+  { name: 'AI', type: 'ai', project: { id: 'SYNTHETIC_PROJECT_ONLY', nested: { enabled: false, entries: ['opaque', null] } } },
+  { name: 'AI', type: 'ai', project: { id: 'SYNTHETIC_PROJECT_ONLY', nested: { enabled: 'false', entries: [null, 'opaque'] } } }
+]) test('any project removal or nested metadata drift rejects receipt without retry or promotion', async () => {
+  const f = fixture(); f.state.hook = suffix => suffix === '/versions/' + newId ? uploadedVersionWithAI(f, ai) : undefined;
+  await assert.rejects(f.run(), /^Error: INHERITED_AI_METADATA_MISMATCH_VERSION_MAY_EXIST_NOT_PROMOTED$/);
+  assert.equal(f.state.calls.filter(c => c.options.method === 'POST').length, 1);
+  assert.equal(f.state.calls.length, 7); assert.equal(f.state.deployments.deployments[0].versions[0].version_id, activeId);
+});
+test('null versus missing project is not silently normalized', async () => {
+  const f = fixture(); delete f.state.version.resources.bindings.find(b => b.name === 'AI').project;
+  f.state.hook = suffix => suffix === '/versions/' + newId ? uploadedVersionWithAI(f, { name: 'AI', type: 'ai', project: null }) : undefined;
+  await assert.rejects(f.run(), /INHERITED_AI_METADATA_MISMATCH/);
+});
+test('unresolved inheritance error never falls back to type ai, latest or another POST', async () => {
+  const f = fixture(); f.state.hook = suffix => suffix === '/versions' ? Response.json({ success: false,
+    errors: [{ message: 'PRIVATE_PROJECT_VALUE' }] }, { status: 400 }) : undefined;
+  await assert.rejects(f.run(), /^Error: CLOUDFLARE_API_ERROR_VERSION_MAY_EXIST_NOT_PROMOTED$/);
+  assert.equal(f.state.calls.filter(c => c.options.method === 'POST').length, 1); assert.equal(f.state.calls.length, 6);
+});
+test('a readback containing unresolved inherit metadata is not accepted as a resolved AI binding', async () => {
+  const f = fixture(); f.state.hook = suffix => suffix === '/versions/' + newId
+    ? uploadedVersionWithAI(f, { name: 'AI', type: 'inherit', version_id: activeId }) : undefined;
+  await assert.rejects(f.run(), /EXISTING_AI_BINDING_REQUIRED_VERSION_MAY_EXIST_NOT_PROMOTED/);
+});
+test('new options on readback remain blocked, despite project being recognized', async () => {
+  const f = fixture(); f.state.hook = suffix => suffix === '/versions/' + newId
+    ? uploadedVersionWithAI(f, { ...f.state.version.resources.bindings.find(b => b.name === 'AI'), gateway: {} }) : undefined;
+  await assert.rejects(f.run(), /EXISTING_AI_BINDING_REQUIRED_VERSION_MAY_EXIST_NOT_PROMOTED/);
+});
+test('oversized or over-deep project metadata blocks BEFORE upload with no value output', async () => {
+  let deep = null; for (let n = 0; n < 9; n++) deep = { nested: deep };
+  for (const project of ['x'.repeat(16385), deep]) {
+    const f = fixture(); f.state.version.resources.bindings.find(b => b.name === 'AI').project = project;
+    await assert.rejects(f.run(), /^Error: AI_METADATA_REQUIRES_REVIEW_NO_UPLOAD_STARTED$/);
+    assert.equal(f.state.calls.length, 3); assert.equal(f.state.metadata, null);
+  }
+});
+test('preflight configuration is detached from later fixture/provider mutation', async () => {
+  const f = fixture(); f.state.hook = suffix => {
+    if (suffix === '/versions') f.state.version.resources.bindings.find(b => b.name === 'AI').project.nested.enabled = true;
+  };
+  await assert.rejects(f.run(), /INHERITED_AI_METADATA_MISMATCH/);
+});
+test('old diagnostic upload parent no longer authorizes inheritance upload', async () => {
+  const f = fixture(); await assert.rejects(f.run({ source: { head: ENV.WORKERS_CI_COMMIT_SHA,
+    parents: ['96e98a6e764acd324b33365a3a61f98018b82496'] } }), /UPLOAD_SOURCE_NOT_APPROVED/);
   assert.equal(f.state.calls.length, 0);
 });

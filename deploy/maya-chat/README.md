@@ -1,3 +1,14 @@
+> **CURRENT MODE: exact-active AI inheritance, Chat-OFF upload — 2026-09-13.**
+> See [AI-INHERIT-UPLOAD.md](AI-INHERIT-UPLOAD.md). The `project` field is now
+> observed, not guessed. AI is inherited from the exact active version UUID,
+> never latest; full AI metadata must match on readback. Project values stay
+> memory-only and are not submitted as configuration or printed.
+> `npm run upload` now runs tests and the guarded version uploader, not a diagnostic.
+> Source must be the direct child of `fb1796f3f67b65842587ba6be1dc95d6461d6113`.
+> 278 build-side and 196 runtime tests passed. Worker artifact remains unchanged.
+> One unpublished Chat-OFF version only; no promotion, AI call or automatic Retry.
+> All earlier banners below are historical, including their mode and parent pins.
+
 > **CURRENT MODE: targeted read-only field-name check V3 — 2026-09-13.**
 > See [BINDING-NAME-READ-ONLY.md](BINDING-NAME-READ-ONLY.md). This deliberately
 > permits one bounded extra schema-key NAME in the build log, never its value.

@@ -135,9 +135,9 @@ test('arbitrary thrown errors and spoofed codes cannot leak', async () => {
     await assert.rejects(fixture().run({ fetcher: async () => { throw error; } }), /^Error: BINDING_DIAGNOSTIC_FAILED$/);
   }
 });
-test('package upload command ONLY runs read-only entrypoint after tests', () => {
+test('historical diagnostic stays read-only while active command is guarded upload', () => {
   const pkg = JSON.parse(readFileSync(new URL('package.json', import.meta.url)));
-  assert.equal(pkg.scripts.upload, 'npm run check && node diagnose-binding.mjs');
+  assert.equal(pkg.scripts.upload, 'npm run check && node upload-version.mjs');
   assert(pkg.scripts.test.includes('binding-diagnostic.test.mjs')); assert.equal(pkg.dependencies, undefined);
   const src = readFileSync(new URL('diagnose-binding.mjs', import.meta.url), 'utf8');
   assert(!src.includes('uploadOnly')); assert(!/method: '(POST|PATCH|PUT|DELETE)'/.test(src));

@@ -6,9 +6,10 @@ import { execFileSync } from 'node:child_process';
 import { createHash, webcrypto } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { loggingOffRepresentation } from './logging-policy.mjs';
+import { snapshotAIBinding } from './ai-binding-snapshot.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
-export const APPROVED_UPLOAD_PARENT = '96e98a6e764acd324b33365a3a61f98018b82496';
+export const APPROVED_UPLOAD_PARENT = 'fb1796f3f67b65842587ba6be1dc95d6461d6113';
 export const SHA256 = '589b28829e2154c06232c167c02ce5cbc9df0e68fb839af31830e79b9502db70';
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const HEX32 = /^[a-f0-9]{32}$/i;
@@ -73,9 +74,11 @@ export async function preserveConfiguration(version, expectedId) {
     requireThat(b && typeof b.name === 'string' && !seen.has(b.name), 'DUPLICATE_OR_INVALID_BINDING');
     seen.set(b.name, b);
     if (b.name === 'AI') {
-      // Preserve only the existing standard Workers AI binding, not a gateway or options.
-      requireThat(b.type === 'ai' && Object.keys(b).every(k => ['name', 'type'].includes(k)), 'EXISTING_AI_BINDING_REQUIRED');
-      preserved.push({ name: 'AI', type: 'ai' });
+      // Only the observed project field is permitted in this read-side snapshot.
+      // Its opaque value is compared, never interpreted or submitted as config.
+      requireThat(b.type === 'ai' && Object.keys(b).every(k => ['name', 'type', 'project'].includes(k)), 'EXISTING_AI_BINDING_REQUIRED');
+      try { preserved.push(snapshotAIBinding(b)); }
+      catch { throw new Blocked('AI_METADATA_REQUIRES_REVIEW'); }
     } else if (b.name === 'DB') {
       const id = b.database_id ?? b.id;
       requireThat(b.type === 'd1' && UUID.test(id || '') && (!b.database_id || !b.id || b.database_id === b.id)
@@ -151,11 +154,15 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
       const configuration = await preserveConfiguration(await api(`/versions/${before.version}`), before.version); check();
       requireThat(JSON.stringify(activeDeployment(await api('/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
       checkLogging(await api('/script-settings')); check();
-      const metadata = { ...configuration, annotations: {
-        'workers/message': 'Maya Qwen validation diagnostic v1. Chat OFF. Preserve bindings. Manual promotion required.',
+      const metadata = { ...configuration,
+        // Explicit active UUID, NOT latest. Strict resolution prevents silent drops.
+        bindings: configuration.bindings.map(b => b.name === 'AI'
+          ? { name: 'AI', type: 'inherit', version_id: before.version } : b),
+        annotations: {
+        'workers/message': 'Maya Qwen validation diagnostic. Chat OFF. AI inherit pins active version; readback required. Manual promotion required.',
         'workers/commit_sha': build.commit,
         'workers/repository_url': 'https://github.com/adil-chandio/Mana-android',
-        'workers/tag': 'maya-qwen-diag-589b2882'
+        'workers/tag': 'maya-diag-inherit-589b2882'
       } };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
@@ -163,11 +170,14 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
       const uploaded = await api('/versions?bindings_inherit=strict', form); check();
       requireThat(UUID.test(uploaded?.id || ''), 'INVALID_UPLOAD_RECEIPT');
       const observed = await preserveConfiguration(await api(`/versions/${uploaded.id}`), uploaded.id); check();
+      requireThat(JSON.stringify(observed.bindings.find(b => b.name === 'AI'))
+        === JSON.stringify(configuration.bindings.find(b => b.name === 'AI')), 'INHERITED_AI_METADATA_MISMATCH');
       requireThat(JSON.stringify(observed) === JSON.stringify(configuration), 'UPLOADED_CONFIGURATION_MISMATCH');
       requireThat(JSON.stringify(activeDeployment(await api('/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
       checkLogging(await api('/script-settings')); check();
       return { worker: WORKER, version: uploaded.id, previousActiveVersion: before.version,
-        commit: build.commit, sha256: SHA256, aiEnabled: false, promoted: false };
+        commit: build.commit, sha256: SHA256, aiEnabled: false, promoted: false,
+        aiBindingInherited: true, aiBindingVerified: true };
     })()]);
   } catch (error) {
     // A timed-out/error POST may have created an unpublished version. Never retry.
