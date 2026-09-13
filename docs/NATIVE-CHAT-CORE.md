@@ -44,7 +44,7 @@ feature update. Existing version remains 5.18.1 / 87 pending actual integration.
 
 ## Tests added
 
-16 JVM JUnit tests across protocol and conversation. Includes Unicode/escaping,
+17 JVM JUnit tests across protocol and conversation. Includes Unicode/escaping,
 role/byte/context limits, wrong curve, malformed DER, signer call gating/privacy,
 consent, single-flight, deadline, double dispatch, STOP uncertainty, stale results,
 clear, history preservation and limits.
@@ -52,7 +52,7 @@ clear, history preservation and limits.
 One JVM test generates 64 real JCA ECDSA signatures and invokes
 `tools/test-native-chat-wire.cjs` with PUBLIC synthetic vectors in temporary files.
 Node WebCrypto independently verifies fingerprints/canonical messages/signatures.
-The actual committed bundled Worker runs in-process against temporary SQLite and
+The actual committed bundled Worker runs in-process against a synthetic D1 interface and
 a synthetic model: accepts signed empty check / denies replay, accepts one text
 turn / denies replay, refuses body tampering and unknown key ID, preserves quota,
 and refuses Chat OFF. Real network is blocked. No private test key is exported.
@@ -67,7 +67,7 @@ Sandbox has no JDK, Gradle, Kotlin compiler or Android SDK. Attempts to obtain a
 JDK via public vendor/CDN/package routes failed due outbound connection errors.
 No credential requested or extracted. Do not label native code compiled/tested
 until the exact commit's native CI completes. Use the existing manual APK CI
-workflow (already configured Java/Android/Gradle/Node) for compilation/unit tests;
+workflow (configured Java/Gradle and runner Android/Node tools) for compilation/unit tests;
 any generated version-87 APK is a CI artifact, NOT a feature update to install.
 No protected existing workflow modifications are needed.
 
@@ -101,3 +101,14 @@ new Worker upload is authorized by that check.
 Agent/device actions, screenshots, persistent history, paid services, updater
 activation and Fish integration are not enabled by this code. Existing APK
 Chat/Fish/browser deployment and browser key remain unchanged.
+
+
+### CI trigger clarification
+
+The manual existing-workflow dispatch was refused with HTTP 403 (integration
+permission), before any Actions run was created. Do not retry that API or request
+credentials. Use the repository's already-configured push trigger for the next
+real hardening commit (curve-point validation and runner-compatible fixture).
+Existing protected workflow edits remain untouched. The interop fixture now mocks
+the D1 interface instead of requiring node:sqlite; actual backend SQL tests remain
+separate. It still invokes the actual bundled Worker and blocks all live network.

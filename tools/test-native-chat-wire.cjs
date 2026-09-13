@@ -4,7 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { webcrypto } = require('node:crypto');
-const { DatabaseSync } = require('node:sqlite');
+if (!globalThis.crypto) globalThis.crypto = webcrypto;
 let networkAttempted = false;
 function blocked() { networkAttempted = true; throw Error('LIVE_NETWORK_BLOCKED'); }
 globalThis.fetch = blocked;
@@ -35,12 +35,21 @@ const hash = async bytes => b64(await webcrypto.subtle.digest('SHA-256', bytes))
     if (i === 0) assert.equal(r.body, '{}');
     else assert.deepEqual(JSON.parse(r.body), { messages: [{ role: 'user', content: `Synthetic native wire ${i} اردو 🔥 "quote"\n` }] });
   }
-  const db = new DatabaseSync(':memory:');
-  db.exec(`CREATE TABLE pairing_nonces(key_id TEXT NOT NULL, nonce TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY(key_id,nonce));
-    CREATE TABLE chat_budget(id INTEGER PRIMARY KEY, utc_day TEXT NOT NULL, day_count INTEGER NOT NULL, minute_id INTEGER NOT NULL, minute_count INTEGER NOT NULL);`);
-  const DB = { prepare(sql) { return { bind(...args) { return { sql, args, async first() { return db.prepare(sql).get(...args) ?? null; } }; } }; },
-    async batch(rows) { db.exec('BEGIN IMMEDIATE'); try { const results = rows.map(r => ({ success: true, results: db.prepare(r.sql).all(...r.args) })); db.exec('COMMIT'); return results; } catch (e) { db.exec('ROLLBACK'); throw e; } } };
-  try {
+  // Fake only the D1 interface; SQL execution is covered by existing backend tests.
+  // No sqlite dependency: the established native CI runner supplies Node >=18.
+  const nonces = new Map(); let reservations = 0;
+  const DB = { prepare(sql) { return { bind(...args) { return { sql, args, async first() {
+    assert(sql.startsWith('INSERT INTO chat_budget')); reservations++; return { id: 1 };
+  } }; } }; }, async batch(rows) {
+    assert.equal(rows.length, 2); assert(rows[0].sql.startsWith('DELETE FROM pairing_nonces'));
+    assert(rows[1].sql.startsWith('INSERT INTO pairing_nonces'));
+    for (const [key, expiry] of nonces) if (expiry < rows[0].args[0]) nonces.delete(key);
+    const [keyId, nonce, expiry] = rows[1].args, key = keyId + '/' + nonce;
+    const claimed = !nonces.has(key) && nonces.size < 256;
+    if (claimed) nonces.set(key, expiry);
+    return [{ success: true, results: [] }, { success: true, results: claimed ? [{ nonce }] : [] }];
+  } };
+  {
     const { default: worker } = await import('../deploy/maya-chat/worker-upload.mjs');
     let calls = 0;
     const env = { DB, OWNER_PUBLIC_JWK: JSON.stringify(fixture.publicJwk), PAIRING_ENABLED: 'true', APP_ORIGIN: ORIGIN,
@@ -58,9 +67,9 @@ const hash = async bytes => b64(await webcrypto.subtle.digest('SHA-256', bytes))
     const unregistered = structuredClone(fixture.requests[3]); unregistered.headers['X-Maya-Key-Id'] = 'X'.repeat(43);
     assert.equal((await invoke(unregistered)).status, 401); assert.equal(calls, 1);
     env.ENABLE_CHAT = 'false'; assert.equal((await invoke(fixture.requests[4])).status, 503); assert.equal(calls, 1);
-    assert.equal(db.prepare('SELECT day_count FROM chat_budget').get().day_count, 1);
+    assert.equal(reservations, 1);
     assert.equal(networkAttempted, false);
     console.log('NATIVE_WIRE_INTEROP_PASS: 64 input signatures; actual bundled Worker synthetic auth/replay/tamper/budget checks.');
-  } finally { db.close(); }
+  }
 })().catch(() => { console.error('NATIVE_WIRE_INTEROP_FAILED'); process.exitCode = 1; });
 process.on('exit', () => { if (networkAttempted) { console.error('UNEXPECTED_NETWORK_ATTEMPT'); process.exitCode = 1; } });

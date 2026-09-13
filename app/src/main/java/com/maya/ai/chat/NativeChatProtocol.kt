@@ -7,6 +7,7 @@ import java.security.MessageDigest
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.ECParameterSpec
+import java.security.spec.ECFieldFp
 import java.util.Base64
 
 /** Native text-only wire policy. No network, Android, key generation or storage. */
@@ -53,6 +54,11 @@ object NativeChatProtocol {
         val p = key.params; val e = expectedCurve
         ensure(p.curve == e.curve && p.generator == e.generator && p.order == e.order && p.cofactor == e.cofactor,
             "INVALID_LOCAL_KEY")
+        val prime = (p.curve.field as? ECFieldFp)?.p ?: throw Rejected("INVALID_LOCAL_KEY")
+        val x = key.w.affineX; val y = key.w.affineY
+        ensure(x.signum() >= 0 && x < prime && y.signum() >= 0 && y < prime, "INVALID_LOCAL_KEY")
+        ensure(y.modPow(BigInteger.valueOf(2), prime) ==
+            (x.modPow(BigInteger.valueOf(3), prime) + p.curve.a * x + p.curve.b).mod(prime), "INVALID_LOCAL_KEY")
         // RFC 7638 member order; base64url coordinates need no JSON escaping.
         return "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"${coordinate(key.w.affineX)}\",\"y\":\"${coordinate(key.w.affineY)}\"}"
     }

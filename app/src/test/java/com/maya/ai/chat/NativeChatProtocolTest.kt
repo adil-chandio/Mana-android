@@ -48,9 +48,22 @@ class NativeChatProtocolTest {
         assertEquals(43, NativeChatProtocol.fingerprint(public).length)
         rejects("INVALID_LOCAL_KEY") { NativeChatProtocol.publicJwk(key("secp384r1").public as ECPublicKey) }
     }
+    @Test fun invalidPointOnCorrectCurveIsRejected() {
+        val valid = key().public as ECPublicKey
+        val invalid = object : ECPublicKey {
+            override fun getW() = java.security.spec.ECPoint(java.math.BigInteger.ZERO, java.math.BigInteger.ZERO)
+            override fun getParams() = valid.params
+            override fun getAlgorithm() = "EC"
+            override fun getFormat() = "X.509"
+            override fun getEncoded() = valid.encoded
+        }
+        rejects("INVALID_LOCAL_KEY") { NativeChatProtocol.publicJwk(invalid) }
+    }
     @Test fun malformedDerRejectedIncludingZeroNonMinimalNegativeAndOutOfRange() {
         val good = byteArrayOf(0x30, 6, 2, 1, 1, 2, 1, 1)
         assertEquals(64, NativeChatProtocol.derToP1363(good).size)
+        val padded = byteArrayOf(0x30, 7, 2, 2, 0, 0x80.toByte(), 2, 1, 1)
+        assertEquals(0x80.toByte(), NativeChatProtocol.derToP1363(padded)[31])
         val variants = listOf(byteArrayOf(), good.copyOf(7), good + 0, good.copyOf().apply { this[0] = 0x31 },
             good.copyOf().apply { this[1] = 5 }, good.copyOf().apply { this[2] = 3 },
             good.copyOf().apply { this[4] = 0 }, good.copyOf().apply { this[4] = 0x80.toByte() },
