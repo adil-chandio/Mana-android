@@ -54,6 +54,7 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+    testOptions { unitTests.includeAndroidResources = true }
     kotlinOptions {
         jvmTarget = '17'
     }
@@ -66,6 +67,7 @@ dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'androidx.media3:media3-exoplayer:1.3.1'
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.13'
     testImplementation 'org.json:json:20240303'
 }
 
@@ -88,6 +90,14 @@ tasks.configureEach { task ->
 
 // Make native-test evidence visible even in the unchanged legacy CI workflow.
 tasks.withType(Test).configureEach {
+    systemProperty 'robolectric.dependency.repo.url', 'https://repo.maven.apache.org/maven2'
+    afterTest { descriptor, result ->
+        if (result.failedTestCount && System.getenv('GITHUB_ACTIONS') == 'true') {
+            // Fixed test identifiers/types only, never assertion bodies or private fixtures.
+            logger.lifecycle("::error title=Native JVM test failure::${descriptor.className}.${descriptor.name}: " +
+                result.exceptions.collect { it.class.name }.join(', '))
+        }
+    }
     afterSuite { descriptor, result ->
         if (!descriptor.parent) {
             def summary = "${result.testCount} tests: ${result.successfulTestCount} passed, ${result.failedTestCount} failed, ${result.skippedTestCount} skipped"

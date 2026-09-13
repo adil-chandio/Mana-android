@@ -5,6 +5,10 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.content.res.ColorStateList
+import android.view.inputmethod.InputMethodManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -71,7 +75,6 @@ class NativeChatActivity : AppCompatActivity() {
     private lateinit var consent: CheckBox
     private lateinit var send: Button
     private lateinit var stop: Button
-    private lateinit var accessStop: Button
     private lateinit var create: Button
     private lateinit var copy: Button
     private lateinit var check: Button
@@ -86,18 +89,25 @@ class NativeChatActivity : AppCompatActivity() {
         accessDiagnostic = getAccessDiagnostic(this)
         readinessReason = try { NativeChatReadiness.restore(getSharedPreferences("maya_readiness_diagnostic", Context.MODE_PRIVATE)
             .getString("reason", null)) } catch (_: Exception) { Reason.NOT_CHECKED }
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(18), dp(18), dp(30))
-            setBackgroundColor(Color.rgb(16, 16, 23)); isSaveEnabled = false
+        fun column() = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; isSaveEnabled = false
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         }
+        val chatPage = column().apply { tag = "chat_page" }
+        val checksPage = column().apply { tag = "checks_page" }
+        val infoPage = column().apply { tag = "info_page" }
+        var root = checksPage
         fun label(text: String, size: Float = 15f): TextView = labelView(text, size).also { root.addView(it) }
-        fun button(text: String, action: () -> Unit): Button = Button(this).apply {
-            this.text = text; isAllCaps = false; filterTouchesWhenObscured = true; minHeight = dp(48); isSaveEnabled = false
-            setOnClickListener { action() }; root.addView(this)
+        fun button(text: String, action: () -> Unit): Button = actionButton(text, action).also { root.addView(it) }
+        label("Local readiness · no network", 18f)
+        readinessResult = label(readinessReport(), 15f).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
+        readinessButton = button("Check local Send readiness · no network") { start("readiness", null) { Unit } }
+        button("Copy readiness report") {
+            val report = "MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" + readinessReport()
+            (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Maya local readiness", report))
+            status.text = "Fixed local readiness report copied. No keys, conversation or server details included."
         }
-        label("MAYA · PRIVATE TEXT CHAT", 23f)
-        label("Native Chat v1 · ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        label("This check sends nothing and changes no settings. Only its last fixed reason code is kept locally. A READY result is historical; Send checks again and signs with the saved key. Showing/copying the public key is not required. A missing key stops locally.")
         label("APK ACCESS · NO AI", 18f)
         accessResult = label(accessDiagnostic.report(), 15f).apply {
             setTextIsSelectable(true); accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
@@ -120,7 +130,6 @@ class NativeChatActivity : AppCompatActivity() {
                 NativeChatResponse.Result.Access
             }
         } }
-        accessStop = button("STOP local wait") { stopActive("Stopped locally.") }
         label("Uses your existing saved APK key directly. No need to show/copy it first. This check never creates a key and does not require Chat ON or the message-consent checkbox.")
         button("Copy check report") {
             val report = "MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" + accessDiagnostic.report() +
@@ -132,10 +141,7 @@ class NativeChatActivity : AppCompatActivity() {
             if (active == null) { accessDiagnostic.clear(); showAccessDiagnostic() }
         }
         label("Only the last fixed diagnostic state/code/count/duration is retained locally (best effort). Chat, keys, signatures and server bodies are NOT stored in that report. Backgrounding still clears conversation/consent, not the completed check report.")
-        label("Text only. No tools, voice, browsing or phone actions. The original assistant/Fish settings are separate.")
-        label("LEAVING THIS SCREEN = NEW CONVERSATION", 17f)
-        label("Backgrounding, closing or recreating this screen clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
-        label("1 · APK identity", 18f)
+        label("APK identity · advanced setup", 18f)
         label("Creates/shows only this APK's public identity. Server authorization is manual: APK_PUBLIC_JWK. Never replace OWNER_PUBLIC_JWK or copy a browser private key.")
         create = button("Create / show APK public key") {
             confirm("APK signing identity", "Create a separate key if missing, or show the existing PUBLIC key. No network, registration or replacement. Hardware-backed storage is not guaranteed.") {
@@ -148,28 +154,24 @@ class NativeChatActivity : AppCompatActivity() {
             (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("APK_PUBLIC_JWK", text))
             status.text = "PUBLIC key copied. Add it only to APK_PUBLIC_JWK in the owner's Worker settings. The browser key must stay unchanged."
         }
-        label("2 · Conversation", 18f)
-        readinessResult = label(readinessReport(), 15f).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
-        readinessButton = button("Check local Send readiness · no network") { start("readiness", null) { Unit } }
-        button("Copy readiness report") {
-            val report = "MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" + readinessReport()
-            (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Maya local readiness", report))
-            status.text = "Fixed local readiness report copied. No keys, conversation or server details included."
-        }
-        label("This check sends nothing and changes no settings. Only its last fixed reason code is kept locally. A READY result is historical; Send checks again and signs with the saved key. Showing/copying the public key is not required. A missing key stops locally.")
-        contextNote = label("Context: 0 messages. No previous conversation.")
+        root = chatPage
+        label("Private conversation", 21f)
+        label("Stay here for follow-ups. Leaving the app clears chat and draft; switching these tabs does not.", 14f)
+        contextNote = label("Context: 0 messages. New conversation; no earlier messages.", 14f)
         history = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; isSaveEnabled = false; root.addView(this) }
         counter = label("Your message · 0 / 2,000")
         draft = EditText(this).apply {
-            hint = "Write non-sensitive test text…"; setHintTextColor(Color.LTGRAY); setTextColor(Color.WHITE); textSize = 16f
+            hint = "Write a message…"; setHintTextColor(Color.LTGRAY); setTextColor(Color.WHITE); textSize = 16f
             minLines = 3; maxLines = 8; inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
             imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
             filters = arrayOf(InputFilter.LengthFilter(2000)); isSaveEnabled = false
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
             contentDescription = "Your private text message. Enter inserts a newline."
-            root.addView(this)
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+            background = card(Color.rgb(28, 32, 43))
+            root.addView(this, LinearLayout.LayoutParams(-1, -2))
         }
-        label("2,000 characters/message · 6,000 in context · 12 messages. 5 admitted requests/minute, 50/day shared with browser Chat; no guarantee of free capacity.")
+        label("Text only · replies may be inaccurate · limits in Info", 13f)
         consent = CheckBox(this).apply {
             text = "I agree to send the current conversation to Cloudflare AI. I have stopped the original assistant/automation and will use non-sensitive text during setup."
             filterTouchesWhenObscured = true; setTextColor(Color.WHITE); isSaveEnabled = false; minHeight = dp(48); root.addView(this)
@@ -178,6 +180,7 @@ class NativeChatActivity : AppCompatActivity() {
             if (active != null) return@button
             try {
                 val turn = session.begin(draft.text.toString(), consent.isChecked)
+                hideKeyboard()
                 start("chat", turn) { job ->
                     val signed = identity.sign(turn.input); job.operation.check()
                     if (signed.body != turn.body) throw NativeChatProtocol.Rejected("INVALID_REQUEST")
@@ -185,18 +188,61 @@ class NativeChatActivity : AppCompatActivity() {
                 }
             } catch (e: NativeChatProtocol.Rejected) { status.text = errorText(e.code, false); paint() }
         }
-        stop = button("STOP local wait") { stopActive("Stopped locally.") }
+        stop = actionButton("STOP local wait") { stopActive("Stopped locally.") }.apply { tag = "global_stop" }
         button("Clear local chat") {
             confirm("Clear this local chat?", "Remove this screen's draft/history and stop its local wait. This does not delete your key, erase provider records or refund usage.") {
                 stopActive("Cleared local chat."); session.clear(); draft.setText(""); consent.isChecked = false; renderHistory(); paint()
             }
         }
-        status = label("Ready for setup. No request has been sent. Chat availability is controlled by the owner.").apply {
-            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        }
-        label("STOP ends local waiting, not guaranteed remote work. Failed/uncertain turns are excluded from follow-ups. No automatic retries, history storage or message logging.")
+        root = infoPage
+        label("Privacy & limits", 21f)
+        label("Text only. No tools, voice, browsing or phone actions. The original assistant/Fish settings are separate.")
+        label("LEAVING THIS SCREEN = NEW CONVERSATION", 17f)
+        label("Backgrounding, closing or recreating this screen clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
+        label("2,000 characters/message · 6,000 in context · 12 messages. 5 admitted requests/minute, 50/day shared with browser Chat; no guarantee of free capacity.")
+        label("STOP ends local waiting, not guaranteed remote work or a refund. Failed/uncertain turns are excluded from follow-ups. No automatic retries, history storage or message logging.")
         label("Replies are untrusted plain text and may be inaccurate. Never enter passwords, OTPs, provider tokens or private keys.")
-        val scroll = ScrollView(this).apply { isSaveEnabled = false; addView(root) }; setContentView(scroll)
+        label("Chat uses the saved APK key; displaying it is not required. Server Chat availability is controlled by the owner, not by these tabs. Checks are explicit; opening this screen performs none.")
+        label("Selected Fish voice, wake and original assistant settings remain unchanged. Voice, media, internet research and Agent actions are not enabled in this text screen.")
+
+        val shell = column().apply {
+            setBackgroundColor(Color.rgb(16, 19, 27)); setPadding(dp(16), dp(8), dp(16), dp(8))
+        }
+        shell.addView(labelView("MAYA  /  PRIVATE CHAT", 21f).apply { setTypeface(typeface, Typeface.BOLD) })
+        shell.addView(labelView("${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · memory-only text", 12f))
+        val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; isSaveEnabled = false }
+        shell.addView(tabs)
+        val body = column()
+        status = labelView("No request sent. Server availability is owner-controlled.", 13f).apply {
+            tag = "chat_status"; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        body.addView(status)
+        // Overlay warnings remain visible on every tab, never hidden in setup details.
+        checksPage.removeView(touchWarning); body.addView(touchWarning)
+        val pages = listOf(chatPage, checksPage, infoPage)
+        pages.forEach { body.addView(it) }
+        val scroll = ScrollView(this).apply { isSaveEnabled = false; isFillViewport = true; addView(body) }
+        shell.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        shell.addView(stop, LinearLayout.LayoutParams(-1, -2))
+        val tabButtons = mutableListOf<Button>()
+        fun showPage(index: Int) {
+            hideKeyboard()
+            pages.forEachIndexed { i, page -> page.visibility = if (i == index) View.VISIBLE else View.GONE }
+            tabButtons.forEachIndexed { i, button ->
+                button.isSelected = i == index
+                button.backgroundTintList = ColorStateList.valueOf(if (i == index) Color.rgb(125, 225, 204) else Color.rgb(40, 46, 59))
+                button.setTextColor(if (i == index) Color.rgb(13, 35, 30) else Color.rgb(231, 229, 241))
+                button.contentDescription = button.text.toString() + if (i == index) ", selected tab" else ", tab"
+            }
+            scroll.scrollTo(0, 0)
+        }
+        listOf("Chat", "Checks", "Info").forEachIndexed { i, title ->
+            actionButton(title) { showPage(i) }.also {
+                it.tag = "tab_" + title.lowercase(java.util.Locale.ROOT)
+                tabButtons.add(it); tabs.addView(it, LinearLayout.LayoutParams(0, -2, 1f))
+            }
+        }
+        showPage(0); setContentView(shell)
         draft.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { paint() }
@@ -292,8 +338,8 @@ class NativeChatActivity : AppCompatActivity() {
                     job.accessHttp, SystemClock.elapsedRealtime() - job.started)
                 showAccessDiagnostic()
             }
-            status.text = message + if (job.kind == "chat" && job.operation.attempted) " Remote work may continue/completed; usage may count. No retry." else " No model dispatch confirmed; no automatic retry."
-        } else status.text = message
+            if (::status.isInitialized) status.text = message + if (job.kind == "chat" && job.operation.attempted) " Remote work may continue/completed; usage may count. No retry." else " No model dispatch confirmed; no automatic retry."
+        } else if (::status.isInitialized) status.text = message
         paint()
     }
     private fun errorText(code: String, uncertain: Boolean): String {
@@ -323,7 +369,9 @@ class NativeChatActivity : AppCompatActivity() {
     private fun renderHistory() {
         history.removeAllViews()
         session.messages().forEach { message -> history.addView(labelView((if (message.role == "user") "You\n" else "Maya · model response\n") + message.content).apply {
-            setPadding(dp(12), dp(12), dp(12), dp(12)); setTextIsSelectable(true)
+            setPadding(dp(14), dp(12), dp(14), dp(12)); setTextIsSelectable(true)
+            background = card(if (message.role == "user") Color.rgb(30, 54, 52) else Color.rgb(28, 32, 43))
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }
         }) }
         contextNote.text = "Context: ${session.messages().size} messages. " + if (session.messages().isEmpty()) "New conversation; no earlier messages." else "Follow-up ready; stay on this screen."
     }
@@ -332,7 +380,7 @@ class NativeChatActivity : AppCompatActivity() {
         val busy = active != null
         send.isEnabled = !busy && consent.isChecked && draft.text.toString().isNotBlank()
         readinessButton.isEnabled = !busy
-        accessStop.isEnabled = busy; stop.isEnabled = busy; create.isEnabled = !busy; copy.isEnabled = !busy && publicText != null; check.isEnabled = !busy
+        stop.isEnabled = busy; create.isEnabled = !busy; copy.isEnabled = !busy && publicText != null; check.isEnabled = !busy
         draft.isEnabled = !busy; consent.isEnabled = !busy
         counter.text = "Your message · ${draft.text.length} / 2,000"
     }
@@ -378,20 +426,38 @@ class NativeChatActivity : AppCompatActivity() {
         }
         return super.dispatchTouchEvent(event)
     }
+    private fun hideKeyboard() {
+        if (::draft.isInitialized) (getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
+            ?.hideSoftInputFromWindow(draft.windowToken, 0)
+    }
+    private fun card(color: Int) = GradientDrawable().apply { setColor(color); cornerRadius = dp(12).toFloat() }
+    private fun actionButton(title: String, action: () -> Unit) = Button(this).apply {
+        text = title; textSize = 14f; isAllCaps = false; minWidth = 0; minHeight = dp(48)
+        filterTouchesWhenObscured = true; isSaveEnabled = false
+        backgroundTintList = ColorStateList.valueOf(Color.rgb(40, 46, 59))
+        setTextColor(Color.rgb(231, 229, 241)); setOnClickListener { action() }
+    }
     private fun labelView(value: String, size: Float = 15f) = TextView(this).apply {
         text = value; textSize = size; setTextColor(Color.rgb(231, 229, 241)); setPadding(0, dp(8), 0, dp(8)); isSaveEnabled = false
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     override fun onResume() { super.onResume(); visible = true; showAccessDiagnostic() }
-    override fun onStop() {
+    private fun endLocalSession() {
         visible = false; disclosure?.dismiss(); disclosure = null
-        stopActive("This screen was left; local chat was cleared.", NativeAccessDiagnostic.State.LEFT_SCREEN); session.clear(); draft.setText(""); consent.isChecked = false; renderHistory()
-        super.onStop()
+        stopActive("This screen was left; local chat was cleared.", NativeAccessDiagnostic.State.LEFT_SCREEN)
+        session.clear()
+        if (::draft.isInitialized) draft.setText("")
+        if (::consent.isInitialized) consent.isChecked = false
+        if (::history.isInitialized && ::contextNote.isInitialized) renderHistory()
     }
-    override fun onDestroy() { active?.operation?.cancel(); handler.removeCallbacksAndMessages(null); super.onDestroy() }
+    override fun onStop() { endLocalSession(); super.onStop() }
+    override fun onDestroy() {
+        // Also fence callbacks if destruction occurs without the normal onStop path.
+        endLocalSession(); handler.removeCallbacksAndMessages(null); super.onDestroy()
+    }
     @Deprecated("Deprecated in Android") override fun onBackPressed() {
         if (draft.text.isNotEmpty() || session.messages().isNotEmpty() || active != null)
-            confirm("Leave private Chat?", "Leaving clears this local conversation and stops local waiting. It does not erase provider records or refund usage.") { finish() }
-        else finish()
+            confirm("Leave private Chat?", "Leaving clears this local conversation and stops local waiting. It does not erase provider records or refund usage.") { endLocalSession(); finish() }
+        else { endLocalSession(); finish() }
     }
 }

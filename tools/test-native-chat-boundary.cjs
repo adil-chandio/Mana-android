@@ -13,7 +13,7 @@ const m = read('app/src/main/java/com/maya/ai/MainActivity.kt');
 assert(m.includes('request.isForMainFrame && request.hasGesture()'));
 assert(m.includes('webView.url in listOf('));
 assert.equal(read('public/index.html'), read('app/src/main/assets/web/index.html'));
-assert.equal(JSON.parse(read('release/version.json')).versionCode, 90);
+assert.equal(JSON.parse(read('release/version.json')).versionCode, 91);
 assert(read('app/build.gradle').includes("implementation 'com.squareup.okhttp3:okhttp:4.12.0'"));
 console.log('Native static integration boundaries PASS (not a device/UI execution test).');
 
@@ -32,3 +32,9 @@ assert(a.includes('Copy readiness report'));
 assert(a.includes('getString("reason", null)'));
 assert(a.includes('putString("reason", reason.name)'));
 assert(!m.includes('!settings.convoMode'));
+
+assert(a.includes('listOf("Chat", "Checks", "Info")'));
+assert(a.includes('showPage(0); setContentView(shell)'));
+assert(a.includes('shell.addView(stop, LinearLayout.LayoutParams(-1, -2))'));
+assert(a.includes('{ endLocalSession(); finish() }'));
+assert(a.includes('endLocalSession(); handler.removeCallbacksAndMessages(null)'));
