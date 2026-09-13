@@ -85,7 +85,10 @@ class NativeChatActivity : AppCompatActivity() {
             val pending = Runnable { task() }; handler.postDelayed(pending, delay)
             val cancel: () -> Unit = { handler.removeCallbacks(pending) }; cancel
         }, { code ->
-            if (::speechStatus.isInitialized) speechStatus.text = "Fish · ${code.name}\n${code.hint}"
+            if (::speechStatus.isInitialized) {
+                speechStatus.visibility = View.VISIBLE
+                speechStatus.text = "Fish · ${code.name}\n${code.hint}"
+            }
             paint()
         })
     }
@@ -262,12 +265,12 @@ class NativeChatActivity : AppCompatActivity() {
         val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; isSaveEnabled = false }
         shell.addView(tabs)
         val body = column()
-        status = labelView("No request sent. Server availability is owner-controlled.", 13f).apply {
+        status = labelView("No Chat request sent. Server Chat is owner-controlled.", 13f).apply {
             tag = "chat_status"; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
         body.addView(status)
         speechStatus = labelView("Fish · IDLE\n" + NativeFishPolicy.Code.IDLE.hint, 13f).apply {
-            tag = "fish_status"; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            tag = "fish_status"; visibility = View.GONE; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
         body.addView(speechStatus)
         // Overlay warnings remain visible on every tab, never hidden in setup details.

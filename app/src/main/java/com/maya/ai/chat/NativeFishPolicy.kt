@@ -64,7 +64,7 @@ object NativeFishPolicy {
             val b = JSONObject(body); val h = JSONObject(headers)
             require(b.keys().asSequence().toSet() == setOf("text", "format", "mp3_bitrate", "latency", "chunk_length", "normalize", "temperature", "top_p", "prosody", "reference_id"))
             require(b.getString("reference_id") == root.getString("reference"))
-            require(b.getString("text").isNotBlank() && b.get("mp3_bitrate") == 128 && b.get("latency") == "balanced")
+            require(b.get("text") is String && b.getString("text").isNotBlank() && b.get("mp3_bitrate") == 128 && b.get("latency") == "balanced")
             require(b.get("chunk_length") == 100 && b.get("normalize") == true)
             require(b.get("temperature") is Number && b.getDouble("temperature") in 0.1..0.9)
             require(b.get("top_p") is Number && b.getDouble("top_p") == 0.7)
