@@ -13,6 +13,7 @@ import android.text.Editable
 import android.text.InputFilter
 import android.text.InputType
 import android.text.TextWatcher
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.*
@@ -27,6 +28,16 @@ import java.util.concurrent.TimeUnit
 /** Native text-only screen. No WebView, voice, device bridge or incoming intent data. */
 class NativeChatActivity : AppCompatActivity() {
     companion object {
+        private var sharedAccessDiagnostic: NativeAccessDiagnostic? = null
+        @Synchronized private fun getAccessDiagnostic(context: Context): NativeAccessDiagnostic {
+            return sharedAccessDiagnostic ?: run {
+                val prefs = context.applicationContext.getSharedPreferences("maya_access_diagnostic", Context.MODE_PRIVATE)
+                NativeAccessDiagnostic(object : NativeAccessDiagnostic.Store {
+                    override fun read(): String? = prefs.getString("last_check", null)
+                    override fun write(value: String) { prefs.edit().putString("last_check", value).apply() }
+                }).also { sharedAccessDiagnostic = it }
+            }
+        }
         const val OPEN_LINK = "maya-private-chat://open"
         // Shared single worker, no pending queue: an uninterruptible Keystore operation
         // cannot create an unbounded pile of threads/jobs across Activity recreation.
@@ -35,6 +46,8 @@ class NativeChatActivity : AppCompatActivity() {
     private class Job(val kind: String, val turn: NativeChatConversation.Turn?, val started: Long) {
         val operation = NativeChatTransport.Operation { SystemClock.elapsedRealtime() }
         var timeout: Runnable? = null
+        var accessTicket: NativeAccessDiagnostic.Ticket? = null
+        @Volatile var accessHttp = 0
     }
     private val handler = Handler(Looper.getMainLooper())
     private val session = NativeChatConversation { SystemClock.elapsedRealtime() }
@@ -52,13 +65,19 @@ class NativeChatActivity : AppCompatActivity() {
     private lateinit var consent: CheckBox
     private lateinit var send: Button
     private lateinit var stop: Button
+    private lateinit var accessStop: Button
     private lateinit var create: Button
     private lateinit var copy: Button
     private lateinit var check: Button
+    private lateinit var accessDiagnostic: NativeAccessDiagnostic
+    private lateinit var accessResult: TextView
+    private lateinit var touchWarning: TextView
+    private var obscuredTouchSeen = false
     private var disclosure: AlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        accessDiagnostic = getAccessDiagnostic(this)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(18), dp(18), dp(30))
             setBackgroundColor(Color.rgb(16, 16, 23)); isSaveEnabled = false
@@ -71,6 +90,40 @@ class NativeChatActivity : AppCompatActivity() {
         }
         label("MAYA · PRIVATE TEXT CHAT", 23f)
         label("Native Chat v1 · ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        label("APK ACCESS · NO AI", 18f)
+        accessResult = label(accessDiagnostic.report(), 15f).apply {
+            setTextIsSelectable(true); accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        touchWarning = label("", 15f)
+        check = button("Check APK access + replay · no AI") { start("check", null) { job ->
+            val signed = identity.sign(null); job.operation.check()
+            accessStage(job, NativeAccessDiagnostic.Stage.FIRST_REQUEST)
+            val first = transport.execute(signed, job.operation)
+            job.accessHttp = if (first is NativeChatResponse.Result.Error) first.status else 200
+            if (first is NativeChatResponse.Result.Error) first
+            else {
+                if (first !== NativeChatResponse.Result.Access) throw NativeChatProtocol.Rejected("INVALID_SERVER_RESPONSE")
+                job.operation.check()
+                accessStage(job, NativeAccessDiagnostic.Stage.REPLAY_REQUEST)
+                val second = transport.execute(signed, job.operation)
+                job.accessHttp = if (second is NativeChatResponse.Result.Error) second.status else 200
+                if (second !is NativeChatResponse.Result.Error || second.status != 409 || second.code != "REPLAY_OR_WINDOW_FULL" || second.remoteUncertain)
+                    throw NativeChatProtocol.Rejected("REPLAY_CHECK_FAILED")
+                NativeChatResponse.Result.Access
+            }
+        } }
+        accessStop = button("STOP local wait") { stopActive("Stopped locally.") }
+        label("Uses your existing saved APK key directly. No need to show/copy it first. This check never creates a key and does not require Chat ON or the message-consent checkbox.")
+        button("Copy check report") {
+            val report = "MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" + accessDiagnostic.report() +
+                "\nObscured touch blocked: $obscuredTouchSeen"
+            (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Maya access diagnostic", report))
+            status.text = "Fixed diagnostic report copied. Paste it after leaving this screen; no messages, keys or signatures included."
+        }
+        button("Clear check report") {
+            if (active == null) { accessDiagnostic.clear(); showAccessDiagnostic() }
+        }
+        label("Only the last fixed diagnostic state/code/count/duration is retained locally (best effort). Chat, keys, signatures and server bodies are NOT stored in that report. Backgrounding still clears conversation/consent, not the completed check report.")
         label("Text only. No tools, voice, browsing or phone actions. The original assistant/Fish settings are separate.")
         label("LEAVING THIS SCREEN = NEW CONVERSATION", 17f)
         label("Backgrounding, closing or recreating this screen clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
@@ -87,19 +140,6 @@ class NativeChatActivity : AppCompatActivity() {
             (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("APK_PUBLIC_JWK", text))
             status.text = "PUBLIC key copied. Add it only to APK_PUBLIC_JWK in the owner's Worker settings. The browser key must stay unchanged."
         }
-        check = button("Check APK access + replay · no AI") { start("check", null) { job ->
-            val signed = identity.sign(null); job.operation.check()
-            val first = transport.execute(signed, job.operation)
-            if (first is NativeChatResponse.Result.Error) first
-            else {
-                if (first !== NativeChatResponse.Result.Access) throw NativeChatProtocol.Rejected("INVALID_SERVER_RESPONSE")
-                job.operation.check()
-                val second = transport.execute(signed, job.operation)
-                if (second !is NativeChatResponse.Result.Error || second.status != 409 || second.code != "REPLAY_OR_WINDOW_FULL" || second.remoteUncertain)
-                    throw NativeChatProtocol.Rejected("REPLAY_CHECK_FAILED")
-                NativeChatResponse.Result.Access
-            }
-        } }
         label("2 · Conversation", 18f)
         contextNote = label("Context: 0 messages. No previous conversation.")
         history = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; isSaveEnabled = false; root.addView(this) }
@@ -158,8 +198,12 @@ class NativeChatActivity : AppCompatActivity() {
     private fun start(kind: String, turn: NativeChatConversation.Turn?, work: (Job) -> Any) {
         if (active != null || !visible) { if (turn != null) session.fail(turn); return }
         val job = Job(kind, turn, SystemClock.elapsedRealtime()); active = job
+        if (kind == "check") {
+            obscuredTouchSeen = false; touchWarning.text = ""
+            job.accessTicket = accessDiagnostic.begin(); showAccessDiagnostic()
+        }
         status.text = "Working locally / waiting for a bounded result… STOP is available."; paint()
-        job.timeout = Runnable { if (active === job) stopActive("Local 20-second deadline expired.") }.also { handler.postDelayed(it, NativeChatProtocol.DEADLINE_MS) }
+        job.timeout = Runnable { if (active === job) stopActive("Local 20-second deadline expired.", NativeAccessDiagnostic.State.TIMEOUT) }.also { handler.postDelayed(it, NativeChatProtocol.DEADLINE_MS) }
         fun launch(ready: Boolean) {
             if (active !== job || !visible) return
             if (!ready) { finish(job, null, "ASSISTANT_BUSY"); return }
@@ -178,6 +222,17 @@ class NativeChatActivity : AppCompatActivity() {
     private fun finish(job: Job, result: Any?, error: String?) {
         if (active !== job || !visible) return
         job.timeout?.let { handler.removeCallbacks(it) }; active = null
+        job.accessTicket?.let { ticket ->
+            val state = when {
+                result === NativeChatResponse.Result.Access && error == null -> NativeAccessDiagnostic.State.PASS
+                error == "DEADLINE_EXCEEDED" -> NativeAccessDiagnostic.State.TIMEOUT
+                error == "STOPPED_LOCALLY" -> NativeAccessDiagnostic.State.STOPPED
+                else -> NativeAccessDiagnostic.State.FAILED
+            }
+            val code = error ?: (result as? NativeChatResponse.Result.Error)?.code ?: "INVALID_SERVER_RESPONSE"
+            accessDiagnostic.finish(ticket, state, code, job.accessHttp, SystemClock.elapsedRealtime() - job.started)
+            showAccessDiagnostic()
+        }
         val seconds = (SystemClock.elapsedRealtime() - job.started).coerceAtLeast(0) / 1000.0
         try {
             when {
@@ -203,11 +258,17 @@ class NativeChatActivity : AppCompatActivity() {
         if (job.kind == "chat") status.append("\nLocal wait: ${String.format(java.util.Locale.US, "%.2f", seconds)} s (key/signing + network + server; not model-only speed).")
         paint()
     }
-    private fun stopActive(message: String) {
+    private fun stopActive(message: String, accessState: NativeAccessDiagnostic.State = NativeAccessDiagnostic.State.STOPPED) {
         val job = active
         if (job != null) {
             job.timeout?.let { handler.removeCallbacks(it) }; active = null
             job.operation.cancel(); session.stop()
+            job.accessTicket?.let {
+                accessDiagnostic.finish(it, accessState,
+                    if (accessState == NativeAccessDiagnostic.State.TIMEOUT) "DEADLINE_EXCEEDED" else "STOPPED_LOCALLY",
+                    job.accessHttp, SystemClock.elapsedRealtime() - job.started)
+                showAccessDiagnostic()
+            }
             status.text = message + if (job.kind == "chat" && job.operation.attempted) " Remote work may continue/completed; usage may count. No retry." else " No model dispatch confirmed; no automatic retry."
         } else status.text = message
         paint()
@@ -243,18 +304,37 @@ class NativeChatActivity : AppCompatActivity() {
         if (!::send.isInitialized) return
         val busy = active != null
         send.isEnabled = !busy && publicText != null && consent.isChecked && draft.text.toString().isNotBlank()
-        stop.isEnabled = busy; create.isEnabled = !busy; copy.isEnabled = !busy && publicText != null; check.isEnabled = !busy && publicText != null
+        accessStop.isEnabled = busy; stop.isEnabled = busy; create.isEnabled = !busy; copy.isEnabled = !busy && publicText != null; check.isEnabled = !busy
         draft.isEnabled = !busy; consent.isEnabled = !busy
         counter.text = "Your message · ${draft.text.length} / 2,000"
+    }
+    private fun showAccessDiagnostic() {
+        if (::accessResult.isInitialized) accessResult.text = accessDiagnostic.report()
+    }
+    private fun accessStage(job: Job, stage: NativeAccessDiagnostic.Stage) {
+        runOnUiThread {
+            if (active === job && visible) { job.accessTicket?.let { accessDiagnostic.stage(it, stage) }; showAccessDiagnostic() }
+        }
+    }
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        val obscured = event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0
+        if (obscured) {
+            if (event.actionMasked == MotionEvent.ACTION_DOWN && ::touchWarning.isInitialized) {
+                obscuredTouchSeen = true
+                touchWarning.text = "Touch blocked by Android's overlay protection. Hide floating windows/screen filters, then tap again. This blocked touch sent no request."
+            }
+            return true // Keep protection; do not silently bypass an obscured confirmation.
+        }
+        return super.dispatchTouchEvent(event)
     }
     private fun labelView(value: String, size: Float = 15f) = TextView(this).apply {
         text = value; textSize = size; setTextColor(Color.rgb(231, 229, 241)); setPadding(0, dp(8), 0, dp(8)); isSaveEnabled = false
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    override fun onResume() { super.onResume(); visible = true }
+    override fun onResume() { super.onResume(); visible = true; showAccessDiagnostic() }
     override fun onStop() {
         visible = false; disclosure?.dismiss(); disclosure = null
-        stopActive("This screen was left; local chat was cleared."); session.clear(); draft.setText(""); consent.isChecked = false; renderHistory()
+        stopActive("This screen was left; local chat was cleared.", NativeAccessDiagnostic.State.LEFT_SCREEN); session.clear(); draft.setText(""); consent.isChecked = false; renderHistory()
         super.onStop()
     }
     override fun onDestroy() { active?.operation?.cancel(); handler.removeCallbacksAndMessages(null); super.onDestroy() }
