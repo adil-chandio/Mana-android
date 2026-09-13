@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { BRANCH, SHA256, APPROVED_UPLOAD_PARENT, checkUploadSource, readUploadSource, checkArtifact, checkBuild, activeDeployment, checkLogging, preserveConfiguration, uploadOnly } from './upload-version.mjs';
+import { BRANCH, SHA256, APPROVED_UPLOAD_PARENT, checkUploadSource, readUploadSource, checkArtifact, checkBuild, activeDeployment, checkLogging, preserveConfiguration, uploadOnly, uploadFailureDetails } from './upload-version.mjs';
+import { API_STAGES, summarizeApiFailure } from './api-failure-summary.mjs';
 const bytes = readFileSync(new URL('worker-upload.mjs', import.meta.url));
 const activeId = '11111111-1111-4111-8111-111111111111', newId = '22222222-2222-4222-8222-222222222222';
 const deploymentId = '33333333-3333-4333-8333-333333333333', dbId = '44444444-4444-4444-8444-444444444444';
@@ -442,4 +443,129 @@ test('old diagnostic upload parent no longer authorizes inheritance upload', asy
   const f = fixture(); await assert.rejects(f.run({ source: { head: ENV.WORKERS_CI_COMMIT_SHA,
     parents: ['96e98a6e764acd324b33365a3a61f98018b82496'] } }), /UPLOAD_SOURCE_NOT_APPROVED/);
   assert.equal(f.state.calls.length, 0);
+});
+
+test('safe API summary only includes fixed stage, valid HTTP status and up to three integer codes', () => {
+  const report = summarizeApiFailure('version_upload', 400, { success: false,
+    errors: [{ code: 10021, message: 'PRIVATE_API_MESSAGE', error_chain: [{ code: 999, message: 'PRIVATE_NESTED' }] },
+      { code: 10000, documentation_url: 'https://PRIVATE.invalid' }], result: { token: 'PRIVATE_VALUE' } });
+  assert.deepEqual(report, { stage: 'version_upload', http_status: 400, cf_code_state: 'numeric', cf_codes: [10021, 10000] });
+  assert(Object.isFrozen(report)); assert(Object.isFrozen(report.cf_codes));
+  assert(!JSON.stringify(report).includes('PRIVATE'));
+  assert.deepEqual(Object.keys(report), ['stage', 'http_status', 'cf_code_state', 'cf_codes']);
+});
+for (const errors of [undefined, null, {}, [{ code: '10021' }], [{ code: 'PRIVATE_TOKEN' }], [{ code: -1 }],
+  [{ code: 1000000 }], [{ code: 1.5 }], [{ code: true }], [{ code: Infinity }], [{ code: NaN }], [null],
+  [{ code: 10021 }, { message: 'PRIVATE' }], Array(4).fill({ code: 10021 })]) {
+  test('invalid or excessive API code lists are wholly withheld, not coerced or truncated', () => {
+    const r = summarizeApiFailure('version_upload', 400, { success: false, errors });
+    assert.equal(r.cf_code_state, 'withheld'); assert.deepEqual(r.cf_codes, []);
+  });
+}
+test('missing versus empty code envelopes remain distinct without raw data', () => {
+  assert.equal(summarizeApiFailure('version_upload', 400).cf_code_state, 'unavailable');
+  assert.equal(summarizeApiFailure('version_upload', 400, { success: false, errors: [] }).cf_code_state, 'none');
+  assert.equal(summarizeApiFailure('version_upload', 200, { success: true, errors: [{ code: 10021 }] }).cf_code_state, 'unavailable');
+});
+test('unknown stage, fake HTTP statuses and inherited envelope data cannot leak', () => {
+  for (const status of ['PRIVATE', '400', 99, 600, 400.5, true, null, undefined]) {
+    const r = summarizeApiFailure('PRIVATE_STAGE', status, Object.create({ success: false, errors: [{ code: 10021 }] }));
+    assert.deepEqual(r, { stage: 'unavailable', http_status: 'unavailable', cf_code_state: 'unavailable', cf_codes: [] });
+  }
+  assert.equal(summarizeApiFailure('version_upload', 400, { success: false, errors: [Object.create({ code: 10021 })] }).cf_code_state, 'withheld');
+});
+for (const [index, stage] of API_STAGES.entries()) test(`API rejection reports exact stage ${stage}, no further calls or retry`, async () => {
+  const f = fixture(); f.state.hook = () => f.state.calls.length === index + 1
+    ? Response.json({ success: false, errors: [{ code: 10021, message: ENV.CLOUDFLARE_API_TOKEN }] }, { status: 400 }) : undefined;
+  let failure;
+  await assert.rejects(f.run(), error => { failure = error; return true; });
+  assert.deepEqual(uploadFailureDetails(failure), { stage, http_status: 400, cf_code_state: 'numeric', cf_codes: [10021] });
+  assert.equal(f.state.calls.length, index + 1);
+  assert.equal(f.state.calls.filter(c => c.options.method === 'POST').length, index >= 5 ? 1 : 0);
+  assert.match(failure.code, index >= 5 ? /VERSION_MAY_EXIST_NOT_PROMOTED$/ : /NO_UPLOAD_STARTED$/);
+  assert(!JSON.stringify(uploadFailureDetails(failure)).includes(ENV.CLOUDFLARE_API_TOKEN));
+});
+test('HTTP 200 with success:false is still an API failure with its numeric code', async () => {
+  const f = fixture(); f.state.hook = () => Response.json({ success: false, errors: [{ code: 10000, message: 'PRIVATE' }] });
+  await assert.rejects(f.run(), error => {
+    assert.deepEqual(uploadFailureDetails(error), { stage: 'active_deployment', http_status: 200, cf_code_state: 'numeric', cf_codes: [10000] });
+    return error.code === 'CLOUDFLARE_API_ERROR_NO_UPLOAD_STARTED';
+  });
+});
+test('HTML and malformed JSON failure retain only status/stage, not body or fake codes', async () => {
+  for (const response of [new Response('<html>PRIVATE_API_BODY</html>', { status: 403 }),
+    new Response('PRIVATE_INVALID_JSON', { status: 400, headers: { 'content-type': 'application/json' } }),
+    new Response(new Uint8Array([255]), { status: 400, headers: { 'content-type': 'application/json' } })]) {
+    const f = fixture(); f.state.hook = () => response;
+    await assert.rejects(f.run(), error => {
+      assert.equal(uploadFailureDetails(error).stage, 'active_deployment');
+      assert.equal(uploadFailureDetails(error).http_status, response.status);
+      assert.equal(uploadFailureDetails(error).cf_code_state, 'unavailable');
+      assert(!error.message.includes('PRIVATE')); return true;
+    });
+  }
+});
+test('non-success body has 64 KiB bound and is cancelled, never partially logged', async () => {
+  const f = fixture(); let cancelled = 0;
+  f.state.hook = () => new Response(new ReadableStream({ start(c) { c.enqueue(new Uint8Array(65537)); }, cancel() { cancelled++; } }),
+    { status: 400, headers: { 'content-type': 'application/json' } });
+  await assert.rejects(f.run(), error => {
+    assert.equal(uploadFailureDetails(error).http_status, 400); assert.equal(uploadFailureDetails(error).cf_code_state, 'unavailable');
+    return error.code === 'API_RESPONSE_TOO_LARGE_NO_UPLOAD_STARTED';
+  });
+  assert.equal(cancelled, 1);
+});
+test('network failure has no fabricated HTTP status and no stale prior-request status', async () => {
+  const f = fixture(); f.state.hook = () => { if (f.state.calls.length === 2) throw Error('PRIVATE_NETWORK_ERROR'); };
+  await assert.rejects(f.run(), error => {
+    assert.deepEqual(uploadFailureDetails(error), { stage: 'logging_preflight', http_status: 'unavailable', cf_code_state: 'unavailable', cf_codes: [] });
+    return error.code === 'UPLOAD_FAILED_NO_UPLOAD_STARTED';
+  });
+});
+test('deadline detail snapshot is stable when fetch resolves after failure', async () => {
+  const f = fixture(); let resolve, failure;
+  f.state.hook = () => new Promise(r => { resolve = r; });
+  await assert.rejects(f.run({ timeoutMs: 20 }), error => { failure = error; return true; });
+  const snapshot = uploadFailureDetails(failure);
+  assert.deepEqual(snapshot, { stage: 'active_deployment', http_status: 'unavailable', cf_code_state: 'unavailable', cf_codes: [] });
+  resolve(Response.json({ success: false, errors: [{ code: 10021 }] }, { status: 400 }));
+  await new Promise(setImmediate); assert.deepEqual(uploadFailureDetails(failure), snapshot); assert.equal(f.state.calls.length, 1);
+});
+test('post-response configuration guard is not falsely reported as an HTTP failure', async () => {
+  const f = fixture(); f.state.version.resources.bindings.find(b => b.name === 'ENABLE_CHAT').text = 'true';
+  await assert.rejects(f.run(), error => {
+    assert.equal(uploadFailureDetails(error), null); return /AI_OFF_PAIRING_ON_REQUIRED/.test(error.code);
+  });
+});
+test('failure details cannot be spoofed by attaching public properties to arbitrary errors', () => {
+  for (const error of [null, {}, Error('PRIVATE'), { stage: 'version_upload', http_status: 400, cf_codes: ['PRIVATE'] }]) {
+    assert.equal(uploadFailureDetails(error), null);
+  }
+});
+test('previous inheritance-upload source cannot run this new diagnostic attempt', async () => {
+  const f = fixture(); await assert.rejects(f.run({ source: { head: ENV.WORKERS_CI_COMMIT_SHA,
+    parents: ['fb1796f3f67b65842587ba6be1dc95d6461d6113'] } }), /UPLOAD_SOURCE_NOT_APPROVED/); assert.equal(f.state.calls.length, 0);
+});
+test('real CLI outputs safe failure block for one rejected synthetic POST, never raw API data', () => {
+  const f = fixture();
+  const preload = `import cp from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';
+    cp.execFileSync=(binary,args)=>{if(binary!=='git')throw Error('PRIVATE');
+      if(args.join(' ')==='rev-parse HEAD')return '${SOURCE.head}';
+      if(args.join(' ')==='cat-file commit HEAD')return 'tree ${'0'.repeat(40)}\\nparent ${APPROVED_UPLOAD_PARENT}\\nauthor PRIVATE\\n\\nsubject';
+      throw Error('PRIVATE')};syncBuiltinESMExports();let calls=0,posts=0;
+    globalThis.fetch=async(url,opts)=>{calls++;const path=new URL(url).pathname.split('/maya-chat')[1];let result;
+      if(opts.method==='POST'){if(path!=='/versions'||++posts!==1)throw Error('PRIVATE');
+        return Response.json({success:false,errors:[{code:10021,message:'PRIVATE_API_TEXT',error_chain:[{message:'PRIVATE_NESTED'}]}]},{status:400});}
+      if(opts.method!=='GET')throw Error('PRIVATE');
+      if(path==='/deployments')result=${JSON.stringify(f.state.deployments)};
+      else if(path==='/script-settings')result=${JSON.stringify(f.state.logging)};
+      else if(path==='/versions/${activeId}')result=${JSON.stringify(f.state.version)};
+      else throw Error('PRIVATE');return Response.json({success:true,result});};
+    process.on('exit',()=>{if(calls!==6||posts!==1)process.exitCode=9});`;
+  const cli = spawnSync(process.execPath, ['--import', 'data:text/javascript,' + encodeURIComponent(preload), 'upload-version.mjs'],
+    { cwd: new URL('.', import.meta.url), env: ENV, encoding: 'utf8', timeout: 5000 });
+  assert.equal(cli.status, 1); assert.equal(cli.stdout, '');
+  assert.deepEqual(cli.stderr.trim().split('\n'), ['MAYA_UPLOAD_API_FAILURE_V1', 'stage=version_upload', 'http_status=400',
+    'cf_code_state=numeric', 'cf_codes=10021', 'CLOUDFLARE_API_ERROR_VERSION_MAY_EXIST_NOT_PROMOTED']);
+  for (const secret of ['PRIVATE', publicText, ENV.CLOUDFLARE_API_TOKEN, 'SYNTHETIC_PROJECT_ONLY', activeId]) assert(!cli.stderr.includes(secret));
 });

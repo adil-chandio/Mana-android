@@ -7,9 +7,10 @@ import { createHash, webcrypto } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { loggingOffRepresentation } from './logging-policy.mjs';
 import { snapshotAIBinding } from './ai-binding-snapshot.mjs';
+import { API_STAGES, summarizeApiFailure } from './api-failure-summary.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
-export const APPROVED_UPLOAD_PARENT = 'fb1796f3f67b65842587ba6be1dc95d6461d6113';
+export const APPROVED_UPLOAD_PARENT = 'd3426d1b7dd4a689badc22d9ef734de98665c198';
 export const SHA256 = '589b28829e2154c06232c167c02ce5cbc9df0e68fb839af31830e79b9502db70';
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const HEX32 = /^[a-f0-9]{32}$/i;
@@ -17,6 +18,8 @@ const ACKS = ['FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS
 export class Blocked extends Error {
   constructor(code) { super(code); this.code = code; }
 }
+const failureDetails = new WeakMap();
+export const uploadFailureDetails = error => failureDetails.get(error) ?? null;
 const requireThat = (condition, code) => { if (!condition) throw new Blocked(code); };
 export function checkArtifact(bytes) {
   requireThat(bytes?.byteLength === 83087 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
@@ -109,51 +112,60 @@ export async function preserveConfiguration(version, expectedId) {
   return { main_module: 'worker-upload.mjs', compatibility_date: runtime.compatibility_date,
     compatibility_flags: [], usage_model: 'standard', bindings: preserved.sort((a, b) => a.name.localeCompare(b.name)) };
 }
-// All API output stays in memory; it is never printed, persisted or sent to GitHub.
-async function readEnvelope(response, check, cleanup) {
-  requireThat(response?.ok && response.headers.get('content-type')?.split(';')[0].trim() === 'application/json'
+// Raw API output stays memory-only; only bounded numeric error codes may be projected.
+async function readEnvelope(response, check, cleanup, onFailure) {
+  requireThat(response && response.headers.get('content-type')?.split(';')[0].trim() === 'application/json'
     && response.body, 'CLOUDFLARE_API_ERROR');
   const reader = response.body.getReader(); cleanup.push(() => reader.cancel().catch(() => {}));
   let size = 0, text = ''; const decoder = new TextDecoder('utf-8', { fatal: true });
   try {
     while (true) {
       const { done, value } = await reader.read(); check(); if (done) break;
-      size += value.byteLength; requireThat(size <= 1_048_576, 'API_RESPONSE_TOO_LARGE');
+      size += value.byteLength; requireThat(size <= (response.ok ? 1_048_576 : 65536), 'API_RESPONSE_TOO_LARGE');
       text += decoder.decode(value, { stream: true });
     }
     const parsed = JSON.parse(text + decoder.decode());
-    requireThat(parsed?.success === true && parsed.result, 'CLOUDFLARE_API_ERROR');
+    if (!response.ok || parsed?.success !== true || !parsed.result) {
+      onFailure(parsed);
+      throw new Blocked('CLOUDFLARE_API_ERROR');
+    }
     return parsed.result;
   } finally { reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetch, timeoutMs = 60000 }) {
   checkArtifact(bytes); const build = checkBuild(env); checkUploadSource(env, source);
   const base = `https://api.cloudflare.com/client/v4/accounts/${build.accountId}/workers/scripts/${WORKER}`;
-  const abort = new AbortController(), cleanup = []; let closed = false, postStarted = false, reject;
+  const abort = new AbortController(), cleanup = []; let closed = false, postStarted = false, reject, requestDiagnostic = null;
   const deadline = Date.now() + timeoutMs;
   const guard = new Promise((_, fail) => { reject = fail; });
   const check = () => { requireThat(!closed && Date.now() < deadline, 'UPLOAD_DEADLINE'); };
   const timer = setTimeout(() => { closed = true; abort.abort(); reject(new Blocked('UPLOAD_DEADLINE')); }, timeoutMs);
-  const api = async (suffix, body) => {
-    check();
+  const api = async (stage, suffix, body) => {
+    check(); requireThat(API_STAGES.includes(stage), 'API_PATH_DENIED');
     // No caller-supplied URL, redirects, cookies, retries, PUT, PATCH or DELETE.
     requireThat(['/deployments', '/script-settings', '/versions?bindings_inherit=strict'].includes(suffix)
       || /^\/versions\/[a-f0-9-]{36}$/i.test(suffix), 'API_PATH_DENIED');
     if (body) { requireThat(suffix === '/versions?bindings_inherit=strict' && !postStarted, 'WRITE_DENIED'); postStarted = true; }
+    requestDiagnostic = summarizeApiFailure(stage);
     const response = await fetcher(base + suffix, { method: body ? 'POST' : 'GET', body,
       headers: { Authorization: `Bearer ${build.token}`, Accept: 'application/json' },
       redirect: 'error', signal: abort.signal });
     const cancel = () => response.body?.cancel().catch(() => {});
     if (closed) { cancel(); check(); }
-    cleanup.push(cancel); check(); return readEnvelope(response, check, cleanup);
+    cleanup.push(cancel); check();
+    requestDiagnostic = summarizeApiFailure(stage, response?.status);
+    const result = await readEnvelope(response, check, cleanup, envelope => {
+      check(); requestDiagnostic = summarizeApiFailure(stage, response?.status, envelope);
+    });
+    check(); requestDiagnostic = null; return result;
   };
   try {
     return await Promise.race([guard, (async () => {
-      const before = activeDeployment(await api('/deployments')); check();
-      checkLogging(await api('/script-settings')); check();
-      const configuration = await preserveConfiguration(await api(`/versions/${before.version}`), before.version); check();
-      requireThat(JSON.stringify(activeDeployment(await api('/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
-      checkLogging(await api('/script-settings')); check();
+      const before = activeDeployment(await api('active_deployment', '/deployments')); check();
+      checkLogging(await api('logging_preflight', '/script-settings')); check();
+      const configuration = await preserveConfiguration(await api('source_version', `/versions/${before.version}`), before.version); check();
+      requireThat(JSON.stringify(activeDeployment(await api('active_recheck', '/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
+      checkLogging(await api('logging_recheck', '/script-settings')); check();
       const metadata = { ...configuration,
         // Explicit active UUID, NOT latest. Strict resolution prevents silent drops.
         bindings: configuration.bindings.map(b => b.name === 'AI'
@@ -167,14 +179,14 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
       form.append('worker-upload.mjs', new Blob([bytes], { type: 'application/javascript+module' }), 'worker-upload.mjs');
-      const uploaded = await api('/versions?bindings_inherit=strict', form); check();
+      const uploaded = await api('version_upload', '/versions?bindings_inherit=strict', form); check();
       requireThat(UUID.test(uploaded?.id || ''), 'INVALID_UPLOAD_RECEIPT');
-      const observed = await preserveConfiguration(await api(`/versions/${uploaded.id}`), uploaded.id); check();
+      const observed = await preserveConfiguration(await api('uploaded_version', `/versions/${uploaded.id}`), uploaded.id); check();
       requireThat(JSON.stringify(observed.bindings.find(b => b.name === 'AI'))
         === JSON.stringify(configuration.bindings.find(b => b.name === 'AI')), 'INHERITED_AI_METADATA_MISMATCH');
       requireThat(JSON.stringify(observed) === JSON.stringify(configuration), 'UPLOADED_CONFIGURATION_MISMATCH');
-      requireThat(JSON.stringify(activeDeployment(await api('/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
-      checkLogging(await api('/script-settings')); check();
+      requireThat(JSON.stringify(activeDeployment(await api('active_readback', '/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
+      checkLogging(await api('logging_readback', '/script-settings')); check();
       return { worker: WORKER, version: uploaded.id, previousActiveVersion: before.version,
         commit: build.commit, sha256: SHA256, aiEnabled: false, promoted: false,
         aiBindingInherited: true, aiBindingVerified: true };
@@ -182,7 +194,9 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
   } catch (error) {
     // A timed-out/error POST may have created an unpublished version. Never retry.
     const code = error instanceof Blocked ? error.code : 'UPLOAD_FAILED';
-    throw new Blocked(code + (postStarted ? '_VERSION_MAY_EXIST_NOT_PROMOTED' : '_NO_UPLOAD_STARTED'));
+    const failure = new Blocked(code + (postStarted ? '_VERSION_MAY_EXIST_NOT_PROMOTED' : '_NO_UPLOAD_STARTED'));
+    if (requestDiagnostic) failureDetails.set(failure, requestDiagnostic);
+    throw failure;
   } finally {
     closed = true; clearTimeout(timer); abort.abort();
     for (const fn of cleanup) { try { fn(); } catch {} }
@@ -197,6 +211,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(JSON.stringify(receipt));
     console.log('Uploaded an AI-OFF version only. Active traffic was NOT changed. Review in Cloudflare before any manual promotion.');
   } catch (error) {
+    const detail = uploadFailureDetails(error);
+    if (detail) {
+      console.error('MAYA_UPLOAD_API_FAILURE_V1');
+      console.error(`stage=${detail.stage}`);
+      console.error(`http_status=${detail.http_status}`);
+      console.error(`cf_code_state=${detail.cf_code_state}`);
+      console.error(`cf_codes=${detail.cf_codes.length ? detail.cf_codes.join(',') : 'none'}`);
+    }
     console.error(error instanceof Blocked ? error.code : 'LOCAL_CHECK_FAILED'); process.exitCode = 1;
   }
 }

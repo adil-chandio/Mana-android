@@ -1,3 +1,12 @@
+> **CURRENT MODE: safe API error reporting + one Chat-OFF upload — 2026-09-13.**
+> See [API-ERROR-ATTEMPT.md](API-ERROR-ATTEMPT.md). Preserves the exact-active AI
+> inheritance policy and all prior guards. Only adds bounded failure reporting:
+> fixed request stage, HTTP status and up to three integer API error codes.
+> No raw messages, token/key/project values, automatic retry, promotion or AI call.
+> Source must be the direct child of `d3426d1b7dd4a689badc22d9ef734de98665c198`.
+> Worker artifact and candidate tag unchanged. 313 build-side tests passed.
+> All earlier banners below are historical; do not Retry their builds.
+
 > **CURRENT MODE: exact-active AI inheritance, Chat-OFF upload — 2026-09-13.**
 > See [AI-INHERIT-UPLOAD.md](AI-INHERIT-UPLOAD.md). The `project` field is now
 > observed, not guessed. AI is inherited from the exact active version UUID,
