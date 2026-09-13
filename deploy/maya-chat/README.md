@@ -1,3 +1,9 @@
+> **Current candidate: mobile chat v1 — Chat OFF.**
+> See [MOBILE-CHAT-UPLOAD.md](MOBILE-CHAT-UPLOAD.md). Compact mobile layout,
+> explicit refresh/context warning and best-effort browser leave warning.
+> Artifact 90,726 bytes; SHA d85ceb6a760b60a831072525e2388569e8338fe9ba45aed9450988661639c701.
+> No new model request needed for the owner visual check. Historical notes follow.
+
 > **Current candidate: response timing v1 — Chat OFF.**
 > See [RESPONSE-TIMING-UPLOAD.md](RESPONSE-TIMING-UPLOAD.md). Adds local wait
 > measurement and corrects obsolete status text, without changing model/auth/

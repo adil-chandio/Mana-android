@@ -10,8 +10,8 @@ import { snapshotAIBinding } from './ai-binding-snapshot.mjs';
 import { API_STAGES, summarizeApiFailure } from './api-failure-summary.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
-export const APPROVED_UPLOAD_PARENT = '06d9846b44538167ed0f965b1ee1f81317efb061';
-export const SHA256 = '6c61eb3163c5bf09c6fdbe5377135d5f9c0d9669df9b33a74b64d012a78db6aa';
+export const APPROVED_UPLOAD_PARENT = 'f6e26dde0ccdb8911b1359f1755e76fb69f229d0';
+export const SHA256 = 'd85ceb6a760b60a831072525e2388569e8338fe9ba45aed9450988661639c701';
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const HEX32 = /^[a-f0-9]{32}$/i;
 const ACKS = ['FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS_CONFIRMED'];
@@ -22,7 +22,7 @@ const failureDetails = new WeakMap();
 export const uploadFailureDetails = error => failureDetails.get(error) ?? null;
 const requireThat = (condition, code) => { if (!condition) throw new Blocked(code); };
 export function checkArtifact(bytes) {
-  requireThat(bytes?.byteLength === 84399 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
+  requireThat(bytes?.byteLength === 90726 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
 }
 export function checkBuild(env) {
   requireThat(env.WORKERS_CI === '1' && env.CI === 'true', 'CLOUDFLARE_BUILD_ONLY');
@@ -180,10 +180,10 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
         bindings: configuration.bindings.map(b => b.name === 'AI'
           ? { name: 'AI', type: 'inherit', version_id: 'latest' } : b),
         annotations: {
-        'workers/message': 'Maya Qwen response timing v1. Chat OFF. AI inherit requires latest=active checks; readback required. Manual promotion required.',
+        'workers/message': 'Maya Qwen mobile chat v1. Chat OFF. AI inherit requires latest=active checks; readback required. Manual promotion required.',
         'workers/commit_sha': build.commit,
         'workers/repository_url': 'https://github.com/adil-chandio/Mana-android',
-        'workers/tag': 'maya-timing-v1-6c61eb31'
+        'workers/tag': 'maya-mobile-v1-d85ceb6a'
       } };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));

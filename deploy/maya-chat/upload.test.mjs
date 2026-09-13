@@ -241,9 +241,9 @@ test('raw Git source reads are bounded, shell-free, and retain shallow-clone par
 });
 test('Qwen candidate metadata identifies the artifact and pins AI inheritance while preserving other bindings', async () => {
   const f = fixture(); await f.run();
-  assert.equal(bytes.byteLength, 84399);
-  assert.equal(SHA256, '6c61eb3163c5bf09c6fdbe5377135d5f9c0d9669df9b33a74b64d012a78db6aa');
-  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-timing-v1-6c61eb31');
+  assert.equal(bytes.byteLength, 90726);
+  assert.equal(SHA256, 'd85ceb6a760b60a831072525e2388569e8338fe9ba45aed9450988661639c701');
+  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-mobile-v1-d85ceb6a');
   assert.match(f.state.metadata.annotations['workers/message'], /Qwen.*Chat OFF/);
   assert(bytes.includes(Buffer.from('@cf/qwen/qwen3-30b-a3b-fp8')));
   assert.equal(f.state.metadata.bindings.length, f.state.version.resources.bindings.length);
