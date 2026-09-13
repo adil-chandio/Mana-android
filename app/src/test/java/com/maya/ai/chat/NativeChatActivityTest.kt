@@ -337,4 +337,17 @@ class NativeChatActivityTest {
         noTransport()
     }
 
+    @Test fun agentNavigationRequiresConfirmationAndClearsPrivateChatBeforeLaunching() {
+        completedHistory();fill();tab("info").performClick()
+        button("Open Agent workspace · local pilot").performClick()
+        assertNull(shadowOf(activity).nextStartedActivity)
+        assertEquals(2,field<NativeChatConversation>("session").messages().size)
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("com.maya.ai.agent.AgentActivity",shadowOf(activity).nextStartedActivity.component!!.className)
+        assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
+        assertEquals("",field<EditText>("draft").text.toString());assertFalse(field<CheckBox>("consent").isChecked)
+        noTransport()
+    }
+
 }

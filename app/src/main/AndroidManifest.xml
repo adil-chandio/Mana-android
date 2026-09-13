@@ -48,6 +48,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Local-only plan approval pilot. No inbound data or Accessibility service. -->
+        <activity android:name=".agent.AgentActivity" android:exported="true"
+            android:label="Maya Agent Lab" android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <!-- Explicit native recovery entry. Ignores incoming URLs and extras. -->
         <activity android:name=".update.UpdateActivity" android:exported="true"
             android:label="MAYA Updates">
