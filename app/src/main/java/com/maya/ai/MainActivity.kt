@@ -82,6 +82,8 @@ class MainActivity : AppCompatActivity() {
        engine "shak wale" haal mein maana jata hai; koi bhi bol de to clear. */
     @Volatile private var ttsEverSpoke = false
     private var recognizer: SpeechRecognizer? = null
+    // Object allocation is not proof of an active recognition session.
+    private var recognitionActive = false
     private var speechGeneration = 0L
     @Volatile private var httpClosed = false
     private val httpDeadlines = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
@@ -221,16 +223,16 @@ class MainActivity : AppCompatActivity() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
-    /** Read-only idle gate for the separate native text screen; never changes voice preferences. */
-    fun nativeChatReady(result: (Boolean) -> Unit) {
-        if (isFinishing || isDestroyed || httpRequests.isNotEmpty() || recognizer != null || tts?.isSpeaking == true ||
-            webView.url !in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
-            result(false); return
-        }
-        try { webView.evaluateJavascript("""(function(){try{return !!(window.__mayaJSOK && typeof settings==='object' &&
-            !settings.wakeWord && !settings.autoListen && !settings.convoMode && !settings.proactive && !settings.notifSpeak &&
-            !speaking && !listening && !thinking && typeof TURNS==='object' && !TURNS.active &&
-            typeof INPUT_SESSION==='object' && !INPUT_SESSION.active);}catch(e){return false;}})()""") { result(it == "true") } } catch (_: Exception) { result(false) }
+    /** Read-only local readiness; no preference writes, service starts or remote page evaluation. */
+    fun nativeChatReady(result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) {
+        val policy = com.maya.ai.chat.NativeChatReadiness
+        try {
+            val state = policy.main(isFinishing || isDestroyed, httpRequests.isNotEmpty(), recognitionActive,
+                tts?.isSpeaking == true, webView.url in listOf(
+                    "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html"))
+            if (state != com.maya.ai.chat.NativeChatReadiness.Reason.READY) { result(state); return }
+            webView.evaluateJavascript(policy.LOCAL_SCRIPT) { result(policy.fromJavascript(it)) }
+        } catch (_: Exception) { result(com.maya.ai.chat.NativeChatReadiness.Reason.UNKNOWN) }
     }
 
     /* ================= WEBVIEW CLIENT ================= */
@@ -378,8 +380,9 @@ class MainActivity : AppCompatActivity() {
     /* ================= STT ================= */
 
     private fun stopRecognizer() {
+        recognitionActive = false
         speechGeneration++
-        try { recognizer?.destroy(); recognizer = null } catch (e: Exception) {}
+        try { recognizer?.destroy(); recognizer = null } catch (e: Exception) { recognitionActive = recognizer != null }
     }
 
     /* ================= JS BRIDGE ================= */
@@ -551,6 +554,7 @@ class MainActivity : AppCompatActivity() {
                 }, 30000)
                 val timing = com.maya.ai.voice.RecognitionTiming { android.os.SystemClock.elapsedRealtime() }
                 try {
+                recognitionActive = true
                 recognizer = makeRecognizer().apply {
                     setRecognitionListener(object : RecognitionListener {
                         override fun onReadyForSpeech(params: Bundle?) {
@@ -572,11 +576,13 @@ class MainActivity : AppCompatActivity() {
                         }
                         override fun onError(error: Int) {
                             if (session != speechGeneration || delivered) return
+                            recognitionActive = false
                             delivered = true
                             evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error,'$owner')")
                         }
                         override fun onResults(results: Bundle?) {
                             if (session != speechGeneration || delivered) return
+                            recognitionActive = false
                             delivered = true
                             val recognitionMs = timing.endToFinal() ?: -1L
                             /* 🎙️ Android 3-5 andaze deta hai. Pehle sirf pehla liya jata tha

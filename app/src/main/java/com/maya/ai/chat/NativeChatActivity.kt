@@ -17,6 +17,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.*
+import com.maya.ai.chat.NativeChatReadiness.Reason
 import androidx.appcompat.app.AppCompatActivity
 import com.maya.ai.BuildConfig
 import com.maya.ai.MainActivity
@@ -46,6 +47,8 @@ class NativeChatActivity : AppCompatActivity() {
     private class Job(val kind: String, val turn: NativeChatConversation.Turn?, val started: Long) {
         val operation = NativeChatTransport.Operation { SystemClock.elapsedRealtime() }
         var timeout: Runnable? = null
+        var readinessTimeout: Runnable? = null
+        var waitingReadiness = false
         var accessTicket: NativeAccessDiagnostic.Ticket? = null
         @Volatile var accessHttp = 0
     }
@@ -57,6 +60,9 @@ class NativeChatActivity : AppCompatActivity() {
     private var visible = false
     private var publicText: String? = null
     private lateinit var status: TextView
+    private lateinit var readinessResult: TextView
+    private lateinit var readinessButton: Button
+    private var readinessReason = Reason.NOT_CHECKED
     private lateinit var contextNote: TextView
     private lateinit var history: LinearLayout
     private lateinit var keyText: TextView
@@ -78,6 +84,8 @@ class NativeChatActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         accessDiagnostic = getAccessDiagnostic(this)
+        readinessReason = try { NativeChatReadiness.restore(getSharedPreferences("maya_readiness_diagnostic", Context.MODE_PRIVATE)
+            .getString("reason", null)) } catch (_: Exception) { Reason.NOT_CHECKED }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(18), dp(18), dp(30))
             setBackgroundColor(Color.rgb(16, 16, 23)); isSaveEnabled = false
@@ -141,6 +149,14 @@ class NativeChatActivity : AppCompatActivity() {
             status.text = "PUBLIC key copied. Add it only to APK_PUBLIC_JWK in the owner's Worker settings. The browser key must stay unchanged."
         }
         label("2 · Conversation", 18f)
+        readinessResult = label(readinessReport(), 15f).apply { accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE }
+        readinessButton = button("Check local Send readiness · no network") { start("readiness", null) { Unit } }
+        button("Copy readiness report") {
+            val report = "MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" + readinessReport()
+            (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Maya local readiness", report))
+            status.text = "Fixed local readiness report copied. No keys, conversation or server details included."
+        }
+        label("This check sends nothing and changes no settings. Only its last fixed reason code is kept locally. A READY result is historical; Send checks again and signs with the saved key. Showing/copying the public key is not required. A missing key stops locally.")
         contextNote = label("Context: 0 messages. No previous conversation.")
         history = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; isSaveEnabled = false; root.addView(this) }
         counter = label("Your message · 0 / 2,000")
@@ -213,15 +229,16 @@ class NativeChatActivity : AppCompatActivity() {
                 catch (_: Exception) { runOnUiThread { finish(job, null, "SERVICE_UNAVAILABLE") } }
             } } catch (_: java.util.concurrent.RejectedExecutionException) { finish(job, null, "BUSY") }
         }
-        // Do not silently change existing wake/voice preferences. Unknown/busy fails closed.
-        if (kind != "chat") launch(true)
-        else if (getSharedPreferences("maya", Context.MODE_PRIVATE).getBoolean("wake", false) || WakeWordService.instance != null ||
-            WakeWordService.fishOutputActive || WakeWordService.haal != "KHALI" || com.maya.ai.MayaAct.hasPendingActions()) launch(false)
-        else MainActivity.instance?.nativeChatReady { launch(it) } ?: launch(true)
+        // Same fresh local gate for Send and the explicit no-network diagnostic.
+        if (kind == "chat" || kind == "readiness") inspectReadiness(job) { reason ->
+            if (kind == "readiness") finish(job, reason, null)
+            else if (reason == Reason.READY) launch(true)
+            else finish(job, null, "READINESS_" + reason.name)
+        } else launch(true)
     }
     private fun finish(job: Job, result: Any?, error: String?) {
         if (active !== job || !visible) return
-        job.timeout?.let { handler.removeCallbacks(it) }; active = null
+        job.timeout?.let { handler.removeCallbacks(it) }; job.readinessTimeout?.let { handler.removeCallbacks(it) }; active = null
         job.accessTicket?.let { ticket ->
             val state = when {
                 result === NativeChatResponse.Result.Access && error == null -> NativeAccessDiagnostic.State.PASS
@@ -236,6 +253,7 @@ class NativeChatActivity : AppCompatActivity() {
         val seconds = (SystemClock.elapsedRealtime() - job.started).coerceAtLeast(0) / 1000.0
         try {
             when {
+                result is Reason && job.kind == "readiness" -> status.text = result.hint + " Local check only; no network or AI request."
                 error != null -> { job.turn?.let { session.fail(it) }; status.text = errorText(error, job.kind == "chat" && job.operation.attempted) }
                 result is String && job.kind == "key" -> {
                     publicText = result; keyText.text = "PUBLIC JWK:\n$result\nFingerprint: ${NativeChatProtocol.hash(result.toByteArray(Charsets.UTF_8))}"
@@ -255,13 +273,18 @@ class NativeChatActivity : AppCompatActivity() {
                 else -> { job.turn?.let { session.fail(it) }; status.text = errorText("INVALID_SERVER_RESPONSE", job.kind == "chat" && job.operation.attempted) }
             }
         } catch (_: Exception) { job.turn?.let { session.fail(it) }; status.text = errorText("INVALID_SERVER_RESPONSE", job.kind == "chat" && job.operation.attempted) }
-        if (job.kind == "chat") status.append("\nLocal wait: ${String.format(java.util.Locale.US, "%.2f", seconds)} s (key/signing + network + server; not model-only speed).")
+        if (job.kind == "chat") {
+            val duration = String.format(java.util.Locale.US, "%.2f", seconds)
+            status.append(if (job.operation.attempted) "\nLocal wait: $duration s (key/signing + network + server; not model-only speed)."
+                else "\nLocal pre-dispatch wait: $duration s. No network request sent.")
+        }
         paint()
     }
     private fun stopActive(message: String, accessState: NativeAccessDiagnostic.State = NativeAccessDiagnostic.State.STOPPED) {
         val job = active
         if (job != null) {
-            job.timeout?.let { handler.removeCallbacks(it) }; active = null
+            job.timeout?.let { handler.removeCallbacks(it) }; job.readinessTimeout?.let { handler.removeCallbacks(it) }; active = null
+            if (job.waitingReadiness) { job.waitingReadiness = false; recordReadiness(Reason.CANCELLED) }
             job.operation.cancel(); session.stop()
             job.accessTicket?.let {
                 accessDiagnostic.finish(it, accessState,
@@ -274,6 +297,10 @@ class NativeChatActivity : AppCompatActivity() {
         paint()
     }
     private fun errorText(code: String, uncertain: Boolean): String {
+        if (code.startsWith("READINESS_")) {
+            val reason = Reason.values().firstOrNull { it.name == code.removePrefix("READINESS_") } ?: Reason.UNKNOWN
+            return "Local Send blocked: ${reason.name}. ${reason.hint} No model request was sent."
+        }
         val message = when (code) {
             "KEY_REQUIRED" -> "No APK key. Use Create / show APK public key first."
             "KEYSTORE_UNAVAILABLE", "INVALID_LOCAL_KEY", "SIGNING_FAILED", "INVALID_SIGNATURE_ENCODING" -> "APK key/signing unavailable. No automatic key replacement."
@@ -303,10 +330,34 @@ class NativeChatActivity : AppCompatActivity() {
     private fun paint() {
         if (!::send.isInitialized) return
         val busy = active != null
-        send.isEnabled = !busy && publicText != null && consent.isChecked && draft.text.toString().isNotBlank()
+        send.isEnabled = !busy && consent.isChecked && draft.text.toString().isNotBlank()
+        readinessButton.isEnabled = !busy
         accessStop.isEnabled = busy; stop.isEnabled = busy; create.isEnabled = !busy; copy.isEnabled = !busy && publicText != null; check.isEnabled = !busy
         draft.isEnabled = !busy; consent.isEnabled = !busy
         counter.text = "Your message · ${draft.text.length} / 2,000"
+    }
+    private fun readinessReport() = "Last local readiness: ${readinessReason.name}\n${readinessReason.hint}\nThis result is not a server/AI test. Send always rechecks."
+    private fun recordReadiness(reason: Reason) {
+        readinessReason = reason
+        try { getSharedPreferences("maya_readiness_diagnostic", Context.MODE_PRIVATE).edit().putString("reason", reason.name).apply() } catch (_: Exception) {}
+        if (::readinessResult.isInitialized) readinessResult.text = readinessReport()
+    }
+    private fun inspectReadiness(job: Job, complete: (Reason) -> Unit) {
+        job.waitingReadiness = true; recordReadiness(Reason.CHECKING)
+        fun deliver(reason: Reason) {
+            if (active !== job || !visible || !job.waitingReadiness) return
+            job.waitingReadiness = false
+            job.readinessTimeout?.let { handler.removeCallbacks(it) }
+            recordReadiness(reason); complete(reason)
+        }
+        job.readinessTimeout = Runnable { deliver(Reason.UI_UNRESPONSIVE) }.also { handler.postDelayed(it, 1500) }
+        try {
+            val native = NativeChatReadiness.runtime(getSharedPreferences("maya", Context.MODE_PRIVATE).getBoolean("wake", false),
+                WakeWordService.instance != null, WakeWordService.fishOutputActive, WakeWordService.haal,
+                com.maya.ai.MayaAct.hasPendingActions())
+            if (native != Reason.READY) deliver(native)
+            else MainActivity.instance?.nativeChatReady { deliver(it) } ?: deliver(Reason.READY)
+        } catch (_: Exception) { deliver(Reason.UNKNOWN) }
     }
     private fun showAccessDiagnostic() {
         if (::accessResult.isInitialized) accessResult.text = accessDiagnostic.report()
