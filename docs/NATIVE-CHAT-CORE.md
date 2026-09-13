@@ -1,3 +1,5 @@
+> Historical foundation receipt (artifact 87). Native screen/transport integration is now described in [NATIVE-CHAT-INTEGRATION.md](NATIVE-CHAT-INTEGRATION.md); build and device acceptance remain separate.
+
 # Native Chat — first implementation increment
 
 Date: 2026-09-13. Owner selected Option 2: secure Chat inside the APK, not a

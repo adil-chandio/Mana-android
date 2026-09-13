@@ -11,7 +11,7 @@ import java.security.spec.ECGenParameterSpec
 
 /**
  * Independent APK signing identity. Never imports/exports a private key.
- * Not wired to an Activity yet. Creating a key must be an explicit owner action;
+ * Creating a key is an explicit native confirmation action;
  * reading/signing must never silently create or replace an existing identity.
  * AndroidKeyStore-backed does not imply verified hardware backing/attestation.
  */

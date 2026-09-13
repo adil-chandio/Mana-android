@@ -1,6 +1,6 @@
 package com.maya.ai.chat
 
-/** Memory-only transaction owner. UI must call on one thread; no timers/network. */
+/** Memory-only transaction owner. Synchronized ownership for UI/transport callbacks; no timers/network. */
 class NativeChatConversation(private val monotonicMs: () -> Long) {
     class Turn internal constructor(internal val input: List<NativeChatProtocol.Message>, val body: String,
         internal val deadline: Long) {
@@ -11,10 +11,10 @@ class NativeChatConversation(private val monotonicMs: () -> Long) {
     enum class StopOutcome { NO_ACTIVE_REQUEST, NOT_DISPATCHED, REMOTE_UNCERTAIN }
     private var history = emptyList<NativeChatProtocol.Message>()
     private var active: Turn? = null
-    val busy: Boolean get() = active != null
-    fun messages(): List<NativeChatProtocol.Message> = history.toList()
+    @get:Synchronized val busy: Boolean get() = active != null
+    @Synchronized fun messages(): List<NativeChatProtocol.Message> = history.toList()
 
-    fun begin(text: String, consent: Boolean): Turn {
+    @Synchronized fun begin(text: String, consent: Boolean): Turn {
         if (active != null) throw NativeChatProtocol.Rejected("BUSY")
         if (!consent) throw NativeChatProtocol.Rejected("CONSENT_REQUIRED")
         NativeChatProtocol.validateDraft(text)
@@ -26,18 +26,18 @@ class NativeChatConversation(private val monotonicMs: () -> Long) {
             throw NativeChatProtocol.Rejected("INVALID_LOCAL_CLOCK")
         return Turn(input, body, now + NativeChatProtocol.DEADLINE_MS).also { active = it }
     }
-    fun check(turn: Turn) {
+    @Synchronized fun check(turn: Turn) {
         if (active !== turn) throw NativeChatProtocol.Rejected("STOPPED_LOCALLY")
         if (monotonicMs() >= turn.deadline) throw NativeChatProtocol.Rejected("DEADLINE_EXCEEDED")
     }
     /** Call immediately before transport dispatch, after signing and another check. */
-    fun markDispatched(turn: Turn) {
+    @Synchronized fun markDispatched(turn: Turn) {
         check(turn)
         if (turn.dispatched) throw NativeChatProtocol.Rejected("ALREADY_DISPATCHED")
         turn.dispatched = true
     }
     /** Call only after bounded, request-bound response validation in the transport. */
-    fun complete(turn: Turn, finalText: String): Completion {
+    @Synchronized fun complete(turn: Turn, finalText: String): Completion {
         if (active !== turn) return Completion.STALE
         if (monotonicMs() >= turn.deadline) { active = null; return Completion.EXPIRED }
         if (!NativeChatProtocol.validReply(finalText)) {
@@ -48,11 +48,11 @@ class NativeChatConversation(private val monotonicMs: () -> Long) {
         return Completion.ACCEPTED
     }
     /** A failed/late request never commits history or clears a newer transaction. */
-    fun fail(turn: Turn): StopOutcome = if (active !== turn) StopOutcome.NO_ACTIVE_REQUEST else stop()
-    fun stop(): StopOutcome {
+    @Synchronized fun fail(turn: Turn): StopOutcome = if (active !== turn) StopOutcome.NO_ACTIVE_REQUEST else stop()
+    @Synchronized fun stop(): StopOutcome {
         val turn = active ?: return StopOutcome.NO_ACTIVE_REQUEST
         active = null
         return if (turn.dispatched) StopOutcome.REMOTE_UNCERTAIN else StopOutcome.NOT_DISPATCHED
     }
-    fun clear(): StopOutcome { val outcome = stop(); history = emptyList(); return outcome }
+    @Synchronized fun clear(): StopOutcome { val outcome = stop(); history = emptyList(); return outcome }
 }

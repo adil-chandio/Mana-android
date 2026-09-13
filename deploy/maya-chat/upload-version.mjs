@@ -11,7 +11,7 @@ import { API_STAGES, summarizeApiFailure } from './api-failure-summary.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
 export const APPROVED_UPLOAD_PARENT = 'f6e26dde0ccdb8911b1359f1755e76fb69f229d0';
-export const SHA256 = 'd85ceb6a760b60a831072525e2388569e8338fe9ba45aed9450988661639c701';
+export const SHA256 = '04d0fd3b1442260fb1ab7b3ff04aca7adf987621bf9743a059bbc12207c8f24f';
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const HEX32 = /^[a-f0-9]{32}$/i;
 const ACKS = ['FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS_CONFIRMED'];
@@ -22,7 +22,7 @@ const failureDetails = new WeakMap();
 export const uploadFailureDetails = error => failureDetails.get(error) ?? null;
 const requireThat = (condition, code) => { if (!condition) throw new Blocked(code); };
 export function checkArtifact(bytes) {
-  requireThat(bytes?.byteLength === 90726 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
+  requireThat(bytes?.byteLength === 91650 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
 }
 export function checkBuild(env) {
   requireThat(env.WORKERS_CI === '1' && env.CI === 'true', 'CLOUDFLARE_BUILD_ONLY');
@@ -78,7 +78,8 @@ export async function preserveConfiguration(version, expectedId) {
     && (!runtime.limits || Object.keys(runtime.limits).length === 0)
     && [undefined, 'standard'].includes(runtime.usage_model), 'UNREVIEWED_RUNTIME_CONFIGURATION');
   const bindings = resources?.bindings;
-  requireThat(Array.isArray(bindings) && bindings.length === 9, 'BINDINGS_REQUIRE_REVIEW');
+  requireThat(Array.isArray(bindings) && ((bindings.length === 9 && !bindings.some(b => b?.name === 'APK_PUBLIC_JWK'))
+    || (bindings.length === 10 && bindings.some(b => b?.name === 'APK_PUBLIC_JWK'))), 'BINDINGS_REQUIRE_REVIEW');
   const seen = new Map(), preserved = [];
   for (const b of bindings) {
     requireThat(b && typeof b.name === 'string' && !seen.has(b.name), 'DUPLICATE_OR_INVALID_BINDING');
@@ -95,7 +96,7 @@ export async function preserveConfiguration(version, expectedId) {
         && Object.keys(b).every(k => ['name', 'type', 'id', 'database_id'].includes(k)), 'EXISTING_DB_REQUIRED');
       preserved.push({ name: 'DB', type: 'd1', database_id: id });
     } else {
-      requireThat(['APP_ORIGIN', 'OWNER_PUBLIC_JWK', 'PAIRING_ENABLED', 'ENABLE_CHAT', ...ACKS].includes(b.name)
+      requireThat(['APP_ORIGIN', 'OWNER_PUBLIC_JWK', 'APK_PUBLIC_JWK', 'PAIRING_ENABLED', 'ENABLE_CHAT', ...ACKS].includes(b.name)
         && b.type === 'plain_text' && typeof b.text === 'string'
         && Object.keys(b).every(k => ['name', 'type', 'text'].includes(k)), 'UNREVIEWED_BINDING');
       preserved.push({ name: b.name, type: 'plain_text', text: b.text });
@@ -105,17 +106,24 @@ export async function preserveConfiguration(version, expectedId) {
     && seen.get('ENABLE_CHAT')?.text === 'false' && ACKS.every(name => ['true', 'false'].includes(seen.get(name)?.text)), 'AI_OFF_PAIRING_ON_REQUIRED');
   const origin = seen.get('APP_ORIGIN')?.text;
   requireThat(typeof origin === 'string' && /^https:\/\/maya-chat\.[a-z0-9-]+\.workers\.dev$/.test(origin), 'FINAL_ORIGIN_REQUIRED');
-  const text = seen.get('OWNER_PUBLIC_JWK')?.text;
-  requireThat(typeof text === 'string' && text.length <= 512, 'PUBLIC_KEY_REQUIRED');
-  try {
-    const jwk = JSON.parse(text);
-    requireThat(jwk && Object.keys(jwk).sort().join(',') === 'crv,kty,x,y' && jwk.crv === 'P-256' && jwk.kty === 'EC', 'PUBLIC_KEY_REQUIRED');
-    for (const coordinate of [jwk.x, jwk.y]) {
-      requireThat(typeof coordinate === 'string' && /^[\w-]{43}$/.test(coordinate)
-        && Buffer.from(coordinate, 'base64url').toString('base64url') === coordinate, 'PUBLIC_KEY_REQUIRED');
-    }
-    await webcrypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-  } catch { throw new Blocked('PUBLIC_KEY_REQUIRED'); }
+  async function publicIdentity(text, failure) {
+    requireThat(typeof text === 'string' && text.length <= 512, failure);
+    try {
+      const jwk = JSON.parse(text);
+      requireThat(jwk && Object.keys(jwk).sort().join(',') === 'crv,kty,x,y' && jwk.crv === 'P-256' && jwk.kty === 'EC', failure);
+      for (const coordinate of [jwk.x, jwk.y]) {
+        requireThat(typeof coordinate === 'string' && /^[\w-]{43}$/.test(coordinate)
+          && Buffer.from(coordinate, 'base64url').toString('base64url') === coordinate, failure);
+      }
+      await webcrypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+      return JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x, y: jwk.y });
+    } catch { throw new Blocked(failure); }
+  }
+  const owner = await publicIdentity(seen.get('OWNER_PUBLIC_JWK')?.text, 'PUBLIC_KEY_REQUIRED');
+  if (seen.has('APK_PUBLIC_JWK')) {
+    const apk = await publicIdentity(seen.get('APK_PUBLIC_JWK')?.text, 'APK_PUBLIC_KEY_REQUIRED');
+    requireThat(apk !== owner, 'APK_KEY_MUST_BE_SEPARATE');
+  }
   return { main_module: 'worker-upload.mjs', compatibility_date: runtime.compatibility_date,
     compatibility_flags: [], usage_model: 'standard', bindings: preserved.sort((a, b) => a.name.localeCompare(b.name)) };
 }
@@ -180,10 +188,10 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
         bindings: configuration.bindings.map(b => b.name === 'AI'
           ? { name: 'AI', type: 'inherit', version_id: 'latest' } : b),
         annotations: {
-        'workers/message': 'Maya Qwen mobile chat v1. Chat OFF. AI inherit requires latest=active checks; readback required. Manual promotion required.',
+        'workers/message': 'Maya Qwen separate native APK key v1. Chat OFF. AI inherit requires latest=active checks; readback required. Manual promotion required.',
         'workers/commit_sha': build.commit,
         'workers/repository_url': 'https://github.com/adil-chandio/Mana-android',
-        'workers/tag': 'maya-mobile-v1-d85ceb6a'
+        'workers/tag': 'maya-native-key-v1-04d0fd3b'
       } };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));

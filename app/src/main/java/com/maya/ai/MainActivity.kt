@@ -221,6 +221,18 @@ class MainActivity : AppCompatActivity() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
+    /** Read-only idle gate for the separate native text screen; never changes voice preferences. */
+    fun nativeChatReady(result: (Boolean) -> Unit) {
+        if (isFinishing || isDestroyed || httpRequests.isNotEmpty() || recognizer != null || tts?.isSpeaking == true ||
+            webView.url !in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+            result(false); return
+        }
+        try { webView.evaluateJavascript("""(function(){try{return !!(window.__mayaJSOK && typeof settings==='object' &&
+            !settings.wakeWord && !settings.autoListen && !settings.convoMode && !settings.proactive && !settings.notifSpeak &&
+            !speaking && !listening && !thinking && typeof TURNS==='object' && !TURNS.active &&
+            typeof INPUT_SESSION==='object' && !INPUT_SESSION.active);}catch(e){return false;}})()""") { result(it == "true") } } catch (_: Exception) { result(false) }
+    }
+
     /* ================= WEBVIEW CLIENT ================= */
 
     inner class MayaWebViewClient : WebViewClientCompat() {
@@ -256,6 +268,13 @@ class MainActivity : AppCompatActivity() {
             request: WebResourceRequest
         ): Boolean {
             val url = request.url
+            if (url.toString() == com.maya.ai.chat.NativeChatActivity.OPEN_LINK) {
+                if (request.isForMainFrame && request.hasGesture() && view.url in listOf(
+                        "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                    startActivity(Intent(this@MainActivity, com.maya.ai.chat.NativeChatActivity::class.java))
+                }
+                return true
+            }
             // apni app — andar khule (v4.0.1: file:// fallback bhi WebView ke andar)
             if (url.host == VIRTUAL_HOST || url.scheme == "file") return false
             return try {

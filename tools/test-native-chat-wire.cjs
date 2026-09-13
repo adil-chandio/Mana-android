@@ -52,7 +52,10 @@ const hash = async bytes => b64(await webcrypto.subtle.digest('SHA-256', bytes))
   {
     const { default: worker } = await import('../deploy/maya-chat/worker-upload.mjs');
     let calls = 0;
-    const env = { DB, OWNER_PUBLIC_JWK: JSON.stringify(fixture.publicJwk), PAIRING_ENABLED: 'true', APP_ORIGIN: ORIGIN,
+    const browserPair = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+    const browserFull = await webcrypto.subtle.exportKey('jwk', browserPair.publicKey);
+    const browserPublic = { crv: browserFull.crv, kty: browserFull.kty, x: browserFull.x, y: browserFull.y };
+    const env = { DB, OWNER_PUBLIC_JWK: JSON.stringify(browserPublic), APK_PUBLIC_JWK: JSON.stringify(fixture.publicJwk), PAIRING_ENABLED: 'true', APP_ORIGIN: ORIGIN,
       ENABLE_CHAT: 'true', FREE_PLAN_CONFIRMED: 'true', MODEL_REVIEW_CONFIRMED: 'true', LIVE_AUTH_CHECKS_CONFIRMED: 'true',
       AI: { async run(model, input) { calls++; assert.equal(model, '@cf/qwen/qwen3-30b-a3b-fp8'); assert.equal(input.max_tokens, 256);
         return { object: 'chat.completion', choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'Synthetic native interoperability reply', tool_calls: null, function_call: null } }] }; } } };
@@ -67,6 +70,8 @@ const hash = async bytes => b64(await webcrypto.subtle.digest('SHA-256', bytes))
     const unregistered = structuredClone(fixture.requests[3]); unregistered.headers['X-Maya-Key-Id'] = 'X'.repeat(43);
     assert.equal((await invoke(unregistered)).status, 401); assert.equal(calls, 1);
     env.ENABLE_CHAT = 'false'; assert.equal((await invoke(fixture.requests[4])).status, 503); assert.equal(calls, 1);
+    delete env.APK_PUBLIC_JWK;
+    const revoked = await invoke(fixture.requests[0]); assert.equal(revoked.status, 401);
     assert.equal(reservations, 1);
     assert.equal(networkAttempted, false);
     console.log('NATIVE_WIRE_INTEROP_PASS: 64 input signatures; actual bundled Worker synthetic auth/replay/tamper/budget checks.');

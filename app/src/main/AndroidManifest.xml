@@ -39,6 +39,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Standalone native text UI: ignores inbound data/extras; no deep links. -->
+        <activity android:name=".chat.NativeChatActivity" android:exported="true"
+            android:label="Maya Text Chat" android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <!-- Explicit native recovery entry. Ignores incoming URLs and extras. -->
         <activity android:name=".update.UpdateActivity" android:exported="true"
             android:label="MAYA Updates">

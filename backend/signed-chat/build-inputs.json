@@ -1,0 +1,22 @@
+{
+  "backend/signed-chat/build.mjs": "eaf130bdef24b0b34ebd59d3e8af1e1f5f494ad3a2caee201be4b2aa97fec790",
+  "backend/signed-chat/web/index.html": "f2f2532049675a02a5ada6a6ed768258d12a95e5f856caf813827001f09f9e92",
+  "backend/signed-chat/web/style.css": "8c45cd830668a35bddd119234ccf5d836a0990a3f05b78d769eca6e36d15277f",
+  "backend/signed-chat/wrangler.jsonc": "7c6cd7dd934292a792428fc809df6e7b1d0f546f5600dfaddccbd9b73895ae8d",
+  "backend/chat/budget.mjs": "16679684a55dd352e40aa59a4b3bad6f0daa8b19e40cc2ba6630598c850892ad",
+  "backend/chat/protocol.mjs": "3b651f93e0f7571a03508aac244c1625d6aedc581803462149b5c26c8b4906d9",
+  "backend/pairing/assets.generated.mjs": "2e7f4cd4bb06dca915b3ee8df38ca50a1bb3474287f89d6709dea483791d7cd4",
+  "backend/pairing/auth.mjs": "6157b411fda97fe204073a13db57376f09089e30712cca63072bd719388e40bd",
+  "backend/pairing/deadline.mjs": "7f7912b2644bdfbf7efa0d4ba3e5bffc0135990257e34b5ced0ec48585e9ff18",
+  "backend/pairing/shared.mjs": "6c977f3a890e4e3fce0f09eb113399563a658496c506e6e8fc8cc3aed3e20f4d",
+  "backend/pairing/worker.mjs": "365011bc9369a6b0748e10bc0fbc31088d4f4593f87cbdb815b20b231ffee02b",
+  "backend/signed-chat/assets.generated.mjs": "c99deb3a66a0fa13e23055b4f460846281faa34aa072a87b40cfeeb4b5525e06",
+  "backend/signed-chat/auth.mjs": "72560a22cddcbedcc9886e61ed22ace170db71ba4cbc1a4bacde671c332c7b6a",
+  "backend/signed-chat/deadline.mjs": "64d6e266f3faab94a81e2cbc4f426d1c819dab3650c707eb934446d1312e9861",
+  "backend/signed-chat/model.mjs": "866f1fc6b6950a6ecf4a3ea6b0188ed21a7d6bb5e6eda3c05e63da2e4a627a99",
+  "backend/signed-chat/session.mjs": "509dfaeb6389609a87080853552cc00765e70df1b1486e8f73b909bb35fdcee7",
+  "backend/signed-chat/validation-diagnostics.mjs": "25957655f0001c64457830b167c7fde2047eac826269a03cb72c53c481fdfbbe",
+  "backend/signed-chat/web/app.mjs": "be5d8acc0deb4b0e493467250854bfab91e26c61510f65efcc603894634f0577",
+  "backend/signed-chat/wire.mjs": "975d59fbaa8f601d4ba1a2a585e877aad4d5f5c66836037f1d59b91f2fd00c35",
+  "backend/signed-chat/worker.mjs": "40201e791d4de757a934d88a0903240b23793e9db20f1fdffc8b002fe14432d4"
+}

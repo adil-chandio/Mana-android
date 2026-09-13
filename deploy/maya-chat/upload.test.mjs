@@ -241,9 +241,9 @@ test('raw Git source reads are bounded, shell-free, and retain shallow-clone par
 });
 test('Qwen candidate metadata identifies the artifact and pins AI inheritance while preserving other bindings', async () => {
   const f = fixture(); await f.run();
-  assert.equal(bytes.byteLength, 90726);
-  assert.equal(SHA256, 'd85ceb6a760b60a831072525e2388569e8338fe9ba45aed9450988661639c701');
-  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-mobile-v1-d85ceb6a');
+  assert.equal(bytes.byteLength, 91650);
+  assert.equal(SHA256, '04d0fd3b1442260fb1ab7b3ff04aca7adf987621bf9743a059bbc12207c8f24f');
+  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-native-key-v1-04d0fd3b');
   assert.match(f.state.metadata.annotations['workers/message'], /Qwen.*Chat OFF/);
   assert(bytes.includes(Buffer.from('@cf/qwen/qwen3-30b-a3b-fp8')));
   assert.equal(f.state.metadata.bindings.length, f.state.version.resources.bindings.length);
@@ -660,3 +660,21 @@ test('hanging second latest read is deadline bounded and cannot later dispatch P
   resolve(Response.json({ success: true, result: { items: [{ id: activeId }] } }));
   await new Promise(setImmediate); assert.equal(f.state.calls.length, 7); assert.equal(f.state.metadata, null);
 });
+
+test('optional APK public binding is separately validated and byte-preserved; never created', async () => {
+  const apkPair = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+  const { crv, kty, x, y } = await webcrypto.subtle.exportKey('jwk', apkPair.publicKey);
+  const text = JSON.stringify({ crv, kty, x, y });
+  const f = fixture(); f.state.version.resources.bindings.push({ name: 'APK_PUBLIC_JWK', type: 'plain_text', text });
+  await f.run(); assert.equal(f.state.metadata.bindings.length, 10);
+  assert.equal(f.state.metadata.bindings.find(b => b.name === 'APK_PUBLIC_JWK').text, text);
+  assert.equal(f.state.metadata.bindings.find(b => b.name === 'OWNER_PUBLIC_JWK').text, publicText);
+  const old = fixture(); await old.run(); assert.equal(old.state.metadata.bindings.length, 9);
+  assert(!old.state.metadata.bindings.some(b => b.name === 'APK_PUBLIC_JWK'));
+});
+for (const value of ['', '{}', publicText, JSON.stringify({ ...JSON.parse(publicText), d: 'PRIVATE' }), 'x'.repeat(513)])
+  test(`invalid/duplicate APK binding denied (${value.length} chars) before POST`, async () => {
+    const f = fixture(); f.state.version.resources.bindings.push({ name: 'APK_PUBLIC_JWK', type: 'plain_text', text: value });
+    await assert.rejects(f.run(), /APK_PUBLIC_KEY_REQUIRED|APK_KEY_MUST_BE_SEPARATE/);
+    assert(!f.state.calls.some(c => c.options.method === 'POST'));
+  });
