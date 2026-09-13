@@ -30,7 +30,7 @@ import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
-/** Native text-only screen. No WebView, voice, device bridge or incoming intent data. */
+/** Native text screen with explicit, opt-in Fish playback. No WebView, device bridge or incoming intent data. */
 class NativeChatActivity : AppCompatActivity() {
     companion object {
         private var sharedAccessDiagnostic: NativeAccessDiagnostic? = null
@@ -60,6 +60,39 @@ class NativeChatActivity : AppCompatActivity() {
     private val session = NativeChatConversation { SystemClock.elapsedRealtime() }
     private val identity = NativeChatIdentity()
     private val transport by lazy { NativeChatTransport() }
+    private var speechPlayer: com.maya.ai.voice.FishStreamPlayer? = null
+    private var speechProbeGeneration = 0L
+    private val speech: NativeReplySpeech by lazy {
+        NativeReplySpeech(object : NativeReplySpeech.Port {
+            override fun prepare(text: String?, result: (NativeFishPolicy.Result) -> Unit) {
+                val gen = ++speechProbeGeneration
+                val main = MainActivity.instance
+                if (main == null) result(NativeFishPolicy.Result.Error(NativeFishPolicy.Code.MAIN_REQUIRED))
+                else main.prepareNativeFish(text, { visible && gen == speechProbeGeneration && speech.busy }, result)
+            }
+            override fun play(prepared: NativeFishPolicy.Result.Prepared, event: (String, Int) -> Unit): Boolean {
+                if (!visible || runtimeReadiness() != Reason.READY) return false
+                // Dedicated owner, strict one-exchange transport; never stop a legacy speaker to start.
+                val player = com.maya.ai.voice.FishStreamPlayer(this@NativeChatActivity, strictNetwork = true) { _, kind, code -> event(kind, code) }
+                speechPlayer = player
+                return player.speakExclusive(prepared.body, prepared.headers, "native_sunao") { event("interrupted", 0) }
+            }
+            override fun stopOwned() {
+                speechProbeGeneration++
+                val player = speechPlayer; speechPlayer = null; player?.stop()
+            }
+        }, { delay, task ->
+            val pending = Runnable { task() }; handler.postDelayed(pending, delay)
+            val cancel: () -> Unit = { handler.removeCallbacks(pending) }; cancel
+        }, { code ->
+            if (::speechStatus.isInitialized) speechStatus.text = "Fish · ${code.name}\n${code.hint}"
+            paint()
+        })
+    }
+    private lateinit var speechStatus: TextView
+    private lateinit var fishCheck: Button
+    private lateinit var fishSample: Button
+    private val speechButtons = mutableListOf<Pair<Button, String>>()
     private var active: Job? = null
     private var visible = false
     private var publicText: String? = null
@@ -83,6 +116,7 @@ class NativeChatActivity : AppCompatActivity() {
     private lateinit var touchWarning: TextView
     private var obscuredTouchSeen = false
     private var disclosure: AlertDialog? = null
+    private var confirmationGeneration = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,6 +142,17 @@ class NativeChatActivity : AppCompatActivity() {
             status.text = "Fixed local readiness report copied. No keys, conversation or server details included."
         }
         label("This check sends nothing and changes no settings. Only its last fixed reason code is kept locally. A READY result is historical; Send checks again and signs with the saved key. Showing/copying the public key is not required. A missing key stops locally.")
+        label("Selected Fish · optional voice", 18f)
+        label("Open the original Maya first, then enter Private Chat from there to use its saved Fish settings. No automatic app launch or credential copy/storage. This tab does not play anything.")
+        fishCheck = button("Check saved Fish setup · no network") { if (active == null && visible) speech.check() }
+        fishSample = button("Test saved Fish voice · short sample") {
+            confirmSpeech("Salam, yeh aapki saved Fish voice ka chhota test hai.") { true }
+        }
+        button("Copy Fish report") {
+            val report = "MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\nFish: ${speech.state.name}\n${speech.state.hint}\nLocal status at copy time; no keys, reference ID or text included."
+            (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Maya Fish status", report))
+        }
+        label("Setup check sends nothing. Test/Sunao requires confirmation and sends only that text to Fish. Same saved reference; no default, paid model or replacement voice. Server Chat may stay OFF for the short sample.")
         label("APK ACCESS · NO AI", 18f)
         accessResult = label(accessDiagnostic.report(), 15f).apply {
             setTextIsSelectable(true); accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
@@ -171,13 +216,13 @@ class NativeChatActivity : AppCompatActivity() {
             background = card(Color.rgb(28, 32, 43))
             root.addView(this, LinearLayout.LayoutParams(-1, -2))
         }
-        label("Text only · replies may be inaccurate · limits in Info", 13f)
+        label("Text replies · optional Sunao on each reply · limits in Info", 13f)
         consent = CheckBox(this).apply {
             text = "I agree to send the current conversation to Cloudflare AI. I have stopped the original assistant/automation and will use non-sensitive text during setup."
             filterTouchesWhenObscured = true; setTextColor(Color.WHITE); isSaveEnabled = false; minHeight = dp(48); root.addView(this)
         }
         send = button("Send message") {
-            if (active != null) return@button
+            if (active != null || speech.busy) return@button
             try {
                 val turn = session.begin(draft.text.toString(), consent.isChecked)
                 hideKeyboard()
@@ -198,14 +243,16 @@ class NativeChatActivity : AppCompatActivity() {
         }
         root = infoPage
         label("Privacy & limits", 21f)
-        label("Text only. No tools, voice, browsing or phone actions. The original assistant/Fish settings are separate.")
+        label("Text chat with optional manual Fish playback. No tools, browsing, microphone recording or phone actions. Original assistant settings remain separate.")
         label("LEAVING THIS SCREEN = NEW CONVERSATION", 17f)
         label("Backgrounding, closing or recreating this screen clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
         label("2,000 characters/message · 6,000 in context · 12 messages. 5 admitted requests/minute, 50/day shared with browser Chat; no guarantee of free capacity.")
         label("STOP ends local waiting, not guaranteed remote work or a refund. Failed/uncertain turns are excluded from follow-ups. No automatic retries, history storage or message logging.")
         label("Replies are untrusted plain text and may be inaccurate. Never enter passwords, OTPs, provider tokens or private keys.")
         label("Chat uses the saved APK key; displaying it is not required. Server Chat availability is controlled by the owner, not by these tabs. Checks are explicit; opening this screen performs none.")
-        label("Selected Fish voice, wake and original assistant settings remain unchanged. Voice, media, internet research and Agent actions are not enabled in this text screen.")
+        label("Sunao sends only the chosen reply (using the original local speech-text conversion) to api.fish.audio with the saved Fish reference/key. Nothing plays automatically; confirmation is required each time. Never paste keys into Chat.")
+        label("Sunao: 2,000 input characters, one synthesis request, no silent truncation or retries. Startup wait is capped at 30 seconds, playback at 180 seconds, and the total local job at 210 seconds. STOP/exit stops local audio, not guaranteed remote work or a refund.")
+        label("Selected Fish voice, wake and original assistant settings remain unchanged. The configured free Fish model may be unavailable or quota-limited; no free/unlimited guarantee or fallback. Media analysis, internet research and Agent actions are not enabled.")
 
         val shell = column().apply {
             setBackgroundColor(Color.rgb(16, 19, 27)); setPadding(dp(16), dp(8), dp(16), dp(8))
@@ -219,6 +266,10 @@ class NativeChatActivity : AppCompatActivity() {
             tag = "chat_status"; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
         body.addView(status)
+        speechStatus = labelView("Fish · IDLE\n" + NativeFishPolicy.Code.IDLE.hint, 13f).apply {
+            tag = "fish_status"; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        body.addView(speechStatus)
         // Overlay warnings remain visible on every tab, never hidden in setup details.
         checksPage.removeView(touchWarning); body.addView(touchWarning)
         val pages = listOf(chatPage, checksPage, infoPage)
@@ -256,11 +307,16 @@ class NativeChatActivity : AppCompatActivity() {
     }
     private fun confirm(title: String, text: String, yes: () -> Unit) {
         if (disclosure?.isShowing == true) return
-        disclosure = AlertDialog.Builder(this).setTitle(title).setMessage(text).setNegativeButton("Cancel", null)
-            .setPositiveButton("Continue") { _, _ -> yes() }.create().also { it.show(); it.getButton(AlertDialog.BUTTON_POSITIVE).filterTouchesWhenObscured = true }
+        val generation = ++confirmationGeneration
+        disclosure = AlertDialog.Builder(this).setTitle(title).setMessage(text)
+            .setNegativeButton("Cancel") { _, _ -> if (confirmationGeneration == generation) confirmationGeneration++ }
+            .setPositiveButton("Continue") { _, _ -> if (visible && confirmationGeneration == generation) { confirmationGeneration++; yes() } }.create().also {
+                it.setOnCancelListener { if (confirmationGeneration == generation) confirmationGeneration++ }
+                it.show(); it.getButton(AlertDialog.BUTTON_POSITIVE).filterTouchesWhenObscured = true
+            }
     }
     private fun start(kind: String, turn: NativeChatConversation.Turn?, work: (Job) -> Any) {
-        if (active != null || !visible) { if (turn != null) session.fail(turn); return }
+        if (active != null || speech.busy || !visible) { if (turn != null) session.fail(turn); return }
         val job = Job(kind, turn, SystemClock.elapsedRealtime()); active = job
         if (kind == "check") {
             obscuredTouchSeen = false; touchWarning.text = ""
@@ -329,6 +385,7 @@ class NativeChatActivity : AppCompatActivity() {
         paint()
     }
     private fun stopActive(message: String, accessState: NativeAccessDiagnostic.State = NativeAccessDiagnostic.State.STOPPED) {
+        speech.stop()
         val job = active
         if (job != null) {
             job.timeout?.let { handler.removeCallbacks(it) }; job.readinessTimeout?.let { handler.removeCallbacks(it) }; active = null
@@ -368,20 +425,42 @@ class NativeChatActivity : AppCompatActivity() {
         }
         return message + if (uncertain) " Remote work may have completed/continue; usage may count." else " This operation did not confirm a model dispatch."
     }
+    private fun confirmSpeech(text: String, stillAvailable: () -> Boolean) {
+        if (!visible || active != null || speech.busy) return
+        if (!NativeFishPolicy.validText(text)) {
+            speechStatus.text = "Fish · TOO_LONG\n" + NativeFishPolicy.Code.TOO_LONG.hint; return
+        }
+        confirm("Send this text to Fish and play?", "Only this selected reply/sample will be sent to Fish using your current saved Fish reference and key. The original local pronunciation conversion is used. No other voice or paid fallback. Provider quota/usage may count; STOP is not a refund. Nothing is played automatically.") {
+            if (visible && active == null && !speech.busy && stillAvailable()) speech.speak(text, true)
+        }
+    }
     private fun renderHistory() {
-        history.removeAllViews()
-        session.messages().forEach { message -> history.addView(labelView((if (message.role == "user") "You\n" else "Maya · model response\n") + message.content).apply {
-            setPadding(dp(14), dp(12), dp(14), dp(12)); setTextIsSelectable(true)
-            background = card(if (message.role == "user") Color.rgb(30, 54, 52) else Color.rgb(28, 32, 43))
-            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }
-        }) }
+        history.removeAllViews(); speechButtons.clear()
+        session.messages().forEach { message ->
+            history.addView(labelView((if (message.role == "user") "You\n" else "Maya · model response\n") + message.content).apply {
+                setPadding(dp(14), dp(12), dp(14), dp(12)); setTextIsSelectable(true)
+                background = card(if (message.role == "user") Color.rgb(30, 54, 52) else Color.rgb(28, 32, 43))
+                layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }
+            })
+            if (message.role == "assistant") {
+                val button = actionButton("Sunao · selected Fish") {
+                    confirmSpeech(message.content) { session.messages().any { it === message } }
+                }
+                button.contentDescription = "Read this Maya reply with the saved Fish voice; confirmation required"
+                speechButtons.add(button to message.content); history.addView(button)
+                if (!NativeFishPolicy.validText(message.content)) history.addView(labelView(NativeFishPolicy.Code.TOO_LONG.hint, 13f))
+            }
+        }
         contextNote.text = "Context: ${session.messages().size} messages. " + if (session.messages().isEmpty()) "New conversation; no earlier messages." else "Follow-up ready; stay on this screen."
+        paint()
     }
     private fun paint() {
-        if (!::send.isInitialized) return
-        val busy = active != null
+        if (!::send.isInitialized || !::stop.isInitialized) return
+        val busy = active != null || speech.busy
         send.isEnabled = !busy && consent.isChecked && draft.text.toString().isNotBlank()
         readinessButton.isEnabled = !busy
+        fishCheck.isEnabled = !busy; fishSample.isEnabled = !busy
+        speechButtons.forEach { (button, text) -> button.isEnabled = !busy && NativeFishPolicy.validText(text) }
         stop.isEnabled = busy; create.isEnabled = !busy; copy.isEnabled = !busy && publicText != null; check.isEnabled = !busy
         draft.isEnabled = !busy; consent.isEnabled = !busy
         counter.text = "Your message · ${draft.text.length} / 2,000"
@@ -402,13 +481,15 @@ class NativeChatActivity : AppCompatActivity() {
         }
         job.readinessTimeout = Runnable { deliver(Reason.UI_UNRESPONSIVE) }.also { handler.postDelayed(it, 1500) }
         try {
-            val native = NativeChatReadiness.runtime(getSharedPreferences("maya", Context.MODE_PRIVATE).getBoolean("wake", false),
-                WakeWordService.instance != null, WakeWordService.fishOutputActive, WakeWordService.haal,
-                com.maya.ai.MayaAct.hasPendingActions())
+            val native = runtimeReadiness()
             if (native != Reason.READY) deliver(native)
             else MainActivity.instance?.nativeChatReady { deliver(it) } ?: deliver(Reason.READY)
         } catch (_: Exception) { deliver(Reason.UNKNOWN) }
     }
+    private fun runtimeReadiness() = NativeChatReadiness.runtime(
+        getSharedPreferences("maya", Context.MODE_PRIVATE).getBoolean("wake", false),
+        WakeWordService.instance != null, WakeWordService.fishOutputActive, WakeWordService.haal,
+        com.maya.ai.MayaAct.hasPendingActions())
     private fun showAccessDiagnostic() {
         if (::accessResult.isInitialized) accessResult.text = accessDiagnostic.report()
     }
@@ -450,7 +531,7 @@ class NativeChatActivity : AppCompatActivity() {
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     override fun onResume() { super.onResume(); visible = true; showAccessDiagnostic() }
     private fun endLocalSession() {
-        visible = false; disclosure?.dismiss(); disclosure = null
+        visible = false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null
         stopActive("This screen was left; local chat was cleared.", NativeAccessDiagnostic.State.LEFT_SCREEN)
         session.clear()
         if (::draft.isInitialized) draft.setText("")
@@ -463,7 +544,7 @@ class NativeChatActivity : AppCompatActivity() {
         endLocalSession(); handler.removeCallbacksAndMessages(null); super.onDestroy()
     }
     @Deprecated("Deprecated in Android") override fun onBackPressed() {
-        if (draft.text.isNotEmpty() || session.messages().isNotEmpty() || active != null)
+        if (draft.text.isNotEmpty() || session.messages().isNotEmpty() || active != null || speech.busy)
             confirm("Leave private Chat?", "Leaving clears this local conversation and stops local waiting. It does not erase provider records or refund usage.") { endLocalSession(); finish() }
         else { endLocalSession(); finish() }
     }

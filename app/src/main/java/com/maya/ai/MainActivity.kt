@@ -235,6 +235,33 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) { result(com.maya.ai.chat.NativeChatReadiness.Reason.UNKNOWN) }
     }
 
+    /** Explicit native Sunao/setup only. No JS bridge method, key export UI or preference writes. */
+    fun prepareNativeFish(text: String?, wanted: () -> Boolean, result: (com.maya.ai.chat.NativeFishPolicy.Result) -> Unit) {
+        val policy = com.maya.ai.chat.NativeFishPolicy
+        fun unavailable() = result(com.maya.ai.chat.NativeFishPolicy.Result.Error(com.maya.ai.chat.NativeFishPolicy.Code.UNAVAILABLE))
+        if (!wanted()) return
+        nativeChatReady { ready ->
+            if (!wanted()) return@nativeChatReady
+            if (ready != com.maya.ai.chat.NativeChatReadiness.Reason.READY) {
+                result(com.maya.ai.chat.NativeFishPolicy.Result.Error(com.maya.ai.chat.NativeFishPolicy.Code.ASSISTANT_BUSY))
+            } else try {
+                if (isFinishing || isDestroyed || webView.url !in listOf(
+                        "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                    unavailable(); return@nativeChatReady
+                }
+                webView.evaluateJavascript(policy.script(text)) { raw ->
+                    if (!wanted()) return@evaluateJavascript
+                    try {
+                        if (instance !== this || isFinishing || isDestroyed || httpRequests.isNotEmpty() || recognitionActive ||
+                            tts?.isSpeaking == true || webView.url !in listOf(
+                                "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) unavailable()
+                        else result(policy.decode(raw, text != null))
+                    } catch (_: Exception) { unavailable() }
+                }
+            } catch (_: Exception) { unavailable() }
+        }
+    }
+
     /* ================= WEBVIEW CLIENT ================= */
 
     inner class MayaWebViewClient : WebViewClientCompat() {

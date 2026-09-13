@@ -25,15 +25,26 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** Plays the provider's MP3 stream as bytes arrive, not after a base64/full-file download. */
 @UnstableApi
-class FishStreamPlayer(private val context: Context, private val event: (String, String, Int) -> Unit) {
+class FishStreamPlayer(private val context: Context, private val strictNetwork: Boolean = false, private val event: (String, String, Int) -> Unit) {
     companion object { private var owner: FishStreamPlayer? = null }
     private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
     private var generation = 0L
     private var request: FishStreamRequest? = null
     private var timeout: Runnable? = null
+    private var exclusiveInterrupted: (() -> Unit)? = null
+
+    /** Native Sunao never cancels or replaces a pre-existing speaker. UI thread only. */
+    fun speakExclusive(body: String, headers: String, id: String, interrupted: () -> Unit): Boolean {
+        check(Looper.myLooper() == Looper.getMainLooper())
+        if (owner != null) return false
+        speak(body, headers, id)
+        if (owner === this) exclusiveInterrupted = interrupted
+        return true
+    }
 
     fun stop() {
+        exclusiveInterrupted = null
         if (owner === this) {
             com.maya.ai.WakeWordService.lastBolAt = System.currentTimeMillis()
             com.maya.ai.WakeWordService.fishOutputActive = false
@@ -46,7 +57,10 @@ class FishStreamPlayer(private val context: Context, private val event: (String,
     }
 
     fun speak(body: String, headers: String, id: String) {
-        owner?.stop()
+        val previous = owner
+        val notify = if (previous !== this) previous?.exclusiveInterrupted else null
+        previous?.stop()
+        notify?.invoke() // Only opted-in native owners receive replacement notification.
         stop()
         if (!Regex("[a-zA-Z0-9_]{1,80}").matches(id)) return
         val gen = generation
@@ -60,7 +74,7 @@ class FishStreamPlayer(private val context: Context, private val event: (String,
         }
         try {
             val requestHeaders = FishRequestPolicy.validate(body, headers)
-            val streamRequest = FishStreamRequest(body, requestHeaders)
+            val streamRequest = FishStreamRequest(body, requestHeaders, strictNetwork)
             request = streamRequest
             // No load retry: replaying a synthesis POST could duplicate speech/usage.
             val factory = DataSource.Factory { FishSource(streamRequest) }
@@ -72,12 +86,14 @@ class FishStreamPlayer(private val context: Context, private val event: (String,
                 .setLoadControl(DefaultLoadControl.Builder().setBufferDurationsMs(1500, 8000, 300, 700).build())
                 .build()
             player = p
+            if (strictNetwork) p.setHandleAudioBecomingNoisy(true)
             owner = this
             com.maya.ai.WakeWordService.fishOutputActive = true
             p.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_SPEECH).build(), true)
             p.addListener(object : Player.Listener {
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                    if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS) finish("interrupted", 0)
+                    if (!playWhenReady && (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
+                        (strictNetwork && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY))) finish("interrupted", 0)
                 }
                 override fun onPlaybackSuppressionReasonChanged(reason: Int) {
                     if (reason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) finish("interrupted", 0)
@@ -108,15 +124,16 @@ class FishStreamPlayer(private val context: Context, private val event: (String,
     }
 }
 
-private class FishStreamRequest(val body: String, val headers: Map<String, String>) {
+private class FishStreamRequest(val body: String, val headers: Map<String, String>, val strictNetwork: Boolean) {
     val opened = AtomicBoolean(false)
     val cancelled = AtomicBoolean(false)
     @Volatile var connection: HttpURLConnection? = null
-    fun cancel() { cancelled.set(true); connection?.disconnect() }
+    @Volatile var nativeHttp: NativeFishHttp? = null
+    fun cancel() { cancelled.set(true); nativeHttp?.close(); connection?.disconnect() }
     fun check() { if (cancelled.get() || Thread.currentThread().isInterrupted) throw IOException("Speech cancelled") }
 }
 
-private class FishHttpError(val status: Int) : IOException("Fish HTTP request rejected")
+internal class FishHttpError(val status: Int) : IOException("Fish HTTP request rejected")
 
 /** One fixed HTTPS POST, no redirect, seek/re-POST, disk cache or unbounded read. */
 @UnstableApi
@@ -130,6 +147,13 @@ private class FishSource(private val request: FishStreamRequest) : BaseDataSourc
         if (dataSpec.position != 0L || !request.opened.compareAndSet(false, true)) throw IOException("Synthesis cannot be replayed or seeked")
         transferInitializing(dataSpec)
         try {
+            if (request.strictNetwork) {
+                val http = NativeFishHttp(request.body, request.headers)
+                request.nativeHttp = http; request.check()
+                input = http.open(); request.check()
+                transferred = true; transferStarted(dataSpec)
+                return C.LENGTH_UNSET.toLong()
+            }
             val c = URL(FishRequestPolicy.URL).openConnection() as HttpURLConnection
             connection = c
             request.connection = c
@@ -163,7 +187,8 @@ private class FishSource(private val request: FishStreamRequest) : BaseDataSourc
     override fun getUri(): Uri = Uri.parse(FishRequestPolicy.URL)
     override fun close() {
         try { input?.close() } finally {
-            input = null; connection?.disconnect(); connection = null
+            input = null; request.nativeHttp?.close(); request.nativeHttp = null
+            connection?.disconnect(); connection = null
             request.connection = null
             if (transferred) { transferred = false; transferEnded() }
         }

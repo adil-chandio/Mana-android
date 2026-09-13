@@ -254,4 +254,87 @@ class NativeChatActivityTest {
         }
         noTransport()
     }
+    private class SpeechPort : NativeReplySpeech.Port {
+        val requests = mutableListOf<Pair<String?, (NativeFishPolicy.Result) -> Unit>>()
+        var plays = 0; var stops = 0
+        var event: ((String, Int) -> Unit)? = null
+        override fun prepare(text: String?, result: (NativeFishPolicy.Result) -> Unit) { requests.add(text to result) }
+        override fun play(prepared: NativeFishPolicy.Result.Prepared, event: (String, Int) -> Unit): Boolean {
+            plays++; this.event=event; return true
+        }
+        override fun stopOwned() { stops++ }
+    }
+    private fun fakeSpeech(): SpeechPort {
+        val port = SpeechPort()
+        val owner = NativeReplySpeech(port, { _, _ -> {} }, { code ->
+            field<TextView>("speechStatus").text = code.name; invoke("paint")
+        })
+        setField("speech\$delegate", lazyOf(owner))
+        return port
+    }
+    @Test fun sunaoIsReplyOnlyAndCancelDoesNotReadAnySettings() {
+        val port = fakeSpeech()
+        assertTrue(field<List<*>>("speechButtons").isEmpty())
+        completedHistory()
+        assertEquals(1,field<List<*>>("speechButtons").size)
+        button("Sunao · selected Fish").performClick()
+        assertEquals(0,port.requests.size)
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0,port.requests.size); noTransport()
+    }
+    @Test fun confirmedSunaoUsesOnlySelectedReplyAndStopFencesLatePreparation() {
+        val port=fakeSpeech();completedHistory();fill()
+        button("Sunao · selected Fish").performClick()
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("SYNTHETIC_REPLY",port.requests.single().first)
+        assertTrue(field<Button>("stop").isEnabled); assertFalse(field<Button>("send").isEnabled)
+        field<Button>("stop").performClick()
+        port.requests.single().second(NativeFishPolicy.Result.Prepared("SYNTHETIC","SYNTHETIC"))
+        assertEquals(0,port.plays);assertEquals(2,field<NativeChatConversation>("session").messages().size)
+        assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString());noTransport()
+    }
+    @Test fun backgroundStopsOnlyOwnedVoiceAndLateAudioDoesNotRestoreChat() {
+        val port=fakeSpeech();completedHistory()
+        button("Sunao · selected Fish").performClick()
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        port.requests.single().second(NativeFishPolicy.Result.Prepared("SYNTHETIC","SYNTHETIC"))
+        assertEquals(1,port.plays)
+        tab("checks").performClick();assertEquals(0,port.stops)
+        controller!!.pause().stop();assertEquals(1,port.stops)
+        port.event!!("done",200)
+        assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
+        controller!!.restart().start().resume();noTransport()
+    }
+    @Test fun savedFishCheckWithoutOriginalMainFailsLocallyWithoutLaunchingIt() {
+        tab("checks").performClick();field<Button>("fishCheck").performClick()
+        assertTrue(field<TextView>("speechStatus").text.contains("MAIN_REQUIRED"))
+        assertNull(field<Any?>("speechPlayer"));noTransport()
+    }
+    @Test fun sampleAlsoRequiresSeparateConfirmationAndDoesNotSendDraft() {
+        val port=fakeSpeech();fill();tab("checks").performClick()
+        field<Button>("fishSample").performClick();assertEquals(0,port.requests.size)
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("Salam, yeh aapki saved Fish voice ka chhota test hai.",port.requests.single().first)
+        assertEquals(0,field<NativeChatConversation>("session").messages().size);noTransport()
+    }
+
+    @Test fun oldSpeechConfirmationCannotPlayAfterLeavingAndResuming() {
+        val port=fakeSpeech();tab("checks").performClick();field<Button>("fishSample").performClick()
+        val old=ShadowAlertDialog.getLatestAlertDialog()
+        controller!!.pause().stop().restart().start().resume()
+        old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0,port.requests.size);noTransport()
+    }
+
+    @Test fun fishReportCopiesOnlyFixedStateNotReplyDraftOrCredentials() {
+        fakeSpeech();completedHistory();fill();tab("checks").performClick();button("Copy Fish report").performClick()
+        val text=(activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip!!.getItemAt(0).text.toString()
+        assertTrue(text.contains("Fish: IDLE"));assertFalse(text.contains("PRIVATE_SYNTHETIC"));assertFalse(text.contains("SYNTHETIC_REPLY"))
+        noTransport()
+    }
+
 }
