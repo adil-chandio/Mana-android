@@ -1,3 +1,11 @@
+> **Current upload candidate: null compatibility v1 — 2026-09-13.**
+> See [NULL-COMPAT-UPLOAD.md](NULL-COMPAT-UPLOAD.md). Owner confirmed Chat OFF
+> after MESSAGE_TOOLS. Only message-level null tool/function absence sentinels
+> are newly accepted; actual/malformed calls stay rejected. Artifact 83,208 bytes,
+> SHA `0c34518aa230f8fdc107a746337d51b2f47dfc0e6d4414e92f0ffdca131d5846`.
+> Routine work/Chat-OFF upload now proceed without repeated approval prompts.
+> No automatic promotion, Chat ON, or model request. Older notes below are history.
+
 > **CURRENT MODE: guarded latest inheritance, Chat-OFF upload — 2026-09-13.**
 > See [GUARDED-LATEST-UPLOAD.md](GUARDED-LATEST-UPLOAD.md). Explicit UUID inheritance
 > failed 400/10057. The approved correction uses literal latest ONLY after two
