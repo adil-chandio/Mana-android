@@ -1,3 +1,10 @@
+> **Current candidate: response timing v1 — Chat OFF.**
+> See [RESPONSE-TIMING-UPLOAD.md](RESPONSE-TIMING-UPLOAD.md). Adds local wait
+> measurement and corrects obsolete status text, without changing model/auth/
+> quota/parser behavior. One real reply on the preceding candidate was observed;
+> owner confirmed Chat OFF. Follow-up and phone timing remain unverified.
+> Older candidate notes below are historical.
+
 > **Current upload candidate: null compatibility v1 — 2026-09-13.**
 > See [NULL-COMPAT-UPLOAD.md](NULL-COMPAT-UPLOAD.md). Owner confirmed Chat OFF
 > after MESSAGE_TOOLS. Only message-level null tool/function absence sentinels
