@@ -550,6 +550,7 @@ async function authorize(request, env, scope, clock) {
     let apk, apkKey, apkId;
     try {
       if (typeof env.APK_PUBLIC_JWK !== "string" || env.APK_PUBLIC_JWK.length > 512) throw Error();
+      if (!/^\s*\{\s*"(?:crv|kty|x|y)"\s*:\s*"[A-Za-z0-9_-]+"\s*(?:,\s*"(?:crv|kty|x|y)"\s*:\s*"[A-Za-z0-9_-]+"\s*){3}\}\s*$/.test(env.APK_PUBLIC_JWK)) throw Error();
       apk = publicJwk(JSON.parse(env.APK_PUBLIC_JWK));
       apkKey = await crypto.subtle.importKey("jwk", apk, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
       apkId = await fingerprint(apk);

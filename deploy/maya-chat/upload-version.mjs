@@ -11,7 +11,7 @@ import { API_STAGES, summarizeApiFailure } from './api-failure-summary.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
 export const APPROVED_UPLOAD_PARENT = 'f6e26dde0ccdb8911b1359f1755e76fb69f229d0';
-export const SHA256 = '04d0fd3b1442260fb1ab7b3ff04aca7adf987621bf9743a059bbc12207c8f24f';
+export const SHA256 = '23dab1613dd0bbce327a617c4b29611320726b0a831b8330a8b3f1d45eafa7db';
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const HEX32 = /^[a-f0-9]{32}$/i;
 const ACKS = ['FREE_PLAN_CONFIRMED', 'MODEL_REVIEW_CONFIRMED', 'LIVE_AUTH_CHECKS_CONFIRMED'];
@@ -22,7 +22,7 @@ const failureDetails = new WeakMap();
 export const uploadFailureDetails = error => failureDetails.get(error) ?? null;
 const requireThat = (condition, code) => { if (!condition) throw new Blocked(code); };
 export function checkArtifact(bytes) {
-  requireThat(bytes?.byteLength === 91650 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
+  requireThat(bytes?.byteLength === 91817 && createHash('sha256').update(bytes).digest('hex') === SHA256, 'ARTIFACT_MISMATCH');
 }
 export function checkBuild(env) {
   requireThat(env.WORKERS_CI === '1' && env.CI === 'true', 'CLOUDFLARE_BUILD_ONLY');
@@ -121,6 +121,7 @@ export async function preserveConfiguration(version, expectedId) {
   }
   const owner = await publicIdentity(seen.get('OWNER_PUBLIC_JWK')?.text, 'PUBLIC_KEY_REQUIRED');
   if (seen.has('APK_PUBLIC_JWK')) {
+    requireThat(/^\s*\{\s*"(?:crv|kty|x|y)"\s*:\s*"[A-Za-z0-9_-]+"\s*(?:,\s*"(?:crv|kty|x|y)"\s*:\s*"[A-Za-z0-9_-]+"\s*){3}\}\s*$/.test(seen.get('APK_PUBLIC_JWK')?.text || ''), 'APK_PUBLIC_KEY_REQUIRED');
     const apk = await publicIdentity(seen.get('APK_PUBLIC_JWK')?.text, 'APK_PUBLIC_KEY_REQUIRED');
     requireThat(apk !== owner, 'APK_KEY_MUST_BE_SEPARATE');
   }
@@ -191,7 +192,7 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
         'workers/message': 'Maya Qwen separate native APK key v1. Chat OFF. AI inherit requires latest=active checks; readback required. Manual promotion required.',
         'workers/commit_sha': build.commit,
         'workers/repository_url': 'https://github.com/adil-chandio/Mana-android',
-        'workers/tag': 'maya-native-key-v1-04d0fd3b'
+        'workers/tag': 'maya-native-key-v1-23dab161'
       } };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));

@@ -40,12 +40,14 @@ object NativeChatResponse {
         }
         if (status != 200 || root["keyId"] != request.keyId || root["nonce"] != request.nonce) bad()
         if (request.path == NativeChatProtocol.CHECK_PATH) {
-            if (root["kind"] != "chat-auth-verified" || root["aiConnected"] != false) bad()
+            if (root.keys != setOf("kind", "keyId", "nonce", "aiConnected") || root["kind"] != "chat-auth-verified" || root["aiConnected"] != false) bad()
             return Result.Access
         }
+        if (root.keys.any { it !in setOf("requestId", "kind", "model", "text", "keyId", "nonce", "capabilities") }) bad()
         if (request.path != NativeChatProtocol.CHAT_PATH || root["kind"] != "model-response" || root["model"] != NativeChatProtocol.MODEL) bad()
         val content = root["text"] as? String ?: bad()
         val capabilities = root["capabilities"] as? Map<*, *> ?: bad()
+        if (capabilities.keys != setOf("text", "tools", "vision", "voice")) bad()
         if (!NativeChatProtocol.validReply(content) || capabilities["text"] != true ||
             listOf("tools", "vision", "voice").any { capabilities[it] != false }) bad()
         // Defense in depth; server is already responsible for final-only validation.

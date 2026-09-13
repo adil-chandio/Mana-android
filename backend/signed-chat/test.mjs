@@ -378,7 +378,7 @@ test('native empty check accepts once, denies replay and never spends AI quota',
 });
 test('bad/duplicate/private APK configuration fails closed for APK, leaves browser usable', async t => {
   const f = await fixture(t), apk = await key();
-  for (const value of ['', null, true, 'x'.repeat(513), JSON.stringify(f.owner.publicJwk), JSON.stringify({ ...apk.publicJwk, d: 'PRIVATE' }), '{}']) {
+  for (const value of ['', null, true, 'x'.repeat(513), JSON.stringify(f.owner.publicJwk), JSON.stringify({ ...apk.publicJwk, d: 'PRIVATE' }), '{}', JSON.stringify(apk.publicJwk).replace('{', '{"x":"duplicate",'), JSON.stringify(apk.publicJwk).replace('{', '{"\\u0078":"duplicate",')]) {
     f.env.APK_PUBLIC_JWK = value;
     await code(await f.invoke(f.req(await f.signed('{}', CHECK_PATH, apk), CHECK_PATH)), 503, 'INVALID_APK_CONFIGURATION');
     assert.equal((await f.invoke(f.req(await f.signed('{}', CHECK_PATH), CHECK_PATH))).status, 200);

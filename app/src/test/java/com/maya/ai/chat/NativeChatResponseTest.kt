@@ -23,6 +23,8 @@ class NativeChatResponseTest {
             val value = reply(); value.getJSONObject("capabilities").put(field, true); reject(value.toString())
         }
         val wrongType = reply(); wrongType.getJSONObject("capabilities").put("text", "true"); reject(wrongType.toString())
+        reject(reply().put("tool_calls", "unexpected").toString())
+        val extra = reply(); extra.getJSONObject("capabilities").put("automation", true); reject(extra.toString())
         reject(reply().toString(), 201); reject(reply().toString(), 302)
     }
     @Test fun rejectsBlankLargeReasoningAndInvalidSurrogateText() {

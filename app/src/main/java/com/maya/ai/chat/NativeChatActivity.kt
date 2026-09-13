@@ -66,7 +66,7 @@ class NativeChatActivity : AppCompatActivity() {
         }
         fun label(text: String, size: Float = 15f): TextView = labelView(text, size).also { root.addView(it) }
         fun button(text: String, action: () -> Unit): Button = Button(this).apply {
-            this.text = text; isAllCaps = false; minHeight = dp(48); isSaveEnabled = false
+            this.text = text; isAllCaps = false; filterTouchesWhenObscured = true; minHeight = dp(48); isSaveEnabled = false
             setOnClickListener { action() }; root.addView(this)
         }
         label("MAYA · PRIVATE TEXT CHAT", 23f)
@@ -116,7 +116,7 @@ class NativeChatActivity : AppCompatActivity() {
         label("2,000 characters/message · 6,000 in context · 12 messages. 5 admitted requests/minute, 50/day shared with browser Chat; no guarantee of free capacity.")
         consent = CheckBox(this).apply {
             text = "I agree to send the current conversation to Cloudflare AI. I have stopped the original assistant/automation and will use non-sensitive text during setup."
-            setTextColor(Color.WHITE); isSaveEnabled = false; minHeight = dp(48); root.addView(this)
+            filterTouchesWhenObscured = true; setTextColor(Color.WHITE); isSaveEnabled = false; minHeight = dp(48); root.addView(this)
         }
         send = button("Send message") {
             if (active != null) return@button
@@ -153,7 +153,7 @@ class NativeChatActivity : AppCompatActivity() {
     private fun confirm(title: String, text: String, yes: () -> Unit) {
         if (disclosure?.isShowing == true) return
         disclosure = AlertDialog.Builder(this).setTitle(title).setMessage(text).setNegativeButton("Cancel", null)
-            .setPositiveButton("Continue") { _, _ -> yes() }.create().also { it.show() }
+            .setPositiveButton("Continue") { _, _ -> yes() }.create().also { it.show(); it.getButton(AlertDialog.BUTTON_POSITIVE).filterTouchesWhenObscured = true }
     }
     private fun start(kind: String, turn: NativeChatConversation.Turn?, work: (Job) -> Any) {
         if (active != null || !visible) { if (turn != null) session.fail(turn); return }

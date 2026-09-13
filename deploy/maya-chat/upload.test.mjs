@@ -241,9 +241,9 @@ test('raw Git source reads are bounded, shell-free, and retain shallow-clone par
 });
 test('Qwen candidate metadata identifies the artifact and pins AI inheritance while preserving other bindings', async () => {
   const f = fixture(); await f.run();
-  assert.equal(bytes.byteLength, 91650);
-  assert.equal(SHA256, '04d0fd3b1442260fb1ab7b3ff04aca7adf987621bf9743a059bbc12207c8f24f');
-  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-native-key-v1-04d0fd3b');
+  assert.equal(bytes.byteLength, 91817);
+  assert.equal(SHA256, '23dab1613dd0bbce327a617c4b29611320726b0a831b8330a8b3f1d45eafa7db');
+  assert.equal(f.state.metadata.annotations['workers/tag'], 'maya-native-key-v1-23dab161');
   assert.match(f.state.metadata.annotations['workers/message'], /Qwen.*Chat OFF/);
   assert(bytes.includes(Buffer.from('@cf/qwen/qwen3-30b-a3b-fp8')));
   assert.equal(f.state.metadata.bindings.length, f.state.version.resources.bindings.length);
@@ -672,7 +672,7 @@ test('optional APK public binding is separately validated and byte-preserved; ne
   const old = fixture(); await old.run(); assert.equal(old.state.metadata.bindings.length, 9);
   assert(!old.state.metadata.bindings.some(b => b.name === 'APK_PUBLIC_JWK'));
 });
-for (const value of ['', '{}', publicText, JSON.stringify({ ...JSON.parse(publicText), d: 'PRIVATE' }), 'x'.repeat(513)])
+for (const value of ['', '{}', publicText, JSON.stringify({ ...JSON.parse(publicText), d: 'PRIVATE' }), 'x'.repeat(513), publicText.replace('{', '{"x":"duplicate",'), publicText.replace('{', '{"\\u0078":"duplicate",')])
   test(`invalid/duplicate APK binding denied (${value.length} chars) before POST`, async () => {
     const f = fixture(); f.state.version.resources.bindings.push({ name: 'APK_PUBLIC_JWK', type: 'plain_text', text: value });
     await assert.rejects(f.run(), /APK_PUBLIC_KEY_REQUIRED|APK_KEY_MUST_BE_SEPARATE/);

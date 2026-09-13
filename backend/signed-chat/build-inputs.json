@@ -11,7 +11,7 @@
   "backend/pairing/shared.mjs": "6c977f3a890e4e3fce0f09eb113399563a658496c506e6e8fc8cc3aed3e20f4d",
   "backend/pairing/worker.mjs": "365011bc9369a6b0748e10bc0fbc31088d4f4593f87cbdb815b20b231ffee02b",
   "backend/signed-chat/assets.generated.mjs": "c99deb3a66a0fa13e23055b4f460846281faa34aa072a87b40cfeeb4b5525e06",
-  "backend/signed-chat/auth.mjs": "72560a22cddcbedcc9886e61ed22ace170db71ba4cbc1a4bacde671c332c7b6a",
+  "backend/signed-chat/auth.mjs": "1be59fc28781c182032718b603153fc04408617df55d7f66a190a35f57725a39",
   "backend/signed-chat/deadline.mjs": "64d6e266f3faab94a81e2cbc4f426d1c819dab3650c707eb934446d1312e9861",
   "backend/signed-chat/model.mjs": "866f1fc6b6950a6ecf4a3ea6b0188ed21a7d6bb5e6eda3c05e63da2e4a627a99",
   "backend/signed-chat/session.mjs": "509dfaeb6389609a87080853552cc00765e70df1b1486e8f73b909bb35fdcee7",
