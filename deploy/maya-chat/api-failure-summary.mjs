@@ -1,6 +1,6 @@
 // Build-side error projection only. Never expose body text, messages, URLs or IDs.
-export const API_STAGES = Object.freeze(['active_deployment', 'logging_preflight', 'source_version',
-  'active_recheck', 'logging_recheck', 'version_upload', 'uploaded_version', 'active_readback', 'logging_readback']);
+export const API_STAGES = Object.freeze(['active_deployment', 'logging_preflight', 'source_version', 'latest_preflight',
+  'active_recheck', 'logging_recheck', 'latest_recheck', 'version_upload', 'uploaded_version', 'active_readback', 'logging_readback']);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const own = (value, key) => object(value) && Object.hasOwn(value, key) ? value[key] : undefined;
 export function summarizeApiFailure(stage, status, envelope) {

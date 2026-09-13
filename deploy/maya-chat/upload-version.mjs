@@ -10,7 +10,7 @@ import { snapshotAIBinding } from './ai-binding-snapshot.mjs';
 import { API_STAGES, summarizeApiFailure } from './api-failure-summary.mjs';
 export const BRANCH = 'arena/01a089f7-mana-android';
 export const WORKER = 'maya-chat';
-export const APPROVED_UPLOAD_PARENT = 'd3426d1b7dd4a689badc22d9ef734de98665c198';
+export const APPROVED_UPLOAD_PARENT = 'd03108512ac8cc5e73f605813437b8bcc5b0e01f';
 export const SHA256 = '589b28829e2154c06232c167c02ce5cbc9df0e68fb839af31830e79b9502db70';
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const HEX32 = /^[a-f0-9]{32}$/i;
@@ -52,6 +52,13 @@ export function activeDeployment(result) {
   requireThat(UUID.test(first?.id || '') && first.strategy === 'percentage' && first.versions?.length === 1
     && first.versions[0].percentage === 100 && UUID.test(first.versions[0].version_id || ''), 'SINGLE_ACTIVE_VERSION_REQUIRED');
   return { id: first.id, version: first.versions[0].version_id };
+}
+// Unfiltered first page: latest UPLOADED version, not only deployable versions.
+export const LATEST_VERSION_PATH = '/versions?page=1&per_page=1';
+export function requireLatestActive(result, activeId) {
+  requireThat(UUID.test(activeId || '') && Array.isArray(result?.items) && result.items.length === 1
+    && UUID.test(result.items[0]?.id || ''), 'LATEST_VERSION_LIST_REQUIRES_REVIEW');
+  requireThat(result.items[0].id === activeId, 'LATEST_UPLOADED_NOT_ACTIVE');
 }
 // Frozen old predicate, used only to keep historical diagnostic reports honest.
 export function legacyCheckLogging(settings) {
@@ -143,7 +150,7 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
   const api = async (stage, suffix, body) => {
     check(); requireThat(API_STAGES.includes(stage), 'API_PATH_DENIED');
     // No caller-supplied URL, redirects, cookies, retries, PUT, PATCH or DELETE.
-    requireThat(['/deployments', '/script-settings', '/versions?bindings_inherit=strict'].includes(suffix)
+    requireThat(['/deployments', '/script-settings', '/versions?bindings_inherit=strict', LATEST_VERSION_PATH].includes(suffix)
       || /^\/versions\/[a-f0-9-]{36}$/i.test(suffix), 'API_PATH_DENIED');
     if (body) { requireThat(suffix === '/versions?bindings_inherit=strict' && !postStarted, 'WRITE_DENIED'); postStarted = true; }
     requestDiagnostic = summarizeApiFailure(stage);
@@ -164,21 +171,24 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
       const before = activeDeployment(await api('active_deployment', '/deployments')); check();
       checkLogging(await api('logging_preflight', '/script-settings')); check();
       const configuration = await preserveConfiguration(await api('source_version', `/versions/${before.version}`), before.version); check();
+      requireLatestActive(await api('latest_preflight', LATEST_VERSION_PATH), before.version); check();
       requireThat(JSON.stringify(activeDeployment(await api('active_recheck', '/deployments'))) === JSON.stringify(before), 'ACTIVE_VERSION_CHANGED');
       checkLogging(await api('logging_recheck', '/script-settings')); check();
       const metadata = { ...configuration,
-        // Explicit active UUID, NOT latest. Strict resolution prevents silent drops.
+        // The API supports latest only. Two latest==active checks gate this request;
+        // these reads are NOT an atomic lock. Full metadata readback is still required.
         bindings: configuration.bindings.map(b => b.name === 'AI'
-          ? { name: 'AI', type: 'inherit', version_id: before.version } : b),
+          ? { name: 'AI', type: 'inherit', version_id: 'latest' } : b),
         annotations: {
-        'workers/message': 'Maya Qwen validation diagnostic. Chat OFF. AI inherit pins active version; readback required. Manual promotion required.',
+        'workers/message': 'Maya Qwen validation diagnostic. Chat OFF. AI inherit requires latest=active checks; readback required. Manual promotion required.',
         'workers/commit_sha': build.commit,
         'workers/repository_url': 'https://github.com/adil-chandio/Mana-android',
-        'workers/tag': 'maya-diag-inherit-589b2882'
+        'workers/tag': 'maya-diag-guarded-589b2882'
       } };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
       form.append('worker-upload.mjs', new Blob([bytes], { type: 'application/javascript+module' }), 'worker-upload.mjs');
+      requireLatestActive(await api('latest_recheck', LATEST_VERSION_PATH), before.version); check();
       const uploaded = await api('version_upload', '/versions?bindings_inherit=strict', form); check();
       requireThat(UUID.test(uploaded?.id || ''), 'INVALID_UPLOAD_RECEIPT');
       const observed = await preserveConfiguration(await api('uploaded_version', `/versions/${uploaded.id}`), uploaded.id); check();
@@ -189,7 +199,7 @@ export async function uploadOnly({ env, bytes, source, fetcher = globalThis.fetc
       checkLogging(await api('logging_readback', '/script-settings')); check();
       return { worker: WORKER, version: uploaded.id, previousActiveVersion: before.version,
         commit: build.commit, sha256: SHA256, aiEnabled: false, promoted: false,
-        aiBindingInherited: true, aiBindingVerified: true };
+        aiBindingInherited: true, aiBindingVerified: true, latestMatchedActiveBeforeUpload: true };
     })()]);
   } catch (error) {
     // A timed-out/error POST may have created an unpublished version. Never retry.

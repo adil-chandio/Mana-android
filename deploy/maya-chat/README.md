@@ -1,3 +1,12 @@
+> **CURRENT MODE: guarded latest inheritance, Chat-OFF upload — 2026-09-13.**
+> See [GUARDED-LATEST-UPLOAD.md](GUARDED-LATEST-UPLOAD.md). Explicit UUID inheritance
+> failed 400/10057. The approved correction uses literal latest ONLY after two
+> API checks show latest uploaded equals active; full metadata readback remains.
+> These checks are NOT an atomic lock. No promotion, AI call or automatic Retry.
+> Source must be the direct child of `d03108512ac8cc5e73f605813437b8bcc5b0e01f`.
+> 326 build-side tests passed. Worker artifact and all non-inheritance guards unchanged.
+> Tag: `maya-diag-guarded-589b2882`. Earlier banners below are historical.
+
 > **CURRENT MODE: safe API error reporting + one Chat-OFF upload — 2026-09-13.**
 > See [API-ERROR-ATTEMPT.md](API-ERROR-ATTEMPT.md). Preserves the exact-active AI
 > inheritance policy and all prior guards. Only adds bounded failure reporting:
