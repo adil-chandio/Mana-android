@@ -777,9 +777,12 @@ class MainChatSurfaceTest {
         a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
         var result: NativeChatReadiness.Reason?=null;a.nativeConfiguredReady {result=it}
         assertEquals(NativeChatReadiness.Reason.READY,result)
+        val port=AndroidDictationPort(a)
+        val runtime=AndroidDictationPort::class.java.getDeclaredMethod("runtimeReady").apply {isAccessible=true}
+        assertEquals(true,runtime.invoke(port))
         val service=Robolectric.buildService(com.maya.ai.WakeWordService::class.java).get()
         com.maya.ai.WakeWordService.instance=service
-        try {a.nativeConfiguredReady {result=it};assertEquals(NativeChatReadiness.Reason.WAKE_SERVICE,result)} finally {com.maya.ai.WakeWordService.instance=null}
+        try {a.nativeConfiguredReady {result=it};assertEquals(NativeChatReadiness.Reason.WAKE_SERVICE,result);assertEquals(false,runtime.invoke(port))} finally {com.maya.ai.WakeWordService.instance=null}
         assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
     }
 

@@ -32,7 +32,7 @@ AI connection opens an internal route explanation/recovery dialog with a direct 
 
 The new native idle-readiness script omits only the saved Wake preference check. Native callers independently reject an actual Wake service, active microphone, speech output, unknown audio state, pending actions/requests and competing auto-listening/notification/proactive behavior. The old Cloudflare-specific script remains strict.
 
-Sunao also uses this actual-idle path, so a stopped Wake service with a saved ON preference alone cannot prevent the selected Fish voice from playing. Active capture/output is still blocked; no existing speaker is stolen to start Sunao. The original Fish body builder, reference/key, pronunciation conversion, free-model policy and output player are unchanged.
+One-shot Mic and Sunao also use this actual-idle path, so a stopped Wake service with a saved ON preference alone cannot prevent the selected Fish voice from playing. Active capture/output is still blocked; no existing speaker is stolen to start Sunao. The original Fish body builder, reference/key, pronunciation conversion, free-model policy and output player are unchanged.
 
 ## Security and validation
 

@@ -26,7 +26,7 @@ class AndroidDictationPort(private val activity: AppCompatActivity): NativeDicta
     private val main get()=(activity as? MainActivity)?.takeIf {MainActivity.instance===it}
     private fun permission()=ContextCompat.checkSelfPermission(activity,Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED
     private fun runtimeReady()=NativeChatReadiness.runtime(
-        activity.getSharedPreferences("maya",0).getBoolean("wake",false),WakeWordService.instance!=null,
+        false,WakeWordService.instance!=null,
         WakeWordService.fishOutputActive,WakeWordService.haal,com.maya.ai.MayaAct.hasPendingActions())==NativeChatReadiness.Reason.READY
     /** Package/service presence only: no engine creation, mic permission, audio, download or language guarantee. */
     fun serviceFailure(onDeviceOnly: Boolean): NativeDictation.State?=try {
@@ -43,8 +43,8 @@ class AndroidDictationPort(private val activity: AppCompatActivity): NativeDicta
         serviceFailure(onDeviceOnly)?.let {done(it);return}
         if(!permission()) {done(NativeDictation.State.PERMISSION_REQUIRED);return}
         if(!runtimeReady()) {done(NativeDictation.State.BLOCKED);return}
-        owner.nativeChatReady {reason ->
-            if(ticket!=readinessEpoch) return@nativeChatReady
+        owner.nativeConfiguredReady {reason ->
+            if(ticket!=readinessEpoch) return@nativeConfiguredReady
             val ready=reason==NativeChatReadiness.Reason.READY && runtimeReady()
             if(ready) {checkedAt=android.os.SystemClock.elapsedRealtime();checkedLanguage=language;checkedOnDevice=onDeviceOnly}
             done(if(ready) null else NativeDictation.State.BLOCKED)
