@@ -20,6 +20,17 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Visibility only for the owner-selected, optional public-source browser handoff. -->
+    <queries>
+        <!-- Visibility only, not a microphone grant or service activation. -->
+        <intent><action android:name="android.speech.RecognitionService" /></intent>
+        <package android:name="com.android.chrome" />
+        <package android:name="com.brave.browser" />
+        <package android:name="com.microsoft.emmx" />
+    </queries>
+
     <application
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
@@ -36,6 +47,41 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Standalone native text UI: ignores inbound data/extras; no deep links. -->
+        <activity android:name=".chat.NativeChatActivity" android:exported="true"
+            android:label="Maya Text Chat" android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Separate read-only research Agent. Incoming data/extras are not commands. -->
+        <activity android:name=".agent.ResearchActivity" android:exported="true"
+            android:label="Maya Agent" android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".agent.AgentActivity" android:exported="false"
+            android:label="Maya Agent Lab" android:windowSoftInputMode="adjustResize" />
+
+        <!-- Explicit native recovery entry. Ignores incoming URLs and extras. -->
+        <activity android:name=".update.UpdateActivity" android:exported="true"
+            android:label="MAYA Updates">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <provider android:name=".update.UpdateFileProvider"
+            android:authorities="${applicationId}.updates" android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_file_paths" />
+        </provider>
 
         <service
             android:name=".WakeWordService"

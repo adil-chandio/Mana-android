@@ -1,0 +1,14 @@
+{
+  "name": "maya-chat-upload-only",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test upload.test.mjs diagnostic.test.mjs repair.test.mjs logging-policy.test.mjs binding-diagnostic.test.mjs ai-binding-snapshot.test.mjs",
+    "check": "node --check worker-upload.mjs && npm test",
+    "upload": "npm run check && node upload-version.mjs"
+  }
+}

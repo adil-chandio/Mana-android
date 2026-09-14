@@ -1,9 +1,35 @@
+> **AI-request recovery candidate — 5.18.1 / code87; phone validation pending.** Code86 failed on the phone: both typed and wake AI turns timed out before text/Fish. N1 feature promotion stays paused.
+>
+> Code87 bounds discovery/owned provider attempts inside the unchanged 15-second total, prefers compatible cancellable native HTTP, and adds privacy-safe request-stage/HTTP diagnostics. Selected Fish voice, eligibility rules and STOP protections are retained. Local verification: **1,208 checks**, including **32 new request-repair regressions**. [Repair, limits and phone protocol](docs/AI-REQUEST-REPAIR-5.18.1.md) · [Code86 failure evidence](docs/N1-CONVERSATION-5.18.0.md#phone-failure-report--2026-09-11-stop-n1-promotion).
+>
+> Android CI: **60/60 native tests**, actual code87 APK identity/signature verified; same development signer as code86. Manual delivery agreement and phone test pending. No physical fix/speedup is claimed. Secure in-app updater activation, Stable publication and N2–N5 remain on hold. All older APK receipts below are historical, **not downgrade recommendations**.
+
+> **Development wake-recovery candidate — 5.17.3 / code 85 (phone validation pending)**
+>
+> The user reports code84 typed Chat is fast and the explicitly selected Fish voice plays, but wake did not respond. Code85 preserves that chat/voice path; fixes a reproduced STOP/SUNO speech-exclusion leak; adds actual native wake status, readiness/failure diagnostics and honest indicators. No physical wake or latency improvement is claimed yet.
+>
+> [Download code85 test APK ZIP](https://github.com/adil-chandio/Mana-android/actions/runs/34470774866/artifacts/10149471250) · 1,152 local checks + 54 native JVM tests pass; actual APK signature/identity CI-verified. Physical wake acceptance pending.
+>
+> [Current candidate evidence and installation protocol](docs/WAKE-RECOVERY-5.17.3.md) · [Code84 feedback and historical receipt](docs/PHASE3-DEVICE-TEST.md).
+>
+> Automated checks are not phone acceptance. **Do not reinstall older codes or promote Stable.** Secure in-app delivery is still blocked by signing/bootstrap configuration; use only the current CI-verified manual, in-place, same-development-signer candidate. Never uninstall/clear data to force it.
+
+> **Update Center implementation — v5.17.0 / code 82 (bootstrap, not published)**
+>
+> Native Stable/Beta updates, signed metadata, verified APK downloads, Android install confirmation and a separate **MAYA Updates** recovery entry are implemented. First installation still needs a manually installed, signing-configured bootstrap APK. Development artifacts without a pinned update key intentionally cannot fetch/install updates.
+>
+> **Activation blockers:** Source can be pushed, but GitHub rejects workflow-file changes and Secrets access. Proposed workflows are in `docs/workflows/` pending authorized activation; do not use the old remote release workflow as the secure publisher. Android CI has passed all 25 native JVM tests and verified a development APK; signing configuration and real-device upgrade verification remain required. The exposed legacy APK signing identity is not repaired by this feature. Voice/wake fixes are not included.
+>
+> Architecture, setup, security limitations and phone test plan: [docs/UPDATE-CENTER.md](docs/UPDATE-CENTER.md). Edit `release/version.json` / notes / test checklist, then run `npm run version:sync`. Never overwrite a published update.
+
 # 🤖 MAYA — Personal AI Assistant
 
-**Version 5.9.0 "SUKOON" — 0-Budget Build • Android APK + Web PWA**
+**Version 5.18.0 (86) — Development device-test candidate • Android APK + Web PWA**
 
 MAYA = aap ka apna JARVIS — voice controlled AI assistant (Gemini brain),
 ab **asli Android app** (APK) ki soorat mein, native superpowers ke saath:
+
+## Historical changelog (not current device-acceptance evidence)
 
 ## 🎚️ v5.9.0 — SUKOON: awaaz kabhi nahi kategi · mic-larai khatam *(P9 · v5.9.1 mein 🗣️ ON-DEVICE LANGUAGE ka asli button bhi)*
 

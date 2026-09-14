@@ -1,0 +1,41 @@
+name: Build MAYA APK
+
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts && npm test
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Native tests and development APK (no release secrets)
+        run: |
+          sdkmanager 'platforms;android-34' 'build-tools;34.0.0'
+          gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
+      - name: Upload development APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MAYA-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload native test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: ignore

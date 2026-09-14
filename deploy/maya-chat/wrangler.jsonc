@@ -1,0 +1,12 @@
+{
+  // Identity marker for Workers Builds, NOT a deployable Wrangler configuration.
+  // The custom command is `npm run upload`. It only POSTs an unpublished version.
+  // Deliberately missing entrypoint: an accidental default `wrangler deploy`
+  // must fail locally instead of dropping dashboard variables or DB bindings.
+  "name": "maya-chat",
+  "main": "./DIRECT_WRANGLER_DEPLOY_IS_DISABLED.mjs",
+  "compatibility_date": "2026-09-11",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": false }
+}
