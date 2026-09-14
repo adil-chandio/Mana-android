@@ -6,14 +6,14 @@ import androidx.appcompat.app.AppCompatActivity
 
 /** Standalone entry uses the same workspace as native Chat. No incoming data/extras. */
 class ResearchActivity : AppCompatActivity() {
-    private lateinit var workspace: ResearchWorkspace
+    private lateinit var workspace: com.maya.ai.chat.NativeChatWorkspace
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        workspace=ResearchWorkspace(this);setContentView(workspace.createView())
+        workspace=com.maya.ai.chat.NativeChatWorkspace(this) {finish()};setContentView(workspace.createView());workspace.selectAgentMode()
     }
     override fun onResume() {super.onResume();workspace.resume()}
     override fun onPause() {workspace.pause();super.onPause()}
-    override fun onStop() {workspace.clear();super.onStop()}
+    override fun onStop() {workspace.leaveScreen();super.onStop()}
     override fun onDestroy() {workspace.dispose();super.onDestroy()}
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus);if(::workspace.isInitialized) workspace.focusChanged(hasFocus)
@@ -22,5 +22,5 @@ class ResearchActivity : AppCompatActivity() {
         if(::workspace.isInitialized && workspace.consumeTouch(event)) return true
         return super.dispatchTouchEvent(event)
     }
-    @Deprecated("Deprecated in Android") override fun onBackPressed() {workspace.clear();finish()}
+    @Deprecated("Deprecated in Android") override fun onBackPressed() {workspace.requestClose()}
 }

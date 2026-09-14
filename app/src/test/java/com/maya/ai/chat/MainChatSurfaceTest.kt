@@ -64,7 +64,8 @@ class MainChatSurfaceTest {
         val w=field<NativeChatWorkspace>("nativeChat")
         val transport=NativeChatWorkspace::class.java.getDeclaredField("transport\$delegate").apply {isAccessible=true}.get(w) as Lazy<*>
         assertFalse(transport.isInitialized())
-        assertNotNull(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("tab_agent"))
+        assertNull(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("tab_agent"))
+        assertNotNull(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("mode_agent"))
         assertSame(w,field<NativeChatWorkspace>("nativeChat"));navigate();assertSame(w,field<NativeChatWorkspace>("nativeChat"))
     }
     @Test fun noGestureSubframeAndUntrustedPageCannotOpenMainChat() {
@@ -85,10 +86,10 @@ class MainChatSurfaceTest {
         assertEquals("",(NativeChatWorkspace::class.java.getDeclaredField("draft").apply {isAccessible=true}.get(fresh) as EditText).text.toString())
     }
     @Test fun backgroundClearsBothNativeWorkspacesWithoutWritingThemIntoWebView() {
-        navigate();button("Agent").performClick()
-        a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<EditText>("research_goal").setText("PRIVATE_RESEARCH")
+        navigate();a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<android.widget.RadioButton>("mode_agent").performClick()
+        a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<EditText>("shared_composer").setText("PRIVATE_RESEARCH")
         c.pause().stop().restart().start().resume()
-        assertEquals("",a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<EditText>("research_goal").text.toString())
+        assertEquals("",a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<EditText>("shared_composer").text.toString())
         assertNull(shadowOf(a).nextStartedActivity)
         assertEquals("https://appassets.androidplatform.net/assets/web/index.html",web.url)
     }
