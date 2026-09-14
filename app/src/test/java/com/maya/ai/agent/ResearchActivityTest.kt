@@ -39,7 +39,7 @@ class ResearchActivityTest {
     private val card get()=field<List<InlineAgentTurn>>("agentCards").last()
     private inline fun <reified T> turnField(name: String): T=InlineAgentTurn::class.java.getDeclaredField(name).apply {isAccessible=true}.get(card) as T
     private fun find(title: String): TextView {
-        fun f(v: View): TextView? {if(v is TextView && v.text.toString()==title) return v;if(v is ViewGroup) for(i in 0 until v.childCount) f(v.getChildAt(i))?.let {return it};return null}
+        fun f(v: View): TextView? {if(v is TextView && (v.text.toString()==title || v.contentDescription?.toString()==title)) return v;if(v is ViewGroup) for(i in 0 until v.childCount) f(v.getChildAt(i))?.let {return it};return null}
         return f(a.findViewById(android.R.id.content)) ?: error("Missing $title")
     }
     private fun confirm() {ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()}
@@ -56,7 +56,7 @@ class ResearchActivityTest {
     private fun run() {find("Run approved plan").performClick();shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(650))}
     private fun completed() {approve();run();fake.source(0)}
     @Test fun entryIsBlankAgentModeWithOnlyOneComposerAndNoRequests() {
-        assertEquals("",field<EditText>("draft").text.toString());assertTrue(field<RadioButton>("agentMode").isChecked)
+        assertEquals("",field<EditText>("draft").text.toString());assertTrue(field<Spinner>("modePicker").selectedItemPosition==1)
         assertTrue(field<List<InlineAgentTurn>>("agentCards").isEmpty());assertTrue(fake.gets.isEmpty());assertTrue(fake.texts.isEmpty())
         assertNull(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("tab_agent"))
     }
@@ -68,7 +68,7 @@ class ResearchActivityTest {
     @Test fun reviewAndApprovalAreSeparateFromActualFetch() {
         approve();assertTrue(fake.gets.isEmpty());assertTrue(turnField<Button>("execute").isEnabled);assertTrue(field<Button>("stop").isEnabled)
         run();assertEquals(1,fake.gets.size);assertFalse(field<Button>("send").isEnabled)
-        fake.source(0);assertTrue(turnField<TextView>("state").text.contains("COMPLETE"));assertTrue(turnField<Button>("explain").isEnabled)
+        fake.source(0);assertTrue(turnField<TextView>("state").text.contains("Complete"));assertTrue(turnField<Button>("explain").isEnabled)
         assertTrue(fake.texts.isEmpty());assertNull(shadowOf(a).nextStartedActivity)
     }
     @Test fun browserOrPlanEditsRevokeApproval() {
@@ -141,14 +141,14 @@ class ResearchActivityTest {
         assertEquals("KEEP_DRAFT",field<EditText>("draft").text.toString())
         ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
         find("Use source 1 in Direct Chat").performClick();confirm();confirm()
-        assertTrue(field<RadioButton>("directMode").isChecked);assertTrue(field<EditText>("draft").text.contains("SYNTHETIC_EXCERPT"))
+        assertTrue(field<Spinner>("modePicker").selectedItemPosition==0);assertTrue(field<EditText>("draft").text.contains("SYNTHETIC_EXCERPT"))
         assertTrue(fake.texts.isEmpty());assertEquals(1,fake.gets.size)
     }
     @Test fun modeSwitchRevokesApprovedRunAndDoesNotClearCompletedSources() {
         completed();val sources=turnField<LinearLayout>("result").childCount
-        field<RadioButton>("directMode").performClick();assertEquals(sources,turnField<LinearLayout>("result").childCount)
-        field<RadioButton>("agentMode").performClick();approve();field<RadioButton>("directMode").performClick()
-        assertFalse(card.approved);field<RadioButton>("agentMode").performClick();run();assertEquals(1,fake.gets.size)
+        field<Spinner>("modePicker").setSelection(0);shadowOf(Looper.getMainLooper()).idle();assertEquals(sources,turnField<LinearLayout>("result").childCount)
+        field<Spinner>("modePicker").setSelection(1);shadowOf(Looper.getMainLooper()).idle();approve();field<Spinner>("modePicker").setSelection(0);shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(card.approved);field<Spinner>("modePicker").setSelection(1);shadowOf(Looper.getMainLooper()).idle();run();assertEquals(1,fake.gets.size)
     }
     @Test fun stoppingDuringRunRejectsLateSourceAndNoAutomaticNextStep() {
         approve();turnField<EditText>("plan").setText("WIKI Dog\nWIKI Cat");find("Review & approve plan").performClick();confirm();run()
@@ -164,6 +164,24 @@ class ResearchActivityTest {
         approve();run();val touch=MotionEvent.obtain(0,0,MotionEvent.ACTION_DOWN,10f,10f,0)
         try {workspace.consumeTouch(touch)} finally {touch.recycle()}
         fake.source(0);assertFalse(card.busy);assertEquals(0,turnField<LinearLayout>("result").childCount)
+    }
+
+    @Test fun researchShowsOnlyActionsForTheRealStage() {
+        submit();assertEquals(View.VISIBLE,find("Review & approve plan").visibility);assertEquals(View.GONE,find("Run approved plan").visibility)
+        assertEquals(View.GONE,find("Explain sources · AI consent").visibility)
+        approve();assertEquals(View.GONE,find("Review & approve plan").visibility);assertEquals(View.VISIBLE,find("Run approved plan").visibility)
+        assertEquals(View.GONE,find("Generate / revise AI plan").visibility)
+        run();assertEquals(View.VISIBLE,field<Button>("stop").visibility);assertEquals(View.GONE,turnField<EditText>("plan").visibility)
+        fake.source(0);assertEquals(View.VISIBLE,find("Explain sources · AI consent").visibility);assertEquals(View.GONE,find("Review & approve plan").visibility)
+        find("Edit plan").performClick();assertEquals(View.VISIBLE,turnField<EditText>("plan").visibility)
+        assertEquals(1,fake.gets.size);assertTrue(fake.texts.isEmpty())
+    }
+    @Test fun compactSourceMenuDoesNotAuthorizeSharingOrBrowserLaunch() {
+        completed();assertFalse(find("Use source 1 in Direct Chat").isShown)
+        find("Source 1 actions ▾").performClick();assertTrue(find("Use source 1 in Direct Chat").isShown)
+        assertTrue(fake.texts.isEmpty());assertNull(shadowOf(a).nextStartedActivity)
+        find("Use source 1 in Direct Chat").performClick();assertNotNull(ShadowAlertDialog.getLatestAlertDialog())
+        assertEquals("",field<EditText>("draft").text.toString());assertTrue(field<Spinner>("modePicker").selectedItemPosition==1)
     }
 
 }

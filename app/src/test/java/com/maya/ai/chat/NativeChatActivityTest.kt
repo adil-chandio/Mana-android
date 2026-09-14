@@ -52,7 +52,7 @@ class NativeChatActivityTest {
     private fun page(name: String) = content.findViewWithTag<View>("${name}_page")
     private fun button(title: String): Button {
         fun find(view: View): Button? {
-            if (view is Button && view.text.toString() == title) return view
+            if (view is Button && (view.text.toString() == title || view.contentDescription?.toString() == title)) return view
             if (view is ViewGroup) for (i in 0 until view.childCount) find(view.getChildAt(i))?.let { return it }
             return null
         }
@@ -250,6 +250,9 @@ class NativeChatActivityTest {
     @Test fun stopRemainsOutsideScrollingContentAtCompactSizes() {
         val shell = content.getChildAt(0) as ViewGroup
         val stop = field<Button>("stop")
+        assertEquals(View.GONE,stop.visibility)
+        fakeSpeech();field<Lazy<NativeReplySpeech>>("speech\$delegate").value.check()
+        assertEquals(View.VISIBLE,stop.visibility)
         assertSame(shell, stop.parent)
         for (width in listOf(320, 360, 480)) for (height in listOf(320, 480, 640)) {
             shell.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -342,7 +345,7 @@ class NativeChatActivityTest {
         noTransport()
     }
 
-    private fun mode(agent: Boolean) {content.findViewWithTag<RadioButton>(if(agent) "mode_agent" else "mode_direct").performClick()}
+    private fun mode(agent: Boolean) {content.findViewWithTag<android.widget.Spinner>("mode_picker").setSelection(if(agent) 1 else 0);shadowOf(Looper.getMainLooper()).idle()}
     private class ResearchFake : com.maya.ai.agent.ResearchServices {
         val prompts=mutableListOf<String>()
         var completion: ((com.maya.ai.agent.ResearchSource?) -> Unit)?=null
@@ -431,10 +434,62 @@ class NativeChatActivityTest {
             surface.measure(View.MeasureSpec.makeMeasureSpec(320,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(320,View.MeasureSpec.EXACTLY))
             surface.layout(0,0,320,320)
             val draft=field<EditText>("draft");val box=android.graphics.Rect();draft.getDrawingRect(box);surface.offsetDescendantRectToMyCoords(draft,box)
-            assertTrue(draft.height>=48);assertTrue(box.top>=0);assertTrue(box.bottom<=field<Button>("stop").top)
-            assertTrue(field<RadioButton>("agentMode").height>=48);assertTrue(field<Button>("stop").bottom<=320)
+            assertTrue(draft.height>=48);assertTrue(box.top>=0);assertTrue(box.bottom<=320)
+            assertTrue(field<android.widget.Spinner>("modePicker").height>=48);assertEquals(View.GONE,field<Button>("stop").visibility)
         }
         noTransport()
+    }
+
+    @Test fun quietEntryMenuAndConsentRevocationStayInWorkspace() {
+        val menu=content.findViewWithTag<View>("workspace_menu")
+        assertEquals(View.GONE,menu.visibility);assertEquals(View.VISIBLE,content.findViewWithTag<View>("empty_state").visibility)
+        assertEquals(View.GONE,field<TextView>("status").visibility);assertEquals(View.GONE,field<TextView>("counter").visibility)
+        val composer=field<EditText>("draft");fill()
+        assertEquals(View.GONE,field<CheckBox>("consent").visibility)
+        content.findViewWithTag<Button>("workspace_menu_toggle").performClick();assertEquals(View.VISIBLE,menu.visibility)
+        tab("info").performClick();assertEquals(View.GONE,menu.visibility);assertTrue(composer.isShown)
+        val job=pending();button("Revoke Direct consent").performClick();cancelled(job)
+        assertFalse(field<CheckBox>("consent").isChecked);assertEquals(View.VISIBLE,field<CheckBox>("consent").visibility)
+        assertFalse(field<Button>("send").isEnabled);assertEquals("PRIVATE_SYNTHETIC_DRAFT",composer.text.toString());noTransport()
+    }
+    @Test fun errorsAndUncertaintyReappearWithoutAnotherPaint() {
+        val status=field<TextView>("status");assertEquals(View.GONE,status.visibility)
+        status.text="Agent goal needs fewer characters. Nothing sent.";assertEquals(View.VISIBLE,status.visibility)
+        status.text="Mode changed; stopped. Remote outcome uncertain.";assertEquals(View.VISIBLE,status.visibility)
+        val full="Error details\nline two\nline three\nline four"
+        status.text=full;assertEquals(3,status.maxLines);status.performClick();assertEquals(Int.MAX_VALUE,status.maxLines)
+        assertEquals(full,status.text.toString());assertNull(status.contentDescription);status.performClick();assertEquals(3,status.maxLines)
+        val warning=field<TextView>("touchWarning");warning.text="Touch blocked";assertEquals(View.VISIBLE,warning.visibility);noTransport()
+    }
+    @Test fun replyCopyIsExplicitAndDoesNotStartVoiceOrTransport() {
+        val clipboard=activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("sentinel","UNCHANGED"))
+        val port=fakeSpeech();completedHistory()
+        assertEquals("UNCHANGED",clipboard.primaryClip!!.getItemAt(0).text.toString())
+        button("Copy reply").performClick()
+        assertEquals("SYNTHETIC_REPLY",clipboard.primaryClip!!.getItemAt(0).text.toString())
+        assertTrue(clipboard.primaryClip!!.description.extras!!.getBoolean("android.content.extra.IS_SENSITIVE"))
+        assertTrue(port.requests.isEmpty());assertEquals(View.GONE,content.findViewWithTag<View>("empty_state").visibility);noTransport()
+    }
+    @Test fun compactComposerWithLargeTextAndActiveStopHasNoOverlap() {
+        val config=android.content.res.Configuration(activity.resources.configuration);config.fontScale=1.5f
+        activity.resources.updateConfiguration(config,activity.resources.displayMetrics)
+        // Recreate widgets with the changed font scale, not merely change the test assertion.
+        controller!!.recreate();shadowOf(Looper.getMainLooper()).idle()
+        mode(true);field<EditText>("draft").setText("Keep this draft")
+        val job=pending();val surface=content.getChildAt(0) as ViewGroup
+        surface.measure(View.MeasureSpec.makeMeasureSpec(320,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(320,View.MeasureSpec.EXACTLY));surface.layout(0,0,320,320)
+        fun bounds(view: View)=android.graphics.Rect().also {view.getDrawingRect(it);surface.offsetDescendantRectToMyCoords(view,it)}
+        val input=bounds(field<EditText>("draft"));val stop=bounds(field<Button>("stop"));val send=bounds(field<Button>("send"))
+        assertTrue(input.top>=0);assertTrue(input.bottom<=stop.top);assertTrue(stop.bottom<=320);assertTrue(stop.width()>=48);assertTrue(stop.height()>=48)
+        assertFalse(android.graphics.Rect.intersects(send,stop));assertEquals(View.VISIBLE,field<Button>("stop").visibility)
+        field<Button>("stop").performClick();cancelled(job);noTransport()
+    }
+    @Test fun paletteAndPrimaryLabelsHaveReadableContrast() {
+        assertTrue(androidx.core.graphics.ColorUtils.calculateContrast(MayaTheme.text,MayaTheme.background)>=7.0)
+        assertTrue(androidx.core.graphics.ColorUtils.calculateContrast(MayaTheme.muted,MayaTheme.surface)>=4.5)
+        assertTrue(androidx.core.graphics.ColorUtils.calculateContrast(MayaTheme.ink,MayaTheme.copper)>=4.5)
+        assertTrue(androidx.core.graphics.ColorUtils.calculateContrast(MayaTheme.danger,android.graphics.Color.rgb(65,37,40))>=4.5)
     }
 
 }

@@ -33,7 +33,7 @@ class InlineBuildTurnTest {
     }
     private val html="<!DOCTYPE html><html><body><h1>Bakery</h1></body></html>"
     private fun button(text: String): Button {
-        fun find(v: View): Button? {if(v is Button && v.text.toString()==text) return v;if(v is ViewGroup) for(i in 0 until v.childCount) find(v.getChildAt(i))?.let {return it};return null}
+        fun find(v: View): Button? {if(v is Button && (v.text.toString()==text || v.contentDescription?.toString()==text)) return v;if(v is ViewGroup) for(i in 0 until v.childCount) find(v.getChildAt(i))?.let {return it};return null}
         return find(root) ?: error("Missing $text")
     }
     private fun yes() {ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()}
@@ -41,7 +41,7 @@ class InlineBuildTurnTest {
     @Before fun open() {
         controller.setup().visible()
         NativeChatWorkspace::class.java.getDeclaredField("researchServices\$delegate").apply {isAccessible=true}.set(workspace,lazy<ResearchServices> {fake})
-        field<RadioButton>("agentMode").performClick();field<Spinner>("agentKind").setSelection(1);shadowOf(Looper.getMainLooper()).idle()
+        field<Spinner>("modePicker").setSelection(1);shadowOf(Looper.getMainLooper()).idle();field<Spinner>("agentKind").setSelection(1);shadowOf(Looper.getMainLooper()).idle()
     }
     @After fun close() {controller.pause().stop().destroy()}
     @Test fun selectingBuilderKeepsOneComposerAndDoesNothing() {
@@ -96,7 +96,7 @@ class InlineBuildTurnTest {
     @Test fun stopModeChangeAndDuplicateCallbacksCannotOverwriteCode() {
         submit("tiny page");yes();field<Button>("stop").performClick();fake.calls[0].second(html,null)
         assertEquals("",card.editor.text.toString());assertFalse(button("Apply reviewed proposal locally").isEnabled)
-        submit("tiny page again");yes();field<RadioButton>("directMode").performClick();fake.calls[1].second(html,null)
+        submit("tiny page again");yes();field<Spinner>("modePicker").setSelection(0);shadowOf(Looper.getMainLooper()).idle();fake.calls[1].second(html,null)
         assertEquals("",card.editor.text.toString());assertEquals(2,fake.cancels)
     }
     @Test fun timeoutRejectsLateProposalAndDoesNotRetry() {
@@ -154,6 +154,25 @@ class InlineBuildTurnTest {
             override fun deny() {denied=true}
         })
         assertTrue(denied);assertTrue(fake.calls.isEmpty())
+    }
+
+    @Test fun codeAndPreviewDisclosuresDoNotSendApplyOrDestroyCode() {
+        submit(html);val editor=card.editor
+        root.findViewWithTag<Button>("builder_code_toggle").performClick();assertEquals(View.GONE,editor.visibility)
+        root.findViewWithTag<Button>("builder_code_toggle").performClick();assertEquals(View.VISIBLE,editor.visibility)
+        button("Render static preview here").performClick();yes()
+        val preview=root.findViewWithTag<WebView>("isolated_static_preview")
+        assertNotNull(preview);assertEquals(View.GONE,editor.visibility);assertEquals(View.VISIBLE,field<Button>("stop").visibility)
+        root.findViewWithTag<Button>("builder_preview_toggle").performClick();assertFalse(preview.isShown)
+        assertTrue(card.stoppable);assertEquals(html,editor.text.toString());assertTrue(fake.calls.isEmpty())
+        field<Button>("stop").performClick();assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+    }
+    @Test fun proposalDisclosureDoesNotGrantApplyConsent() {
+        submit("tiny page");yes();fake.calls[0].second(html,null)
+        root.findViewWithTag<Button>("builder_proposal_toggle").performClick()
+        assertEquals(View.GONE,root.findViewWithTag<View>("builder_proposal").visibility)
+        assertEquals("",card.editor.text.toString());assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+        assertEquals(1,fake.calls.size)
     }
 
 }

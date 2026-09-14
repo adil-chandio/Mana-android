@@ -44,7 +44,7 @@ class MainChatSurfaceTest {
             .apply {isAccessible=true}.invoke(client,web,request) as Boolean
     }
     private fun button(title: String): Button {
-        fun f(v: View): Button? {if(v is Button && v.text.toString()==title) return v;if(v is ViewGroup) for(i in 0 until v.childCount) f(v.getChildAt(i))?.let {return it};return null}
+        fun f(v: View): Button? {if(v is Button && (v.text.toString()==title || v.contentDescription?.toString()==title)) return v;if(v is ViewGroup) for(i in 0 until v.childCount) f(v.getChildAt(i))?.let {return it};return null}
         return f(a.findViewById(android.R.id.content))!!
     }
     @Before fun open() {
@@ -65,7 +65,7 @@ class MainChatSurfaceTest {
         assertNull(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("tab_chat"))
         assertEquals(1,field<ViewGroup>("mainSurface").childCount)
         for(agent in listOf(true,false,true,false)) {
-            a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<android.widget.RadioButton>(if(agent) "mode_agent" else "mode_direct").performClick()
+            a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<android.widget.Spinner>("mode_picker").setSelection(if(agent) 1 else 0);shadowOf(Looper.getMainLooper()).idle()
             assertSame(initial,workspace);assertSame(surface,field<View>("nativeChatView"));assertSame(parent,web.parent)
             assertEquals(1,field<ViewGroup>("mainSurface").childCount)
         }
@@ -122,6 +122,17 @@ class MainChatSurfaceTest {
         try {assertFalse(listener.onTouch(web,down));assertFalse(listener.onTouch(web,up))} finally {down.recycle();up.recycle()}
         assertEquals(listOf(true,false),requests)
         spy.removeView(web);originalParent.addView(web,0)
+    }
+
+    @Test fun originalOrbCompactsInPlaceAndSettingsStayExpandable() {
+        val web=field<android.webkit.WebView>("webView");val parent=web.parent
+        val density=a.resources.displayMetrics.density
+        assertEquals((128*density).toInt(),web.layoutParams.height)
+        val session=local<NativeChatConversation>("session");val turn=session.begin("synthetic",true);session.complete(turn,"reply")
+        NativeChatWorkspace::class.java.getDeclaredMethod("renderHistory").apply {isAccessible=true}.invoke(workspace)
+        assertSame(parent,web.parent);assertEquals((72*density).toInt(),web.layoutParams.height)
+        button("Original settings · expand here").performClick();assertEquals((460*density).toInt(),web.layoutParams.height)
+        assertSame(parent,web.parent);assertNull(shadowOf(a).nextStartedActivity)
     }
 
 }

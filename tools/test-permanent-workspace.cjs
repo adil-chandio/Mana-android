@@ -23,6 +23,11 @@ assert.equal(w.getComputedStyle(w.document.querySelector('.homebar')).display,'n
 assert.equal(w.getComputedStyle(w.document.querySelector('#tab-chat')).display,'none');
 assert.equal(w.getComputedStyle(w.document.querySelector('#tab-home')).display,'block');
 assert(!/localStorage|fetch\(|http\(|MayaBridge\.|evaluateJavascript|innerHTML|\.value\s*=/.test(script));
+assert.equal(w.getComputedStyle(w.document.body).backgroundColor,'rgb(22, 23, 25)');
+// JSDOM has no layout/media-query renderer. Verify compact host rules exist without claiming pixels.
+assert(html.includes('@media(max-height:90px)'));
+assert(html.includes('html.maya-workspace-host:not(.maya-settings-expanded) #orb{width:56px;height:56px}'));
+assert(html.includes('@media(prefers-reduced-motion:reduce)'));
 const main=fs.readFileSync('app/src/main/java/com/maya/ai/MainActivity.kt','utf8');
 const create=main.slice(main.indexOf('override fun onCreate('),main.indexOf('override fun onActivityResult('));
 assert(create.includes('workspace.createView(webView)'));assert(create.includes('nativeChat = workspace'));
