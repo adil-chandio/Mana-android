@@ -38,7 +38,7 @@ Compatibility browser reply continuations also receive a one-use, generation-bou
 New automated coverage:
 -12 ForegroundVoiceSession pure tests: no startup capture, selected-service reuse, review/wait states, long replies, echo deadline, cancellation, stale echo/expiry, duplicate completion, output error,5-minute ceiling, bad clock and recreation.
 -4 NativeDictation tests: ready-anchored silence, speech onset vs hard deadline, duplicate ready, same-clock timings.
--6 Main native surface tests: unchecked session option, separate unchecked Wake-OFF choice/cancel, native-only wake invitation, background denial/preference preservation, explicit-start focus handoff and no deferred start after background.
+-7 Main native surface tests: unchecked session option, separate unchecked Wake-OFF choice/cancel, native-only wake invitation, background denial/preference preservation, explicit-start focus handoff and no deferred start after background, and actual workspace speech-completion→input handoff with synthetic ports/no model request.
 -5 Node conversation tests: long reply continuation, closed/new/expired ticket refusal, native-host no-hidden-dispatch/no-heard-log, no input/wake chimes, source-level startup/retry/background guards.
 
 Network-denied npm tests and native static integration checks are run locally. Android compilation and native JVM/Robolectric suite require exact-head CI; see final delivery receipt for the outcome. No physical microphone, Fish identity audition, provider, locked-screen or battery test was performed by this implementation session.

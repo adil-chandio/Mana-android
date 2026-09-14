@@ -189,14 +189,20 @@ class MainChatSurfaceTest {
     }
     private fun fakeDictation(): Pair<NativeDictation,DictationPort> {
         val port=DictationPort();val handler=android.os.Handler(Looper.getMainLooper())
-        val paint=NativeChatWorkspace::class.java.getDeclaredMethod("paint").apply {isAccessible=true}
+        val paint=NativeChatWorkspace::class.java.getDeclaredMethod("inputChanged").apply {isAccessible=true}
         val owner=NativeDictation(port,{android.os.SystemClock.elapsedRealtime()},{delay,action->
             val r=Runnable {action()};handler.postDelayed(r,delay);val cancel: ()->Unit={handler.removeCallbacks(r)};cancel
         },{paint.invoke(workspace)})
         NativeChatWorkspace::class.java.getDeclaredField("dictation\$delegate").apply {isAccessible=true}.set(workspace,lazyOf(owner))
         return owner to port
     }
-    private fun positive() {ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()}
+    private fun positive() {
+        val button=ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE)
+        val voiceStart=button.text.toString()=="Start voice"
+        button.performClick();shadowOf(Looper.getMainLooper()).idle()
+        // Robolectric does not synthesize the Activity focus-return callback when a dialog closes.
+        if(voiceStart) a.onWindowFocusChanged(true)
+    }
     @Test fun nativeDictationRequiresConsentAndFinalTranscriptNeverAutoSends() {
         val (owner,port)=fakeDictation();local<EditText>("draft").setText("EXISTING_DRAFT")
         button("Voice input").performClick();assertEquals(0,port.starts);assertNull(port.ready)
@@ -622,6 +628,33 @@ class MainChatSurfaceTest {
         shadowOf(Looper.getMainLooper()).idle();c.pause();c.resume();a.onWindowFocusChanged(true)
         assertEquals(NativeDictation.State.IDLE,local<Lazy<NativeDictation>>("dictation\$delegate").value.state)
         assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+
+    @Test fun realWorkspaceSpeechCompletionRearmsSameReviewedInputSessionWithoutSend() {
+        val (input,port)=fakeDictation();button("Mic").performClick()
+        ShadowAlertDialog.getLatestAlertDialog().findViewById<ViewGroup>(android.R.id.content)
+            .findViewWithTag<android.widget.CheckBox>("voice_session_opt_in").isChecked=true
+        positive();port.ready!!(null);port.events!!.ready();port.events!!.result("LOCAL_REVIEW_ONLY")
+        val grant=local<Lazy<com.maya.ai.voice.ForegroundVoiceSession>>("voiceSession\$delegate").value
+        assertEquals(com.maya.ai.voice.ForegroundVoiceSession.Phase.REVIEW,grant.phase)
+        button("Use transcript").performClick();assertEquals("LOCAL_REVIEW_ONLY",local<EditText>("draft").text.toString())
+        assertEquals(NativeDictation.State.IDLE,input.state)
+        val output=local<Lazy<NativeReplySpeech>>("speech\$delegate").value
+        var event: ((String,Int)->Unit)?=null
+        val fake=object : NativeReplySpeech.Port {
+            override fun prepare(text: String?,result: (NativeFishPolicy.Result)->Unit) {result(NativeFishPolicy.Result.Prepared("{}","{}"))}
+            override fun play(prepared: NativeFishPolicy.Result.Prepared,callback: (String,Int)->Unit): Boolean {event=callback;return true}
+            override fun stopOwned() {}
+        }
+        NativeReplySpeech::class.java.getDeclaredField("port").apply {isAccessible=true}.set(output,fake)
+        assertTrue(output.speak("SYNTHETIC_REPLY",true))
+        assertEquals(com.maya.ai.voice.ForegroundVoiceSession.Phase.OUTPUT,grant.phase)
+        event!!("done",200);assertEquals(1,port.starts)
+        shadowOf(Looper.getMainLooper()).idleFor(600,java.util.concurrent.TimeUnit.MILLISECONDS)
+        port.ready!!(null);assertEquals(2,port.starts);assertTrue(port.offline)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertTrue(local<NativeChatConversation>("session").messages().isEmpty())
+        button("End voice session").performClick();assertFalse(grant.armed);assertFalse(input.busy)
     }
 
 }
