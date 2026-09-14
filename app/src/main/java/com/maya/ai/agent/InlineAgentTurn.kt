@@ -247,7 +247,7 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
             }
         }
     }
-    override fun stop() {epoch++;dialog?.dismiss();dialog=null;val cancel=cancelModel;cancelModel=null;try {cancel?.invoke()} catch (_: Exception) {};runner.stop();notice="Stopped/revoked locally. No automatic resume.";refresh();changed()}
+    override fun stop() {val remotePending=cancelModel!=null;epoch++;dialog?.dismiss();dialog=null;val cancel=cancelModel;cancelModel=null;try {cancel?.invoke()} catch (_: Exception) {};runner.stop();notice="Stopped/revoked locally. No automatic resume."+if(remotePending) " Remote AI work/usage may continue; no refund guaranteed." else "";refresh();changed()}
     override fun dispose() {alive=false;stop();runner.clear();plan.setText("");summaryView.text="";explanation="";result.removeAllViews();goal="";recentDirect="";view.removeAllViews();rendered=emptyList();sourceButtons.clear();buttons.clear();choices.clear();handler.removeCallbacksAndMessages(null)}
     private fun label(text: String,size: Float=14f)=TextView(host).apply {this.text=text;MayaTheme.label(this,size,size<=13f);setPadding(0,dp(6),0,dp(6));view.addView(this)}
     private fun button(title: String, action: () -> Unit)=Button(host).apply {MayaTheme.button(this,title,title=="Review & approve plan" || title=="Run approved plan");setOnClickListener {if(canAct()) action()};buttons.add(this);view.addView(this)}

@@ -175,4 +175,11 @@ class InlineBuildTurnTest {
         assertEquals(1,fake.calls.size)
     }
 
+    @Test fun stoppingPendingProposalKeepsRemoteUncertaintyVisible() {
+        submit("tiny page");yes();field<Button>("stop").performClick()
+        val status=root.findViewWithTag<TextView>("builder_status")
+        assertEquals(View.VISIBLE,status.visibility);assertTrue(status.text.contains("Remote AI work/usage may continue"))
+        assertFalse(card.busy);assertEquals(1,fake.cancels)
+    }
+
 }

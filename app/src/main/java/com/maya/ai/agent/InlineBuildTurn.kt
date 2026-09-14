@@ -180,7 +180,7 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
     }
     private fun cancelPending() {val cancel=cancelModel;cancelModel=null;try {cancel?.invoke()} catch (_: Exception) {};deadline?.let {handler.removeCallbacks(it)};deadline=null}
     private fun clearPreview() {preview?.let {it.stopLoading();previewBox.removeView(it);it.destroy()};preview=null}
-    override fun stop() {epoch++;dialog?.dismiss();dialog=null;cancelPending();clearPreview();if(alive) {status.text="Stopped/revoked locally. Code preserved; no automatic resume.";refresh();changed()}}
+    override fun stop() {val remotePending=busy;epoch++;dialog?.dismiss();dialog=null;cancelPending();clearPreview();if(alive) {status.text="Stopped/revoked locally. Code preserved; no automatic resume."+if(remotePending) " Remote AI work/usage may continue; no refund guaranteed." else "";refresh();changed()}}
     override fun refresh() {
         val enabled=canAct();suggest.visibility=if(busy || proposed.isNotEmpty()) View.GONE else View.VISIBLE;buttons.forEach {it.isEnabled=enabled};editor.isEnabled=enabled
         apply.isEnabled=enabled && proposed.isNotEmpty() && proposedAgainst==editor.text.toString()

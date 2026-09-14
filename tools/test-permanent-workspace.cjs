@@ -24,6 +24,10 @@ assert.equal(w.getComputedStyle(w.document.querySelector('#tab-chat')).display,'
 assert.equal(w.getComputedStyle(w.document.querySelector('#tab-home')).display,'block');
 assert(!/localStorage|fetch\(|http\(|MayaBridge\.|evaluateJavascript|innerHTML|\.value\s*=/.test(script));
 assert.equal(w.getComputedStyle(w.document.body).backgroundColor,'rgb(22, 23, 25)');
+w.document.documentElement.classList.add('t-day');
+assert.equal(w.getComputedStyle(w.document.getElementById('app')).color,'rgb(238, 234, 228)');
+assert.equal(w.getComputedStyle(w.document.querySelector('#tab-set .ui-group')).backgroundColor,'rgb(33, 34, 37)');
+w.document.documentElement.classList.remove('t-day');
 // JSDOM has no layout/media-query renderer. Verify compact host rules exist without claiming pixels.
 assert(html.includes('@media(max-height:90px)'));
 assert(html.includes('html.maya-workspace-host:not(.maya-settings-expanded) #orb{width:56px;height:56px}'));

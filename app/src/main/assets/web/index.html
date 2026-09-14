@@ -552,8 +552,9 @@ html.maya-workspace-host.maya-settings-expanded #tab-set{display:block!important
 html.maya-workspace-host #tab-set > .ui-card{display:none!important}
 html.maya-workspace-host [data-main-chat]{display:none!important}
 /* Local host presentation only: preserve the original orb/settings and all saved values. */
-html.maya-workspace-host #app{--bg1:#161719;--bg2:#212225;--accent:#d79874;--accent2:#edc4aa;--text0:#eeeae4;--text1:#aaa59e;--line:#343538}
-html.maya-workspace-host .set-section{background:#212225;border-color:#343538}
+html.maya-workspace-host #app{--bg:#161719;--bg1:#161719;--bg2:#212225;--panel:#212225;--panel2:#161719;--glass:#212225;--accent:#d79874;--accent2:#edc4aa;--text0:#eeeae4;--text1:#aaa59e;--text:#eeeae4;--dim:#aaa59e;--line:#343538;color:#eeeae4}
+html.maya-workspace-host #tab-set .ui-group,html.maya-workspace-host #tab-set .ui-input{background:#212225;border-color:#343538;color:#eeeae4}
+html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
 @media(max-height:90px){
   html.maya-workspace-host:not(.maya-settings-expanded) #tab-home{height:72px;padding:8px 0}
   html.maya-workspace-host:not(.maya-settings-expanded) .workspace-orb-link{width:56px;height:56px}
@@ -561,7 +562,7 @@ html.maya-workspace-host .set-section{background:#212225;border-color:#343538}
   html.maya-workspace-host:not(.maya-settings-expanded) #orb .orbCore{font-size:20px}
 }
 @media(prefers-reduced-motion:reduce){
-  html.maya-workspace-host #orb,html.maya-workspace-host #orb::before,html.maya-workspace-host #orb::after{animation:none!important;transition:none!important}
+  html.maya-workspace-host #orb,html.maya-workspace-host #orb::before,html.maya-workspace-host #orb::after,html.maya-workspace-host #orb .orbCore{animation:none!important;transition:none!important}
 }
 
 /* PERMANENT_WORKSPACE_STYLE_END */

@@ -690,7 +690,11 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
          create.isEnabled = !busy; copy.isEnabled = !busy && publicText != null; check.isEnabled = !busy
         draft.isEnabled = !busy; consent.isEnabled = !busy
         counter.visibility=if(draft.text.length >= (if(agentSelected) 320 else 1600)) View.VISIBLE else View.GONE
-        counter.text = if(agentSelected) "Agent · ${draft.text.length} · goal ≤400 / plan ≤450" else "Direct Chat · ${draft.text.length} / 2,000"
+        counter.text = when {
+            agentSelected && kindSelection==1 -> "Build · ${draft.text.length} / 2,000 · AI request ≤400"
+            agentSelected -> "Agent · ${draft.text.length} · goal ≤400 / plan ≤450"
+            else -> "Direct Chat · ${draft.text.length} / 2,000"
+        }
     }
     private fun updateStatusVisibility() {
         val text=status.text.toString()
