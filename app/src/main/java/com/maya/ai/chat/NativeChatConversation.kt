@@ -60,5 +60,11 @@ class NativeChatConversation(private val monotonicMs: () -> Long) {
         active = null
         return if (turn.dispatched) StopOutcome.REMOTE_UNCERTAIN else StopOutcome.NOT_DISPATCHED
     }
+    /** Explicit local restore only; caller must clear approvals/consent. Never truncates for Send. */
+    @Synchronized fun restore(messages: List<NativeChatProtocol.Message>) {
+        check(active==null)
+        WorkspaceArchive.validateMessages(messages)
+        history=messages.toList()
+    }
     @Synchronized fun clear(): StopOutcome { val outcome = stop(); history = emptyList(); return outcome }
 }

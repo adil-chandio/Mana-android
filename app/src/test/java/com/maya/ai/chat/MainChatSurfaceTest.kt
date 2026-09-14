@@ -424,4 +424,34 @@ class MainChatSurfaceTest {
         assertTrue(field<Boolean>("hostFailed"));assertEquals(epoch,field<Long>("hostLoadEpoch"))
     }
 
+    @Test fun savedWorkCategoryIsDedicatedAndBackKeepsDraftWithoutImplicitVaultKey() {
+        local<EditText>("draft").setText("KEEP_DRAFT")
+        assertFalse(local<Lazy<*>>("savedVault\$delegate").isInitialized())
+        openSettings();button("Saved work & backups").performClick()
+        assertEquals(5,local<Int>("section"));assertFalse(local<EditText>("draft").isShown)
+        a.onBackPressed();assertEquals(4,local<Int>("section"));a.onBackPressed()
+        assertEquals(0,local<Int>("section"));assertEquals("KEEP_DRAFT",local<EditText>("draft").text.toString())
+        assertNull(shadowOf(a).nextStartedActivity)
+    }
+    @Test fun restoredSnapshotHasOneTimelineAdmissionAndNoConsentPreviewOrNetwork() {
+        val messages=listOf(NativeChatProtocol.Message("user","saved question"),NativeChatProtocol.Message("assistant","saved reply"))
+        val item=SavedWorkspace(java.util.UUID.randomUUID().toString(),"saved",0,messages,"new local draft","<html>saved file</html>")
+        // Invoke the post-confirmation restore path without creating an AndroidKeyStore key in this shadow.
+        NativeChatWorkspace::class.java.getDeclaredField("section").apply {isAccessible=true}.set(workspace,5)
+        local<android.widget.CheckBox>("consent").isChecked=true
+        NativeChatWorkspace::class.java.getDeclaredMethod("openSavedWorkspace",SavedWorkspace::class.java).apply {isAccessible=true}.invoke(workspace,item)
+        assertEquals(messages,local<NativeChatConversation>("session").messages())
+        val timeline=local<MutableList<Any>>("timeline")
+        assertEquals(2,timeline.filterIsInstance<NativeChatProtocol.Message>().size)
+        assertEquals(1,timeline.filterIsInstance<com.maya.ai.agent.InlineBuildTurn>().size)
+        val builder=local<com.maya.ai.agent.InlineBuildTurn>("buildTask")
+        assertEquals(item.code,builder.editor.text.toString());assertFalse(builder.busy);assertFalse(builder.approved)
+        assertNull(com.maya.ai.agent.InlineBuildTurn::class.java.getDeclaredField("preview").apply {isAccessible=true}.get(builder))
+        assertFalse(local<android.widget.CheckBox>("consent").isChecked)
+        assertEquals(item.draft,local<EditText>("draft").text.toString());assertEquals(0,local<Int>("section"))
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        c.pause().stop().restart().start().resume()
+        assertTrue(local<NativeChatConversation>("session").messages().isEmpty());assertEquals("",local<EditText>("draft").text.toString())
+    }
+
 }

@@ -128,6 +128,24 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private lateinit var emptyState: LinearLayout
     private lateinit var projectChip: TextView
     private lateinit var stopSpace: View
+    private val savedVault by lazy {AndroidWorkspaceVault.create(host)}
+    private var library: WorkspaceLibrary?=null
+    private fun captureSavedWorkspace()=WorkspaceLibrary.Snapshot(session.messages(),draft.text.toString(),buildTask?.editor?.text?.toString())
+    private fun openSavedWorkspace(item: SavedWorkspace) {
+        if(!visible || section!=5 || anyBusy) return
+        // Restore data only. No action, proposal, preview, provider consent or task ownership is restored.
+        stopActive("Opening saved work locally. Nothing sent or resumed.")
+        clearAgents();session.clear();timeline.clear();session.restore(item.messages)
+        timeline.addAll(item.messages);shownDirect=item.messages.size;draft.setText(item.draft);consent.isChecked=false
+        item.code?.let {code ->
+            val card=com.maya.ai.agent.InlineBuildTurn(host,"Restored local project",researchServices,
+                {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && !dictation.stoppable && agentCards.none {it!==turn && it.busy}}, {paint()})
+            card.editor.setText(code);buildTask=card;agentCards.add(card);timeline.add(card)
+        }
+        followLatest=true;latestResponse.visibility=View.GONE
+        navigateSettings(0);selectDirectMode();renderHistory()
+        status.text="Saved snapshot opened locally. Direct consent is OFF. Review Context before Send; restored code is unverified and has not run."
+    }
     private var voiceComponent: View?=null
     private var hostNotice: LinearLayout?=null
     private var hostNoticeContainer: ScrollView?=null
@@ -411,7 +429,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         label("BACKGROUND / EXIT CLEARS THIS CONVERSATION", 17f)
         label("Internal Settings navigation keeps the conversation. Backgrounding, closing or recreating the Activity clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
         label("2,000 characters/message · 6,000 in context · 12 messages. 5 admitted requests/minute, 50/day shared with browser Chat; no guarantee of free capacity.")
-        label("STOP ends local waiting, not guaranteed remote work or a refund. Failed/uncertain turns are excluded from follow-ups. No automatic retries, history storage or message logging.")
+        label("STOP ends local waiting, not guaranteed remote work or a refund. Failed/uncertain turns are excluded from follow-ups. No automatic retries, auto-save or message logging. Explicit encrypted snapshots are separate in Settings → Saved work & backups.")
         label("Replies are untrusted plain text and may be inaccurate. Never enter passwords, OTPs, provider tokens or private keys.")
         label("Chat uses the saved APK key; displaying it is not required. Server Chat availability is controlled by the owner, not by these tabs. Checks are explicit; opening this screen performs none.")
         label("Sunao sends only the chosen reply (using the original local speech-text conversion) to api.fish.audio with the saved Fish reference/key. Nothing plays automatically; confirmation is required each time. Never paste keys into Chat.")
@@ -419,7 +437,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         label("Selected Fish voice, wake and original assistant settings remain unchanged. The configured free Fish model may be unavailable or quota-limited; no free/unlimited guarantee or fallback. Media analysis and cross-app automation are not enabled. Agent mode uses this composer and timeline, with explicit consent and plan approval.")
 
         label("Direct Chat context contains completed Direct turns only. Build static page is an Agent task: one local index.html with optional small AI proposals and isolated static preview, not a full IDE. Agent goals use the current message; recent Direct excerpts can be explicitly selected in the plan consent. Source sharing/explanation needs its own consent. Use a source’s composer action to ask Direct Chat about it; no hidden history transfer.")
-        label("At most 3 Agent task cards per local conversation; clear explicitly when full. Switching modes stops work/revokes approvals but preserves the timeline. Leaving clears everything. Full cross-app control, Vision and saved history are not implemented.")
+        label("At most 3 Agent task cards per local conversation; clear explicitly when full. Switching modes stops work/revokes approvals but preserves the timeline. Leaving clears the temporary workspace, not explicitly saved snapshots. Full cross-app control and Vision are not implemented.")
 
         val shell = column().apply {
             setBackgroundColor(MayaTheme.background); setPadding(dp(16), dp(8), dp(16), dp(8))
@@ -485,7 +503,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         settingsSurface=settings
         val settingsHeader=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;gravity=android.view.Gravity.CENTER_VERTICAL}
         val settingsTitle=labelView("Settings",21f)
-        settingsHeader.addView(actionButton("Back to workspace") {navigateSettings(if(section in 1..3) 4 else 0)}.apply {text="‹";textSize=28f;tag="settings_back"},LinearLayout.LayoutParams(dp(48),dp(56)))
+        settingsHeader.addView(actionButton("Back to workspace") {navigateSettings(if(section in listOf(1,2,3,5)) 4 else 0)}.apply {text="‹";textSize=28f;tag="settings_back"},LinearLayout.LayoutParams(dp(48),dp(56)))
         settingsHeader.addView(settingsTitle,LinearLayout.LayoutParams(0,-2,1f));settings.addView(settingsHeader)
         val settingsNotices=column();settings.addView(settingsNotices)
         val settingsBody=FrameLayout(this).apply {tag="settings_body";isSaveEnabled=false}
@@ -494,6 +512,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         settingsHome.addView(labelView("Your Maya",13f).apply {setTextColor(MayaTheme.muted)})
         val oldVoice=menuPanel.getChildAt(menuPanel.childCount-1).takeIf {voiceSurface!=null}
         if(oldVoice!=null) {menuPanel.removeView(oldVoice);settingsHome.addView(oldVoice)}
+        settingsHome.addView(actionButton("Saved work & backups") {navigateSettings(5)}.apply {tag="open_saved_work"})
         val detailButtons=mutableListOf<Button>()
         listOf("Close details", "Checks ▾", "Privacy ▾").forEachIndexed {i,title ->
             actionButton(title) {navigateSettings(i)}.also {
@@ -504,8 +523,10 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         settingsHome.addView(labelView("Conversation stays here when you open Settings. Backgrounding or leaving the app still clears this temporary conversation.",13f).apply {setTextColor(MayaTheme.muted)})
         fun scrolling(page: View)=ScrollView(this).apply {isSaveEnabled=false;isFillViewport=true;addView(page)}
         val homeScroll=scrolling(settingsHome);val checksScroll=scrolling(checksPage);val infoScroll=scrolling(infoPage)
+        val savedPage=WorkspaceLibrary(host,{savedVault},{captureSavedWorkspace()},{openSavedWorkspace(it)}).also {library=it}
+        val savedScroll=scrolling(savedPage.view)
         val voicePage=FrameLayout(this).apply {tag="voice_settings_page";isSaveEnabled=false}
-        listOf(homeScroll,checksScroll,infoScroll,voicePage).forEach {settingsBody.addView(it,FrameLayout.LayoutParams(-1,-1))}
+        listOf(homeScroll,checksScroll,infoScroll,voicePage,savedScroll).forEach {settingsBody.addView(it,FrameLayout.LayoutParams(-1,-1))}
         surface.addView(settings,FrameLayout.LayoutParams(-1,-1));stop.bringToFront()
         fun placeVoice() {
             if(voiceSurface!=null) {
@@ -524,15 +545,18 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         navigateSettings={index ->
             if(index!=section) stopActive(if(anyBusy || agentCards.any {it.stoppable}) "Workspace work stopped for Settings. Conversation retained." else "Settings toggled; conversation retained.")
             hideKeyboard();draft.clearFocus();confirmationGeneration++;disclosure?.dismiss();disclosure=null
+            if(section==5 && index!=5) library?.leave()
             section=index;menuPanel.visibility=View.GONE
             shell.visibility=if(index==0) View.VISIBLE else View.GONE
             composer.visibility=shell.visibility;chatPage.visibility=shell.visibility
             settings.visibility=if(index==0) View.GONE else View.VISIBLE
-            settingsTitle.text=when(index) {1->"Checks & identity";2->"Privacy & limits";3->"Voice & appearance";else->"Settings"}
+            settingsTitle.text=when(index) {1->"Checks & identity";2->"Privacy & limits";3->"Voice & appearance";5->"Saved work & backups";else->"Settings"}
             homeScroll.visibility=if(index==4) View.VISIBLE else View.GONE
             checksScroll.visibility=if(index==1) View.VISIBLE else View.GONE;checksPage.visibility=checksScroll.visibility
             infoScroll.visibility=if(index==2) View.VISIBLE else View.GONE;infoPage.visibility=infoScroll.visibility
             voicePage.visibility=if(index==3) View.VISIBLE else View.GONE
+            savedScroll.visibility=if(index==5) View.VISIBLE else View.GONE
+            if(index==5) library?.enter()
             val target=if(index==0) body else settingsNotices
             if(notices.parent!==target) {(notices.parent as android.view.ViewGroup).removeView(notices);target.addView(notices,if(index==0) 1 else 0)}
             detailButtons.forEachIndexed {i,button->button.isSelected=i==index}
@@ -612,7 +636,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         val card=com.maya.ai.agent.InlineBuildTurn(host,value,researchServices,
             {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && !dictation.stoppable && agentCards.none {it!==turn && it.busy}}, {paint()})
         buildTask=card;agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
-        status.text="Builder stays in this conversation. One memory-only index.html; static preview needs confirmation."
+        status.text="Builder stays in this conversation. One local index.html; static preview needs confirmation. Save an explicit snapshot from Settings to retain it."
         if(!manual) card.propose(value)
     }
     private fun revealTurn(view: View) {
@@ -1045,8 +1069,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun runOnUiThread(action: () -> Unit) { host.runOnUiThread { action() } }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    fun resume() { visible = true; restoreVoicePresentation(); showAccessDiagnostic(); paint() }
-    fun pause() { dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
+    fun resume() { visible = true;if(section==5) library?.enter(); restoreVoicePresentation(); showAccessDiagnostic(); paint() }
+    fun pause() { library?.leave();dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
     fun focusChanged(hasFocus: Boolean) {
         if(!hasFocus && dictation.busy) dictation.stop()
         if(!hasFocus && agentBusy) agentCards.forEach {it.stop()}
@@ -1064,12 +1088,13 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     fun leaveScreen() { endLocalSession() }
     fun dispose() {
         // Also fence callbacks if destruction occurs without the normal onStop path.
-        endLocalSession(); handler.removeCallbacksAndMessages(null)
+        library?.dispose();endLocalSession(); handler.removeCallbacksAndMessages(null)
     }
     fun requestClose() {
+        if(library?.cancelDialog()==true) return
         if(dictation.busy) {dictation.stop();return}
         if(disclosure?.isShowing==true) {confirmationGeneration++;disclosure?.dismiss();disclosure=null;return}
-        if(section!=0) {navigateSettings(if(section in 1..3) 4 else 0);return}
+        if(section!=0) {navigateSettings(if(section in listOf(1,2,3,5)) 4 else 0);return}
         if(menuPanel.visibility==View.VISIBLE) {menuPanel.visibility=View.GONE;return}
         if (draft.text.isNotEmpty() || session.messages().isNotEmpty() || active != null || speech.busy || dictation.stoppable || agentCards.isNotEmpty())
             confirm("Leave private Chat?", "Leaving clears Chat and Agent data and stops local waiting. It does not erase provider records or refund usage.") { endLocalSession(); close() }

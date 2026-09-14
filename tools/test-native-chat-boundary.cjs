@@ -13,7 +13,7 @@ const m = read('app/src/main/java/com/maya/ai/MainActivity.kt');
 assert(m.includes('request.isForMainFrame && request.hasGesture()'));
 assert(m.includes('webView.url in listOf('));
 assert.equal(read('public/index.html'), read('app/src/main/assets/web/index.html'));
-assert.equal(JSON.parse(read('release/version.json')).versionCode, 103);
+assert.equal(JSON.parse(read('release/version.json')).versionCode, 104);
 assert(read('app/build.gradle').includes("implementation 'com.squareup.okhttp3:okhttp:4.12.0'"));
 console.log('Native static integration boundaries PASS (not a device/UI execution test).');
 
@@ -82,3 +82,16 @@ assert(m.includes('hostFallbackUsed=true;beginWorkspaceHostLoad()'));
 assert(m.includes('if(hostFailed) {view.stopLoading()'));
 assert(!m.slice(m.indexOf('inner class MayaBridge')).includes('retryWorkspaceHost'));
 console.log('Voice and bundled-host recovery boundaries PASS (no live device/service proof).');
+
+const library=read('app/src/main/java/com/maya/ai/chat/WorkspaceLibrary.kt');
+const vault=read('app/src/main/java/com/maya/ai/chat/AndroidWorkspaceVault.kt');
+const archive=read('app/src/main/java/com/maya/ai/chat/SavedWorkspace.kt');
+assert(vault.includes('noBackupFilesDir')); assert(vault.includes('AtomicFile'));
+assert(!/startActivity|HttpURLConnection|MayaBridge|identity\.sign|session\.begin|requestPermissions/.test(library));
+assert(!/val (?:approval|apiKey|reference_id|signature|endpoint)/.test(archive));
+assert(library.includes('Import snapshot'));assert(library.includes('Copy encrypted text'));
+assert(!library.includes('getPrimaryClip'));assert(library.includes('SynchronousQueue()'));
+assert(library.includes('postDelayed(it,15000)'));
+assert(a.includes('session.restore(item.messages)'));assert(a.includes('shownDirect=item.messages.size'));
+assert(a.includes('library?.leave()'));assert(a.includes('Saved work & backups'));
+console.log('Explicit encrypted library boundaries PASS; not physical Keystore/backup acceptance.');
