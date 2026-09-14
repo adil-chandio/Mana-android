@@ -568,4 +568,40 @@ class MainChatSurfaceTest {
         assertEquals(0,store.writes);assertTrue(local<List<Any>>("timeline").isEmpty());assertFalse(local<android.widget.CheckBox>("consent").isChecked)
     }
 
+    @Test fun foregroundSessionIsAbsentOnStartupAndInputOptInIsUnchecked() {
+        val root=a.findViewById<ViewGroup>(android.R.id.content)
+        assertEquals(View.GONE,root.findViewWithTag<View>("voice_session_panel").visibility)
+        button("Mic").performClick();val d=ShadowAlertDialog.getLatestAlertDialog()
+        val keep=d.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<android.widget.CheckBox>("voice_session_opt_in")
+        assertNotNull(keep);assertFalse(keep.isChecked)
+        d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(local<Lazy<com.maya.ai.voice.ForegroundVoiceSession>>("voiceSession\$delegate").value.armed)
+    }
+    @Test fun wakeOffIsASeparateUncheckedChoiceAndCancelPreservesPreference() {
+        a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
+        button("Mic").performClick();val d=ShadowAlertDialog.getLatestAlertDialog()
+        val off=d.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<android.widget.CheckBox>("voice_session_wake_off")
+        assertEquals(View.VISIBLE,off.visibility);assertFalse(off.isChecked)
+        off.isChecked=true;d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+        assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun wakeInvitationOpensOnlyNativeInputReviewNoHiddenDispatch() {
+        val surface=field<View>("nativeChatView")
+        MainActivity::class.java.getDeclaredField("voiceHostTrusted").apply {isAccessible=true}.set(a,true)
+        a.MayaBridge().nativeWakeNotice();shadowOf(Looper.getMainLooper()).idle()
+        val d=ShadowAlertDialog.getLatestAlertDialog();assertTrue(d.isShowing)
+        assertNotNull(d.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("voice_session_opt_in"))
+        assertSame(surface,field<View>("nativeChatView"));assertTrue(local<NativeChatConversation>("session").messages().isEmpty())
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized());assertEquals("",local<EditText>("draft").text.toString())
+        d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+    }
+    @Test fun backgroundRejectsWakeInvitationAndKeepsSavedPreferenceButNotCapture() {
+        a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
+        c.pause();a.MayaBridge().nativeWakeNotice();shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(a.voiceForeground());assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
+        assertNull(com.maya.ai.WakeWordService.instance)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized());c.resume()
+    }
+
 }

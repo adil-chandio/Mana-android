@@ -4,7 +4,7 @@ package com.maya.ai.voice
 class WakeStatus(private val now: () -> Long) {
     enum class State { STOPPED, REQUESTED, FOREGROUND, STARTING, READY, BLOCKED, RETRY, ERROR, UNKNOWN }
     enum class Reason { NONE, PERMISSION, START_REJECTED, FOREGROUND_REJECTED, UNAVAILABLE,
-        SPEECH, APP_MIC, ECHO_TAIL, FISH_OUTPUT, RECOGNIZER_ERROR, DEADLINE, START_FAILED, STALE }
+        SPEECH, APP_MIC, ECHO_TAIL, FISH_OUTPUT, RECOGNIZER_ERROR, DEADLINE, START_FAILED, STALE, NOT_FOREGROUND, RETRY_LIMIT }
     data class Snapshot(val state: State, val reason: Reason, val error: Int,
                         val ageMs: Long, val starts: Long, val ready: Long)
     private var state = State.STOPPED

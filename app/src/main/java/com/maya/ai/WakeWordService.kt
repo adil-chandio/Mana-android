@@ -84,6 +84,9 @@ class WakeWordService : Service() {
                 updateHealth(State.ERROR, Reason.PERMISSION, 9)
                 return false
             }
+            if(MainActivity.instance?.voiceForeground()!=true) {
+                updateHealth(State.ERROR, Reason.NOT_FOREGROUND);return false
+            }
             requested = true
             if (instance == null) updateHealth(State.REQUESTED)
             return try {
@@ -105,6 +108,7 @@ class WakeWordService : Service() {
         @Synchronized fun stop(ctx: Context) {
             requestGeneration++
             requested = false
+            instance?.hardPause()
             instance?.running = false // Reject queued recognition before Android delivers onDestroy.
             updateHealth(State.STOPPED)
             haal = "KHALI"
@@ -187,6 +191,7 @@ class WakeWordService : Service() {
     private var lastWakeAt = 0L
     private var errStreak = 0
     private var lastErr = 0
+    private var foregroundStartedAt = 0L
     private var starts = 0
     @Volatile private var pendingGen = 0L        /* L6 RACE TOKEN — pending restart ka duct-ticket */
 
@@ -197,6 +202,8 @@ class WakeWordService : Service() {
         if (requested == false || (requested == null && !getSharedPreferences("maya", Context.MODE_PRIVATE).getBoolean("wake", false))) {
             stopSelf(); return
         }
+        if(MainActivity.instance?.voiceForeground()!=true) {updateHealth(State.ERROR,Reason.NOT_FOREGROUND);stopSelf();return}
+        foregroundStartedAt=SystemClock.elapsedRealtime()
         running = true
         attach(this)                              /* P9 — HAAL bridge instance */
         pausedByApp = false
@@ -205,10 +212,11 @@ class WakeWordService : Service() {
             tts = TextToSpeech(this) { st -> ttsReady = st == TextToSpeech.SUCCESS }
         } catch (e: Exception) {}
         startLoop()
+        handler.postDelayed({if(running) foregroundAllowed()},300000)
         handler.postDelayed(::watchdog, 45000)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = if (running) START_STICKY else START_NOT_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_NOT_STICKY
 
     override fun onDestroy() {
         running = false
@@ -441,7 +449,6 @@ class WakeWordService : Service() {
                                wakeWord switch bhi KHUD-BA-KHUD mita deta tha — isi liye
                                aap "wake ON karo to baad mein band milta" tha.
                                AB: na stopSelf, na switch haath mein. 2s sukoon, phir koshish. */
-                            errStreak = 0
                             report("err8", "mic masroof — 2s baad phir")
                             restart(2000)
                             return
@@ -479,6 +486,7 @@ class WakeWordService : Service() {
     }
 
     private fun handleAll(list: List<String>, recognitionMs: Long) {
+        if(!foregroundAllowed()) return
         val arr = JSONArray()
         for (i in list.indices) { if (i >= 6) break; arr.put(list[i]) }
         val payload = arr.toString()
@@ -487,13 +495,27 @@ class WakeWordService : Service() {
         } else {
             /* SAFE MODE: app band ho to KUCH NA KARO — v2.10.0 ka khud-app-kholna
                engine hi black screen ka mujrim nikla tha. */
-            lastHeardOffline = payload
+            // No background transcript retention or later replay.
         }
     }
-    private var lastHeardOffline = ""
+
+    private fun foregroundAllowed(): Boolean {
+        if(!running) return false
+        val reason=when {
+            MainActivity.instance?.voiceForeground()!=true -> Reason.NOT_FOREGROUND
+            SystemClock.elapsedRealtime()-foregroundStartedAt !in 0 until 300000L -> Reason.DEADLINE
+            errStreak>=3 -> Reason.RETRY_LIMIT
+            else -> return true
+        }
+        hardPause();running=false;pendingGen++
+        updateHealth(State.ERROR,reason);stopSelf();return false
+    }
 
     private fun restart(delay: Long) {
-        /* P8c — seedha recognizer nahi; pehle KHAMOSHI KA PEHRA. Sannate mein
+        if(!foregroundAllowed()) return
+        /* Legacy restart scheduling (VAD is currently disabled).
+           P8c previously used a silence gate; this is NOT a quiet keyword detector.
+           Historical design: pehle KHAMOSHI KA PEHRA. Sannate mein
            recognizer bilkul nahi chalega -> "mic on/off" khatam.
            P9 — (L6) har schedule ka apna token: naya aaye to purana pending
            MURDA (pehle do pending ek sath chal padte the -> mic strobe).
@@ -516,7 +538,7 @@ class WakeWordService : Service() {
     }
 
     private fun actuallyStart() {
-        if (!running || requested == false || recognitionActive) return
+        if (!running || requested == false || recognitionActive || !foregroundAllowed()) return
         val why = haalBlock()                    /* L2 — chautha darwaza */
         if (why != null) { blocked(why); report("skip", why); restart(700); return }
         try {
@@ -559,7 +581,7 @@ class WakeWordService : Service() {
 
     /** Har 45s zinda hai? har 12 min fresh recognizer */
     private fun watchdog() {
-        if (!running) return
+        if (!foregroundAllowed()) return
         watchdogRuns++
         if (watchdogRuns >= 16) { // ~12 min
             watchdogRuns = 0

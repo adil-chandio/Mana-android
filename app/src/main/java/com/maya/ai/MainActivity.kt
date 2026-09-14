@@ -76,13 +76,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mainSurface: android.widget.FrameLayout
     private var nativeChat: com.maya.ai.chat.NativeChatWorkspace? = null
     private var nativeChatView: android.view.View? = null
-    private var mainResumed = false
+    @Volatile private var mainResumed = false
+    @Volatile private var voiceHostTrusted = false
     private lateinit var assetLoader: WebViewAssetLoader
     @Volatile private var webViewAlive = false
     private var workspaceSettingsOpen=false
     private var workspaceHostReady=false
     private var hostLoadEpoch=0L
-    private var hostPresentationEpoch=0L
+    @Volatile private var hostPresentationEpoch=0L
     private var hostMountEpoch=0L
     private val hostHandler=android.os.Handler(Looper.getMainLooper())
     private var hostDeadline: Runnable?=null
@@ -90,6 +91,7 @@ class MainActivity : AppCompatActivity() {
     private var hostFallbackUsed=false
     private fun cancelHostDeadline() {hostDeadline?.let {hostHandler.removeCallbacks(it)};hostDeadline=null}
     private fun failWorkspaceHost() {
+        voiceHostTrusted=false
         cancelHostDeadline();hostLoadEpoch++;hostPresentationEpoch++;hostMountEpoch++;hostFailed=true;workspaceHostReady=false
         webView.visibility=android.view.View.INVISIBLE
         nativeChat?.hostPresentationState(false,true)
@@ -101,6 +103,7 @@ class MainActivity : AppCompatActivity() {
             .also {hostHandler.postDelayed(it,8000)}
     }
     private fun beginWorkspaceHostLoad() {
+        voiceHostTrusted=false
         hostLoadEpoch++;hostPresentationEpoch++;hostMountEpoch++;workspaceHostReady=false;hostFailed=false
         webView.visibility=android.view.View.INVISIBLE
         nativeChat?.hostPresentationState(true,false);armHostDeadline()
@@ -201,7 +204,7 @@ class MainActivity : AppCompatActivity() {
         initTts()
         createNotificationChannel()
         // Permissions are requested by explicit feature actions, not by opening text Chat.
-        ensureWakeAlive()      /* Issue 1: listener never dies */
+        // Saved Wake is a preference, not authority to start capture on app launch.
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -279,12 +282,31 @@ class MainActivity : AppCompatActivity() {
         if (mainResumed && !isFinishing && !isDestroyed) nativeChat?.focusComposer()
     }
     override fun onResume() { super.onResume(); mainResumed = true; nativeChat?.resume() }
-    override fun onPause() { mainResumed = false; hostPresentationEpoch++;cancelHostDeadline();webView.visibility=android.view.View.INVISIBLE; nativeChat?.pause(); super.onPause() }
+    override fun onPause() { mainResumed = false;
+        WakeWordService.stop(this);stopRecognizer()
+        evalAsync("if(typeof KAAN!=='undefined')KAAN.DARWAZA.close();if(typeof stopListening==='function')stopListening();if(typeof AWAAZ!=='undefined')AWAAZ.stop();")
+        hostPresentationEpoch++;cancelHostDeadline();webView.visibility=android.view.View.INVISIBLE; nativeChat?.pause(); super.onPause() }
     override fun onStop() { nativeChat?.leaveScreen(); super.onStop() }
     override fun onWindowFocusChanged(hasFocus: Boolean) { super.onWindowFocusChanged(hasFocus); nativeChat?.focusChanged(hasFocus) }
     override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
         if (nativeChat?.consumeTouch(event) == true) return true
         return super.dispatchTouchEvent(event)
+    }
+
+    fun voiceForeground(): Boolean = mainResumed && voiceHostTrusted && !isFinishing && !isDestroyed
+
+    /** Only called by the native, owner-confirmed input dialog; no JS bridge export. */
+    fun turnOffLegacyWakeForNativeVoice(done: (Boolean)->Unit) {
+        if(!voiceForeground()) {done(false);return}
+        WakeWordService.stop(this)
+        if(!prefs().edit().putBoolean("wake",false).commit()) {done(false);return}
+        try {
+            webView.evaluateJavascript("(function(){try{if(typeof settings!=='object'||typeof saveSettings!=='function')return false;settings.wakeWord=false;saveSettings();var sw=document.getElementById('sWake');if(sw)sw.checked=false;if(typeof KAAN!=='undefined')KAAN.DARWAZA.close();return settings.wakeWord===false;}catch(e){return false;}})()") {value ->
+                android.os.Handler(Looper.getMainLooper()).postDelayed({
+                    done(voiceForeground() && value=="true" && !prefs().getBoolean("wake",true) && WakeWordService.instance==null)
+                },300)
+            }
+        } catch(_: Exception) {done(false)}
     }
 
     /** Native-only microphone lease. Never exported through MayaBridge or persisted. */
@@ -371,6 +393,7 @@ class MainActivity : AppCompatActivity() {
         /* v4.0.1: JS ke markAlive() + ye dono ab webViewAlive true karte hain —
            pehle false-alarm toast har launch par aata tha */
         override fun onPageFinished(view: WebView, url: String?) {
+            if(view===webView) voiceHostTrusted=!hostFailed && view.url==url && url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")
             if (url != null && (url.startsWith("https://$VIRTUAL_HOST") || url.startsWith("file:///android_asset"))) {
                 webViewAlive = true
             }
@@ -650,6 +673,7 @@ class MainActivity : AppCompatActivity() {
 
         private fun listenSession(lang: String, owner: String) {
             runOnUiThread {
+                if(!voiceForeground()) {evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(8,'$owner')");return@runOnUiThread}
                 if(composerMicLease!=null) {evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(8,'$owner')");return@runOnUiThread}
                 if (ContextCompat.checkSelfPermission(
                         this@MainActivity, Manifest.permission.RECORD_AUDIO
@@ -888,6 +912,7 @@ class MainActivity : AppCompatActivity() {
         fun wakeService(start: Boolean): Boolean {
             return try {
                 if (start) {
+                    if(!voiceForeground()) return false
                     if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO)
                         != PackageManager.PERMISSION_GRANTED) {
                         WakeWordService.updateHealth(com.maya.ai.voice.WakeStatus.State.ERROR, com.maya.ai.voice.WakeStatus.Reason.PERMISSION, 9)
@@ -905,6 +930,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** Explicit local read, fixed fields only. No transcript/keys/raw exception messages. */
+        @JavascriptInterface
+        fun nativeWakeNotice() {
+            val presentation=hostPresentationEpoch
+            if(!voiceForeground()) return
+            runOnUiThread {
+                if(voiceForeground() && presentation==hostPresentationEpoch) {WakeWordService.stop(this@MainActivity);nativeChat?.offerForegroundVoice()}
+            }
+        }
+
         @JavascriptInterface
         fun wakeStatus(): String = WakeWordService.statusJson().put("micPermission",
             ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED).toString()

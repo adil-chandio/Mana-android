@@ -71,10 +71,10 @@ class AndroidDictationPort(private val activity: AppCompatActivity): NativeDicta
             fun text(bundle: Bundle?)=bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
             engine.setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {if(current()) events.ready() else events.error(NativeDictation.State.BLOCKED)}
-                override fun onBeginningOfSpeech() {}
+                override fun onBeginningOfSpeech() {if(current()) events.began()}
                 override fun onRmsChanged(rmsdB: Float) {if(lease===token && !current()) events.error(NativeDictation.State.BLOCKED)}
                 override fun onBufferReceived(buffer: ByteArray?) {} // Never store/log audio buffers.
-                override fun onEndOfSpeech() {}
+                override fun onEndOfSpeech() {if(current()) events.ended()}
                 override fun onError(error: Int) {
                     if(lease!==token) return
                     events.error(recognitionFailure(error))

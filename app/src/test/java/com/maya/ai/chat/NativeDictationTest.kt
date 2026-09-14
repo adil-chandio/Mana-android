@@ -111,4 +111,26 @@ class NativeDictationTest {
         f.events[0].result("review");assertFalse(f.d.recoverable);assertTrue(f.d.selectionLabel.contains("System service"))
     }
 
+    @Test fun sessionSilenceDeadlineStartsAtActualReadyAndDoesNotRepeat() {
+        val f=F();f.d.start("ur-PK",true,true,true);f.ready!!(null)
+        f.time=1000;f.events[0].ready();f.tick()
+        assertEquals(16000L,f.time);assertEquals(NativeDictation.State.NO_MATCH,f.d.state)
+        assertEquals(1,f.starts);assertTrue(f.timers.isEmpty());assertEquals("",f.d.transcript)
+    }
+    @Test fun speechBeginningCancelsSilenceButNotTheHardRecognitionDeadline() {
+        val f=F();f.d.start("ur-PK",true,true,true);f.ready!!(null);f.events[0].ready()
+        f.time=14000;f.events[0].began();f.tick()
+        assertEquals(20000L,f.time);assertEquals(NativeDictation.State.TIMEOUT,f.d.state)
+    }
+    @Test fun duplicateReadyNeverRenewsTheSilenceDeadline() {
+        val f=F();f.d.start("ur-PK",true,true,true);f.ready!!(null);f.events[0].ready()
+        f.time=5000;f.events[0].ready();f.tick();assertEquals(15000L,f.time)
+    }
+    @Test fun recognitionDurationsAreSameClockAndClearWithInput() {
+        val f=F();f.begin();f.time=250;f.events[0].ready();f.time=900;f.events[0].ended()
+        f.time=1200;f.events[0].result("review only")
+        assertEquals(250L,f.d.readyMs);assertEquals(300L,f.d.finalizationMs)
+        f.d.clear();assertNull(f.d.readyMs);assertNull(f.d.finalizationMs)
+    }
+
 }

@@ -45,4 +45,33 @@ test('timing records are bounded and contain no raw text/keys/voice IDs',()=>{co
 test('missing, negative and excessive recognition markers stay unknown',()=>{const s=metricWorld();for(const v of [undefined,null,-1,NaN,Infinity,300001])assert.equal(s.SESSION_TIME.begin(true,{origin:'wake',recognitionMs:v},0).recognitionMs,null);});
 test('cache/local samples are not presented as provider speed',()=>{const s=metricWorld(),m=s.SESSION_TIME;for(const route of ['provider','cache','local']){const r=m.begin(false,null,0);s.advance(route==='provider'?100:1);m.text(r,route);}assert.equal(m.summary('typed').count,1);assert.equal(m.summary('typed').median,100);});
 test('stale input epoch prevents even an otherwise-current row being updated',()=>{const s=metricWorld(),m=s.SESSION_TIME;const r=m.begin(false,null,0);s.INPUT_EPOCH++;m.text(r,'provider');assert.equal(r.textMs,null);});
+
+test('reply-bound continuation survives a long response, but is consumed only once',()=>{
+ const s=world();s.KAAN.DARWAZA.open();const ticket=s.KAAN.DARWAZA.replyTicket();s.advance(45000);
+ assert.equal(s.KAAN.DARWAZA.isOpen(),false);s.afterSpeak(true,ticket);s.advance(600);
+ assert.equal(s.listening,true);assert.equal(ticket.used,true);assert.equal(s.KAAN.DARWAZA.resumeReply(ticket),false);
+});
+test('closed conversation, new wake and expired reply cannot resurrect input',()=>{
+ for(const action of ['close','new','expire']) {
+  const s=world();s.KAAN.DARWAZA.open();const ticket=s.KAAN.DARWAZA.replyTicket();
+  if(action==='close')s.KAAN.DARWAZA.close();if(action==='new')s.KAAN.DARWAZA.open();if(action==='expire')s.advance(300001);
+  s.afterSpeak(true,ticket);s.advance(600);assert.equal(s.listening,false);
+ }
+});
+test('permanent workspace wake never calls the hidden legacy handler or logs heard text',()=>{
+ const s=world();let invitations=0;s.document={documentElement:{classList:{contains:()=>true}}};s.MayaBridge.nativeWakeNotice=()=>invitations++;
+ s.__wakeHeard('["Maya PRIVATE_COMMAND"]');assert.equal(invitations,1);assert.equal(s.commands.length,0);assert.equal(s.KAAN.log.length,0);
+ s.__wakeHeard('["ambient PRIVATE"]');assert.equal(invitations,1);assert.equal(s.commands.length,0);
+});
+test('automatic input and wake acknowledgements have no app chime',()=>{
+ const s=world();let tones=0;s.chime=()=>tones++;s.__wakeHeard('["Maya"]');s.advance(500);assert.equal(tones,0);
+});
+test('foreground implementation has no startup resurrection or raw offline transcript',()=>{
+ const service=fs.readFileSync('app/src/main/java/com/maya/ai/WakeWordService.kt','utf8');
+ const main=fs.readFileSync('app/src/main/java/com/maya/ai/MainActivity.kt','utf8');
+ assert(!service.includes('START_STICKY'));assert(!service.includes('lastHeardOffline'));
+ assert(service.includes('errStreak>=3'));assert(service.includes('!foregroundAllowed()'));
+ assert(main.includes('WakeWordService.stop(this);stopRecognizer()'));
+ assert(!html.includes('if (NATIVE && settings.wakeWord) setTimeout'));
+});
 console.log(`CONVERSATION SESSION: ${passed}/${passed+failed} passed. Controlled evidence only.`);if(failed)process.exitCode=1;

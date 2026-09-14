@@ -23,7 +23,7 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
         ERROR("Recognition failed. Audio may have reached the selected system service; no automatic retry."),
         STOPPED("Voice input stopped locally. Transcript discarded; no message sent.")
     }
-    interface Events {fun ready();fun partial(text: String);fun result(text: String);fun error(state: State)}
+    interface Events {fun ready();fun began() {};fun ended() {};fun partial(text: String);fun result(text: String);fun error(state: State)}
     interface Port {
         fun check(language: String,onDeviceOnly: Boolean,done: (State?)->Unit)
         fun start(language: String,onDeviceOnly: Boolean,events: Events)
@@ -36,18 +36,23 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
     val recoverable get()=state !in listOf(State.IDLE,State.CHECKING,State.STARTING,State.LISTENING,State.REVIEW,State.MAIN_REQUIRED)
     private var epoch=0L
     private var started=0L
+    private var silenceTimer: (()->Unit)?=null
+    private var heardSpeech=false
+    private var speechEnded: Long?=null
+    var readyMs: Long?=null;private set
+    var finalizationMs: Long?=null;private set
     private var timer: (()->Unit)?=null
     val busy get()=state in listOf(State.CHECKING,State.STARTING,State.LISTENING)
     val stoppable get()=busy || state==State.REVIEW
     private fun publish(next: State) {state=next;changed()}
-    private fun cleanup() {val t=timer;timer=null;try {t?.invoke()} catch(_: Exception) {};try {port.stop()} catch(_: Exception) {}}
+    private fun cleanup() {silenceTimer?.invoke();silenceTimer=null;val t=timer;timer=null;try {t?.invoke()} catch(_: Exception) {};try {port.stop()} catch(_: Exception) {}}
     private fun finish(next: State) {epoch++;cleanup();if(next!=State.REVIEW) transcript="";publish(next)}
-    fun start(language: String,onDeviceOnly: Boolean,consent: Boolean) {
+    fun start(language: String,onDeviceOnly: Boolean,consent: Boolean,followup: Boolean=false) {
         if(stoppable) return
         if(!consent) {finish(State.CONSENT_REQUIRED);return}
         if(language !in LANGUAGES) {finish(State.UNAVAILABLE);return}
         selectionLabel="$language · ${if(onDeviceOnly) "On-device only" else "System service (may use internet)"}"
-        transcript="";val ticket=++epoch;started=now();publish(State.CHECKING)
+        transcript="";heardSpeech=false;speechEnded=null;readyMs=null;finalizationMs=null;val ticket=++epoch;started=now();publish(State.CHECKING)
         if(epoch!=ticket) return
         if(started<0 || started>Long.MAX_VALUE-22000) {finish(State.TIMEOUT);return}
         fun current(limit: Long): Boolean {
@@ -67,10 +72,23 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
                 try {
                     timer=schedule(20000) {if(ticket==epoch) finish(State.TIMEOUT)}
                     port.start(language,onDeviceOnly,object : Events {
-                    override fun ready() {if(current(20000) && state==State.STARTING) publish(State.LISTENING)}
+                    override fun ready() {
+                        if(!current(20000) || state!=State.STARTING) return
+                        readyMs=now()-started
+                        publish(State.LISTENING)
+                        if(followup && ticket==epoch && !heardSpeech) silenceTimer=schedule(15000) {
+                            if(ticket==epoch && !heardSpeech) finish(State.NO_MATCH)
+                        }
+                    }
+                    override fun began() {
+                        if(!current(20000)) return
+                        heardSpeech=true;silenceTimer?.invoke();silenceTimer=null
+                    }
+                    override fun ended() {if(current(20000) && speechEnded==null) speechEnded=now()}
                     override fun partial(text: String) {
                         if(!current(20000)) return
                         if(text.isEmpty()) return
+                        began()
                         try {NativeChatProtocol.validateDraft(text)} catch(_: Exception) {finish(State.INVALID);return}
                         transcript=text;publish(State.LISTENING)
                     }
@@ -78,6 +96,7 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
                         if(!current(20000)) return
                         if(text.isBlank()) {finish(State.NO_MATCH);return}
                         try {NativeChatProtocol.validateDraft(text)} catch(_: Exception) {finish(State.INVALID);return}
+                        finalizationMs=speechEnded?.let {(now()-it).takeIf {v->v in 0..20000}}
                         transcript=text;finish(State.REVIEW)
                     }
                     override fun error(state: State) {
@@ -89,7 +108,7 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
     }
     fun requestPermission() {if(state==State.PERMISSION_REQUIRED) {finish(State.STOPPED);try {port.requestPermission()} catch(_: Exception) {finish(State.ERROR)}}}
     fun stop() {if(stoppable) finish(State.STOPPED)}
-    fun clear() {selectionLabel="";finish(State.IDLE)}
+    fun clear() {selectionLabel="";readyMs=null;finalizationMs=null;finish(State.IDLE)}
     override fun toString()="NativeDictation(redacted)"
     companion object {
         val LANGUAGES=listOf("ur-PK","hi-IN","en-IN","en-US")
