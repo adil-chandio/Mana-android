@@ -98,6 +98,10 @@ class NativeChatActivity : AppCompatActivity() {
     private val speechButtons = mutableListOf<Pair<Button, String>>()
     private var active: Job? = null
     private var visible = false
+    private var agentSelected = false
+    private var showSection: (Int) -> Unit = {}
+    private lateinit var researchWorkspace: com.maya.ai.agent.ResearchWorkspace
+    private lateinit var researchDraft: Button
     private var publicText: String? = null
     private lateinit var status: TextView
     private lateinit var readinessResult: TextView
@@ -225,7 +229,7 @@ class NativeChatActivity : AppCompatActivity() {
             filterTouchesWhenObscured = true; setTextColor(Color.WHITE); isSaveEnabled = false; minHeight = dp(48); root.addView(this)
         }
         send = button("Send message") {
-            if (active != null || speech.busy) return@button
+            if (active != null || speech.busy || agentSelected) return@button
             try {
                 val turn = session.begin(draft.text.toString(), consent.isChecked)
                 hideKeyboard()
@@ -236,6 +240,19 @@ class NativeChatActivity : AppCompatActivity() {
                 }
             } catch (e: NativeChatProtocol.Rejected) { status.text = errorText(e.code, false); paint() }
         }
+        researchDraft = button("Research this draft · review first") {
+            val value = draft.text.toString()
+            if (active != null || speech.busy || agentSelected) return@button
+            if (value.isBlank() || value.length > 400 || !NativeChatProtocol.validReply(value)) {
+                status.text = "Research goal needs 1–400 characters. Shorten it yourself; nothing is truncated or sent."; return@button
+            }
+            confirm("Use draft as research goal?", "Copy only this draft into the Agent tab on this screen. Your conversation stays here and is NOT shared with Agent. This replaces the previous research workspace after confirmation. No AI/network request or action yet; those need separate consent and plan approval.") {
+                if (!agentSelected && active == null && !speech.busy && draft.text.toString() == value) {
+                    showSection(3); researchWorkspace.clear(); researchWorkspace.setGoal(value)
+                }
+            }
+        }
+        label("Research uses an explicit goal up to 400 characters. Normal Send is still text-only and cannot execute actions.", 13f)
         stop = actionButton("STOP local wait") { stopActive("Stopped locally.") }.apply { tag = "global_stop" }
         buttonColors(send, Color.rgb(125, 225, 204), Color.rgb(13, 35, 30))
         buttonColors(stop, Color.rgb(255, 174, 183), Color.rgb(55, 19, 27))
@@ -246,7 +263,7 @@ class NativeChatActivity : AppCompatActivity() {
         }
         root = infoPage
         label("Privacy & limits", 21f)
-        label("Text chat with optional manual Fish playback. No tools, browsing, microphone recording or phone actions. Original assistant settings remain separate.")
+        label("Normal Chat sends text only, with optional manual Fish playback. The Agent tab has separately consented bounded public research. Original assistant settings remain separate.")
         label("LEAVING THIS SCREEN = NEW CONVERSATION", 17f)
         label("Backgrounding, closing or recreating this screen clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
         label("2,000 characters/message · 6,000 in context · 12 messages. 5 admitted requests/minute, 50/day shared with browser Chat; no guarantee of free capacity.")
@@ -255,19 +272,15 @@ class NativeChatActivity : AppCompatActivity() {
         label("Chat uses the saved APK key; displaying it is not required. Server Chat availability is controlled by the owner, not by these tabs. Checks are explicit; opening this screen performs none.")
         label("Sunao sends only the chosen reply (using the original local speech-text conversion) to api.fish.audio with the saved Fish reference/key. Nothing plays automatically; confirmation is required each time. Never paste keys into Chat.")
         label("Sunao: 2,000 input characters, one synthesis request, no silent truncation or retries. Startup wait is capped at 30 seconds, playback at 180 seconds, and the total local job at 210 seconds. STOP/exit stops local audio, not guaranteed remote work or a refund.")
-        label("Selected Fish voice, wake and original assistant settings remain unchanged. The configured free Fish model may be unavailable or quota-limited; no free/unlimited guarantee or fallback. Media analysis, internet research and Agent actions are not enabled.")
+        label("Selected Fish voice, wake and original assistant settings remain unchanged. The configured free Fish model may be unavailable or quota-limited; no free/unlimited guarantee or fallback. Media analysis and cross-app automation are not enabled. Public research has its own Agent tab and consent.")
 
-        button("Open Agent · public research") {
-            confirm("Leave Chat for Agent?", "Leaving clears this conversation and stops local audio/waiting. Agent has separately approved public-source reads, optional consented AI and manual browser links. No automatic actions on open.") {
-                endLocalSession()
-                startActivity(android.content.Intent(this, com.maya.ai.agent.ResearchActivity::class.java))
-            }
-        }
+        button("Open Agent · public research") { showSection(3) }
+        label("The Agent tab stays inside this screen: conversation/draft remain local when switching tabs. No history is transferred to Agent. Switching modes stops active work and revokes pending confirmations/Agent approval. Leaving the app or opening an external source clears BOTH workspaces.")
 
         val shell = column().apply {
             setBackgroundColor(Color.rgb(16, 19, 27)); setPadding(dp(16), dp(8), dp(16), dp(8))
         }
-        shell.addView(labelView("MAYA  /  PRIVATE CHAT", 21f).apply { setTypeface(typeface, Typeface.BOLD) })
+        shell.addView(labelView("MAYA  /  CHAT + AGENT", 21f).apply { setTypeface(typeface, Typeface.BOLD) })
         shell.addView(labelView("${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · memory-only text", 12f))
         val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; isSaveEnabled = false }
         shell.addView(tabs)
@@ -286,10 +299,23 @@ class NativeChatActivity : AppCompatActivity() {
         pages.forEach { body.addView(it) }
         val scroll = ScrollView(this).apply { isSaveEnabled = false; isFillViewport = true; addView(body) }
         shell.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        researchWorkspace = com.maya.ai.agent.ResearchWorkspace(this)
+        val agentView = researchWorkspace.createView().apply { tag = "agent_page"; visibility = View.GONE }
+        shell.addView(agentView, LinearLayout.LayoutParams(-1, 0, 1f))
         shell.addView(stop, LinearLayout.LayoutParams(-1, -2))
         val tabButtons = mutableListOf<Button>()
         fun showPage(index: Int) {
             hideKeyboard()
+            if (agentSelected != (index == 3)) {
+                confirmationGeneration++; disclosure?.dismiss(); disclosure = null
+                if (index == 3) stopActive("Switched to Agent; Chat preserved, active work stopped.")
+                else researchWorkspace.pause()
+            }
+            agentSelected = index == 3
+            if (agentSelected && visible) researchWorkspace.resume()
+            scroll.visibility = if (agentSelected) View.GONE else View.VISIBLE
+            agentView.visibility = if (agentSelected) View.VISIBLE else View.GONE
+            stop.visibility = if (agentSelected) View.GONE else View.VISIBLE
             pages.forEachIndexed { i, page -> page.visibility = if (i == index) View.VISIBLE else View.GONE }
             tabButtons.forEachIndexed { i, button ->
                 button.isSelected = i == index
@@ -297,9 +323,10 @@ class NativeChatActivity : AppCompatActivity() {
                 button.setTextColor(if (i == index) Color.rgb(13, 35, 30) else Color.rgb(231, 229, 241))
                 button.contentDescription = button.text.toString() + if (i == index) ", selected tab" else ", tab"
             }
-            scroll.scrollTo(0, 0)
+            scroll.scrollTo(0, 0); paint()
         }
-        listOf("Chat", "Checks", "Info").forEachIndexed { i, title ->
+        showSection = { showPage(it) }
+        listOf("Chat", "Checks", "Info", "Agent").forEachIndexed { i, title ->
             actionButton(title) { showPage(i) }.also {
                 it.tag = "tab_" + title.lowercase(java.util.Locale.ROOT)
                 tabButtons.add(it); tabs.addView(it, LinearLayout.LayoutParams(0, -2, 1f))
@@ -326,7 +353,7 @@ class NativeChatActivity : AppCompatActivity() {
             }
     }
     private fun start(kind: String, turn: NativeChatConversation.Turn?, work: (Job) -> Any) {
-        if (active != null || speech.busy || !visible) { if (turn != null) session.fail(turn); return }
+        if (active != null || speech.busy || !visible || agentSelected) { if (turn != null) session.fail(turn); return }
         val job = Job(kind, turn, SystemClock.elapsedRealtime()); active = job
         if (kind == "check") {
             obscuredTouchSeen = false; touchWarning.text = ""
@@ -436,12 +463,12 @@ class NativeChatActivity : AppCompatActivity() {
         return message + if (uncertain) " Remote work may have completed/continue; usage may count." else " This operation did not confirm a model dispatch."
     }
     private fun confirmSpeech(text: String, stillAvailable: () -> Boolean) {
-        if (!visible || active != null || speech.busy) return
+        if (!visible || active != null || speech.busy || agentSelected) return
         if (!NativeFishPolicy.validText(text)) {
             speechStatus.text = "Fish · TOO_LONG\n" + NativeFishPolicy.Code.TOO_LONG.hint; return
         }
         confirm("Send this text to Fish and play?", "Only this selected reply/sample will be sent to Fish using your current saved Fish reference and key. The original local pronunciation conversion is used. No other voice or paid fallback. Provider quota/usage may count; STOP is not a refund. Nothing is played automatically.") {
-            if (visible && active == null && !speech.busy && stillAvailable()) speech.speak(text, true)
+            if (visible && !agentSelected && active == null && !speech.busy && stillAvailable()) speech.speak(text, true)
         }
     }
     private fun renderHistory() {
@@ -466,7 +493,8 @@ class NativeChatActivity : AppCompatActivity() {
     }
     private fun paint() {
         if (!::send.isInitialized || !::stop.isInitialized) return
-        val busy = active != null || speech.busy
+        val busy = active != null || speech.busy || agentSelected
+        researchDraft.isEnabled = !busy && draft.text.isNotBlank()
         send.isEnabled = !busy && consent.isChecked && draft.text.toString().isNotBlank()
         readinessButton.isEnabled = !busy
         fishCheck.isEnabled = !busy; fishSample.isEnabled = !busy
@@ -509,6 +537,7 @@ class NativeChatActivity : AppCompatActivity() {
         }
     }
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (agentSelected && ::researchWorkspace.isInitialized && researchWorkspace.consumeTouch(event)) return true
         val obscured = event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0
         if (obscured) {
             if (event.actionMasked == MotionEvent.ACTION_DOWN && ::touchWarning.isInitialized) {
@@ -539,8 +568,14 @@ class NativeChatActivity : AppCompatActivity() {
         text = value; textSize = size; setTextColor(Color.rgb(231, 229, 241)); setPadding(0, dp(8), 0, dp(8)); isSaveEnabled = false
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    override fun onResume() { super.onResume(); visible = true; showAccessDiagnostic() }
+    override fun onResume() { super.onResume(); visible = true; showAccessDiagnostic(); if (agentSelected) researchWorkspace.resume() }
+    override fun onPause() { confirmationGeneration++; disclosure?.dismiss(); disclosure = null; if (::researchWorkspace.isInitialized) researchWorkspace.pause(); super.onPause() }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (::researchWorkspace.isInitialized) researchWorkspace.focusChanged(hasFocus)
+    }
     private fun endLocalSession() {
+        if (::researchWorkspace.isInitialized) { researchWorkspace.pause(); researchWorkspace.clear() }
         visible = false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null
         stopActive("This screen was left; local chat was cleared.", NativeAccessDiagnostic.State.LEFT_SCREEN)
         session.clear()
@@ -551,11 +586,11 @@ class NativeChatActivity : AppCompatActivity() {
     override fun onStop() { endLocalSession(); super.onStop() }
     override fun onDestroy() {
         // Also fence callbacks if destruction occurs without the normal onStop path.
-        endLocalSession(); handler.removeCallbacksAndMessages(null); super.onDestroy()
+        endLocalSession(); if (::researchWorkspace.isInitialized) researchWorkspace.dispose(); handler.removeCallbacksAndMessages(null); super.onDestroy()
     }
     @Deprecated("Deprecated in Android") override fun onBackPressed() {
-        if (draft.text.isNotEmpty() || session.messages().isNotEmpty() || active != null || speech.busy)
-            confirm("Leave private Chat?", "Leaving clears this local conversation and stops local waiting. It does not erase provider records or refund usage.") { endLocalSession(); finish() }
+        if (draft.text.isNotEmpty() || session.messages().isNotEmpty() || active != null || speech.busy || (::researchWorkspace.isInitialized && researchWorkspace.hasContent))
+            confirm("Leave private Chat?", "Leaving clears Chat and Agent data and stops local waiting. It does not erase provider records or refund usage.") { endLocalSession(); finish() }
         else { endLocalSession(); finish() }
     }
 }

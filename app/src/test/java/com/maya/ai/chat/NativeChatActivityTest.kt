@@ -14,6 +14,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import org.junit.After
 import org.junit.Assert.*
@@ -337,17 +338,92 @@ class NativeChatActivityTest {
         noTransport()
     }
 
-    @Test fun agentNavigationRequiresConfirmationAndClearsPrivateChatBeforeLaunching() {
+    @Test fun agentTabPreservesChatAndDoesNotLaunchOrCopyHistory() {
         completedHistory();fill();tab("info").performClick()
         button("Open Agent · public research").performClick()
         assertNull(shadowOf(activity).nextStartedActivity)
         assertEquals(2,field<NativeChatConversation>("session").messages().size)
+        assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString())
+        assertTrue(tab("agent").isSelected)
+        assertEquals("",content.findViewWithTag<EditText>("research_goal").text.toString())
+        tab("chat").performClick();assertTrue(field<CheckBox>("consent").isChecked);noTransport()
+    }
+    @Test fun draftToResearchRequiresExplicitLocalCopyWithoutTransmittingOrTruncating() {
+        completedHistory();fill();button("Research this draft · review first").performClick()
+        assertEquals("",content.findViewWithTag<EditText>("research_goal").text.toString())
         ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
         shadowOf(Looper.getMainLooper()).idle()
-        assertEquals("com.maya.ai.agent.ResearchActivity",shadowOf(activity).nextStartedActivity.component!!.className)
+        assertTrue(tab("agent").isSelected)
+        assertEquals("PRIVATE_SYNTHETIC_DRAFT",content.findViewWithTag<EditText>("research_goal").text.toString())
+        assertEquals(2,field<NativeChatConversation>("session").messages().size)
+        assertFalse(content.findViewWithTag<EditText>("research_plan").text.isNotEmpty());noTransport()
+        tab("chat").performClick();field<EditText>("draft").setText("x".repeat(401));button("Research this draft · review first").performClick()
+        assertTrue(tab("chat").isSelected);assertTrue(field<TextView>("status").text.contains("1–400"))
+    }
+    @Test fun changedDraftAndOldConfirmationCannotSeedAgent() {
+        fill();button("Research this draft · review first").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
+        field<EditText>("draft").setText("changed")
+        old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("",content.findViewWithTag<EditText>("research_goal").text.toString());noTransport()
+    }
+    @Test fun switchingModesStopsPendingChatAndFencesOldFishConfirmation() {
+        val port=fakeSpeech();completedHistory();button("Sunao · selected Fish").performClick()
+        val old=ShadowAlertDialog.getLatestAlertDialog();tab("agent").performClick()
+        old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertTrue(port.requests.isEmpty())
+        tab("chat").performClick();pending();tab("agent").performClick();assertNull(field<Any?>("active"));noTransport()
+    }
+    @Test fun leavingOrRecreatingUnifiedScreenClearsBothWorkspaces() {
+        completedHistory();fill();tab("agent").performClick()
+        content.findViewWithTag<EditText>("research_goal").setText("SYNTHETIC_RESEARCH")
+        content.findViewWithTag<EditText>("research_plan").setText("WIKI Dog")
+        controller!!.pause().stop().restart().start().resume()
+        assertEquals("",content.findViewWithTag<EditText>("research_goal").text.toString())
+        assertEquals("",content.findViewWithTag<EditText>("research_plan").text.toString())
         assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
-        assertEquals("",field<EditText>("draft").text.toString());assertFalse(field<CheckBox>("consent").isChecked)
-        noTransport()
+        assertEquals("",field<EditText>("draft").text.toString());assertFalse(field<CheckBox>("consent").isChecked);noTransport()
     }
 
+
+    private class ResearchFake : com.maya.ai.agent.ResearchServices {
+        val prompts=mutableListOf<String>()
+        var completion: ((com.maya.ai.agent.ResearchSource?) -> Unit)?=null
+        var cancels=0
+        override fun fetch(item: com.maya.ai.agent.ResearchPlan.Item, done: (com.maya.ai.agent.ResearchSource?) -> Unit): () -> Unit {
+            completion=done;return {cancels++}
+        }
+        override fun text(prompt: String, done: (String?,com.maya.ai.agent.ResearchBackend.TextFailure?) -> Unit): () -> Unit {
+            prompts.add(prompt);return {cancels++}
+        }
+    }
+    private fun researchFake(): ResearchFake {
+        val fake=ResearchFake()
+        val workspace=field<com.maya.ai.agent.ResearchWorkspace>("researchWorkspace")
+        com.maya.ai.agent.ResearchWorkspace::class.java.getDeclaredField("backend\$delegate").apply {isAccessible=true}
+            .set(workspace,lazy<com.maya.ai.agent.ResearchServices> {fake})
+        return fake
+    }
+    @Test fun explicitResearchGoalNeverInheritsChatHistoryOrItsConsent() {
+        val fake=researchFake();completedHistory();fill();tab("agent").performClick()
+        content.findViewWithTag<EditText>("research_goal").setText("RESEARCH_ONLY_GOAL")
+        button("Ask AI for a proposed plan").performClick();assertTrue(fake.prompts.isEmpty())
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(1,fake.prompts.size);assertTrue(fake.prompts.single().contains("RESEARCH_ONLY_GOAL"))
+        assertFalse(fake.prompts.single().contains("SYNTHETIC_CONTEXT"));assertFalse(fake.prompts.single().contains("PRIVATE_SYNTHETIC_DRAFT"))
+        tab("chat").performClick();assertEquals(1,fake.cancels);assertEquals(2,field<NativeChatConversation>("session").messages().size);noTransport()
+    }
+    @Test fun leavingAgentTabCancelsRunWithoutClearingChatOrRevivingLateSources() {
+        val fake=researchFake();completedHistory();fill();tab("agent").performClick()
+        content.findViewWithTag<EditText>("research_plan").setText("WIKI Dog");button("Chrome").performClick()
+        button("Review & approve read-only plan").performClick()
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        button("Run approved research plan").performClick()
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(650));assertNotNull(fake.completion)
+        tab("chat").performClick();assertEquals(1,fake.cancels)
+        fake.completion!!(com.maya.ai.agent.ResearchSource("https://en.wikipedia.org/wiki/Dog","LATE_SOURCE"))
+        tab("agent").performClick()
+        assertEquals(0,content.findViewWithTag<LinearLayout>("research_sources").childCount)
+        assertEquals("WIKI Dog",content.findViewWithTag<EditText>("research_plan").text.toString())
+        assertEquals(2,field<NativeChatConversation>("session").messages().size);noTransport()
+    }
 }

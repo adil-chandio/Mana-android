@@ -32,7 +32,8 @@ class ResearchActivityTest {
         override fun text(prompt: String,done: (String?,ResearchBackend.TextFailure?) -> Unit): () -> Unit {texts.add(prompt to done);return {cancels++}}
         fun source(i: Int) {val t=gets[i];t.second(ResearchSource(t.first.pageUrl,"SYNTHETIC_EXCERPT"))}
     }
-    private inline fun <reified T> field(name: String): T=ResearchActivity::class.java.getDeclaredField(name).apply {isAccessible=true}.get(a) as T
+    private val workspace get()=ResearchActivity::class.java.getDeclaredField("workspace").apply {isAccessible=true}.get(a) as ResearchWorkspace
+    private inline fun <reified T> field(name: String): T=ResearchWorkspace::class.java.getDeclaredField(name).apply {isAccessible=true}.get(workspace) as T
     private fun find(title: String): TextView {
         fun f(v: View): TextView? {if(v is TextView && v.text.toString()==title) return v;if(v is ViewGroup) for(i in 0 until v.childCount) f(v.getChildAt(i))?.let {return it};return null}
         return f(a.findViewById(android.R.id.content))!!
@@ -40,7 +41,7 @@ class ResearchActivityTest {
     private fun confirm() {ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()}
     @Before fun open() {
         c=Robolectric.buildActivity(ResearchActivity::class.java).setup().visible();fake=Fake()
-        ResearchActivity::class.java.getDeclaredField("backend\$delegate").apply {isAccessible=true}.set(a,lazy<ResearchServices> {fake})
+        ResearchWorkspace::class.java.getDeclaredField("backend\$delegate").apply {isAccessible=true}.set(workspace,lazy<ResearchServices> {fake})
     }
     @After fun close() {c.pause().stop().destroy()}
     private fun approve() {
