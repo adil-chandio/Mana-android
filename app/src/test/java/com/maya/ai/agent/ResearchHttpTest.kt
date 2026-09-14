@@ -59,4 +59,7 @@ class ResearchHttpTest {
     @Test fun malformedUtf8CannotBecomeSourceText() {
         val f=Fake(byteArrayOf(0xc3.toByte(),0x28));rejects {ResearchHttp(f).fetch(item,ResearchHttp.Operation())}
     }
+    @Test fun excessiveJsonNestingIsRefusedBeforePlatformParser() {
+        rejects {ResearchHttp.parse(item,"[".repeat(1000)+"0"+"]".repeat(1000))}
+    }
 }

@@ -107,4 +107,23 @@ class ResearchActivityTest {
         assertEquals("com.android.chrome",launched.component!!.packageName);assertEquals("SyntheticBrowser",launched.component!!.className)
         assertEquals("https://en.wikipedia.org/wiki/Dog",launched.dataString);assertNull(launched.extras)
     }
+    @Test fun obscuredConfirmationCannotSendAndOldPositiveButtonIsRevoked() {
+        for(flag in listOf(MotionEvent.FLAG_WINDOW_IS_OBSCURED,MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)) {
+            field<EditText>("goal").setText("goal");field<Button>("propose").performClick()
+            val d=ShadowAlertDialog.getLatestAlertDialog()
+            val prop=MotionEvent.PointerProperties().apply {id=0;toolType=MotionEvent.TOOL_TYPE_FINGER}
+            val coord=MotionEvent.PointerCoords().apply {x=10f;y=10f}
+            val e=MotionEvent.obtain(0,0,MotionEvent.ACTION_DOWN,1,arrayOf(prop),arrayOf(coord),0,0,1f,1f,0,0,InputDevice.SOURCE_TOUCHSCREEN,flag)
+            try {assertTrue(d.window!!.callback.dispatchTouchEvent(e))} finally {e.recycle()}
+            d.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+            assertTrue(fake.texts.isEmpty())
+        }
+    }
+    @Test fun newApprovalClearsOldExplanationAndOffNeverChangesManualPlan() {
+        completed();field<Button>("summarize").performClick();confirm();fake.texts[0].second("OLD_EXPLANATION",null)
+        field<Button>("review").performClick();confirm();assertEquals("",field<TextView>("summary").text.toString())
+        field<EditText>("goal").setText("goal");field<Button>("propose").performClick();confirm()
+        fake.texts[1].second(null,ResearchBackend.TextFailure.CHAT_OFF)
+        assertTrue(field<TextView>("status").text.contains("OFF"));assertEquals("WIKI Dog",field<EditText>("plan").text.toString())
+    }
 }

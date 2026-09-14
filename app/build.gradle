@@ -145,3 +145,19 @@ tasks.configureEach { task ->
         }
     }
 }
+
+// Surface native source compilation failures through check annotations when log
+// artifact downloads are unavailable. Never inspect runtime messages or secrets.
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    def reportCompilerError = { CharSequence output ->
+        if (System.getenv('GITHUB_ACTIONS') == 'true') output.toString().eachLine { line ->
+            if (line.startsWith('e: ') && line.contains('/com/maya/ai/')) {
+                def safe = line.substring(line.indexOf('/com/maya/ai/')).take(700)
+                    .replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                logger.lifecycle('::error title=Native Kotlin compilation::' + safe)
+            }
+        }
+    }
+    logging.addStandardErrorListener(reportCompilerError as org.gradle.api.logging.StandardOutputListener)
+    logging.addStandardOutputListener(reportCompilerError as org.gradle.api.logging.StandardOutputListener)
+}

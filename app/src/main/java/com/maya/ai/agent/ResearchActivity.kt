@@ -23,6 +23,8 @@ class ResearchActivity : AppCompatActivity() {
     private var cancelModel: (() -> Unit)?=null
     private var browser: ResearchBrowser?=null
     private var setting=false
+    private enum class AiState { IDLE, WAITING, PROPOSAL_READY, EXPLANATION_READY, STOPPED, UNAVAILABLE, OFF, NOT_READY, REJECTED }
+    private var aiState=AiState.IDLE
     private lateinit var goal: EditText
     private lateinit var plan: EditText
     private lateinit var status: TextView
@@ -75,7 +77,7 @@ class ResearchActivity : AppCompatActivity() {
             val p=parse() ?: return@action
             val b=browser ?: kotlin.run {status.text="Choose a browser above; no app is selected automatically.";return@action}
             confirm("Approve this exact plan?","Read ${p.size} public source(s), at most one GET each. Wikipedia titles go to en.wikipedia.org; repository names go to api.github.com. No account/token/cookie sent by Maya. Excerpts/metadata only, not exhaustive research.\n\n${p.source}\n\nOptional browser: ${b.label}. Run is separate. Approval expires in 60 seconds. AI summary is NOT included; sharing excerpts requires its own consent.") {
-                if(plan.text.toString()==p.source && browser==b) runner.approve(p,b)
+                if(plan.text.toString()==p.source && browser==b) {summary.text="";aiState=AiState.IDLE;runner.approve(p,b)}
             }
         }
         run=action("Run approved research plan") { val p=parse();val b=browser;if(p!=null && b!=null && foreground && cancelModel==null) runner.start(p,b) }
@@ -91,7 +93,7 @@ class ResearchActivity : AppCompatActivity() {
         }
         summary=label("",16f).apply {tag="research_summary";setTextIsSelectable(true)};body.addView(summary)
         action("Copy fixed Agent report") {
-            val report="MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n"+runner.report()
+            val report="MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n"+runner.report()+"\nAI: ${aiState.name}"
             (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Maya Agent report",report))
         }
         action("Clear Agent workspace") {clear()}
@@ -115,11 +117,13 @@ class ResearchActivity : AppCompatActivity() {
     private fun edited() {
         generation++;dialog?.dismiss();dialog=null
         val cancel=cancelModel;cancelModel=null;cancel?.invoke();runner.invalidate()
+        aiState=AiState.IDLE
         if(::summary.isInitialized) summary.text=""
         paint()
     }
     private fun requestText(prompt: String, proposal: Boolean) {
         if(!foreground || runner.busy || cancelModel!=null) return
+        summary.text="";aiState=AiState.WAITING
         if(proposal) runner.invalidate() else runner.stop()
         val epoch=++generation
         status.text="Waiting for AI · text only, no actions. STOP is available."
@@ -128,6 +132,7 @@ class ResearchActivity : AppCompatActivity() {
                 if(!foreground || generation!=epoch) return@text
                 cancelModel=null
                 if(reply==null) {
+                    aiState=when(error) {ResearchBackend.TextFailure.CHAT_OFF -> AiState.OFF;ResearchBackend.TextFailure.LOCAL_NOT_READY -> AiState.NOT_READY;else -> AiState.UNAVAILABLE}
                     paint();status.text=when(error) {
                         ResearchBackend.TextFailure.CHAT_OFF -> "Server Chat is OFF. Not changed. Manual public-source plans still work."
                         ResearchBackend.TextFailure.LOCAL_NOT_READY -> "Local assistant is busy/unavailable. No AI request sent; settings unchanged."
@@ -135,15 +140,15 @@ class ResearchActivity : AppCompatActivity() {
                     }
                 } else if(proposal) {
                     val p=try {ResearchPlan.parse(reply)} catch (_: Exception) {null}
-                    if(p==null) {paint();status.text="AI proposal rejected by strict policy. No actions. You can write a supported manual plan."}
+                    if(p==null) {aiState=AiState.REJECTED;paint();status.text="AI proposal rejected by strict policy. No actions. You can write a supported manual plan."}
                     else {
-                        setting=true;try {plan.setText(p.source)} finally {setting=false}
+                        aiState=AiState.PROPOSAL_READY;setting=true;try {plan.setText(p.source)} finally {setting=false}
                         paint();status.text="AI proposal only. Review/edit it; choose browser and approve before Run. Sources have NOT been fetched yet."
                     }
-                } else { summary.text="AI explanation · verify against numbered sources\n\n$reply";paint() }
+                } else { aiState=AiState.EXPLANATION_READY;summary.text="AI explanation · verify against numbered sources\n\n$reply";paint() }
             }
             paint();status.text="Waiting for AI · text only, no actions. STOP is available."
-        } catch (_: Exception) {cancelModel=null;paint();status.text="Request rejected locally. Nothing executed."}
+        } catch (_: Exception) {cancelModel=null;aiState=AiState.REJECTED;paint();status.text="Request rejected locally. Nothing executed."}
     }
     private fun confirm(title: String, message: String, action: () -> Unit) {
         if(!foreground || runner.busy || cancelModel!=null) return
@@ -152,8 +157,15 @@ class ResearchActivity : AppCompatActivity() {
             .setPositiveButton("Confirm") {_,_->if(foreground && generation==epoch) {generation++;action()}}.create().also {d ->
                 d.setOnDismissListener {if(generation==epoch) generation++}
                 d.show();d.getButton(AlertDialog.BUTTON_POSITIVE).filterTouchesWhenObscured=true
-                val content=d.window?.decorView
-                content?.setOnTouchListener {_,event -> event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0 }
+                val window=d.window;val original=window?.callback
+                if(window!=null && original!=null) window.callback=object : Window.Callback by original {
+                    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                        if(event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) {
+                            generation++;d.dismiss();return true
+                        }
+                        return original.dispatchTouchEvent(event)
+                    }
+                }
             }
     }
     private fun paint() {
@@ -164,7 +176,7 @@ class ResearchActivity : AppCompatActivity() {
         run.isEnabled=foreground && !busy && runner.approved
         summarize.isEnabled=foreground && !busy && runner.state==ResearchRunner.State.COMPLETE && runner.results().isNotEmpty()
         stop.isEnabled=busy || runner.approved
-        status.text=runner.report()
+        status.text=runner.report()+"\nAI: ${aiState.name}"
         val values=runner.results()
         if(values!=rendered) {
             rendered=values;sources.removeAllViews()
@@ -193,10 +205,10 @@ class ResearchActivity : AppCompatActivity() {
     }
     private fun stopWork() {
         generation++;dialog?.dismiss();dialog=null
-        val cancel=cancelModel;cancelModel=null;cancel?.invoke();runner.stop();paint()
+        val cancel=cancelModel;cancelModel=null;if(cancel!=null) aiState=AiState.STOPPED;cancel?.invoke();runner.stop();paint()
     }
     private fun clear() {
-        stopWork();runner.clear();setting=true
+        stopWork();aiState=AiState.IDLE;runner.clear();setting=true
         try {if(::goal.isInitialized) goal.setText("");if(::plan.isInitialized) plan.setText("");if(::summary.isInitialized) summary.text=""} finally {setting=false}
         paint()
     }

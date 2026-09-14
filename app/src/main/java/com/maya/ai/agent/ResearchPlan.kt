@@ -35,7 +35,7 @@ class ResearchPlan private constructor(val source: String, private val items: Li
                     else -> throw IllegalArgumentException("UNSUPPORTED_ACTION")
                 }
             }
-            require(items.map { it.requestUrl }.distinct().size == items.size) { "DUPLICATE_SOURCE" }
+            require(items.map { if(it.kind==Kind.REPO) it.requestUrl.lowercase(java.util.Locale.ROOT) else it.requestUrl }.distinct().size == items.size) { "DUPLICATE_SOURCE" }
             return ResearchPlan(source, items.toList())
         }
         fun planningPrompt(goal: String): String {
