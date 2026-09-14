@@ -87,7 +87,7 @@ class MainChatSurfaceTest {
     @Test fun backConfirmsExitInsteadOfReturningToAnotherMayaScreen() {
         local<EditText>("draft").setText("PRIVATE_SYNTHETIC_DRAFT");val initial=workspace
         a.onBackPressed();assertSame(initial,workspace);assertFalse(a.isFinishing)
-        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick();assertFalse(a.isFinishing)
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertFalse(a.isFinishing)
         a.onBackPressed();ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
         assertTrue(a.isFinishing);assertEquals("",local<EditText>("draft").text.toString())
     }

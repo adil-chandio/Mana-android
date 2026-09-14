@@ -1370,6 +1370,11 @@ window.__mayaWorkspaceMount = function () {
       event.stopImmediatePropagation();
       if (event.isTrusted === false || link.getAttribute("href") !== "maya-private-chat://open") event.preventDefault();
     }, true);
+    var legacyStop = document.getElementById("qStop"), settingsPanel = document.getElementById("tab-set");
+    if (legacyStop && settingsPanel) {
+      legacyStop.textContent = "STOP original voice / background turn";
+      settingsPanel.insertBefore(legacyStop, settingsPanel.firstChild);
+    }
     document.documentElement.classList.add("maya-workspace-host");
   }
   return true;

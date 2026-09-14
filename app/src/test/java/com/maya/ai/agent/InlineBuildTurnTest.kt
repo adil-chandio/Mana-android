@@ -123,4 +123,37 @@ class InlineBuildTurnTest {
         assertNull(root.findViewWithTag<WebView>("isolated_static_preview"));assertEquals(html,card.editor.text.toString())
     }
 
+    @Test fun duplicateAiCallbackCannotReplaceFirstReviewedProposal() {
+        submit("tiny page");yes();fake.calls[0].second(html,null);fake.calls[0].second(html.replace("Bakery","LATE"),null)
+        button("Apply reviewed proposal locally").performClick();yes();assertEquals(html,card.editor.text.toString())
+    }
+    @Test fun obscuredAiConsentIsRevokedWithoutSending() {
+        submit("tiny page");val d=ShadowAlertDialog.getLatestAlertDialog()
+        val prop=MotionEvent.PointerProperties().apply {id=0;toolType=MotionEvent.TOOL_TYPE_FINGER}
+        val coord=MotionEvent.PointerCoords().apply {x=10f;y=10f}
+        val event=MotionEvent.obtain(0,0,MotionEvent.ACTION_DOWN,1,arrayOf(prop),arrayOf(coord),0,0,1f,1f,0,0,InputDevice.SOURCE_TOUCHSCREEN,MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)
+        try {assertTrue(d.window!!.callback.dispatchTouchEvent(event))} finally {event.recycle()}
+        d.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertTrue(fake.calls.isEmpty())
+    }
+    @Test fun previewResourceRequestsAndPermissionsAreDenied() {
+        submit(html);button("Render static preview here").performClick();yes();val web=root.findViewWithTag<WebView>("isolated_static_preview")
+        val request=object : android.webkit.WebResourceRequest {
+            override fun getUrl()=android.net.Uri.parse("https://example.invalid/track")
+            override fun isForMainFrame()=false
+            override fun isRedirect()=false
+            override fun hasGesture()=false
+            override fun getMethod()="GET"
+            override fun getRequestHeaders()=emptyMap<String,String>()
+        }
+        assertEquals(403,web.webViewClient.shouldInterceptRequest(web,request)!!.statusCode)
+        var denied=false
+        web.webChromeClient.onPermissionRequest(object : android.webkit.PermissionRequest() {
+            override fun getOrigin()=android.net.Uri.parse("https://maya-preview.invalid/")
+            override fun getResources()=arrayOf(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+            override fun grant(resources: Array<String>) {fail("No permission grant")}
+            override fun deny() {denied=true}
+        })
+        assertTrue(denied);assertTrue(fake.calls.isEmpty())
+    }
+
 }

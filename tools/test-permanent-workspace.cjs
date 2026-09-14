@@ -9,6 +9,7 @@ w.MayaBridge={};const orb=w.document.getElementById('orb');let legacyVoice=0;
 orb.addEventListener('click',()=>legacyVoice++);
 const fields=[...w.document.querySelectorAll('input,select')].map(el=>[el,el.value]);
 assert.equal(w.__mayaWorkspaceMount(),true);assert.equal(w.__mayaWorkspaceMount(),true);
+assert.equal(w.document.getElementById('qStop').parentNode.id,'tab-set');
 assert.equal(w.document.querySelectorAll('.workspace-orb-link').length,1);assert.equal(w.document.querySelector('.workspace-orb-link').firstElementChild,orb);
 assert.equal(w.document.querySelector('.workspace-orb-link').getAttribute('href'),'maya-private-chat://open');
 const e=new w.MouseEvent('click',{bubbles:true,cancelable:true});orb.dispatchEvent(e);
