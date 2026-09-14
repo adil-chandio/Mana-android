@@ -257,10 +257,10 @@ class NativeChatActivity : AppCompatActivity() {
         label("Sunao: 2,000 input characters, one synthesis request, no silent truncation or retries. Startup wait is capped at 30 seconds, playback at 180 seconds, and the total local job at 210 seconds. STOP/exit stops local audio, not guaranteed remote work or a refund.")
         label("Selected Fish voice, wake and original assistant settings remain unchanged. The configured free Fish model may be unavailable or quota-limited; no free/unlimited guarantee or fallback. Media analysis, internet research and Agent actions are not enabled.")
 
-        button("Open Agent workspace · local pilot") {
-            confirm("Leave Chat for Agent lab?", "Leaving clears this conversation and stops local audio/waiting. Agent lab runs only approved local test plans; no external phone actions or AI.") {
+        button("Open Agent · public research") {
+            confirm("Leave Chat for Agent?", "Leaving clears this conversation and stops local audio/waiting. Agent has separately approved public-source reads, optional consented AI and manual browser links. No automatic actions on open.") {
                 endLocalSession()
-                startActivity(android.content.Intent(this, com.maya.ai.agent.AgentActivity::class.java))
+                startActivity(android.content.Intent(this, com.maya.ai.agent.ResearchActivity::class.java))
             }
         }
 

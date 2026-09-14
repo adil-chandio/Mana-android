@@ -61,3 +61,14 @@ remain owner-controlled when the corresponding reviewed UI exists.
 Server Chat remains at the owner's last explicit OFF setting. Do not alter the
 consumed Cloudflare uploader pin to activate new backend scope, replace keys,
 change the selected Fish reference or generate another APK just for a receipt.
+
+## Public research Agent continuation (2026-09-14)
+
+Owner declined another app-choice pause and asked implementation to continue.
+Browser selection now lives in the APK. The 5.23.0/94 candidate adds real fixed
+public Wikipedia/GitHub reads, optional separately consented AI proposals and
+source explanations, approved bounded runs and manual selected-browser source
+handoff. This is no longer lab-only, but not full cross-app phone control or
+exhaustive deep research. See docs/AGENT-RESEARCH-5.23.0.md. No live AI/Fish,
+permission activation, source-screen upload, backend repinning or provider test
+was run by the assistant. CI/phone evidence must remain separate.

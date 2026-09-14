@@ -22,6 +22,13 @@
 
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Visibility only for the owner-selected, optional public-source browser handoff. -->
+    <queries>
+        <package android:name="com.android.chrome" />
+        <package android:name="com.brave.browser" />
+        <package android:name="com.microsoft.emmx" />
+    </queries>
+
     <application
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
@@ -48,14 +55,16 @@
             </intent-filter>
         </activity>
 
-        <!-- Local-only plan approval pilot. No inbound data or Accessibility service. -->
-        <activity android:name=".agent.AgentActivity" android:exported="true"
-            android:label="Maya Agent Lab" android:windowSoftInputMode="adjustResize">
+        <!-- Separate read-only research Agent. Incoming data/extras are not commands. -->
+        <activity android:name=".agent.ResearchActivity" android:exported="true"
+            android:label="Maya Agent" android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".agent.AgentActivity" android:exported="false"
+            android:label="Maya Agent Lab" android:windowSoftInputMode="adjustResize" />
 
         <!-- Explicit native recovery entry. Ignores incoming URLs and extras. -->
         <activity android:name=".update.UpdateActivity" android:exported="true"
