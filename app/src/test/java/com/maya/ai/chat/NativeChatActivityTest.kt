@@ -593,4 +593,22 @@ class NativeChatActivityTest {
         assertEquals("changed after confirmation opened",field<EditText>("draft").text.toString());cancelled(job);noTransport()
     }
 
+    @Test fun readingOlderMessagesDoesNotForceJumpOnNewReply() {
+        completedHistory();val job=pending();setField("followLatest",false);complete(job)
+        assertEquals(View.VISIBLE,content.findViewWithTag<Button>("latest_response").visibility)
+        content.findViewWithTag<Button>("latest_response").performClick();assertEquals(View.GONE,content.findViewWithTag<Button>("latest_response").visibility)
+        assertTrue(field<Boolean>("followLatest"));noTransport()
+    }
+    @Test fun followingLatestKeepsJumpControlHiddenAndClearResetsIt() {
+        val job=pending();setField("followLatest",true);complete(job)
+        assertEquals(View.GONE,content.findViewWithTag<Button>("latest_response").visibility)
+        controller!!.pause().stop();assertTrue(field<Boolean>("followLatest"));noTransport()
+    }
+
+    @Test fun compatibilityDictationNeverRequestsMicOrLaunchesMain() {
+        val port=AndroidDictationPort(activity);var result: NativeDictation.State?=null
+        port.check("ur-PK",true) {result=it};assertEquals(NativeDictation.State.MAIN_REQUIRED,result)
+        port.requestPermission();assertNull(shadowOf(activity).nextStartedActivity);noTransport()
+    }
+
 }

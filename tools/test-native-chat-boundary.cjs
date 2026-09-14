@@ -13,7 +13,7 @@ const m = read('app/src/main/java/com/maya/ai/MainActivity.kt');
 assert(m.includes('request.isForMainFrame && request.hasGesture()'));
 assert(m.includes('webView.url in listOf('));
 assert.equal(read('public/index.html'), read('app/src/main/assets/web/index.html'));
-assert.equal(JSON.parse(read('release/version.json')).versionCode, 101);
+assert.equal(JSON.parse(read('release/version.json')).versionCode, 102);
 assert(read('app/build.gradle').includes("implementation 'com.squareup.okhttp3:okhttp:4.12.0'"));
 console.log('Native static integration boundaries PASS (not a device/UI execution test).');
 
@@ -54,3 +54,15 @@ assert(a.includes('No reply accepted.'));
 const diff=read('app/src/main/java/com/maya/ai/agent/BuilderDiff.kt');
 assert(!/WebView|Runtime|ProcessBuilder|Http|fetch|FileOutputStream/.test(diff));
 assert(read('app/src/main/java/com/maya/ai/agent/InlineBuildTurn.kt').includes('BuilderDiff.render(code,reply)'));
+
+const dictation=read('app/src/main/java/com/maya/ai/chat/NativeDictation.kt');
+const inputPort=read('app/src/main/java/com/maya/ai/chat/AndroidDictationPort.kt');
+assert(dictation.includes('schedule(1500)')); assert(dictation.includes('schedule(20000)'));
+assert(dictation.includes('NativeChatProtocol.validateDraft(text)'));
+assert(!/session\.begin|identity\.|fetch\(|HttpURLConnection|FileOutputStream|MayaBridge/.test(dictation));
+assert(!/createExplicitly|makeRecognizer|startActivity\(|startService\(|FileOutputStream|fishStreamSpeak/.test(inputPort));
+assert(inputPort.includes('createOnDeviceSpeechRecognizer(activity)'));
+assert(inputPort.includes('createSpeechRecognizer(activity)'));
+assert(inputPort.includes('if(main!=null && !permission()) ActivityCompat.requestPermissions'));
+assert(!m.includes('requestNeededPermissions()'));
+assert(a.includes('dictation.transcript==text && draft.text.toString()==before'));

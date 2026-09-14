@@ -94,6 +94,19 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             paint()
         })
     }
+    private val dictation: NativeDictation by lazy {
+        NativeDictation(AndroidDictationPort(host),{SystemClock.elapsedRealtime()},{delay,action ->
+            val task=Runnable {action()};handler.postDelayed(task,delay)
+            val cancel: ()->Unit={handler.removeCallbacks(task)};cancel
+        },{paint()})
+    }
+    private lateinit var dictationPanel: LinearLayout
+    private lateinit var dictationStatus: TextView
+    private lateinit var dictationText: TextView
+    private lateinit var useTranscript: Button
+    private lateinit var discardTranscript: Button
+    private lateinit var microphonePermission: Button
+    private lateinit var dictate: Button
     private lateinit var speechStatus: TextView
     private lateinit var fishCheck: Button
     private lateinit var fishSample: Button
@@ -129,7 +142,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private var voiceSlot: FrameLayout?=null
     private val researchServices: com.maya.ai.agent.ResearchServices by lazy { com.maya.ai.agent.ResearchBackend(applicationContext) }
     private val agentBusy get() = agentCards.any { it.busy }
-    private val anyBusy get() = active != null || speech.busy || agentBusy
+    private val anyBusy get() = active != null || speech.busy || agentBusy || dictation.stoppable
     private var publicText: String? = null
     private lateinit var status: TextView
     private lateinit var readinessResult: TextView
@@ -138,6 +151,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private lateinit var contextNote: TextView
     private lateinit var contextReview: Button
     private lateinit var history: LinearLayout
+    private lateinit var conversationScroll: ScrollView
+    private lateinit var latestResponse: Button
+    private var followLatest=true
     private lateinit var keyText: TextView
     private lateinit var counter: TextView
     private lateinit var draft: EditText
@@ -263,6 +279,12 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             textSize=13f
             filterTouchesWhenObscured = true; MayaTheme.toggle(this); isSaveEnabled = false; root.addView(this)
         }
+        dictationPanel=column().apply {tag="dictation_panel";background=MayaTheme.shape(this@NativeChatWorkspace);setPadding(dp(12),dp(8),dp(12),dp(8));root.addView(this)}
+        dictationStatus=labelView("",13f).apply {tag="dictation_status";MayaTheme.status(this);accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE;dictationPanel.addView(this)}
+        dictationText=labelView("",16f).apply {tag="dictation_transcript";setTextIsSelectable(true);maxLines=4;minHeight=dp(48);ellipsize=android.text.TextUtils.TruncateAt.END;setOnClickListener {maxLines=if(maxLines==4) Int.MAX_VALUE else 4};dictationPanel.addView(this)}
+        useTranscript=actionButton("Use transcript") {useDictationTranscript()}.also {dictationPanel.addView(it)}
+        discardTranscript=actionButton("Discard voice input") {dictation.clear()}.also {dictationPanel.addView(it)}
+        microphonePermission=actionButton("Allow microphone") {if(visible && section==0) dictation.requestPermission()}.also {dictationPanel.addView(it)}
         history = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; isSaveEnabled = false; tag = "conversation_timeline"; root.addView(this) }
         val composer = column().apply {tag = "shared_composer_area";background=MayaTheme.shape(this@NativeChatWorkspace,radius=20);setPadding(dp(8),dp(8),dp(8),dp(8))}
         root.removeView(consent)
@@ -324,6 +346,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         draft.minHeight=dp(56)
         composeRow.addView(draft,LinearLayout.LayoutParams(0,-2,1f))
         composer.addView(consent)
+        dictate=actionButton("Voice input") {confirmDictation()}.apply {tag="composer_voice";text="Mic";setPadding(0,0,0,0)}
+        composeRow.addView(dictate,LinearLayout.LayoutParams(dp(48),dp(48)))
         composeRow.addView(send,LinearLayout.LayoutParams(dp(48),dp(48)))
         stopSpace=View(this).apply {visibility=View.GONE};composeRow.addView(stopSpace,LinearLayout.LayoutParams(dp(48),dp(48)))
         composer.addView(controls,1)
@@ -351,7 +375,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         button("Revoke Direct consent") {stopActive("Direct consent revoked.");consent.isChecked=false;paint()}
         label("Privacy & limits", 21f)
         label("MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · development build",12f)
-        label("The original orb focuses this composer. Sunao uses saved Fish after confirmation; unified voice dictation is not available here.",13f)
+        label("The original orb focuses this composer. Sunao uses saved Fish after confirmation; Mic offers explicit voice-to-composer input with transcript review; it never auto-sends.",13f)
         label("Normal Chat sends text only, with optional manual Fish playback. Agent mode adds inline, separately consented bounded public research to this same conversation. Original assistant settings remain separate.")
         label("BACKGROUND / EXIT CLEARS THIS CONVERSATION", 17f)
         label("Internal Settings navigation keeps the conversation. Backgrounding, closing or recreating the Activity clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
@@ -371,6 +395,11 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
         val header=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;gravity=android.view.Gravity.CENTER_VERTICAL;tag="workspace_header"}
         header.addView(labelView("Maya",21f).apply {typeface=Typeface.create("sans-serif-medium",Typeface.NORMAL)},LinearLayout.LayoutParams(0,dp(56),1f))
+        latestResponse=actionButton("Latest response") {
+            followLatest=true;latestResponse.visibility=View.GONE
+            conversationScroll.post {if(visible && section==0) conversationScroll.fullScroll(View.FOCUS_DOWN)}
+        }.apply {tag="latest_response";text="Latest ↓";visibility=View.GONE}
+        header.addView(latestResponse,LinearLayout.LayoutParams(dp(104),dp(48)))
         header.addView(actionButton("Workspace menu") {
             confirmationGeneration++;disclosure?.dismiss();disclosure=null
             agentCards.forEach {it.stop()}
@@ -395,6 +424,11 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         checksPage.removeView(touchWarning); notices.addView(touchWarning)
         body.addView(chatPage)
         val scroll = ScrollView(this).apply { isSaveEnabled = false; isFillViewport = true; addView(body) }
+        conversationScroll=scroll;scroll.tag="conversation_scroll"
+        scroll.setOnScrollChangeListener {v,_,y,_,_ ->
+            val area=v as ScrollView;val child=area.getChildAt(0)
+            if(child!=null && area.height>0) followLatest=child.height-area.height-y<=dp(72)
+        }
         shell.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         // Reserve the fixed footer in the content layout; it cannot be pushed offscreen by IME/wrapping.
         shell.setPadding(dp(16),dp(8),dp(16),dp(168))
@@ -496,6 +530,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         (getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.showSoftInput(draft,InputMethodManager.SHOW_IMPLICIT)
     }
     private fun clearAgents() {
+        followLatest=true;if(::latestResponse.isInitialized) latestResponse.visibility=View.GONE
         val old=agentCards.toList();agentCards.clear();buildTask=null;timeline.filterIsInstance<ChatAttempt>().forEach {it.clear()};timeline.clear();shownDirect=0
         old.forEach {it.dispose()}
     }
@@ -512,7 +547,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         val context=session.messages().takeLast(2).joinToString("\n") {"${it.role}: ${clip(it.content)}"}
         lateinit var card: com.maya.ai.agent.InlineAgentTurn
         card=com.maya.ai.agent.InlineAgentTurn(host,value,context,researchServices,
-            {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && agentCards.none {it!==turn && it.busy}},
+            {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && !dictation.stoppable && agentCards.none {it!==turn && it.busy}},
             {paint()},
             {text ->
                 fun putSource() {selectDirectMode();draft.setText(text);status.text="Source copied locally. Edit/add your question, then Direct Send with consent; nothing sent yet."}
@@ -539,12 +574,13 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if(agentCards.size>=3) {status.text="Three task cards already exist. Clear explicitly to start another; draft kept.";return}
         agentCards.forEach {it.stop()}
         val card=com.maya.ai.agent.InlineBuildTurn(host,value,researchServices,
-            {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && agentCards.none {it!==turn && it.busy}}, {paint()})
+            {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && !dictation.stoppable && agentCards.none {it!==turn && it.busy}}, {paint()})
         buildTask=card;agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
         status.text="Builder stays in this conversation. One memory-only index.html; static preview needs confirmation."
         if(!manual) card.propose(value)
     }
     private fun revealTurn(view: View) {
+        followLatest=true;latestResponse.visibility=View.GONE
         val generation=confirmationGeneration
         handler.post {
             if(visible && section==0 && generation==confirmationGeneration && view.parent===history)
@@ -613,8 +649,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                 }
                 result is NativeChatResponse.Result.Reply && job.turn != null -> {
                     if (session.complete(job.turn, result.text) == NativeChatConversation.Completion.ACCEPTED) {
+                        val shouldFollow=followLatest
                         accepted=true;job.attempt?.let {timeline.remove(it);it.clear()};job.attempt=null
-                        draft.setText(""); renderHistory(); history.getChildAt((history.childCount-2).coerceAtLeast(0))?.let {revealTurn(it)}; status.text = "Model response received; it may be inaccurate."
+                        draft.setText(""); renderHistory(); if(shouldFollow) history.getChildAt((history.childCount-2).coerceAtLeast(0))?.let {revealTurn(it)} else latestResponse.visibility=View.VISIBLE; status.text = "Model response received; it may be inaccurate."
                     } else status.text = "Late result excluded. No automatic resend."
                 }
                 result === NativeChatResponse.Result.Access && job.kind == "check" ->
@@ -640,7 +677,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun stopActive(message: String, accessState: NativeAccessDiagnostic.State = NativeAccessDiagnostic.State.STOPPED) {
         confirmationGeneration++;disclosure?.dismiss();disclosure=null
         agentCards.forEach {it.stop()}
-        speech.stop()
+        speech.stop();dictation.clear()
         val job = active
         if (job != null) {
             job.timeout?.let { handler.removeCallbacks(it) }; job.readinessTimeout?.let { handler.removeCallbacks(it) }; active = null
@@ -683,6 +720,54 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             else -> "No usable result. No automatic retry or raw server details displayed."
         }
         return message + if (uncertain) " Remote work may have completed/continue; usage may count." else " This operation did not confirm a model dispatch."
+    }
+    private fun paintDictation() {
+        if(!::dictationPanel.isInitialized) return
+        val state=dictation.state
+        dictationPanel.visibility=if(state==NativeDictation.State.IDLE) View.GONE else View.VISIBLE
+        dictationStatus.text=state.hint
+        dictationText.text=dictation.transcript
+        dictationText.visibility=if(dictation.transcript.isEmpty()) View.GONE else View.VISIBLE
+        useTranscript.visibility=if(state==NativeDictation.State.REVIEW) View.VISIBLE else View.GONE
+        useTranscript.isEnabled=visible && section==0 && active==null && !speech.busy && !agentBusy
+        discardTranscript.visibility=if(state==NativeDictation.State.IDLE) View.GONE else View.VISIBLE
+        microphonePermission.visibility=if(state==NativeDictation.State.PERMISSION_REQUIRED) View.VISIBLE else View.GONE
+    }
+    private fun confirmDictation() {
+        if(!visible || section!=0 || anyBusy) return
+        agentCards.forEach {it.stop()}
+        hideKeyboard();draft.clearFocus()
+        val options=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setPadding(dp(16),0,dp(16),0);isSaveEnabled=false}
+        val language=Spinner(this).apply {adapter=choiceAdapter(listOf("Urdu · ur-PK","Hindi · hi-IN","English · en-IN","English · en-US"));isSaveEnabled=false;filterTouchesWhenObscured=true;contentDescription="Recognition language"}
+        val offline=CheckBox(this).apply {text="On-device engine only · no network fallback";isChecked=true;isSaveEnabled=false;filterTouchesWhenObscured=true;MayaTheme.toggle(this)}
+        options.addView(language,LinearLayout.LayoutParams(-1,dp(48)));options.addView(offline)
+        if(disclosure?.isShowing==true) return
+        val generation=++confirmationGeneration
+        disclosure=AlertDialog.Builder(this).setTitle("Voice input to composer")
+            .setMessage("Record up to 20 seconds for a transcript you review before use. On-device mode fails if unavailable; it never switches services. If you uncheck it, Android's default speech service may process audio remotely using internet/data. No audio to Chat or Fish; saved output voice stays unchanged. Nothing auto-sends.")
+            .setView(options).setNegativeButton("Cancel",null).setPositiveButton("Start voice") {_,_->
+                if(visible && section==0 && !anyBusy && generation==confirmationGeneration) {
+                    confirmationGeneration++
+                    val selected=NativeDictation.LANGUAGES.getOrNull(language.selectedItemPosition) ?: return@setPositiveButton
+                    val onDeviceOnly=offline.isChecked
+                    handler.post {if(visible && section==0 && generation+1==confirmationGeneration && !anyBusy) dictation.start(selected,onDeviceOnly,true)}
+                }
+            }.create().also {d->d.setOnDismissListener {if(generation==confirmationGeneration) confirmationGeneration++};d.show();MayaTheme.dialog(d);d.getButton(AlertDialog.BUTTON_POSITIVE).filterTouchesWhenObscured=true
+                val w=d.window;val callback=w?.callback
+                if(w!=null && callback!=null) w.callback=object : android.view.Window.Callback by callback {
+                    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                        if(event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) {confirmationGeneration++;d.dismiss();return true}
+                        return callback.dispatchTouchEvent(event)
+                    }
+                }
+            }
+    }
+    private fun useDictationTranscript() {
+        if(!visible || section!=0 || dictation.state!=NativeDictation.State.REVIEW || active!=null || speech.busy || agentBusy) return
+        val text=dictation.transcript;val before=draft.text.toString()
+        fun put() {if(visible && section==0 && dictation.state==NativeDictation.State.REVIEW && dictation.transcript==text && draft.text.toString()==before) {
+            dictation.clear();draft.setText(text);draft.setSelection(text.length);status.text="Transcript copied locally. Edit/review it, then Send separately with the relevant consent."}}
+        if(before.isNotEmpty() && before!=text) confirm("Replace this draft with the transcript?","Only local text is replaced. Cancel keeps both the draft and reviewed transcript. No request or phone action.") {put()} else put()
     }
     private fun attachAttempt(job: Job) {
         if(job.kind!="chat" || job.turn==null || job.attempt!=null) return
@@ -781,6 +866,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if (!::send.isInitialized || !::stop.isInitialized) return
         val busy = anyBusy
         send.isEnabled = !busy && section==0 && (agentSelected || consent.isChecked) && draft.text.toString().isNotBlank()
+        paintDictation()
+        dictate.visibility=if(busy) View.GONE else View.VISIBLE
+        dictate.isEnabled=visible && section==0 && !busy
         send.text="↑";send.textSize=22f
         send.contentDescription=if(agentSelected) "Submit Agent task" else "Send message"
         projectChip.visibility=if(agentSelected && buildTask!=null && kindSelection==1) View.VISIBLE else View.GONE
@@ -863,6 +951,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
     }
     fun consumeTouch(event: MotionEvent): Boolean {
+        if(event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) dictation.stop()
         if(event.actionMasked==MotionEvent.ACTION_DOWN && agentCards.any {it.executing}) agentCards.forEach {it.stop()}
         if(event.actionMasked==MotionEvent.ACTION_DOWN && agentCards.any {it.busy || it.approved} && event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) agentCards.forEach {it.stop()}
         val obscured = event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0
@@ -900,8 +989,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun runOnUiThread(action: () -> Unit) { host.runOnUiThread { action() } }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     fun resume() { visible = true; restoreVoicePresentation(); showAccessDiagnostic(); paint() }
-    fun pause() { visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
+    fun pause() { dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
     fun focusChanged(hasFocus: Boolean) {
+        if(!hasFocus && dictation.busy) dictation.stop()
         if(!hasFocus && agentBusy) agentCards.forEach {it.stop()}
     }
     private fun endLocalSession() {
@@ -920,10 +1010,11 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         endLocalSession(); handler.removeCallbacksAndMessages(null)
     }
     fun requestClose() {
+        if(dictation.busy) {dictation.stop();return}
         if(disclosure?.isShowing==true) {confirmationGeneration++;disclosure?.dismiss();disclosure=null;return}
         if(section!=0) {navigateSettings(if(section in 1..3) 4 else 0);return}
         if(menuPanel.visibility==View.VISIBLE) {menuPanel.visibility=View.GONE;return}
-        if (draft.text.isNotEmpty() || session.messages().isNotEmpty() || active != null || speech.busy || agentCards.isNotEmpty())
+        if (draft.text.isNotEmpty() || session.messages().isNotEmpty() || active != null || speech.busy || dictation.stoppable || agentCards.isNotEmpty())
             confirm("Leave private Chat?", "Leaving clears Chat and Agent data and stops local waiting. It does not erase provider records or refund usage.") { endLocalSession(); close() }
         else { endLocalSession(); close() }
     }

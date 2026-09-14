@@ -92,6 +92,7 @@ class MainActivity : AppCompatActivity() {
     private var recognizer: SpeechRecognizer? = null
     // Object allocation is not proof of an active recognition session.
     private var recognitionActive = false
+    private var composerMicLease: Any?=null
     private var speechGeneration = 0L
     @Volatile private var httpClosed = false
     private val httpDeadlines = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
@@ -172,7 +173,7 @@ class MainActivity : AppCompatActivity() {
 
         initTts()
         createNotificationChannel()
-        requestNeededPermissions()
+        // Permissions are requested by explicit feature actions, not by opening text Chat.
         ensureWakeAlive()      /* Issue 1: listener never dies */
     }
 
@@ -258,11 +259,21 @@ class MainActivity : AppCompatActivity() {
         return super.dispatchTouchEvent(event)
     }
 
+    /** Native-only microphone lease. Never exported through MayaBridge or persisted. */
+    fun acquireComposerMicrophone(token: Any): Boolean {
+        if(composerMicLease!=null || !mainResumed || isFinishing || isDestroyed || recognitionActive ||
+            httpRequests.isNotEmpty() || tts?.isSpeaking==true || webView.url !in listOf("https://$VIRTUAL_HOST/assets/web/index.html","file:///android_asset/web/index.html")) return false
+        composerMicLease=token;return true
+    }
+    fun composerMicrophoneCurrent(token: Any)=composerMicLease===token && mainResumed && !isFinishing && !isDestroyed &&
+        !recognitionActive && httpRequests.isEmpty() && tts?.isSpeaking!=true
+    fun releaseComposerMicrophone(token: Any) {if(composerMicLease===token) composerMicLease=null}
+
     /** Read-only local readiness; no preference writes, service starts or remote page evaluation. */
     fun nativeChatReady(result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) {
         val policy = com.maya.ai.chat.NativeChatReadiness
         try {
-            val state = policy.main(isFinishing || isDestroyed, httpRequests.isNotEmpty(), recognitionActive,
+            val state = policy.main(!mainResumed || isFinishing || isDestroyed, httpRequests.isNotEmpty(), recognitionActive || composerMicLease!=null,
                 tts?.isSpeaking == true, webView.url in listOf(
                     "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html"))
             if (state != com.maya.ai.chat.NativeChatReadiness.Reason.READY) { result(state); return }
@@ -595,6 +606,7 @@ class MainActivity : AppCompatActivity() {
 
         private fun listenSession(lang: String, owner: String) {
             runOnUiThread {
+                if(composerMicLease!=null) {evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(8,'$owner')");return@runOnUiThread}
                 if (ContextCompat.checkSelfPermission(
                         this@MainActivity, Manifest.permission.RECORD_AUDIO
                     ) != PackageManager.PERMISSION_GRANTED
@@ -1763,17 +1775,6 @@ class MainActivity : AppCompatActivity() {
             )
             getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
         }
-    }
-
-    private fun requestNeededPermissions() {
-        val wanted = mutableListOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_CONTACTS, Manifest.permission.CALL_PHONE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-            wanted.add(Manifest.permission.POST_NOTIFICATIONS)
-        val need = wanted.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-        if (need.isNotEmpty())
-            ActivityCompat.requestPermissions(this, need.toTypedArray(), REQ_PERMS)
     }
 
     private fun requestMicPermission() {

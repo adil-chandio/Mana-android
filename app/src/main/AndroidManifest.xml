@@ -24,6 +24,8 @@
 
     <!-- Visibility only for the owner-selected, optional public-source browser handoff. -->
     <queries>
+        <!-- Visibility only, not a microphone grant or service activation. -->
+        <intent><action android:name="android.speech.RecognitionService" /></intent>
         <package android:name="com.android.chrome" />
         <package android:name="com.brave.browser" />
         <package android:name="com.microsoft.emmx" />
