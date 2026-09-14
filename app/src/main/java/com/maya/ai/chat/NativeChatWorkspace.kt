@@ -78,7 +78,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         hideKeyboard();draft.clearFocus()
         val body=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setPadding(dp(16),0,dp(16),0);isSaveEnabled=false}
         val remember=CheckBox(this).apply {
-            tag="remember_direct_permission";text="Remember permission for my manual Direct Sends on this device";isChecked=false
+            tag="remember_direct_permission";this.text="Remember permission for my manual Direct Sends on this device";isChecked=false
             isSaveEnabled=false;filterTouchesWhenObscured=true;MayaTheme.toggle(this)
         }
         body.addView(remember)
