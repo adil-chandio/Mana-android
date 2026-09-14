@@ -42,6 +42,10 @@ class ResearchActivityTest {
         fun f(v: View): TextView? {if(v is TextView && (v.text.toString()==title || v.contentDescription?.toString()==title)) return v;if(v is ViewGroup) for(i in 0 until v.childCount) f(v.getChildAt(i))?.let {return it};return null}
         return f(a.findViewById(android.R.id.content)) ?: error("Missing $title")
     }
+    private fun sourceAction(title: String) {
+        if(!find(title).isShown) find("Source 1 actions ▾").performClick()
+        assertTrue(find(title).isShown);find(title).performClick()
+    }
     private fun confirm() {ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()}
     @Before fun open() {
         c=Robolectric.buildActivity(ResearchActivity::class.java).setup().visible();fake=Fake()
@@ -77,7 +81,7 @@ class ResearchActivityTest {
     }
     @Test fun approvalExpiresAndNeverFetchesOnLateRun() {
         approve();shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(60));run()
-        assertTrue(fake.gets.isEmpty());assertTrue(turnField<TextView>("state").text.contains("EXPIRED"))
+        assertTrue(fake.gets.isEmpty());assertTrue(turnField<TextView>("state").text.contains("Expired"))
     }
     @Test fun aiProposalRequiresConsentAndNeverExecutesItself() {
         submit("SYNTHETIC_GOAL");assertTrue(fake.texts.isEmpty());confirm();assertEquals(1,fake.texts.size)
@@ -105,7 +109,7 @@ class ResearchActivityTest {
         assertFalse(card.approved);assertTrue(fake.gets.isEmpty())
     }
     @Test fun unavailableBrowserNeverFallsBackOrInstalls() {
-        completed();find("Open source 1 · selected browser").performClick();confirm()
+        completed();sourceAction("Open source 1 · selected browser");confirm()
         assertNull(shadowOf(a).nextStartedActivity);assertTrue(turnField<TextView>("state").text.contains("unavailable"))
     }
     @Test fun installedSelectedBrowserGetsOnlyExactValidatedUrlAndComponent() {
@@ -113,7 +117,7 @@ class ResearchActivityTest {
         val intent=Intent(Intent.ACTION_VIEW,Uri.parse("https://en.wikipedia.org/wiki/Dog")).addCategory(Intent.CATEGORY_BROWSABLE).setPackage("com.android.chrome")
         val resolved=ResolveInfo().apply {activityInfo=ActivityInfo().apply {packageName="com.android.chrome";name="SyntheticBrowser";exported=true;enabled=true}}
         shadowOf(a.packageManager).addResolveInfoForIntent(intent,resolved)
-        find("Open source 1 · selected browser").performClick();confirm()
+        sourceAction("Open source 1 · selected browser");confirm()
         val launched=shadowOf(a).nextStartedActivity
         assertEquals("com.android.chrome",launched.component!!.packageName);assertEquals("SyntheticBrowser",launched.component!!.className)
         assertEquals("https://en.wikipedia.org/wiki/Dog",launched.dataString);assertNull(launched.extras)
@@ -131,16 +135,17 @@ class ResearchActivityTest {
     }
     @Test fun newApprovalClearsOldExplanationAndOffNeverChangesManualPlan() {
         completed();find("Explain sources · AI consent").performClick();confirm();fake.texts[0].second("OLD_EXPLANATION",null)
-        find("Review & approve plan").performClick();confirm();assertEquals("",turnField<TextView>("summaryView").text.toString())
+        find("Edit plan").performClick();find("Review & approve plan").performClick();confirm();assertEquals("",turnField<TextView>("summaryView").text.toString())
+        turnField<EditText>("plan").setText("WIKI Dog");assertFalse(card.approved)
         find("Generate / revise AI plan").performClick();confirm();fake.texts[1].second(null,ResearchBackend.TextFailure.CHAT_OFF)
         assertTrue(turnField<TextView>("state").text.contains("OFF"));assertEquals("WIKI Dog",turnField<EditText>("plan").text.toString())
     }
     @Test fun sourceTransferRequiresConsentAndDoesNotSendOrSilentlyReplaceDraft() {
         completed();field<EditText>("draft").setText("KEEP_DRAFT")
-        find("Use source 1 in Direct Chat").performClick();assertEquals("KEEP_DRAFT",field<EditText>("draft").text.toString());confirm()
+        sourceAction("Use source 1 in Direct Chat");assertEquals("KEEP_DRAFT",field<EditText>("draft").text.toString());confirm()
         assertEquals("KEEP_DRAFT",field<EditText>("draft").text.toString())
         ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
-        find("Use source 1 in Direct Chat").performClick();confirm();confirm()
+        sourceAction("Use source 1 in Direct Chat");confirm();confirm()
         assertTrue(field<Spinner>("modePicker").selectedItemPosition==0);assertTrue(field<EditText>("draft").text.contains("SYNTHETIC_EXCERPT"))
         assertTrue(fake.texts.isEmpty());assertEquals(1,fake.gets.size)
     }
@@ -180,7 +185,7 @@ class ResearchActivityTest {
         completed();assertFalse(find("Use source 1 in Direct Chat").isShown)
         find("Source 1 actions ▾").performClick();assertTrue(find("Use source 1 in Direct Chat").isShown)
         assertTrue(fake.texts.isEmpty());assertNull(shadowOf(a).nextStartedActivity)
-        find("Use source 1 in Direct Chat").performClick();assertNotNull(ShadowAlertDialog.getLatestAlertDialog())
+        sourceAction("Use source 1 in Direct Chat");assertNotNull(ShadowAlertDialog.getLatestAlertDialog())
         assertEquals("",field<EditText>("draft").text.toString());assertTrue(field<Spinner>("modePicker").selectedItemPosition==1)
     }
 

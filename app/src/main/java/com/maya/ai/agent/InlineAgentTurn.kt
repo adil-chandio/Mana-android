@@ -208,6 +208,13 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
             ResearchRunner.State.FAILED -> "Source unavailable"
         }
         state.text=if(busy && !runner.busy) "Preparing AI response…" else "$stage · ${runner.results().size} sources\n$notice"
+        state.setTextColor(when {
+            notice.contains("uncertain",true) || notice.contains("OFF") -> MayaTheme.attention
+            notice.contains("failed",true) || notice.contains("unavailable",true) || notice.contains("rejected",true) -> MayaTheme.danger
+            runner.state==ResearchRunner.State.COMPLETE -> MayaTheme.success
+            runner.state==ResearchRunner.State.EXPIRED || runner.state==ResearchRunner.State.STOPPED -> MayaTheme.attention
+            else -> MayaTheme.muted
+        })
         val list=runner.results()
         if(list!=rendered) {
             rendered=list;result.removeAllViews();sourceButtons.clear()
@@ -215,7 +222,7 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
                 val sourceCard=LinearLayout(host).apply {orientation=LinearLayout.VERTICAL;background=MayaTheme.shape(host,MayaTheme.background,12);setPadding(dp(12),dp(8),dp(12),dp(8));layoutParams=LinearLayout.LayoutParams(-1,-2).apply {bottomMargin=dp(8)}}
                 result.addView(sourceCard)
                 sourceCard.addView(TextView(host).apply {text="[${i+1}] ${source.url}";MayaTheme.label(this,12f,true);setTextIsSelectable(true)})
-                sourceCard.addView(TextView(host).apply {text=source.text;MayaTheme.label(this,14f);maxLines=4;ellipsize=android.text.TextUtils.TruncateAt.END;setTextIsSelectable(true);setOnClickListener {maxLines=if(maxLines==4) Int.MAX_VALUE else 4};tooltipText="Tap to expand source excerpt"})
+                sourceCard.addView(TextView(host).apply {text=source.text;MayaTheme.label(this,14f);minHeight=dp(48);maxLines=4;ellipsize=android.text.TextUtils.TruncateAt.END;setTextIsSelectable(true);setOnClickListener {maxLines=if(maxLines==4) Int.MAX_VALUE else 4};tooltipText="Tap to expand source excerpt"})
                 if(source.url.startsWith("https://en.wikipedia.org/")) sourceCard.addView(TextView(host).apply {text="Wikipedia contributors · CC BY-SA 4.0 · shortened excerpt. Article/history above; license: creativecommons.org/licenses/by-sa/4.0/";MayaTheme.label(this,11f,true);isSaveEnabled=false})
                 val actions=LinearLayout(host).apply {orientation=LinearLayout.VERTICAL;visibility=View.GONE}
                 sourceCard.addView(Button(host).apply {MayaTheme.button(this,"Source ${i+1} actions ▾");setOnClickListener {actions.visibility=if(actions.visibility==View.GONE) View.VISIBLE else View.GONE}})

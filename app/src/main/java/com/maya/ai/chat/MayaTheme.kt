@@ -18,6 +18,8 @@ object MayaTheme {
     val muted=Color.rgb(170,165,158)
     val copper=Color.rgb(215,152,116)
     val ink=Color.rgb(28,23,20)
+    val success=Color.rgb(169,196,171)
+    val attention=Color.rgb(226,189,124)
     val danger=Color.rgb(240,157,157)
     fun dp(context: Context,n: Int)=(context.resources.displayMetrics.density*n).toInt()
     fun shape(context: Context,fill: Int=surface,radius: Int=16,stroke: Boolean=true)=GradientDrawable().apply {
@@ -54,7 +56,7 @@ object MayaTheme {
         v.setPadding(dp(v.context,12),dp(v.context,10),dp(v.context,12),dp(v.context,10))
     }
     fun status(v: TextView) {
-        label(v,13f,true);v.maxLines=3;v.ellipsize=TextUtils.TruncateAt.END
+        label(v,13f,true);v.minHeight=dp(v.context,48);v.maxLines=3;v.ellipsize=TextUtils.TruncateAt.END
         v.setOnClickListener {v.maxLines=if(v.maxLines==3) Int.MAX_VALUE else 3}
         v.tooltipText="Tap to expand or collapse the full status"
     }
