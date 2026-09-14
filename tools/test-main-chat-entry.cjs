@@ -26,8 +26,8 @@ const browser=world(false,false,true);assert.equal(browser.prevent,1);assert(bro
 assert(!/\.value|chatHist|localStorage|fetch\(|http\(|innerHTML|MayaBridge\.|location\s*\./.test(script));
 const main=fs.readFileSync('app/src/main/java/com/maya/ai/MainActivity.kt','utf8');
 assert(main.includes('request.isForMainFrame && request.hasGesture()'));
-assert(main.includes('mainSurface.addView(surface'));
-assert(main.includes('webView.visibility = android.view.View.GONE'));
+assert(main.includes('workspace.createView(webView)'));assert(main.includes('mainSurface.addView(nativeChatView'));
+assert(!main.includes('webView.visibility = android.view.View.GONE'));assert(!main.includes('← MAYA HOME'));assert(main.includes('nativeChat?.focusComposer()'));
 assert(!main.includes('startActivity(Intent(this@MainActivity, com.maya.ai.chat.NativeChatActivity::class.java))'));
 assert(main.includes('nativeChat?.leaveScreen()'));assert(main.includes('nativeChat?.dispose()'));
 console.log('Main Chat entry PASS: 6 offline navigation cases + actual anchors/source/privacy checks; no device or live request.');

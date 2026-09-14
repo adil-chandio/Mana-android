@@ -1,0 +1,33 @@
+'use strict';
+const fs=require('node:fs'),assert=require('node:assert/strict'),{JSDOM}=require('jsdom');
+const html=fs.readFileSync('public/index.html','utf8');
+const script=html.match(/\/\* PERMANENT_WORKSPACE_START[\s\S]*?\*\/([\s\S]*?)\/\* PERMANENT_WORKSPACE_END \*\//)[1];
+const make=()=>new JSDOM(html,{runScripts:'outside-only',url:'https://appassets.androidplatform.net/assets/web/index.html'});
+const d=make(),w=d.window;w.eval(script);
+assert.equal(w.__mayaWorkspaceMount(),false);assert(!w.document.documentElement.classList.contains('maya-workspace-host'));
+w.MayaBridge={};const orb=w.document.getElementById('orb');let legacyVoice=0;
+orb.addEventListener('click',()=>legacyVoice++);
+const fields=[...w.document.querySelectorAll('input,select')].map(el=>[el,el.value]);
+assert.equal(w.__mayaWorkspaceMount(),true);assert.equal(w.__mayaWorkspaceMount(),true);
+assert.equal(w.document.querySelectorAll('.workspace-orb-link').length,1);assert.equal(w.document.querySelector('.workspace-orb-link').firstElementChild,orb);
+assert.equal(w.document.querySelector('.workspace-orb-link').getAttribute('href'),'maya-private-chat://open');
+const e=new w.MouseEvent('click',{bubbles:true,cancelable:true});orb.dispatchEvent(e);
+assert.equal(legacyVoice,0);assert(e.defaultPrevented); // synthetic event cannot navigate or trigger hidden legacy AI
+w.__mayaWorkspaceSettings(true);assert(w.document.documentElement.classList.contains('maya-settings-expanded'));
+w.__mayaWorkspaceSettings(false);assert(!w.document.documentElement.classList.contains('maya-settings-expanded'));
+for(const [el,value] of fields) assert.equal(el.value,value); // mount/settings presentation never rewrites voice/provider settings
+assert.equal(w.getComputedStyle(w.document.querySelector('header')).display,'none');
+assert.equal(w.getComputedStyle(w.document.querySelector('nav')).display,'none');
+assert.equal(w.getComputedStyle(w.document.querySelector('.homebar')).display,'none');
+assert.equal(w.getComputedStyle(w.document.querySelector('#tab-chat')).display,'none');
+assert.equal(w.getComputedStyle(w.document.querySelector('#tab-home')).display,'block');
+assert(!/localStorage|fetch\(|http\(|MayaBridge\.|evaluateJavascript|innerHTML|\.value\s*=/.test(script));
+const main=fs.readFileSync('app/src/main/java/com/maya/ai/MainActivity.kt','utf8');
+const create=main.slice(main.indexOf('override fun onCreate('),main.indexOf('override fun onActivityResult('));
+assert(create.includes('workspace.createView(webView)'));assert(create.includes('nativeChat = workspace'));
+const focus=main.slice(main.indexOf('private fun openMainChat()'),main.indexOf('override fun onResume()'));
+assert(!/createView|addView|removeView|visibility|startActivity|loadUrl/.test(focus));assert(focus.includes('focusComposer()'));
+const builder=fs.readFileSync('app/src/main/java/com/maya/ai/agent/InlineBuildTurn.kt','utf8');
+for(const text of ['javaScriptEnabled=false','blockNetworkLoads=true','allowFileAccess=false','allowContentAccess=false','domStorageEnabled=false',"default-src 'none'","form-action 'none'",'request.deny()','handler.postDelayed(it,20000)','epoch!=ticket','services.text(prompt)']) assert(builder.includes(text),text);
+assert(!/addJavascriptInterface|startActivity|createExplicitly|Runtime\.getRuntime|ProcessBuilder|FileOutputStream|ACTION_VIEW|evaluateJavascript/.test(builder));
+console.log('Permanent workspace PASS: startup ownership, idempotent original-orb mounting, no duplicate chat/legacy dispatch/settings writes; isolated static Builder boundaries. Not device or live-provider proof.');

@@ -57,40 +57,55 @@ class MainChatSurfaceTest {
         assertNull(shadowOf(a).nextStartedActivity)
     }
     @After fun close() {c.pause().stop().destroy()}
-    @Test fun mainChatIsInPlaceAndOpeningSendsNoContentOrActivityIntent() {
-        assertNull(field<NativeChatWorkspace?>("nativeChat"));assertTrue(navigate())
-        assertNotNull(field<NativeChatWorkspace?>("nativeChat"));assertEquals(View.GONE,web.visibility)
-        assertNull(shadowOf(a).nextStartedActivity)
-        val w=field<NativeChatWorkspace>("nativeChat")
-        val transport=NativeChatWorkspace::class.java.getDeclaredField("transport\$delegate").apply {isAccessible=true}.get(w) as Lazy<*>
-        assertFalse(transport.isInitialized())
-        assertNull(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("tab_agent"))
-        assertNotNull(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("mode_agent"))
-        assertSame(w,field<NativeChatWorkspace>("nativeChat"));navigate();assertSame(w,field<NativeChatWorkspace>("nativeChat"))
-    }
-    @Test fun noGestureSubframeAndUntrustedPageCannotOpenMainChat() {
-        navigate(gesture=false);assertNull(field<NativeChatWorkspace?>("nativeChat"))
-        navigate(main=false);assertNull(field<NativeChatWorkspace?>("nativeChat"))
-        web.loadUrl("https://example.invalid/");navigate();assertNull(field<NativeChatWorkspace?>("nativeChat"))
+    private val workspace get()=field<NativeChatWorkspace>("nativeChat")
+    private inline fun <reified T> local(name: String): T=NativeChatWorkspace::class.java.getDeclaredField(name).apply {isAccessible=true}.get(workspace) as T
+    @Test fun startupIsAlreadyThePermanentConversationWithOriginalWebComponent() {
+        val initial=workspace;val surface=field<View>("nativeChatView");val parent=web.parent
+        assertNotNull(initial);assertNotNull(parent);assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertNull(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("tab_chat"))
+        assertEquals(1,field<ViewGroup>("mainSurface").childCount)
+        for(agent in listOf(true,false,true,false)) {
+            a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<android.widget.RadioButton>(if(agent) "mode_agent" else "mode_direct").performClick()
+            assertSame(initial,workspace);assertSame(surface,field<View>("nativeChatView"));assertSame(parent,web.parent)
+            assertEquals(1,field<ViewGroup>("mainSurface").childCount)
+        }
         assertNull(shadowOf(a).nextStartedActivity)
     }
-    @Test fun returningHomeConfirmsAndClearsPrivatePaneThenReopensBlank() {
-        navigate();val w=field<NativeChatWorkspace>("nativeChat")
-        val draft=NativeChatWorkspace::class.java.getDeclaredField("draft").apply {isAccessible=true}.get(w) as EditText
-        draft.setText("PRIVATE_SYNTHETIC_DRAFT")
-        button("← MAYA HOME").performClick();assertSame(w,field<NativeChatWorkspace>("nativeChat"))
-        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
-        assertNull(field<NativeChatWorkspace?>("nativeChat"));assertEquals("",draft.text.toString());assertEquals(View.VISIBLE,web.visibility)
-        navigate();val fresh=field<NativeChatWorkspace>("nativeChat")
-        assertNotSame(w,fresh)
-        assertEquals("",(NativeChatWorkspace::class.java.getDeclaredField("draft").apply {isAccessible=true}.get(fresh) as EditText).text.toString())
+    @Test fun compatibilityUriOnlyFocusesExistingComposerAndNeverReplacesRoot() {
+        val initial=workspace;val surface=field<View>("nativeChatView");local<EditText>("draft").setText("KEEP_DRAFT")
+        assertTrue(navigate());assertSame(initial,workspace);assertSame(surface,field<View>("nativeChatView"))
+        assertEquals("KEEP_DRAFT",local<EditText>("draft").text.toString());assertNull(shadowOf(a).nextStartedActivity)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
     }
-    @Test fun backgroundClearsBothNativeWorkspacesWithoutWritingThemIntoWebView() {
-        navigate();a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<android.widget.RadioButton>("mode_agent").performClick()
-        a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<EditText>("shared_composer").setText("PRIVATE_RESEARCH")
+    @Test fun untrustedAndSyntheticNavigationCannotFocusOrReplaceWorkspace() {
+        val initial=workspace;local<EditText>("draft").clearFocus()
+        navigate(gesture=false);navigate(main=false)
+        assertSame(initial,workspace);assertNull(shadowOf(a).nextStartedActivity)
+        web.loadUrl("https://example.invalid/");navigate();assertSame(initial,workspace)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun backConfirmsExitInsteadOfReturningToAnotherMayaScreen() {
+        local<EditText>("draft").setText("PRIVATE_SYNTHETIC_DRAFT");val initial=workspace
+        a.onBackPressed();assertSame(initial,workspace);assertFalse(a.isFinishing)
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick();assertFalse(a.isFinishing)
+        a.onBackPressed();ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(a.isFinishing);assertEquals("",local<EditText>("draft").text.toString())
+    }
+    @Test fun backgroundClearsPrivateDataWithoutReplacingMainSurface() {
+        val initial=workspace;val surface=field<View>("nativeChatView")
+        local<EditText>("draft").setText("PRIVATE_RESEARCH")
         c.pause().stop().restart().start().resume()
-        assertEquals("",a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<EditText>("shared_composer").text.toString())
-        assertNull(shadowOf(a).nextStartedActivity)
+        assertSame(initial,workspace);assertSame(surface,field<View>("nativeChatView"))
+        assertEquals("",local<EditText>("draft").text.toString());assertNull(shadowOf(a).nextStartedActivity)
         assertEquals("https://appassets.androidplatform.net/assets/web/index.html",web.url)
+    }
+    @Test fun inlineUtilitiesAndOriginalSettingsDoNotNavigateOrLoseDraft() {
+        val initial=workspace;val parent=web.parent;local<EditText>("draft").setText("KEEP_DRAFT")
+        button("Checks ▾").performClick();button("Privacy ▾").performClick();button("Close details").performClick()
+        button("Original settings · expand here").performClick();button("Original settings · expand here").performClick()
+        assertSame(initial,workspace);assertSame(parent,web.parent);assertEquals("KEEP_DRAFT",local<EditText>("draft").text.toString())
+        assertEquals(View.VISIBLE,a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("chat_page").visibility)
+        assertEquals(View.VISIBLE,a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("shared_composer_area").visibility)
+        assertNull(shadowOf(a).nextStartedActivity)
     }
 }

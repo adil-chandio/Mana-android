@@ -48,7 +48,7 @@ class NativeChatActivityTest {
         .apply { isAccessible = true }.set(workspace, value)
     private fun invoke(name: String) = NativeChatWorkspace::class.java.getDeclaredMethod(name)
         .apply { isAccessible = true }.invoke(workspace)
-    private fun tab(name: String) = content.findViewWithTag<Button>("tab_$name")
+    private fun tab(name: String) = content.findViewWithTag<Button>(if(name=="chat") "details_close" else "details_$name")
     private fun page(name: String) = content.findViewWithTag<View>("${name}_page")
     private fun button(title: String): Button {
         fun find(view: View): Button? {
@@ -121,12 +121,14 @@ class NativeChatActivityTest {
         field<Button>("stop").performClick(); cancelled(job)
         assertFalse(field<Button>("stop").isEnabled); noTransport()
     }
-    @Test fun tabsPreserveDraftConsentAndCompletedContextWithoutSending() {
+    @Test fun inlineDetailsPreserveVisibleConversationComposerAndContextWithoutSending() {
         completedHistory(); fill()
         for (name in listOf("checks", "info", "chat")) {
             tab(name).performClick()
             assertEquals(View.VISIBLE, page(name).visibility)
             assertTrue(tab(name).isSelected)
+            assertEquals(View.VISIBLE,page("chat").visibility)
+            assertEquals(View.VISIBLE,content.findViewWithTag<View>("shared_composer_area").visibility)
             assertEquals("PRIVATE_SYNTHETIC_DRAFT", field<EditText>("draft").text.toString())
             assertTrue(field<CheckBox>("consent").isChecked)
             assertEquals(2, field<NativeChatConversation>("session").messages().size)

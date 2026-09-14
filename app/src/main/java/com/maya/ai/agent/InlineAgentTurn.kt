@@ -17,10 +17,10 @@ import com.maya.ai.chat.NativeChatProtocol
  * Services must deliver callbacks asynchronously on the UI thread. No incoming intents or raw action bridge. */
 class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentDirect: String,
     private val services: ResearchServices, private val allowed: (InlineAgentTurn) -> Boolean, private val changed: () -> Unit,
-    private val useInComposer: (String) -> Unit, private val speak: (String) -> Unit) {
-    var goal=goal; private set
+    private val useInComposer: (String) -> Unit, private val speak: (String) -> Unit) : WorkspaceTask {
+    override var goal=goal; private set
     private var recentDirect=recentDirect
-    val view=LinearLayout(host).apply {
+    override val view=LinearLayout(host).apply {
         orientation=LinearLayout.VERTICAL;isSaveEnabled=false
         importantForAutofill=View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         setPadding(dp(12),dp(10),dp(12),dp(10))
@@ -53,9 +53,9 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
         val pending=Runnable {task()};check(handler.postDelayed(pending,delay))
         val cancel: () -> Unit={handler.removeCallbacks(pending)};cancel
     },{refresh();changed()})
-    val busy get()=runner.busy || cancelModel!=null
-    val executing get()=runner.busy
-    val approved get()=runner.approved
+    override val busy get()=runner.busy || cancelModel!=null
+    override val executing get()=runner.busy
+    override val approved get()=runner.approved
     init {
         require(goal.length in 1..450 && NativeChatProtocol.validReply(goal))
         label("YOU · AGENT MODE",12f);label(goal,17f)
@@ -173,7 +173,7 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
                 }
             }
     }
-    fun refresh() {
+    override fun refresh() {
         if(!::speechButton.isInitialized) return
         val enabled=canAct();sourceButtons.forEach {it.isEnabled=enabled};buttons.forEach {it.isEnabled=enabled};choices.forEach {it.isEnabled=enabled};plan.isEnabled=enabled
         approve.isEnabled=enabled && browser!=null && plan.text.isNotBlank()
@@ -210,8 +210,8 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
             }
         }
     }
-    fun stop() {epoch++;dialog?.dismiss();dialog=null;val cancel=cancelModel;cancelModel=null;try {cancel?.invoke()} catch (_: Exception) {};runner.stop();notice="Stopped/revoked locally. No automatic resume.";refresh();changed()}
-    fun dispose() {alive=false;stop();runner.clear();plan.setText("");summaryView.text="";explanation="";result.removeAllViews();goal="";recentDirect="";view.removeAllViews();rendered=emptyList();sourceButtons.clear();buttons.clear();choices.clear();handler.removeCallbacksAndMessages(null)}
+    override fun stop() {epoch++;dialog?.dismiss();dialog=null;val cancel=cancelModel;cancelModel=null;try {cancel?.invoke()} catch (_: Exception) {};runner.stop();notice="Stopped/revoked locally. No automatic resume.";refresh();changed()}
+    override fun dispose() {alive=false;stop();runner.clear();plan.setText("");summaryView.text="";explanation="";result.removeAllViews();goal="";recentDirect="";view.removeAllViews();rendered=emptyList();sourceButtons.clear();buttons.clear();choices.clear();handler.removeCallbacksAndMessages(null)}
     private fun label(text: String,size: Float=14f)=TextView(host).apply {this.text=text;textSize=size;setTextColor(Color.WHITE);setPadding(0,dp(6),0,dp(6));isSaveEnabled=false;view.addView(this)}
     private fun button(title: String, action: () -> Unit)=Button(host).apply {text=title;isAllCaps=false;isSaveEnabled=false;filterTouchesWhenObscured=true;setOnClickListener {if(canAct()) action()};buttons.add(this);view.addView(this)}
     private fun dp(v: Int)=(host.resources.displayMetrics.density*v).toInt()

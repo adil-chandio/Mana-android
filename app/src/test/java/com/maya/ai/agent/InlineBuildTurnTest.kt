@@ -1,0 +1,126 @@
+package com.maya.ai.agent
+
+import android.content.DialogInterface
+import android.os.Looper
+import android.view.*
+import android.webkit.WebView
+import android.widget.*
+import com.maya.ai.chat.*
+import org.junit.*
+import org.junit.Assert.*
+import org.junit.runner.RunWith
+import org.robolectric.*
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.*
+import org.robolectric.shadows.ShadowAlertDialog
+import java.time.Duration
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk=[28])
+@LooperMode(LooperMode.Mode.PAUSED)
+class InlineBuildTurnTest {
+    private val controller=Robolectric.buildActivity(NativeChatActivity::class.java)
+    private val activity get()=controller.get()
+    private val workspace get()=NativeChatActivity::class.java.getDeclaredField("workspace").apply {isAccessible=true}.get(activity) as NativeChatWorkspace
+    private inline fun <reified T> field(name: String): T=NativeChatWorkspace::class.java.getDeclaredField(name).apply {isAccessible=true}.get(workspace) as T
+    private val card get()=field<InlineBuildTurn>("buildTask")
+    private val root get()=activity.findViewById<ViewGroup>(android.R.id.content)
+    private val fake=object : ResearchServices {
+        val calls=mutableListOf<Pair<String,(String?,ResearchBackend.TextFailure?) -> Unit>>()
+        var cancels=0
+        override fun fetch(item: ResearchPlan.Item,done: (ResearchSource?) -> Unit): () -> Unit=error("Builder cannot research implicitly")
+        override fun text(prompt: String,done: (String?,ResearchBackend.TextFailure?) -> Unit): () -> Unit {calls.add(prompt to done);return {cancels++}}
+    }
+    private val html="<!DOCTYPE html><html><body><h1>Bakery</h1></body></html>"
+    private fun button(text: String): Button {
+        fun find(v: View): Button? {if(v is Button && v.text.toString()==text) return v;if(v is ViewGroup) for(i in 0 until v.childCount) find(v.getChildAt(i))?.let {return it};return null}
+        return find(root) ?: error("Missing $text")
+    }
+    private fun yes() {ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()}
+    private fun submit(value: String) {field<EditText>("draft").setText(value);field<Button>("send").performClick()}
+    @Before fun open() {
+        controller.setup().visible()
+        NativeChatWorkspace::class.java.getDeclaredField("researchServices\$delegate").apply {isAccessible=true}.set(workspace,lazy<ResearchServices> {fake})
+        field<RadioButton>("agentMode").performClick();field<Spinner>("agentKind").setSelection(1);shadowOf(Looper.getMainLooper()).idle()
+    }
+    @After fun close() {controller.pause().stop().destroy()}
+    @Test fun selectingBuilderKeepsOneComposerAndDoesNothing() {
+        assertTrue(fake.calls.isEmpty());assertNull(field<InlineBuildTurn?>("buildTask"));assertNull(shadowOf(activity).nextStartedActivity)
+        assertNotNull(root.findViewWithTag<EditText>("shared_composer"));assertNull(root.findViewWithTag<View>("tab_agent"))
+    }
+    @Test fun manualDocumentBecomesAnInlineFileWithoutNetworkOrPreview() {
+        submit(html);assertEquals(html,card.editor.text.toString());assertSame(field<LinearLayout>("history"),card.view.parent)
+        assertTrue(fake.calls.isEmpty());assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+    }
+    @Test fun previewNeedsConfirmationAndHasNoScriptNetworkFileOrNavigationAuthority() {
+        submit(html);button("Render static preview here").performClick();assertNull(root.findViewWithTag<WebView>("isolated_static_preview"));yes()
+        val preview=root.findViewWithTag<WebView>("isolated_static_preview")!!
+        assertFalse(preview.settings.javaScriptEnabled);assertTrue(preview.settings.blockNetworkLoads);assertTrue(preview.settings.blockNetworkImage)
+        assertFalse(preview.settings.allowFileAccess);assertFalse(preview.settings.allowContentAccess);assertFalse(preview.settings.domStorageEnabled)
+        assertTrue(preview.webViewClient.shouldOverrideUrlLoading(preview,"https://evil.invalid/"))
+        assertTrue(preview.webViewClient.shouldOverrideUrlLoading(preview,"maya-private-chat://open"))
+        assertNull(shadowOf(activity).nextStartedActivity);assertTrue(fake.calls.isEmpty())
+    }
+    @Test fun codeEditInvalidatesPreviewAndStaleRenderApproval() {
+        submit(html);button("Render static preview here").performClick();val dialog=ShadowAlertDialog.getLatestAlertDialog()
+        card.editor.setText(html.replace("Bakery","Changed"));dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+        button("Render static preview here").performClick();yes();card.editor.setText(html)
+        assertNull(root.findViewWithTag<WebView>("isolated_static_preview"));assertTrue(fake.calls.isEmpty())
+    }
+    @Test fun aiIsConsentThenProposalThenApplyThenPreviewNotAutomatic() {
+        submit("Make a tiny bakery page");assertTrue(fake.calls.isEmpty());yes();assertEquals(1,fake.calls.size)
+        fake.calls[0].second(html,null);assertEquals("",card.editor.text.toString());assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+        button("Apply reviewed proposal locally").performClick();assertEquals("",card.editor.text.toString());yes()
+        assertEquals(html,card.editor.text.toString());assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+    }
+    @Test fun directContextNeverLeaksIntoBuilderPrompt() {
+        val session=field<NativeChatConversation>("session");val turn=session.begin("PRIVATE_DIRECT_CONTEXT",true);session.complete(turn,"PRIVATE_REPLY")
+        submit("tiny page");yes();assertFalse(fake.calls.single().first.contains("PRIVATE_DIRECT"));assertFalse(fake.calls.single().first.contains("PRIVATE_REPLY"))
+    }
+    @Test fun sameComposerFollowupUsesSameProjectAndNeedsCodeConsent() {
+        submit(html);val first=card;submit("Make the heading blue")
+        assertSame(first,card);assertEquals(1,field<List<WorkspaceTask>>("agentCards").size);assertTrue(fake.calls.isEmpty());yes()
+        assertTrue(fake.calls.single().first.contains(html));assertTrue(fake.calls.single().first.contains("Make the heading blue"))
+        assertEquals(2,field<List<Any>>("timeline").size)
+    }
+    @Test fun longExistingCodeIsNotSilentlyTruncatedForAi() {
+        submit(html);val large="<html><body>"+"x".repeat(1200)+"</body></html>";card.editor.setText(large);submit("Change colour")
+        assertTrue(fake.calls.isEmpty());assertEquals(large,card.editor.text.toString())
+        assertTrue(root.findViewWithTag<TextView>("builder_status").text.contains("Nothing truncated"))
+    }
+    @Test fun offPreservesCodeAndDoesNotApplyOrRetry() {
+        submit(html);submit("Change colour");yes();fake.calls[0].second(null,ResearchBackend.TextFailure.CHAT_OFF)
+        assertEquals(html,card.editor.text.toString());assertTrue(root.findViewWithTag<TextView>("builder_status").text.contains("OFF"));assertEquals(1,fake.calls.size)
+    }
+    @Test fun stopModeChangeAndDuplicateCallbacksCannotOverwriteCode() {
+        submit("tiny page");yes();field<Button>("stop").performClick();fake.calls[0].second(html,null)
+        assertEquals("",card.editor.text.toString());assertFalse(button("Apply reviewed proposal locally").isEnabled)
+        submit("tiny page again");yes();field<RadioButton>("directMode").performClick();fake.calls[1].second(html,null)
+        assertEquals("",card.editor.text.toString());assertEquals(2,fake.cancels)
+    }
+    @Test fun timeoutRejectsLateProposalAndDoesNotRetry() {
+        submit("tiny page");yes();shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(20));fake.calls[0].second(html,null)
+        assertFalse(card.busy);assertEquals("",card.editor.text.toString());assertEquals(1,fake.calls.size)
+    }
+    @Test fun backgroundClearsCodeProposalAndPreviewNotSavedIdentity() {
+        submit(html);button("Render static preview here").performClick();yes();val old=card
+        controller.pause().stop().restart().start().resume()
+        assertNull(field<InlineBuildTurn?>("buildTask"));assertEquals("",old.editor.text.toString());assertEquals("",old.goal);assertEquals(0,old.view.childCount)
+        assertNull(root.findViewWithTag<WebView>("isolated_static_preview"));assertTrue(fake.calls.isEmpty())
+    }
+    @Test fun unsupportedOrIncompleteModelCodeIsNotRepairedIntoARunnableResult() {
+        submit("tiny page");yes();fake.calls[0].second("```html\n<html>incomplete",null)
+        assertEquals("",card.editor.text.toString());assertFalse(button("Apply reviewed proposal locally").isEnabled)
+    }
+    @Test fun localDocumentBoundRejectsTooLargePreviewWithoutShorteningEditor() {
+        submit(html);val large="<html>"+"x".repeat(8000)+"</html>";card.editor.setText(large)
+        assertEquals(large,card.editor.text.toString());assertFalse(button("Render static preview here").isEnabled)
+    }
+    @Test fun globalStopClosesLivePreviewButKeepsCodeInSameConversation() {
+        submit(html);button("Render static preview here").performClick();yes()
+        assertTrue(field<Button>("stop").isEnabled);field<Button>("stop").performClick()
+        assertNull(root.findViewWithTag<WebView>("isolated_static_preview"));assertEquals(html,card.editor.text.toString())
+    }
+
+}

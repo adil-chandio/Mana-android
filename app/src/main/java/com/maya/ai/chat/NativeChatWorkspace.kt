@@ -103,9 +103,13 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private var section = 0
     private lateinit var directMode: RadioButton
     private lateinit var agentMode: RadioButton
-    private val agentCards = mutableListOf<com.maya.ai.agent.InlineAgentTurn>()
+    private val agentCards = mutableListOf<com.maya.ai.agent.WorkspaceTask>()
     private val timeline = mutableListOf<Any>() // completed Direct messages and owned inline Agent cards
     private var shownDirect = 0
+    private var kindSelection=0
+    private lateinit var agentKind: Spinner
+    private var buildTask: com.maya.ai.agent.InlineBuildTurn?=null
+    private var collapseVoiceSettings: () -> Unit = {}
     private val researchServices: com.maya.ai.agent.ResearchServices by lazy { com.maya.ai.agent.ResearchBackend(applicationContext) }
     private val agentBusy get() = agentCards.any { it.busy }
     private val anyBusy get() = active != null || speech.busy || agentBusy
@@ -132,7 +136,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private var disclosure: AlertDialog? = null
     private var confirmationGeneration = 0L
 
-    fun createView(): View {
+    fun createView(voiceSurface: View? = null, voiceSettings: ((Boolean) -> Unit)? = null): View {
         accessDiagnostic = getAccessDiagnostic(this)
         readinessReason = try { NativeChatReadiness.restore(getSharedPreferences("maya_readiness_diagnostic", Context.MODE_PRIVATE)
             .getString("reason", null)) } catch (_: Exception) { Reason.NOT_CHECKED }
@@ -156,7 +160,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
         label("This check sends nothing and changes no settings. Only its last fixed reason code is kept locally. A READY result is historical; Send checks again and signs with the saved key. Showing/copying the public key is not required. A missing key stops locally.")
         label("Selected Fish · optional voice", 18f)
-        label("Open the original Maya first, then enter Private Chat from there to use its saved Fish settings. No automatic app launch or credential copy/storage. This tab does not play anything.")
+        label("Main Maya already owns this conversation and saved Fish setup. Compatibility launchers cannot start Main or copy credentials. Nothing plays on entry.")
         fishCheck = button("Check saved Fish setup · no network") { if (active == null && visible) speech.check() }
         fishSample = button("Test saved Fish voice · short sample") {
             confirmSpeech("Salam, yeh aapki saved Fish voice ka chhota test hai.") { true }
@@ -213,7 +217,26 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             status.text = "PUBLIC key copied. Add it only to APK_PUBLIC_JWK in the owner's Worker settings. The browser key must stay unchanged."
         }
         root = chatPage
-        label("One conversation · two modes", 21f)
+        if(voiceSurface!=null) {
+            voiceSurface.isSaveEnabled=false
+            voiceSurface.importantForAutofill=View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+            root.addView(voiceSurface,LinearLayout.LayoutParams(-1,dp(128)))
+            label("Original Maya orb · tap to write here. Sunao uses your saved Fish voice; no automatic microphone or playback.",12f)
+            var settingsOpen=false
+            collapseVoiceSettings={
+                settingsOpen=false
+                voiceSurface.layoutParams=voiceSurface.layoutParams.apply {height=dp(128)}
+                voiceSettings?.invoke(false)
+            }
+            button("Original settings · expand here") {
+                if(anyBusy || !visible) return@button
+                stopActive("Settings toggled; pending work/confirmations revoked.")
+                settingsOpen=!settingsOpen
+                voiceSurface.layoutParams=voiceSurface.layoutParams.apply {height=dp(if(settingsOpen) 460 else 128)}
+                voiceSettings?.invoke(settingsOpen)
+            }
+        }
+        label("Maya · one working conversation", 21f)
         label("Direct replies and Agent tasks appear here together. Nothing executes just because a model mentions an action.", 13f)
         contextNote = label("Context: 0 Direct messages. Agent data is shared only through explicit consent.", 13f)
         consent = CheckBox(this).apply {
@@ -233,6 +256,17 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             setOnCheckedChangeListener {_,checked -> if(checked) changeMode(true)}
         }
         modes.addView(directMode,RadioGroup.LayoutParams(0,dp(48),1f));modes.addView(agentMode,RadioGroup.LayoutParams(0,dp(48),1f));directMode.isChecked=true
+        agentKind=Spinner(this).apply {
+            tag="agent_kind";isSaveEnabled=false
+            adapter=ArrayAdapter<String>(this@NativeChatWorkspace,android.R.layout.simple_spinner_dropdown_item,listOf("Public research", "Build static page"))
+            root.addView(this,LinearLayout.LayoutParams(-1,dp(48)))
+            onItemSelectedListener=object : AdapterView.OnItemSelectedListener {
+                override fun onNothingSelected(parent: AdapterView<*>?) {}
+                override fun onItemSelected(parent: AdapterView<*>?,view: View?,position: Int,id: Long) {
+                    if(position!=kindSelection) {kindSelection=position;if(::stop.isInitialized) stopActive("Task type selected. Draft and conversation kept; nothing sent.")}
+                }
+            }
+        }
         counter = label("Your message · 0 / 2,000",12f).apply {setPadding(0,0,0,0)}
         val composeRow = LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;root.addView(this)}
         draft = EditText(this).apply {
@@ -277,7 +311,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         label("Sunao: 2,000 input characters, one synthesis request, no silent truncation or retries. Startup wait is capped at 30 seconds, playback at 180 seconds, and the total local job at 210 seconds. STOP/exit stops local audio, not guaranteed remote work or a refund.")
         label("Selected Fish voice, wake and original assistant settings remain unchanged. The configured free Fish model may be unavailable or quota-limited; no free/unlimited guarantee or fallback. Media analysis and cross-app automation are not enabled. Agent mode uses this composer and timeline, with explicit consent and plan approval.")
 
-        label("Direct Chat context contains completed Direct turns only. Agent goals use the current message; recent Direct excerpts can be explicitly selected in the plan consent. Source sharing/explanation needs its own consent. Use a source’s composer action to ask Direct Chat about it; no hidden history transfer.")
+        label("Direct Chat context contains completed Direct turns only. Build static page is an Agent task: one local index.html with optional small AI proposals and isolated static preview, not a full IDE. Agent goals use the current message; recent Direct excerpts can be explicitly selected in the plan consent. Source sharing/explanation needs its own consent. Use a source’s composer action to ask Direct Chat about it; no hidden history transfer.")
         label("At most 3 Agent task cards per local conversation; clear explicitly when full. Switching modes stops work/revokes approvals but preserves the timeline. Leaving clears everything. Full cross-app control, Vision and saved history are not implemented.")
 
         val shell = column().apply {
@@ -297,7 +331,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         body.addView(speechStatus)
         // Overlay warnings remain visible on every tab, never hidden in setup details.
         checksPage.removeView(touchWarning); body.addView(touchWarning)
-        val pages = listOf(chatPage, checksPage, infoPage)
+        val pages = listOf(checksPage, infoPage, chatPage)
         pages.forEach { body.addView(it) }
         val scroll = ScrollView(this).apply { isSaveEnabled = false; isFillViewport = true; addView(body) }
         shell.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -319,29 +353,25 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             if(shell.paddingBottom!=space) shell.setPadding(dp(16),dp(8),dp(16),space)
         }
         composer.addOnLayoutChangeListener {_,_,_,_,_,_,_,_,_ -> reserveComposer()}
-        val tabButtons = mutableListOf<Button>()
-        fun showPage(index: Int) {
-            hideKeyboard()
-            if(section!=index) {confirmationGeneration++;disclosure?.dismiss();disclosure=null;agentCards.forEach {it.stop()}}
-            section=index
-            composer.visibility=if(index==0) View.VISIBLE else View.GONE
-            reserveComposer()
-            pages.forEachIndexed { i, page -> page.visibility = if (i == index) View.VISIBLE else View.GONE }
-            tabButtons.forEachIndexed { i, button ->
-                button.isSelected = i == index
-                button.backgroundTintList = ColorStateList.valueOf(if (i == index) Color.rgb(125, 225, 204) else Color.rgb(40, 46, 59))
-                button.setTextColor(if (i == index) Color.rgb(13, 35, 30) else Color.rgb(231, 229, 241))
-                button.contentDescription = button.text.toString() + if (i == index) ", selected tab" else ", tab"
-            }
-            scroll.scrollTo(0, 0); paint()
+        // Utilities expand IN the conversation; never hide its timeline or composer.
+        val detailButtons=mutableListOf<Button>()
+        fun showDetails(index: Int) {
+            confirmationGeneration++;disclosure?.dismiss();disclosure=null;agentCards.forEach {it.stop()}
+            checksPage.visibility=if(index==1) View.VISIBLE else View.GONE
+            infoPage.visibility=if(index==2) View.VISIBLE else View.GONE
+            chatPage.visibility=View.VISIBLE
+            detailButtons.forEachIndexed {i,button -> button.isSelected=i==index}
+            detailButtons.firstOrNull()?.visibility=if(index==0) View.GONE else View.VISIBLE
+            paint()
         }
-        listOf("Chat", "Checks", "Info").forEachIndexed { i, title ->
-            actionButton(title) { showPage(i) }.also {
-                it.tag = "tab_" + title.lowercase(java.util.Locale.ROOT)
-                tabButtons.add(it); tabs.addView(it, LinearLayout.LayoutParams(0, -2, 1f))
+        listOf("Close details", "Checks ▾", "Privacy ▾").forEachIndexed {i,title ->
+            actionButton(title) {showDetails(if(i>0 && detailButtons[i].isSelected) 0 else i)}.also {
+                it.tag=listOf("details_close","details_checks","details_info")[i]
+                detailButtons.add(it)
+                if(i==0) body.addView(it,0) else tabs.addView(it,LinearLayout.LayoutParams(0,-2,1f))
             }
         }
-        showPage(0)
+        showDetails(0)
         draft.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { paint() }
@@ -359,11 +389,17 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         agentSelected=agent;paint()
     }
     fun selectAgentMode() {agentMode.isChecked=true}
+    fun focusComposer() {
+        if(!visible || anyBusy) return
+        draft.requestFocus()
+        (getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.showSoftInput(draft,InputMethodManager.SHOW_IMPLICIT)
+    }
     private fun clearAgents() {
-        val old=agentCards.toList();agentCards.clear();timeline.clear();shownDirect=0
+        val old=agentCards.toList();agentCards.clear();buildTask=null;timeline.clear();shownDirect=0
         old.forEach {it.dispose()}
     }
     private fun submitAgent() {
+        if(agentKind.selectedItemPosition==1) {submitBuild();return}
         val value=draft.text.toString()
         val manual=try {com.maya.ai.agent.ResearchPlan.parse(value)} catch (_: Exception) {null}
         if(value.isBlank() || !NativeChatProtocol.validReply(value) || (manual==null && value.length>400)) {
@@ -385,6 +421,27 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
         status.text="Agent task added to this conversation. No action without plan approval."
         if(manual==null) card.propose()
+    }
+    private fun submitBuild() {
+        val value=draft.text.toString()
+        val manual=com.maya.ai.agent.InlineBuildTurn.isDocument(value)
+        if(value.isBlank() || !NativeChatProtocol.validReply(value) || (!manual && value.length>400)) {
+            status.text="Builder request needs 1–400 characters, or a complete HTML document within the composer limit. Nothing sent/truncated.";return
+        }
+        val existing=buildTask
+        if(existing!=null) {
+            if(manual) {status.text="Edit the existing index.html in its inline editor; shared composer follow-ups are change requests. Nothing replaced.";return}
+            agentCards.forEach {it.stop()}
+            timeline.add(NativeChatProtocol.Message("user","AGENT · Builder follow-up\n$value"))
+            draft.setText("");hideKeyboard();renderHistory();existing.propose(value);return
+        }
+        if(agentCards.size>=3) {status.text="Three task cards already exist. Clear explicitly to start another; draft kept.";return}
+        agentCards.forEach {it.stop()}
+        val card=com.maya.ai.agent.InlineBuildTurn(host,value,researchServices,
+            {turn -> visible && agentSelected && active==null && !speech.busy && agentCards.none {it!==turn && it.busy}}, {paint()})
+        buildTask=card;agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
+        status.text="Builder stays in this conversation. One memory-only index.html; static preview needs confirmation."
+        if(!manual) card.propose(value)
     }
     private fun revealTurn(view: View) {
         val generation=confirmationGeneration
@@ -530,7 +587,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if(direct.size<shownDirect) {timeline.removeAll {it is NativeChatProtocol.Message};shownDirect=0}
         timeline.addAll(direct.drop(shownDirect));shownDirect=direct.size
         timeline.forEach { entry ->
-            if(entry is com.maya.ai.agent.InlineAgentTurn) {
+            if(entry is com.maya.ai.agent.WorkspaceTask) {
                 (entry.view.parent as? android.view.ViewGroup)?.removeView(entry.view);history.addView(entry.view);return@forEach
             }
             val message=entry as NativeChatProtocol.Message
@@ -556,13 +613,15 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         val busy = anyBusy
         send.isEnabled = !busy && (agentSelected || consent.isChecked) && draft.text.toString().isNotBlank()
         send.text = if(agentSelected) "Plan task" else "Send message"
+        agentKind.visibility=if(agentSelected) View.VISIBLE else View.GONE
+        agentKind.isEnabled=!busy
         consent.visibility=if(agentSelected) View.GONE else View.VISIBLE
         draft.hint=if(agentSelected) "Task or WIKI / REPO plan…" else "Message Maya…"
         agentCards.forEach {it.refresh()}
         readinessButton.isEnabled = !busy
         fishCheck.isEnabled = !busy; fishSample.isEnabled = !busy
         speechButtons.forEach { (button, text) -> button.isEnabled = !busy && NativeFishPolicy.validText(text) }
-        stop.isEnabled = busy || agentCards.any {it.approved}; create.isEnabled = !busy; copy.isEnabled = !busy && publicText != null; check.isEnabled = !busy
+        stop.isEnabled = busy || agentCards.any {it.stoppable}; create.isEnabled = !busy; copy.isEnabled = !busy && publicText != null; check.isEnabled = !busy
         draft.isEnabled = !busy; consent.isEnabled = !busy
         counter.text = if(agentSelected) "Agent · ${draft.text.length} · goal ≤400 / plan ≤450" else "Direct Chat · ${draft.text.length} / 2,000"
     }
@@ -633,7 +692,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun runOnUiThread(action: () -> Unit) { host.runOnUiThread { action() } }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    fun resume() { visible = true; showAccessDiagnostic(); paint() }
+    fun resume() { visible = true; collapseVoiceSettings(); showAccessDiagnostic(); paint() }
     fun pause() { visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
     fun focusChanged(hasFocus: Boolean) {
         if(!hasFocus && agentBusy) agentCards.forEach {it.stop()}

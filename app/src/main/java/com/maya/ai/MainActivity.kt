@@ -135,12 +135,21 @@ class MainActivity : AppCompatActivity() {
             }
         }
         webView.webViewClient = MayaWebViewClient()
-        mainSurface = android.widget.FrameLayout(this).apply {
-            addView(webView, android.widget.FrameLayout.LayoutParams(-1, -1))
+        // One permanent Maya surface from startup. The original trusted WebView is
+        // an embedded orb/settings component, never a second conversation or destination.
+        webView.visibility = android.view.View.INVISIBLE
+        mainSurface = android.widget.FrameLayout(this)
+        val workspace = com.maya.ai.chat.NativeChatWorkspace(this) { finish() }
+        nativeChat = workspace
+        nativeChatView = workspace.createView(webView) { expanded ->
+            if (mainResumed && webView.url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html"))
+                evalAsync(if (expanded) "window.__mayaWorkspaceSettings && window.__mayaWorkspaceSettings(true);"
+                    else "window.__mayaWorkspaceSettings && window.__mayaWorkspaceSettings(false);")
         }
+        mainSurface.addView(nativeChatView, android.widget.FrameLayout.LayoutParams(-1, -1))
         setContentView(mainSurface)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA " + BuildConfig.VERSION_NAME + " • Update Center", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA " + BuildConfig.VERSION_NAME + " • Main workspace", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -232,39 +241,9 @@ class MainActivity : AppCompatActivity() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
-    /** Native private views live in the main Maya surface, not in the WebView DOM. */
+    /** Compatibility URI now focuses the EXISTING composer only. No root replacement/navigation. */
     private fun openMainChat() {
-        if (!mainResumed || isFinishing || isDestroyed || nativeChat != null) return
-        val workspace = com.maya.ai.chat.NativeChatWorkspace(this) { closeMainChat() }
-        try {
-            val surface = android.widget.LinearLayout(this).apply {
-                orientation = android.widget.LinearLayout.VERTICAL; isSaveEnabled = false
-                setBackgroundColor(android.graphics.Color.rgb(16, 19, 27))
-                addView(android.widget.Button(this@MainActivity).apply {
-                    text = "← MAYA HOME"; isAllCaps = false; isSaveEnabled = false
-                    filterTouchesWhenObscured = true
-                    setOnClickListener { workspace.requestClose() }
-                }, android.widget.LinearLayout.LayoutParams(-1, -2))
-                addView(workspace.createView(), android.widget.LinearLayout.LayoutParams(-1, 0, 1f))
-            }
-            nativeChat = workspace; nativeChatView = surface
-            mainSurface.addView(surface, android.widget.FrameLayout.LayoutParams(-1, -1))
-            webView.visibility = android.view.View.GONE
-            workspace.resume()
-        } catch (_: Exception) {
-            runCatching { workspace.dispose() }
-            nativeChatView?.let { mainSurface.removeView(it) }; nativeChatView = null; nativeChat = null
-            webView.visibility = android.view.View.VISIBLE
-            Toast.makeText(this, "Maya Chat could not open. No request sent.", Toast.LENGTH_SHORT).show()
-        }
-    }
-    private fun closeMainChat() {
-        val workspace = nativeChat; nativeChat = null
-        workspace?.dispose()
-        nativeChatView?.let { mainSurface.removeView(it) }; nativeChatView = null
-        webView.visibility = android.view.View.VISIBLE
-        if (webView.url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html"))
-            evalAsync("if(typeof showTab==='function') showTab('tab-home');") // fixed UI navigation; never private content
+        if (mainResumed && !isFinishing && !isDestroyed) nativeChat?.focusComposer()
     }
     override fun onResume() { super.onResume(); mainResumed = true; nativeChat?.resume() }
     override fun onPause() { mainResumed = false; nativeChat?.pause(); super.onPause() }
@@ -327,6 +306,12 @@ class MainActivity : AppCompatActivity() {
         override fun onPageFinished(view: WebView, url: String?) {
             if (url != null && (url.startsWith("https://$VIRTUAL_HOST") || url.startsWith("file:///android_asset"))) {
                 webViewAlive = true
+            }
+            if (url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                view.evaluateJavascript("window.__mayaWorkspaceMount ? window.__mayaWorkspaceMount() : false;") { mounted ->
+                    if (!isFinishing && !isDestroyed && view === webView && view.url == url && mounted == "true")
+                        view.visibility = android.view.View.VISIBLE
+                }
             }
             super.onPageFinished(view, url)
         }
