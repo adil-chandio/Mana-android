@@ -604,4 +604,24 @@ class MainChatSurfaceTest {
         assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized());c.resume()
     }
 
+    @Test fun confirmedVoiceStartWaitsForForegroundFocusBeforeCheckingEngine() {
+        button("Mic").performClick();a.onWindowFocusChanged(false)
+        val d=ShadowAlertDialog.getLatestAlertDialog()
+        d.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<android.widget.CheckBox>("voice_session_opt_in").isChecked=true
+        d.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(NativeDictation.State.IDLE,local<Lazy<NativeDictation>>("dictation\$delegate").value.state)
+        a.onWindowFocusChanged(true)
+        // API28 cannot use on-device-only. The failure is explicit, without opening an engine or network.
+        assertEquals(NativeDictation.State.ON_DEVICE_UNAVAILABLE,local<Lazy<NativeDictation>>("dictation\$delegate").value.state)
+        assertFalse(local<Lazy<com.maya.ai.voice.ForegroundVoiceSession>>("voiceSession\$delegate").value.armed)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun pendingInputFocusHandoffCannotSurviveBackgroundReturn() {
+        button("Mic").performClick();a.onWindowFocusChanged(false)
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        shadowOf(Looper.getMainLooper()).idle();c.pause();c.resume();a.onWindowFocusChanged(true)
+        assertEquals(NativeDictation.State.IDLE,local<Lazy<NativeDictation>>("dictation\$delegate").value.state)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+
 }

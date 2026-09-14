@@ -298,9 +298,9 @@ class MainActivity : AppCompatActivity() {
     /** Only called by the native, owner-confirmed input dialog; no JS bridge export. */
     fun turnOffLegacyWakeForNativeVoice(done: (Boolean)->Unit) {
         if(!voiceForeground()) {done(false);return}
-        WakeWordService.stop(this)
-        if(!prefs().edit().putBoolean("wake",false).commit()) {done(false);return}
         try {
+            WakeWordService.stop(this)
+            if(!prefs().edit().putBoolean("wake",false).commit()) {done(false);return}
             webView.evaluateJavascript("(function(){try{if(typeof settings!=='object'||typeof saveSettings!=='function')return false;settings.wakeWord=false;saveSettings();var sw=document.getElementById('sWake');if(sw)sw.checked=false;if(typeof KAAN!=='undefined')KAAN.DARWAZA.close();return settings.wakeWord===false;}catch(e){return false;}})()") {value ->
                 android.os.Handler(Looper.getMainLooper()).postDelayed({
                     done(voiceForeground() && value=="true" && !prefs().getBoolean("wake",true) && WakeWordService.instance==null)

@@ -165,12 +165,39 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             paint()
         })
     }
+    private var inputWindowFocused=false
+    private var pendingVoiceStart: ((Boolean)->Unit)?=null
+    private var voiceStartTimeout: Runnable?=null
+    private fun cancelPendingVoiceStart() {
+        pendingVoiceStart=null;voiceStartTimeout?.let {handler.removeCallbacks(it)};voiceStartTimeout=null
+    }
+    private fun awaitVoiceFocus(generation: Long, startInput: ()->Unit) {
+        cancelPendingVoiceStart()
+        fun admitted()=visible && section==0 && generation==confirmationGeneration && !anyBusy
+        if(!admitted()) return
+        lateinit var pending: (Boolean)->Unit
+        pending={focused ->
+            if(pendingVoiceStart===pending && focused) {
+                cancelPendingVoiceStart()
+                if(admitted()) {inputWindowFocused=true;startInput()}
+            }
+        }
+        pendingVoiceStart=pending
+        voiceStartTimeout=Runnable {
+            if(pendingVoiceStart===pending) {
+                cancelPendingVoiceStart()
+                if(admitted()) {status.text="Input not started: foreground focus was not ready. Tap Mic to try explicitly.";paint()}
+            }
+        }.also {handler.postDelayed(it,1500)}
+        pending(host.hasWindowFocus())
+        paint()
+    }
     private val voiceSession: com.maya.ai.voice.ForegroundVoiceSession by lazy {
         com.maya.ai.voice.ForegroundVoiceSession({SystemClock.elapsedRealtime()}, {delay, action ->
             val task=Runnable {action()};handler.postDelayed(task,delay)
             val cancel: ()->Unit={handler.removeCallbacks(task)};cancel
         }, {language, offline ->
-            if(visible && host.hasWindowFocus() && section==0 && !agentSelected && !anyBusy && disclosure?.isShowing!=true) {
+            if(visible && inputWindowFocused && section==0 && !agentSelected && !anyBusy && disclosure?.isShowing!=true) {
                 hideKeyboard();draft.clearFocus()
                 dictation.start(language,offline,true,true)
             } else voiceSession.end()
@@ -774,7 +801,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun confirm(title: String, text: String, yes: () -> Unit) {
         if (disclosure?.isShowing == true) return
-        voiceSession.hold()
+        cancelPendingVoiceStart();voiceSession.hold()
         val generation = ++confirmationGeneration
         disclosure = AlertDialog.Builder(this).setTitle(title).setMessage(text)
             .setNegativeButton("Cancel") { _, _ -> if (confirmationGeneration == generation) confirmationGeneration++ }
@@ -792,7 +819,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun start(kind: String, turn: NativeChatConversation.Turn?, work: (Job) -> Any) {
         if (anyBusy || !visible || (kind == "chat" && agentSelected)) { if (turn != null) session.fail(turn); return }
-        voiceSession.hold()
+        cancelPendingVoiceStart();voiceSession.hold()
         val job = Job(kind, turn, SystemClock.elapsedRealtime()); active = job
         attachAttempt(job)
         if (kind == "check") {
@@ -874,7 +901,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun stopActive(message: String, accessState: NativeAccessDiagnostic.State = NativeAccessDiagnostic.State.STOPPED) {
         confirmationGeneration++;disclosure?.dismiss();disclosure=null
         agentCards.forEach {it.stop()}
-        voiceSession.end();speech.stop();dictation.clear()
+        cancelPendingVoiceStart();voiceSession.end();speech.stop();dictation.clear()
         val job = active
         if (job != null) {
             job.timeout?.let { handler.removeCallbacks(it) }; job.readinessTimeout?.let { handler.removeCallbacks(it) }; active = null
@@ -943,7 +970,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun confirmDictation() {
         if(!visible || section!=0 || anyBusy) return
-        voiceSession.end()
+        cancelPendingVoiceStart();voiceSession.end()
         agentCards.forEach {it.stop()}
         hideKeyboard();draft.clearFocus()
         val options=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setPadding(dp(16),0,dp(16),0);isSaveEnabled=false}
@@ -977,7 +1004,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                     val turnWakeOff=wakeOff.visibility==View.VISIBLE && wakeOff.isChecked
                     fun startReviewedInput() {
                         if(visible && section==0 && generation+1==confirmationGeneration && !anyBusy) {
-                            if(keepInput) voiceSession.begin(selected,onDeviceOnly) else dictation.start(selected,onDeviceOnly,true)
+                            awaitVoiceFocus(generation+1) {
+                                if(keepInput) voiceSession.begin(selected,onDeviceOnly) else dictation.start(selected,onDeviceOnly,true)
+                            }
                         }
                     }
                     handler.post {
@@ -1157,7 +1186,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         readinessButton.isEnabled = !busy
         fishCheck.isEnabled = !busy; fishSample.isEnabled = !busy
         speechButtons.forEach { (button, text) -> button.isEnabled = !busy && NativeFishPolicy.validText(text) }
-        stop.isEnabled = busy || voiceSession.armed || agentCards.any {it.stoppable}
+        stop.isEnabled = busy || pendingVoiceStart!=null || voiceSession.armed || agentCards.any {it.stoppable}
         stop.visibility=if(stop.isEnabled) View.VISIBLE else View.GONE
         stopSpace.visibility=stop.visibility
         settingsSurface?.setPadding(dp(16),dp(8),dp(16),dp(if(stop.isEnabled) 84 else 16))
@@ -1228,7 +1257,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
     }
     fun consumeTouch(event: MotionEvent): Boolean {
-        if(event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) {voiceSession.end();dictation.stop()}
+        if(event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) {cancelPendingVoiceStart();voiceSession.end();dictation.stop()}
         if(event.actionMasked==MotionEvent.ACTION_DOWN && agentCards.any {it.executing}) agentCards.forEach {it.stop()}
         if(event.actionMasked==MotionEvent.ACTION_DOWN && agentCards.any {it.busy || it.approved} && event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) agentCards.forEach {it.stop()}
         val obscured = event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0
@@ -1266,9 +1295,11 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun runOnUiThread(action: () -> Unit) { host.runOnUiThread { action() } }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     fun resume() { visible = true;if(section==2) updateDirectPermissionStatus();if(section==5) library?.enter(); restoreVoicePresentation(); showAccessDiagnostic(); paint() }
-    fun pause() { library?.leave();voiceSession.end();dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
+    fun pause() { library?.leave();inputWindowFocused=false;cancelPendingVoiceStart();voiceSession.end();dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
     fun focusChanged(hasFocus: Boolean) {
-        if(!hasFocus && (dictation.busy || voiceSession.phase==com.maya.ai.voice.ForegroundVoiceSession.Phase.ECHO)) {voiceSession.end();dictation.stop()}
+        inputWindowFocused=hasFocus
+        if(hasFocus) pendingVoiceStart?.invoke(true)
+        if(!hasFocus && (dictation.busy || voiceSession.phase==com.maya.ai.voice.ForegroundVoiceSession.Phase.ECHO)) {cancelPendingVoiceStart();voiceSession.end();dictation.stop()}
         if(!hasFocus && agentBusy) agentCards.forEach {it.stop()}
     }
     private fun endLocalSession() {

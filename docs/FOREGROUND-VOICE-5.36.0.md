@@ -15,7 +15,7 @@ Implementation following the owner's14 September voice-structure approval. This 
 
 The new input dialog has a separate **unchecked** “Turn legacy Wake OFF to use native voice input” option when the saved/native Wake state is active. Choosing it on Start changes only legacy Wake. It leaves Wake OFF after session end, does not change Fish/server Chat, and never starts input if the transition cannot be verified. Cancel or an obscured/stale dialog does not apply it.
 
-Native preference write, trusted fixed-script settings update and service release must be verified. A partial write/failed verification produces a fixed error with no automatic microphone retry; it cannot claim a fully successful transition. The migration uses a300ms bounded release-check handoff, not a repeated polling/start loop. Normal readiness/identity/service gates remain intact.
+Native preference write, trusted fixed-script settings update and service release must be verified. A partial write/failed verification produces a fixed error with no automatic microphone retry; it cannot claim a fully successful transition. The migration uses a300ms bounded release-check handoff, not a repeated polling/start loop. Normal readiness/identity/service gates remain intact. An explicitly confirmed input start waits up to1.5 seconds for foreground window focus rather than racing dialog dismissal; late focus after cancellation/background cannot start capture.
 
 Wake's saved preference is no longer permission to capture at startup. Main onPause releases legacy capture and closes its old continuation window; returning does not restart it. The compatibility service is non-sticky, foreground-only, stops after3 consecutive recognizer errors and has a5-minute runtime ceiling. “Start Wake now” in Voice settings is an explicit foreground action, not a boot/background trigger.
 
@@ -38,7 +38,7 @@ Compatibility browser reply continuations also receive a one-use, generation-bou
 New automated coverage:
 -12 ForegroundVoiceSession pure tests: no startup capture, selected-service reuse, review/wait states, long replies, echo deadline, cancellation, stale echo/expiry, duplicate completion, output error,5-minute ceiling, bad clock and recreation.
 -4 NativeDictation tests: ready-anchored silence, speech onset vs hard deadline, duplicate ready, same-clock timings.
--4 Main native surface tests: unchecked session option, separate unchecked Wake-OFF choice/cancel, native-only wake invitation, background denial/preference preservation.
+-6 Main native surface tests: unchecked session option, separate unchecked Wake-OFF choice/cancel, native-only wake invitation, background denial/preference preservation, explicit-start focus handoff and no deferred start after background.
 -5 Node conversation tests: long reply continuation, closed/new/expired ticket refusal, native-host no-hidden-dispatch/no-heard-log, no input/wake chimes, source-level startup/retry/background guards.
 
 Network-denied npm tests and native static integration checks are run locally. Android compilation and native JVM/Robolectric suite require exact-head CI; see final delivery receipt for the outcome. No physical microphone, Fish identity audition, provider, locked-screen or battery test was performed by this implementation session.
