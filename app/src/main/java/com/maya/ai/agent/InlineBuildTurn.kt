@@ -25,6 +25,8 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
     }
     private var alive=true
     private var epoch=0L
+    override val reviewRevision get()=epoch
+    override fun dismissReview() {if(!busy) {epoch++;dialog?.dismiss();dialog=null}}
     private var cancelModel: (() -> Unit)?=null
     private var dialog: AlertDialog?=null
     private val handler=Handler(Looper.getMainLooper())
@@ -43,6 +45,13 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
     private val diffView: TextView
     private val diffToggle: Button
     private var diffExpanded=false
+    private val checkpoints=BuilderCheckpoints()
+    private var checkpointExpanded=false
+    private val checkpointRows: LinearLayout
+    private val checkpointToggle: Button
+    private val checkpointSave: Button
+    private val checkpointButtons=mutableListOf<Button>()
+    private var shownCheckpoints=emptyList<BuilderCheckpoints.Point>()
     private val apply: Button
     private val render: Button
     private val undo: Button
@@ -98,6 +107,19 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
         }
         previewToggle=button("Preview ▾") {togglePreview()}.apply {tag="builder_preview_toggle"}
         previewBox=LinearLayout(host).apply {orientation=LinearLayout.VERTICAL;tag="builder_preview_area";isSaveEnabled=false;background=MayaTheme.shape(host);setPadding(dp(1),dp(1),dp(1),dp(1));view.addView(this)}
+        checkpointSave=button("Save local checkpoint") {
+            val current=editor.text.toString()
+            if(!BuilderCheckpoints.valid(current)) {status.text="Checkpoint requires valid text up to 8,000 characters. Nothing shortened.";return@button}
+            if(checkpoints.list().size>=5) {status.text="Five checkpoints retained. Delete one explicitly before saving another; no checkpoint evicted.";return@button}
+            if(checkpoints.list().any {it.code==current}) {status.text="This exact code already has a checkpoint. Nothing duplicated.";return@button}
+            confirm("Save current code as a checkpoint?","Keep this exact editor text (${current.length} characters) locally in this task. No execution, preview, AI request or disk save. At most five; background/exit or removing the task discards checkpoints. Use Saved work for a durable snapshot of current code.") {
+                if(current==editor.text.toString() && checkpoints.list().size<5 && checkpoints.list().none {it.code==current}) {
+                    checkpoints.save(current);checkpointExpanded=true;status.text="Checkpoint saved in this task only. Nothing executed or written to disk.";refresh();changed()
+                }
+            }
+        }
+        checkpointToggle=button("Checkpoints ▾") {checkpointExpanded=!checkpointExpanded;refresh()}.apply {tag="builder_checkpoints_toggle"}
+        checkpointRows=LinearLayout(host).apply {orientation=LinearLayout.VERTICAL;tag="builder_checkpoints";isSaveEnabled=false;view.addView(this)}
         MayaTheme.details(view,"Builder details ▾","One memory-only index.html, editable up to 8,000 characters. AI uses the fixed 256-token budget: a tiny prototype, not a full IDE. Revise through the same Agent/Build composer. Sending current code requires consent; AI accepts at most 1,000 existing code characters and never silently truncates. Static preview has no JavaScript, internet, files or phone authority.")
         editor.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?,start: Int,count: Int,after: Int) {}
@@ -196,11 +218,44 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
                 }
             }
     }
+    private fun refreshCheckpoints(enabled: Boolean) {
+        val points=checkpoints.list()
+        if(points!=shownCheckpoints) {
+            checkpointRows.removeAllViews();checkpointButtons.clear();shownCheckpoints=points
+            points.forEach {point ->
+                checkpointRows.addView(TextView(host).apply {text="Checkpoint ${point.number} · ${point.code.length} characters";MayaTheme.label(this,13f);isSaveEnabled=false})
+                fun action(title: String,work: ()->Unit) {
+                    checkpointRows.addView(Button(host).apply {MayaTheme.button(this,title);setOnClickListener {if(canAct() && checkpoints.contains(point)) work()};checkpointButtons.add(this)})
+                }
+                action("Review / restore checkpoint ${point.number}") {
+                    val current=editor.text.toString()
+                    if(!BuilderCheckpoints.valid(current)) {status.text="Current editor exceeds comparison limits. Shorten it manually; no silent truncation.";return@action}
+                    confirm("Restore checkpoint ${point.number}?","Replace current code with this checkpoint. Proposal, preview and local Apply-Undo are revoked. This is a bounded one-block comparison, not proof of correctness. No automatic preview/execution/AI or disk write.\n\n"+
+                        BuilderDiff.render(current,point.code)+"\n\nFULL CHECKPOINT TEXT:\n"+point.code) {
+                        if(checkpoints.contains(point) && editor.text.toString()==current) {
+                            editor.setText(point.code);undoCode=null;undoAgainst="";editor.visibility=View.VISIBLE
+                            status.text="Checkpoint restored locally. Review current code before separately requesting preview. Saved snapshots unchanged.";refresh();changed()
+                        }
+                    }
+                }
+                action("Delete checkpoint ${point.number}") {
+                    confirm("Delete checkpoint ${point.number}?","Remove only this task-local checkpoint. Current code and durable saved snapshots stay unchanged; this frees one checkpoint slot.") {
+                        if(checkpoints.contains(point)) {checkpoints.remove(point);status.text="Checkpoint deleted locally; current code unchanged.";refresh();changed()}
+                    }
+                }
+            }
+        }
+        checkpointSave.isEnabled=enabled
+        checkpointToggle.visibility=if(points.isEmpty()) View.GONE else View.VISIBLE
+        checkpointToggle.text="Checkpoints · ${points.size}/5 ▾"
+        checkpointRows.visibility=if(checkpointExpanded && points.isNotEmpty()) View.VISIBLE else View.GONE
+        checkpointButtons.forEach {it.isEnabled=enabled}
+    }
     private fun cancelPending() {val cancel=cancelModel;cancelModel=null;try {cancel?.invoke()} catch (_: Exception) {};deadline?.let {handler.removeCallbacks(it)};deadline=null}
     private fun clearPreview() {preview?.let {it.stopLoading();previewBox.removeView(it);it.destroy()};preview=null}
     override fun stop() {val remotePending=busy;epoch++;dialog?.dismiss();dialog=null;cancelPending();clearPreview();if(alive) {status.text="Stopped/revoked locally. Code preserved; no automatic resume."+if(remotePending) " Remote AI work/usage may continue; no refund guaranteed." else "";refresh();changed()}}
     override fun refresh() {
-        val enabled=canAct();suggest.visibility=if(busy || proposed.isNotEmpty()) View.GONE else View.VISIBLE;buttons.forEach {it.isEnabled=enabled};editor.isEnabled=enabled
+        val enabled=canAct();refreshCheckpoints(enabled);suggest.visibility=if(busy || proposed.isNotEmpty()) View.GONE else View.VISIBLE;buttons.forEach {it.isEnabled=enabled};editor.isEnabled=enabled
         undo.visibility=if(undoCode==null) View.GONE else View.VISIBLE
         undo.isEnabled=enabled && undoCode!=null && editor.text.toString()==undoAgainst
         apply.isEnabled=enabled && proposed.isNotEmpty() && proposedAgainst==editor.text.toString()
@@ -215,7 +270,7 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
         previewToggle.visibility=if(preview==null) View.GONE else View.VISIBLE
         codeToggle.isSelected=editor.visibility==View.VISIBLE;proposalToggle.isSelected=proposalView.visibility==View.VISIBLE;previewToggle.isSelected=previewBox.visibility==View.VISIBLE
     }
-    override fun dispose() {undoCode=null;undoAgainst="";alive=false;stop();clearPreview();editor.setText("");proposed="";proposedAgainst="";goal="";proposalView.text="";diffView.text="";view.removeAllViews();buttons.clear();handler.removeCallbacksAndMessages(null)}
+    override fun dispose() {checkpoints.clear();checkpointRows.removeAllViews();checkpointButtons.clear();shownCheckpoints=emptyList();undoCode=null;undoAgainst="";alive=false;stop();clearPreview();editor.setText("");proposed="";proposedAgainst="";goal="";proposalView.text="";diffView.text="";view.removeAllViews();buttons.clear();handler.removeCallbacksAndMessages(null)}
     private fun label(value: String,size: Float)=TextView(host).apply {text=value;MayaTheme.label(this,size,size<=13f);setPadding(0,dp(5),0,dp(5));view.addView(this)}
     private fun button(title: String,action: () -> Unit)=Button(host).apply {MayaTheme.button(this,title,title=="Apply reviewed proposal locally" || title=="Render static preview here");setOnClickListener {if(canAct()) action()};buttons.add(this);view.addView(this)}
     private fun dp(v: Int)=(host.resources.displayMetrics.density*v).toInt()

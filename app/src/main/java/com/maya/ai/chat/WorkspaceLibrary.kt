@@ -40,8 +40,18 @@ class WorkspaceLibrary(private val host: AppCompatActivity,private val vault: ()
     private var listing: WorkspaceVault.Listing?=null
     private val actions=mutableListOf<Button>()
     private val status=label("Saved work stays off until you explicitly save a snapshot.")
+    private val search=input("Search saved names · local only",false,80).apply {tag="saved_work_search";maxLines=1}
+    private val projectsOnly=CheckBox(host).apply {text="Only snapshots with Builder code";MayaTheme.toggle(this);isSaveEnabled=false;tag="saved_projects_only";filterTouchesWhenObscured=true}
+    private val resultCount=label("")
     private val rows=LinearLayout(host).apply {orientation=LinearLayout.VERTICAL;view.addView(this)}
     init {
+        view.addView(search,1);view.addView(projectsOnly,2)
+        search.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?,start: Int,count: Int,after: Int) {}
+            override fun onTextChanged(s: CharSequence?,start: Int,before: Int,count: Int) {if(visible) listing?.let {render(it)}}
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+        projectsOnly.setOnCheckedChangeListener {_,_->if(visible) listing?.let {render(it)}}
         button(view,"Save current workspace") {save()}
         button(view,"Refresh saved list") {refresh()}
         button(view,"Import encrypted backup text") {importBackup()}
@@ -50,7 +60,7 @@ class WorkspaceLibrary(private val host: AppCompatActivity,private val vault: ()
         label("Local snapshots use AndroidKeyStore and are excluded from Android backup/device transfer. Uninstall, Clear Data or loss of that key can make them unrecoverable. Export a separately password-encrypted backup if you need portability. Local deletion cannot delete provider records or copies you exported. An explicitly started save/delete may finish after you leave.")
     }
     fun enter() {visible=true;refresh()}
-    fun leave() {visible=false;epoch++;cancelDeadline();dialog?.dismiss();dialog=null;dialogCleanup?.invoke();dialogCleanup=null;listing=null;rows.removeAllViews();busy=false}
+    fun leave() {visible=false;epoch++;cancelDeadline();dialog?.dismiss();dialog=null;dialogCleanup?.invoke();dialogCleanup=null;listing=null;rows.removeAllViews();search.text.clear();projectsOnly.isChecked=false;resultCount.text="";busy=false}
     fun dispose() {leave();handler.removeCallbacksAndMessages(null)}
     fun cancelDialog(): Boolean {if(dialog?.isShowing!=true) return false;epoch++;dialog?.dismiss();return true}
     private fun readSecret(input: EditText)=CharArray(input.text.length).also {input.text.getChars(0,it.size,it,0)}
@@ -108,15 +118,29 @@ class WorkspaceLibrary(private val host: AppCompatActivity,private val vault: ()
     }
     private fun render(value: WorkspaceVault.Listing) {
         rows.removeAllViews()
-        value.items.forEach {item ->
+        val query=search.text.toString().trim().lowercase(java.util.Locale.ROOT)
+        val filtered=value.items.filter {it.title.lowercase(java.util.Locale.ROOT).contains(query) && (!projectsOnly.isChecked || it.code!=null)}
+            .sortedByDescending {it.savedAt}
+        resultCount.text="${filtered.size} shown / ${value.items.size} saved · names only · newest first"
+        filtered.forEach {item ->
             val card=LinearLayout(host).apply {orientation=LinearLayout.VERTICAL;setPadding(12,12,12,12);background=MayaTheme.shape(host);rows.addView(this)}
             label(item.title,card)
             label("${item.messages.size} Direct messages · draft ${item.draft.length} chars · code ${item.code?.length ?: 0} chars · ${java.text.DateFormat.getDateTimeInstance().format(java.util.Date(item.savedAt))}",card)
+            button(card,"Rename snapshot") {rename(item,value.revision)}
             button(card,"Review saved snapshot") {review(item,value.revision)}
             button(card,"Export encrypted backup") {export(item,value.revision)}
             button(card,"Delete this snapshot") {show("Delete ${item.title}?","Deletes only this encrypted local snapshot. Active conversation, credentials, provider records and exported copies are not deleted.") {
                 perform({vault().delete(item.id,value.revision)}) {refresh()}
             }}
+        }
+    }
+    private fun rename(item: SavedWorkspace,revision: String) {
+        val name=input("New snapshot name · 1–80 characters").apply {setText(item.title)}
+        show("Rename saved snapshot?","Change only its local name. Messages, draft, Builder code, snapshot ID and original saved time stay unchanged. Previously exported copies are not renamed.",name,"Rename",{name.text.clear()}) {
+            val title=name.text.toString().trim()
+            try {WorkspaceArchive.validate(SavedWorkspace(item.id,title,item.savedAt,item.messages,item.draft,item.code))}
+            catch(_: Exception) {status.text="Name must contain 1–80 valid characters, without line breaks. Nothing renamed.";return@show}
+            perform({vault().rename(item.id,title,revision)}) {refresh()}
         }
     }
     private fun preview(item: SavedWorkspace)=TextView(host).apply {

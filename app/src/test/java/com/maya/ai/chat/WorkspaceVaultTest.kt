@@ -100,4 +100,15 @@ class WorkspaceVaultTest {
         session.stop();rejected {session.restore(listOf(NativeChatProtocol.Message("user","partial")))}
         assertTrue(session.messages().isEmpty());assertEquals(NativeChatConversation.Completion.STALE,session.complete(active,"late"))
     }
+    @Test fun renameChangesOnlyTitleAndChecksArchiveRevision() {
+        val store=Store();val vault=WorkspaceVault(store,Keys());val sample=item()
+        vault.append(listOf(sample),"empty");val first=vault.list();vault.rename(sample.id,"New local name",first.revision)
+        val renamed=vault.list().items.single()
+        assertEquals("New local name",renamed.title);assertEquals(sample.id,renamed.id);assertEquals(sample.savedAt,renamed.savedAt)
+        assertEquals(sample.messages,renamed.messages);assertEquals(sample.draft,renamed.draft);assertEquals(sample.code,renamed.code)
+        rejected {vault.rename(sample.id,"Stale",first.revision)}
+        rejected {vault.rename(sample.id,"bad\nname",vault.list().revision)}
+        assertEquals("New local name",vault.list().items.single().title)
+    }
+
 }

@@ -611,4 +611,37 @@ class NativeChatActivityTest {
         port.requestPermission();assertNull(shadowOf(activity).nextStartedActivity);noTransport()
     }
 
+    @Test fun confirmedTaskRemovalFreesCapacityWithoutDiscardingDirectContextOrDraft() {
+        researchFake();completedHistory();repeat(3) {submit("WIKI Dog")};field<EditText>("draft").setText("KEEP_DRAFT")
+        val original=field<NativeChatConversation>("session").messages();val tasks=field<List<com.maya.ai.agent.WorkspaceTask>>("agentCards").toList()
+        button("Remove task").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
+        old.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(3,field<List<Any>>("agentCards").size)
+        old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertEquals(3,field<List<Any>>("agentCards").size)
+        button("Remove task").performClick();yes();assertEquals(2,field<List<Any>>("agentCards").size)
+        assertEquals(original,field<NativeChatConversation>("session").messages());assertEquals("KEEP_DRAFT",field<EditText>("draft").text.toString())
+        assertEquals(0,tasks[0].view.childCount);assertTrue(tasks[1].view.childCount>0)
+        submit("WIKI Cat");assertEquals(3,field<List<Any>>("agentCards").size);noTransport()
+    }
+    @Test fun foldedApprovedResearchKeepsExpiryButCannotRunWhileHidden() {
+        val fake=researchFake();submit("WIKI Dog");button("Chrome").performClick();button("Review & approve plan").performClick();yes()
+        val task=field<List<com.maya.ai.agent.WorkspaceTask>>("agentCards").single();assertTrue(task.approved)
+        val run=button("Run approved plan");button("Fold task").performClick()
+        assertTrue(task.approved);assertEquals(View.GONE,task.view.visibility);run.performClick();assertNull(fake.completion)
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(60));assertFalse(task.approved)
+        button("Expand task").performClick();assertFalse(task.approved);assertEquals(1,field<List<Any>>("agentCards").size);noTransport()
+    }
+    @Test fun pendingTaskCannotBeRemovedOrFoldedUntilStoppedAndLateReplyIsRejected() {
+        val fake=researchFake();submit("Make a plan");yes()
+        val task=field<List<com.maya.ai.agent.WorkspaceTask>>("agentCards").single()
+        assertTrue(task.busy);assertFalse(button("Remove task").isEnabled);assertFalse(button("Fold task").isEnabled)
+        button("Stop this task").performClick();assertFalse(task.busy);button("Remove task").performClick();yes()
+        fake.model!!("WIKI Dog",null);assertTrue(field<List<Any>>("agentCards").isEmpty());assertEquals(0,task.view.childCount);noTransport()
+    }
+    @Test fun leavingOrSettingsRevokesOldTaskRemovalConfirmation() {
+        researchFake();submit("WIKI Dog");button("Remove task").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
+        openPage("checks");old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(1,field<List<Any>>("agentCards").size);noTransport()
+    }
+
 }

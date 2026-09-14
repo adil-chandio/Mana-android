@@ -31,6 +31,8 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
     private val handler=Handler(Looper.getMainLooper())
     private var alive=true
     private var epoch=0L
+    override val reviewRevision get()=epoch
+    override fun dismissReview() {if(!busy) {epoch++;dialog?.dismiss();dialog=null}}
     private var dialog: AlertDialog?=null
     private var cancelModel: (() -> Unit)?=null
     private var browser: ResearchBrowser?=null

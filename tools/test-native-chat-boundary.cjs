@@ -13,7 +13,7 @@ const m = read('app/src/main/java/com/maya/ai/MainActivity.kt');
 assert(m.includes('request.isForMainFrame && request.hasGesture()'));
 assert(m.includes('webView.url in listOf('));
 assert.equal(read('public/index.html'), read('app/src/main/assets/web/index.html'));
-assert.equal(JSON.parse(read('release/version.json')).versionCode, 104);
+assert.equal(JSON.parse(read('release/version.json')).versionCode, 105);
 assert(read('app/build.gradle').includes("implementation 'com.squareup.okhttp3:okhttp:4.12.0'"));
 console.log('Native static integration boundaries PASS (not a device/UI execution test).');
 
@@ -95,3 +95,14 @@ assert(library.includes('postDelayed(it,15000)'));
 assert(a.includes('session.restore(item.messages)'));assert(a.includes('shownDirect=item.messages.size'));
 assert(a.includes('library?.leave()'));assert(a.includes('Saved work & backups'));
 console.log('Explicit encrypted library boundaries PASS; not physical Keystore/backup acceptance.');
+
+assert(a.includes('taskControls[turn]?.folded!=true'));
+assert(a.includes('task.reviewRevision==revision'));
+assert(a.indexOf('try {task.dispose()}') < a.indexOf('agentCards.remove(task)'));
+assert(a.includes('taskAllowed(turn)'));assert(a.includes('taskControls.clear()'));
+const checkpoints=read('app/src/main/java/com/maya/ai/agent/BuilderCheckpoints.kt');
+assert(checkpoints.includes('points.size<5'));assert(checkpoints.includes('points.none {it.code==code}'));
+assert(!/File|WebView|fetch|Http|MayaBridge|identity|SharedPreferences/.test(checkpoints));
+assert(library.includes('Search saved names'));assert(library.includes('Rename snapshot'));
+assert(read('app/src/main/java/com/maya/ai/chat/WorkspaceVault.kt').includes('fun rename(id: String,title: String,expectedRevision: String)'));
+console.log('Task controls, checkpoints and saved-work organization boundaries PASS; no live execution.');

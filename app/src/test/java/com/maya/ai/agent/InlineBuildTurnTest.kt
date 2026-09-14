@@ -215,4 +215,66 @@ class InlineBuildTurnTest {
         card.propose("must not send from hidden card");assertTrue(fake.calls.isEmpty());assertEquals(html,card.editor.text.toString())
     }
 
+    @Test fun checkpointSaveCancelAndExplicitRestoreAreLocalAndCompared() {
+        submit(html);button("Save local checkpoint").performClick()
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0,root.findViewWithTag<LinearLayout>("builder_checkpoints").childCount)
+        button("Save local checkpoint").performClick();yes();card.editor.setText("<html>NEW LOCAL CODE</html>")
+        button("Review / restore checkpoint 1").performClick()
+        val message=ShadowAlertDialog.getLatestAlertDialog().findViewById<TextView>(android.R.id.message).text
+        assertTrue(message.contains("NEW LOCAL CODE"));assertTrue(message.contains(html));assertTrue(message.contains("one replacement block"))
+        assertEquals("<html>NEW LOCAL CODE</html>",card.editor.text.toString());yes()
+        assertEquals(html,card.editor.text.toString());assertTrue(fake.calls.isEmpty());assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+    }
+    @Test fun editAfterCheckpointReviewRevokesRestoreAndNeverOverwritesNewCode() {
+        submit(html);button("Save local checkpoint").performClick();yes();card.editor.setText("<html>B</html>")
+        button("Review / restore checkpoint 1").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
+        card.editor.setText("<html>C</html>");old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("<html>C</html>",card.editor.text.toString());assertTrue(fake.calls.isEmpty())
+    }
+    @Test fun checkpointCapAndConfirmedDeletionKeepCurrentEditorUnchanged() {
+        submit(html)
+        repeat(5) {card.editor.setText("<html>$it</html>");button("Save local checkpoint").performClick();yes()}
+        card.editor.setText("<html>six</html>");button("Save local checkpoint").performClick()
+        assertTrue(root.findViewWithTag<TextView>("builder_status").text.contains("Five checkpoints"))
+        button("Delete checkpoint 1").performClick();yes();assertEquals("<html>six</html>",card.editor.text.toString())
+        button("Save local checkpoint").performClick();yes()
+        assertNotNull(button("Review / restore checkpoint 6"));assertTrue(fake.calls.isEmpty())
+    }
+    @Test fun checkpointRestoreRevokesPreviewAndApplyUndoButStopKeepsCheckpoints() {
+        submit(html);button("Save local checkpoint").performClick();yes();card.editor.setText("<html>B</html>")
+        button("Render static preview here").performClick();yes();button("Review / restore checkpoint 1").performClick();yes()
+        assertNull(root.findViewWithTag<WebView>("isolated_static_preview"));assertFalse(button("Undo last apply").isShown)
+        card.stop();assertNotNull(button("Review / restore checkpoint 1"));assertEquals(html,card.editor.text.toString())
+    }
+    @Test fun foldDoesNotDisposeProjectOrPreviewAndUnfoldDoesNotReapproveOldDialog() {
+        submit(html);button("Render static preview here").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
+        button("Fold task").performClick();assertEquals(View.GONE,card.view.visibility);assertEquals(html,card.editor.text.toString())
+        old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        button("Expand task").performClick();old.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        assertEquals(View.VISIBLE,card.view.visibility);assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+        button("Render static preview here").performClick();yes();button("Fold task").performClick()
+        assertTrue(card.stoppable);button("Stop this task").performClick();assertFalse(card.stoppable)
+        assertEquals(html,card.editor.text.toString());assertEquals(1,field<List<WorkspaceTask>>("agentCards").size)
+    }
+    @Test fun removalFreesBuilderSlotWithoutClearingDirectDraftAndAllowsNewProject() {
+        submit(html);val old=card;field<EditText>("draft").setText("KEEP_DRAFT")
+        button("Save local checkpoint").performClick();yes();button("Remove task").performClick();yes()
+        assertNull(field<InlineBuildTurn?>("buildTask"));assertTrue(field<List<WorkspaceTask>>("agentCards").isEmpty())
+        assertEquals("",old.editor.text.toString());assertEquals(0,old.view.childCount);assertEquals("KEEP_DRAFT",field<EditText>("draft").text.toString())
+        submit("<html>Fresh</html>");assertNotSame(old,card);assertTrue(fake.calls.isEmpty())
+    }
+    @Test fun removalCannotDiscardCodeEditedAfterItsConfirmationOpened() {
+        submit(html);button("Remove task").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
+        card.editor.setText("<html>EDIT AFTER REVIEW</html>");old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(1,field<List<WorkspaceTask>>("agentCards").size);assertEquals("<html>EDIT AFTER REVIEW</html>",card.editor.text.toString())
+    }
+    @Test fun backgroundDiscardsCheckpointBodiesAndStaleRestoreAuthority() {
+        submit(html);button("Save local checkpoint").performClick();yes();button("Review / restore checkpoint 1").performClick()
+        val oldDialog=ShadowAlertDialog.getLatestAlertDialog();val old=card
+        controller.pause().stop().restart().start().resume();oldDialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
+        val history=InlineBuildTurn::class.java.getDeclaredField("checkpoints").apply {isAccessible=true}.get(old) as BuilderCheckpoints
+        assertTrue(history.list().isEmpty());assertEquals("",old.editor.text.toString());assertNull(field<InlineBuildTurn?>("buildTask"))
+    }
+
 }

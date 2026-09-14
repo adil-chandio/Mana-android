@@ -111,4 +111,34 @@ class WorkspaceLibraryTest {
         assertEquals(2,vault.list().items.map {it.id}.toSet().size);assertNull(opened)
     }
 
+    @Test fun searchOnlyMatchesNamesAndNeverWritesOrOpensSnapshots() {
+        save();val encrypted=stored!!.copyOf();val search=library.view.findViewWithTag<EditText>("saved_work_search")
+        search.setText("private draft");assertFalse(all(library.view).filterIsInstance<Button>().any {it.text=="Review saved snapshot"})
+        search.setText("MY SNAPSHOT");assertTrue(all(library.view).filterIsInstance<Button>().any {it.text=="Review saved snapshot"})
+        assertArrayEquals(encrypted,stored);assertNull(opened)
+        library.leave();assertEquals("",search.text.toString())
+    }
+    @Test fun projectFilterDoesNotDeleteOrAutoLoadNonProjectSnapshots() {
+        save();val textOnly=SavedWorkspace(java.util.UUID.randomUUID().toString(),"Text only",2,emptyList(),"text draft",null)
+        vault.append(listOf(textOnly),vault.list().revision);button("Refresh saved list").performClick();await {button("Save current workspace").isEnabled}
+        val filter=library.view.findViewWithTag<CheckBox>("saved_projects_only")
+        filter.isChecked=true
+        assertEquals(1,all(library.view).filterIsInstance<Button>().count {it.text=="Review saved snapshot"})
+        assertEquals(2,vault.list().items.size);assertNull(opened);filter.isChecked=false
+        assertEquals(2,all(library.view).filterIsInstance<Button>().count {it.text=="Review saved snapshot"})
+    }
+    @Test fun renameIsConfirmedAndKeepsAllSnapshotData() {
+        save();val before=vault.list().items.single();button("Rename snapshot").performClick();title("Renamed project")
+        assertEquals(before.title,vault.list().items.single().title);positive()
+        await {button("Save current workspace").isEnabled && vault.list().items.single().title=="Renamed project"}
+        val after=vault.list().items.single();assertEquals(before.id,after.id);assertEquals(before.savedAt,after.savedAt)
+        assertEquals(before.code,after.code);assertEquals(before.draft,after.draft);assertNull(opened)
+    }
+    @Test fun leavingRevokesRenameAndNeverLeaksSearchToStorage() {
+        save();val before=stored!!.copyOf();library.view.findViewWithTag<EditText>("saved_work_search").setText("my")
+        button("Rename snapshot").performClick();title("STALE RENAME");val old=dialog();library.leave()
+        old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertArrayEquals(before,stored);assertEquals("My snapshot",vault.list().items.single().title)
+    }
+
 }

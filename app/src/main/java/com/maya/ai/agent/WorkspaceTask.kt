@@ -6,6 +6,9 @@ import android.view.View
 interface WorkspaceTask {
     val view: View
     val goal: String
+    val reviewRevision: Long
+    /** Invalidate a local dialog only, not a running task or approved-plan timer. */
+    fun dismissReview()
     val busy: Boolean
     val approved: Boolean
     val executing: Boolean

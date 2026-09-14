@@ -139,7 +139,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         timeline.addAll(item.messages);shownDirect=item.messages.size;draft.setText(item.draft);consent.isChecked=false
         item.code?.let {code ->
             val card=com.maya.ai.agent.InlineBuildTurn(host,"Restored local project",researchServices,
-                {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && !dictation.stoppable && agentCards.none {it!==turn && it.busy}}, {paint()})
+                {turn -> taskAllowed(turn)}, {paint()})
             card.editor.setText(code);buildTask=card;agentCards.add(card);timeline.add(card)
         }
         followLatest=true;latestResponse.visibility=View.GONE
@@ -172,6 +172,40 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private var voiceExpanded=false
     private val agentCards = mutableListOf<com.maya.ai.agent.WorkspaceTask>()
     private val timeline = mutableListOf<Any>() // completed Direct messages and owned inline Agent cards
+    private class TaskControls(val root: LinearLayout,val summary: TextView,val fold: Button,val stop: Button,val remove: Button) {var folded=false}
+    private val taskControls=mutableMapOf<com.maya.ai.agent.WorkspaceTask,TaskControls>()
+    private fun taskAllowed(turn: com.maya.ai.agent.WorkspaceTask)=visible && section==0 && agentSelected && turn in agentCards &&
+        taskControls[turn]?.folded!=true && active==null && !speech.busy && !dictation.stoppable && agentCards.none {it!==turn && it.busy}
+    private fun controlsFor(task: com.maya.ai.agent.WorkspaceTask): TaskControls = taskControls.getOrPut(task) {
+        val row=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;isSaveEnabled=false;tag="task_controls"}
+        val summary=labelView("",13f).apply {maxLines=3;ellipsize=android.text.TextUtils.TruncateAt.END;row.addView(this)}
+        val actions=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;row.addView(this)}
+        val fold=actionButton("Fold task") {
+            if(visible && section==0 && !anyBusy && task in agentCards) {
+                task.dismissReview() // no task stop, no plan approval renewal
+                taskControls[task]?.let {it.folded=!it.folded};paint()
+            }
+        }.also {it.tag="task_fold";actions.addView(it,LinearLayout.LayoutParams(0,-2,1f))}
+        val stopTask=actionButton("Stop this task") {
+            if(visible && section==0 && task in agentCards && task.stoppable) {task.stop();paint()}
+        }.also {it.tag="task_stop";actions.addView(it,LinearLayout.LayoutParams(0,-2,1f))}
+        val remove=actionButton("Remove task") {removeTask(task)}.also {it.tag="task_remove";actions.addView(it,LinearLayout.LayoutParams(0,-2,1f))}
+        TaskControls(row,summary,fold,stopTask,remove)
+    }
+    private fun removeTask(task: com.maya.ai.agent.WorkspaceTask) {
+        if(!visible || section!=0 || anyBusy || task !in agentCards) return
+        task.dismissReview();val revision=task.reviewRevision
+        confirm("Remove this ${if(task is com.maya.ai.agent.InlineBuildTurn) "Builder" else "Research"} task?",
+            "Discard this task's local code/checkpoints, results, proposal, preview and approval, and free one task slot. Other tasks, Direct messages, draft and saved snapshots stay. Save current Builder code first if needed. This does not delete provider records or guarantee remote cancellation.") {
+            if(visible && section==0 && !anyBusy && task in agentCards && task.reviewRevision==revision) {
+                // Keep its capacity occupied until disposal really returns; a failure does not admit a replacement.
+                try {task.dispose()} catch(_: Exception) {status.text="Task disposal could not be confirmed. Slot retained; no replacement started.";return@confirm}
+                agentCards.remove(task);timeline.remove(task);taskControls.remove(task)
+                if(buildTask===task) buildTask=null
+                renderHistory();status.text="Task removed locally. ${agentCards.size}/3 slots used. Direct context, draft and saved snapshots unchanged."
+            }
+        }
+    }
     private var shownDirect = 0
     private var kindSelection=0
     private lateinit var agentKind: Spinner
@@ -437,7 +471,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         label("Selected Fish voice, wake and original assistant settings remain unchanged. The configured free Fish model may be unavailable or quota-limited; no free/unlimited guarantee or fallback. Media analysis and cross-app automation are not enabled. Agent mode uses this composer and timeline, with explicit consent and plan approval.")
 
         label("Direct Chat context contains completed Direct turns only. Build static page is an Agent task: one local index.html with optional small AI proposals and isolated static preview, not a full IDE. Agent goals use the current message; recent Direct excerpts can be explicitly selected in the plan consent. Source sharing/explanation needs its own consent. Use a source’s composer action to ask Direct Chat about it; no hidden history transfer.")
-        label("At most 3 Agent task cards per local conversation; clear explicitly when full. Switching modes stops work/revokes approvals but preserves the timeline. Leaving clears the temporary workspace, not explicitly saved snapshots. Full cross-app control and Vision are not implemented.")
+        label("At most 3 Agent task cards per local conversation; remove a task with confirmation to free its slot. Folding does not stop or dispose a task. Switching modes stops work/revokes approvals but preserves the timeline. Leaving clears the temporary workspace, not explicitly saved snapshots. Full cross-app control and Vision are not implemented.")
 
         val shell = column().apply {
             setBackgroundColor(MayaTheme.background); setPadding(dp(16), dp(8), dp(16), dp(8))
@@ -591,7 +625,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun clearAgents() {
         followLatest=true;if(::latestResponse.isInitialized) latestResponse.visibility=View.GONE
-        val old=agentCards.toList();agentCards.clear();buildTask=null;timeline.filterIsInstance<ChatAttempt>().forEach {it.clear()};timeline.clear();shownDirect=0
+        val old=agentCards.toList();agentCards.clear();taskControls.clear();buildTask=null;timeline.filterIsInstance<ChatAttempt>().forEach {it.clear()};timeline.clear();shownDirect=0
         old.forEach {it.dispose()}
     }
     private fun submitAgent() {
@@ -601,13 +635,13 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if(value.isBlank() || !NativeChatProtocol.validReply(value) || (manual==null && value.length>400)) {
             status.text="Agent goal needs 1–400 characters, or a valid manual WIKI / REPO plan ≤450. Nothing truncated/sent.";return
         }
-        if(agentCards.size>=3) {status.text="This conversation has 3 Agent tasks. Clear it explicitly to start more; nothing was discarded.";return}
+        if(agentCards.size>=3) {status.text="All 3 task slots are used. Remove a task with confirmation to free a slot; draft kept.";return}
         agentCards.forEach {it.stop()}
         fun clip(s: String)=s.take(400).let {if(it.lastOrNull()?.isHighSurrogate()==true) it.dropLast(1) else it}
         val context=session.messages().takeLast(2).joinToString("\n") {"${it.role}: ${clip(it.content)}"}
         lateinit var card: com.maya.ai.agent.InlineAgentTurn
         card=com.maya.ai.agent.InlineAgentTurn(host,value,context,researchServices,
-            {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && !dictation.stoppable && agentCards.none {it!==turn && it.busy}},
+            {turn -> taskAllowed(turn)},
             {paint()},
             {text ->
                 fun putSource() {selectDirectMode();draft.setText(text);status.text="Source copied locally. Edit/add your question, then Direct Send with consent; nothing sent yet."}
@@ -628,13 +662,14 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if(existing!=null) {
             if(manual) {status.text="Edit the existing index.html in its inline editor; shared composer follow-ups are change requests. Nothing replaced.";return}
             agentCards.forEach {it.stop()}
+            taskControls[existing]?.folded=false
             timeline.add(NativeChatProtocol.Message("user","AGENT · Builder follow-up\n$value"))
             draft.setText("");hideKeyboard();renderHistory();existing.propose(value);return
         }
-        if(agentCards.size>=3) {status.text="Three task cards already exist. Clear explicitly to start another; draft kept.";return}
+        if(agentCards.size>=3) {status.text="All 3 task slots are used. Remove a task with confirmation to start another; draft kept.";return}
         agentCards.forEach {it.stop()}
         val card=com.maya.ai.agent.InlineBuildTurn(host,value,researchServices,
-            {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && !dictation.stoppable && agentCards.none {it!==turn && it.busy}}, {paint()})
+            {turn -> taskAllowed(turn)}, {paint()})
         buildTask=card;agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
         status.text="Builder stays in this conversation. One local index.html; static preview needs confirmation. Save an explicit snapshot from Settings to retain it."
         if(!manual) card.propose(value)
@@ -911,6 +946,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         timeline.addAll(direct.drop(shownDirect));shownDirect=direct.size
         timeline.forEach { entry ->
             if(entry is com.maya.ai.agent.WorkspaceTask) {
+                val controls=controlsFor(entry)
+                (controls.root.parent as? android.view.ViewGroup)?.removeView(controls.root);history.addView(controls.root)
                 (entry.view.parent as? android.view.ViewGroup)?.removeView(entry.view);history.addView(entry.view);return@forEach
             }
             if(entry is ChatAttempt) {history.addView(attemptView(entry));return@forEach}
@@ -959,7 +996,21 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         agentKind.isEnabled=!busy
         consent.visibility=if(agentSelected || consent.isChecked) View.GONE else View.VISIBLE
         draft.hint=if(agentSelected) (if(kindSelection==1) "Build or revise this page…" else "What should I research?") else "Message Maya…"
-        agentCards.forEach {it.refresh()}
+        agentCards.forEach {task ->
+            task.refresh()
+            taskControls[task]?.let {ui ->
+                task.view.visibility=if(ui.folded) View.GONE else View.VISIBLE
+                val kind=if(task is com.maya.ai.agent.InlineBuildTurn) "Builder" else "Research"
+                val state=when {task.executing->"running";task.busy->"waiting";task.approved->"approved · expiry still applies";task.stoppable->"local preview active";else->"idle · not a completion claim"}
+                val label=if(task is com.maya.ai.agent.InlineBuildTurn) "index.html" else task.goal.take(80).let {if(it.lastOrNull()?.isHighSurrogate()==true) it.dropLast(1) else it}
+                ui.summary.text="$kind · $label\n$state · ${agentCards.size}/3 slots used"+if(ui.folded) " · folded (not stopped)" else ""
+                ui.fold.text=if(ui.folded) "Expand task" else "Fold task"
+                ui.fold.isEnabled=visible && section==0 && !busy
+                ui.remove.isEnabled=visible && section==0 && !busy
+                ui.stop.visibility=if(task.stoppable) View.VISIBLE else View.GONE
+                ui.stop.isEnabled=visible && section==0 && task.stoppable
+            }
+        }
         recoveryButtons.forEach {it.isEnabled=visible && section==0 && !busy}
         readinessButton.isEnabled = !busy
         fishCheck.isEnabled = !busy; fishSample.isEnabled = !busy

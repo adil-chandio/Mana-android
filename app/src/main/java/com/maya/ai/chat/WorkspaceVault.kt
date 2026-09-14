@@ -28,6 +28,13 @@ class WorkspaceVault(private val storage: Storage,private val keys: Keys) {
         val current=list();require(current.revision==expectedRevision && current.items.any {it.id==id})
         write(current.items.filterNot {it.id==id})
     }
+    @Synchronized fun rename(id: String,title: String,expectedRevision: String) {
+        val current=list();require(current.revision==expectedRevision)
+        val item=current.items.single {it.id==id}
+        val renamed=SavedWorkspace(item.id,title,item.savedAt,item.messages,item.draft,item.code)
+        WorkspaceArchive.validate(renamed)
+        write(current.items.map {if(it.id==id) renamed else it})
+    }
     private fun write(items: List<SavedWorkspace>) {
         val plain=WorkspaceArchive.encode(items)
         try {storage.write(VaultCipher.seal(plain,keys.get(true)))} finally {plain.fill(0)}
