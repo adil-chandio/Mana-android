@@ -42,6 +42,9 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
     private val proposalView: TextView
     private val apply: Button
     private val render: Button
+    private val undo: Button
+    private var undoCode: String?=null
+    private var undoAgainst=""
     private val previewBox: LinearLayout
     private var preview: WebView?=null
     val editor: EditText
@@ -70,7 +73,16 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
         apply=button("Apply reviewed proposal locally") {
             val code=proposed;val previous=editor.text.toString()
             confirm("Replace index.html?", "Apply the displayed proposal to the local editor. This replaces the current code, but sends/runs nothing. Preview needs its own confirmation.") {
-                if(code==proposed && previous==editor.text.toString()) {editor.setText(code);status.text="Code applied locally. Review it, then request static preview.";refresh()}
+                if(code==proposed && previous==editor.text.toString()) {editor.setText(code);undoCode=previous;undoAgainst=code;status.text="Code applied locally. Review it, then request static preview.";refresh()}
+            }
+        }
+        undo=button("Undo last apply") {
+            val old=undoCode ?: return@button;val current=editor.text.toString()
+            confirm("Undo the last proposal apply?", "Restore the previous local code. Current preview/proposal is revoked. No AI request, file export or automatic preview.") {
+                if(undoCode==old && current==editor.text.toString() && current==undoAgainst) {
+                    editor.setText(old);undoCode=null;undoAgainst="";editor.visibility=View.VISIBLE
+                    status.text="Previous local code restored. Nothing sent or rendered.";refresh()
+                }
             }
         }
         render=button("Render static preview here") {
@@ -86,6 +98,7 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
             override fun beforeTextChanged(s: CharSequence?,start: Int,count: Int,after: Int) {}
             override fun afterTextChanged(s: Editable?) {}
             override fun onTextChanged(s: CharSequence?,start: Int,before: Int,count: Int) {
+                if(s.toString()!=undoAgainst) {undoCode=null;undoAgainst=""}
                 epoch++;dialog?.dismiss();dialog=null;cancelPending();proposed="";proposalView.text="";clearPreview()
                 status.text="Code changed locally. Old proposal/preview revoked; nothing executed.";refresh();changed()
             }
@@ -183,6 +196,8 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
     override fun stop() {val remotePending=busy;epoch++;dialog?.dismiss();dialog=null;cancelPending();clearPreview();if(alive) {status.text="Stopped/revoked locally. Code preserved; no automatic resume."+if(remotePending) " Remote AI work/usage may continue; no refund guaranteed." else "";refresh();changed()}}
     override fun refresh() {
         val enabled=canAct();suggest.visibility=if(busy || proposed.isNotEmpty()) View.GONE else View.VISIBLE;buttons.forEach {it.isEnabled=enabled};editor.isEnabled=enabled
+        undo.visibility=if(undoCode==null) View.GONE else View.VISIBLE
+        undo.isEnabled=enabled && undoCode!=null && editor.text.toString()==undoAgainst
         apply.isEnabled=enabled && proposed.isNotEmpty() && proposedAgainst==editor.text.toString()
         render.isEnabled=enabled && isDocument(editor.text.toString())
         render.visibility=if(isDocument(editor.text.toString()) && proposed.isEmpty()) View.VISIBLE else View.GONE
@@ -192,7 +207,7 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
         previewToggle.visibility=if(preview==null) View.GONE else View.VISIBLE
         codeToggle.isSelected=editor.visibility==View.VISIBLE;proposalToggle.isSelected=proposalView.visibility==View.VISIBLE;previewToggle.isSelected=previewBox.visibility==View.VISIBLE
     }
-    override fun dispose() {alive=false;stop();clearPreview();editor.setText("");proposed="";proposedAgainst="";goal="";proposalView.text="";view.removeAllViews();buttons.clear();handler.removeCallbacksAndMessages(null)}
+    override fun dispose() {undoCode=null;undoAgainst="";alive=false;stop();clearPreview();editor.setText("");proposed="";proposedAgainst="";goal="";proposalView.text="";view.removeAllViews();buttons.clear();handler.removeCallbacksAndMessages(null)}
     private fun label(value: String,size: Float)=TextView(host).apply {text=value;MayaTheme.label(this,size,size<=13f);setPadding(0,dp(5),0,dp(5));view.addView(this)}
     private fun button(title: String,action: () -> Unit)=Button(host).apply {MayaTheme.button(this,title,title=="Apply reviewed proposal locally" || title=="Render static preview here");setOnClickListener {if(canAct()) action()};buttons.add(this);view.addView(this)}
     private fun dp(v: Int)=(host.resources.displayMetrics.density*v).toInt()

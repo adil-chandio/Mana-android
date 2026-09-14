@@ -5,7 +5,7 @@ const a = read('app/src/main/java/com/maya/ai/chat/NativeChatWorkspace.kt');
 assert(!/WebView\(|JavascriptInterface|intent\.(data|extras)|getStringExtra|startService\(|requestPermissions\(|loadUrl\(/.test(a));
 assert(!/MayaBridge|TextToSpeech|SpeechRecognizer|performAction|enqueue\(/.test(a));
 assert(a.includes('SynchronousQueue()')); assert(a.includes('session.clear()')); assert(a.includes('consent.isChecked = false'));
-assert(a.includes('send.isEnabled = !busy && (agentSelected || consent.isChecked)'));
+assert(a.includes('send.isEnabled = !busy && section==0 && (agentSelected || consent.isChecked)'));
 assert(!a.includes('send.isEnabled = !busy && publicText')); assert(a.includes('isSaveEnabled = false'));
 const create = a.slice(a.indexOf('fun createView'), a.indexOf('private fun confirm'));
 assert(!create.includes('identity.publicJwk()')); // no startup identity inspection
@@ -13,7 +13,7 @@ const m = read('app/src/main/java/com/maya/ai/MainActivity.kt');
 assert(m.includes('request.isForMainFrame && request.hasGesture()'));
 assert(m.includes('webView.url in listOf('));
 assert.equal(read('public/index.html'), read('app/src/main/assets/web/index.html'));
-assert.equal(JSON.parse(read('release/version.json')).versionCode, 99);
+assert.equal(JSON.parse(read('release/version.json')).versionCode, 100);
 assert(read('app/build.gradle').includes("implementation 'com.squareup.okhttp3:okhttp:4.12.0'"));
 console.log('Native static integration boundaries PASS (not a device/UI execution test).');
 
@@ -34,7 +34,7 @@ assert(a.includes('putString("reason", reason.name)'));
 assert(!m.includes('!settings.convoMode'));
 
 assert(a.includes('listOf("Close details", "Checks ▾", "Privacy ▾")'));
-assert(a.includes('showDetails(0)')); assert(a.includes('return surface'));
+assert(a.includes('navigateSettings(0)')); assert(a.includes('tag="settings_screen"'));  assert(a.includes('return surface'));
 assert(a.includes('addView(stop,FrameLayout.LayoutParams(dp(48),dp(48),android.view.Gravity.BOTTOM or android.view.Gravity.RIGHT)'));
 assert(a.includes('{ endLocalSession(); close() }'));
 assert(a.includes('endLocalSession(); handler.removeCallbacksAndMessages(null)'));

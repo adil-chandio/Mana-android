@@ -99,17 +99,24 @@ class MainChatSurfaceTest {
         assertEquals("",local<EditText>("draft").text.toString());assertNull(shadowOf(a).nextStartedActivity)
         assertEquals("https://appassets.androidplatform.net/assets/web/index.html",web.url)
     }
-    @Test fun inlineUtilitiesAndOriginalSettingsDoNotNavigateOrLoseDraft() {
+    private fun openSettings() {
+        button("Workspace menu").performClick();button("Settings").performClick()
+        assertTrue(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("settings_screen").isShown)
+    }
+    @Test fun dedicatedSettingsDoNotLaunchActivityOrLoseDraftAndBackRestoresWorkspace() {
         val initial=workspace;val parent=web.parent;local<EditText>("draft").setText("KEEP_DRAFT")
-        button("Checks ▾").performClick();button("Privacy ▾").performClick();button("Close details").performClick()
-        button("Original settings · expand here").performClick();button("Original settings · expand here").performClick()
+        openSettings();assertFalse(local<EditText>("draft").isShown)
+        button("Checks ▾").performClick();a.onBackPressed();button("Privacy ▾").performClick();a.onBackPressed()
+        button("Original settings · expand here").performClick()
+        assertNotSame(parent,web.parent);assertEquals("voice_settings_page",(web.parent as View).tag)
+        assertEquals(-1,web.layoutParams.height);assertFalse(local<EditText>("draft").isShown)
+        a.onBackPressed();a.onBackPressed()
         assertSame(initial,workspace);assertSame(parent,web.parent);assertEquals("KEEP_DRAFT",local<EditText>("draft").text.toString())
-        assertEquals(View.VISIBLE,a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("chat_page").visibility)
-        assertEquals(View.VISIBLE,a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("shared_composer_area").visibility)
+        assertTrue(local<EditText>("draft").isShown);assertFalse(a.isFinishing)
         assertNull(shadowOf(a).nextStartedActivity)
     }
     @Test fun expandedOriginalSettingsCanScrollWithoutParentStealingGesture() {
-        button("Original settings · expand here").performClick()
+        openSettings();button("Original settings · expand here").performClick()
         val originalParent=web.parent as ViewGroup;originalParent.removeView(web)
         val requests=mutableListOf<Boolean>()
         val spy=object : android.widget.FrameLayout(a) {
@@ -131,8 +138,26 @@ class MainChatSurfaceTest {
         val session=local<NativeChatConversation>("session");val turn=session.begin("synthetic",true);session.complete(turn,"reply")
         NativeChatWorkspace::class.java.getDeclaredMethod("renderHistory").apply {isAccessible=true}.invoke(workspace)
         assertSame(parent,web.parent);assertEquals((72*density).toInt(),web.layoutParams.height)
-        button("Original settings · expand here").performClick();assertEquals((460*density).toInt(),web.layoutParams.height)
-        assertSame(parent,web.parent);assertNull(shadowOf(a).nextStartedActivity)
+        openSettings();button("Original settings · expand here").performClick();assertEquals(-1,web.layoutParams.height)
+        assertNotSame(parent,web.parent);a.onBackPressed();a.onBackPressed();assertSame(parent,web.parent);assertNull(shadowOf(a).nextStartedActivity)
+    }
+
+    @Test fun everyPageStartHidesLegacyContentAndRevokesMountReadiness() {
+        val client=web.webViewClient!!
+        for(url in listOf("https://appassets.androidplatform.net/assets/web/index.html","file:///android_asset/web/index.html")) {
+            web.visibility=View.VISIBLE
+            client.onPageStarted(web,url,null)
+            assertEquals(View.INVISIBLE,web.visibility);assertFalse(field<Boolean>("workspaceHostReady"))
+        }
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun settingsSurvivesTransientPauseButBackgroundClearsOwnedConversation() {
+        local<EditText>("draft").setText("LOCAL_DRAFT");openSettings();button("Original settings · expand here").performClick()
+        c.pause().resume();assertEquals(3,local<Int>("section"));assertEquals("voice_settings_page",(web.parent as View).tag)
+        assertEquals("LOCAL_DRAFT",local<EditText>("draft").text.toString())
+        c.pause().stop().restart().start().resume()
+        assertEquals(0,local<Int>("section"));assertEquals("",local<EditText>("draft").text.toString())
+        assertEquals("original_orb_slot",(web.parent as View).tag)
     }
 
 }

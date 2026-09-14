@@ -43,7 +43,7 @@ class ResearchPolicyTest {
     private val p get()=ResearchPlan.parse("WIKI Dog\nREPO a/b")
     @Test fun approvalAloneDoesNotFetchAndApprovalIsConsumedOnce() {
         val f=F();assertFalse(f.r.start(p,ResearchBrowser.CHROME));f.r.approve(p,ResearchBrowser.CHROME)
-        assertTrue(f.calls.isEmpty());assertTrue(f.tasks.isEmpty());assertTrue(f.r.start(p,ResearchBrowser.CHROME))
+        assertTrue(f.calls.isEmpty());assertEquals(1,f.tasks.size);assertEquals(60000L,f.tasks.single().at);assertTrue(f.r.start(p,ResearchBrowser.CHROME))
         f.tick();f.reply(0);f.tick();f.reply(1)
         assertEquals(ResearchRunner.State.COMPLETE,f.r.state);assertEquals(2,f.r.results().size)
         assertTrue(f.tasks.isEmpty());assertFalse(f.r.start(p,ResearchBrowser.CHROME))
@@ -78,4 +78,15 @@ class ResearchPolicyTest {
         val f=F();f.r.approve(p,ResearchBrowser.CHROME);f.r.start(p,ResearchBrowser.CHROME);f.tick();f.reply(0);f.r.clear()
         assertTrue(f.r.results().isEmpty());assertTrue(f.tasks.isEmpty());assertFalse(f.r.approved);assertFalse(f.r.busy)
     }
+    @Test fun approvalExpiresWithoutWaitingForOwnerToTapRun() {
+        val f=F();f.r.approve(p,ResearchBrowser.CHROME);f.tick()
+        assertEquals(ResearchRunner.State.EXPIRED,f.r.state);assertFalse(f.r.approved)
+        assertTrue(f.calls.isEmpty());assertTrue(f.tasks.isEmpty());assertFalse(f.r.start(p,ResearchBrowser.CHROME))
+    }
+    @Test fun oldExpiryCannotRevokeReplacementApprovalAndStopRemovesTimer() {
+        val f=F();f.r.approve(p,ResearchBrowser.CHROME);val old=f.tasks.single().action
+        f.time=100;f.r.approve(p,ResearchBrowser.BRAVE);old()
+        assertTrue(f.r.approved);assertEquals(1,f.tasks.size);f.r.stop();assertTrue(f.tasks.isEmpty())
+    }
+
 }

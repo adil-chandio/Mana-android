@@ -79,6 +79,9 @@ class MainActivity : AppCompatActivity() {
     private var mainResumed = false
     private lateinit var assetLoader: WebViewAssetLoader
     @Volatile private var webViewAlive = false
+    private var workspaceSettingsOpen=false
+    private var workspaceHostReady=false
+    private var hostLoadEpoch=0L
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     @Volatile private var ttsBooting = false
@@ -137,14 +140,14 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         // One permanent Maya surface from startup. The original trusted WebView is
         // an embedded orb/settings component, never a second conversation or destination.
+        webView.setBackgroundColor(com.maya.ai.chat.MayaTheme.background)
         webView.visibility = android.view.View.INVISIBLE
         mainSurface = android.widget.FrameLayout(this)
         val workspace = com.maya.ai.chat.NativeChatWorkspace(this) { finish() }
         nativeChat = workspace
         nativeChatView = workspace.createView(webView) { expanded ->
-            if (mainResumed && webView.url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html"))
-                evalAsync(if (expanded) "window.__mayaWorkspaceSettings && window.__mayaWorkspaceSettings(true);"
-                    else "window.__mayaWorkspaceSettings && window.__mayaWorkspaceSettings(false);")
+            workspaceSettingsOpen=expanded
+            applyWorkspacePresentation()
         }
         mainSurface.addView(nativeChatView, android.widget.FrameLayout.LayoutParams(-1, -1))
         setContentView(mainSurface)
@@ -293,9 +296,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Presentation handshake only; no conversation/code/settings credentials enter JS. */
+    private fun applyWorkspacePresentation() {
+        if(!workspaceHostReady || !mainResumed) return
+        val url=webView.url
+        if(url !in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) return
+        val ticket=hostLoadEpoch;val expanded=workspaceSettingsOpen
+        webView.visibility=android.view.View.INVISIBLE
+        webView.evaluateJavascript("window.__mayaWorkspaceSettings ? window.__mayaWorkspaceSettings($expanded) : false;") {applied ->
+            if(!isFinishing && !isDestroyed && mainResumed && ticket==hostLoadEpoch && workspaceHostReady &&
+                expanded==workspaceSettingsOpen && webView.url==url && applied=="true") webView.visibility=android.view.View.VISIBLE
+        }
+    }
+
     /* ================= WEBVIEW CLIENT ================= */
 
     inner class MayaWebViewClient : WebViewClientCompat() {
+        override fun onPageStarted(view: WebView,url: String?,favicon: android.graphics.Bitmap?) {
+            hostLoadEpoch++;workspaceHostReady=false;view.visibility=android.view.View.INVISIBLE
+            super.onPageStarted(view,url,favicon)
+        }
         override fun shouldInterceptRequest(
             view: WebView,
             request: WebResourceRequest
@@ -308,9 +328,11 @@ class MainActivity : AppCompatActivity() {
                 webViewAlive = true
             }
             if (url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                val ticket=hostLoadEpoch
                 view.evaluateJavascript("window.__mayaWorkspaceMount ? window.__mayaWorkspaceMount() : false;") { mounted ->
-                    if (!isFinishing && !isDestroyed && view === webView && view.url == url && mounted == "true")
-                        view.visibility = android.view.View.VISIBLE
+                    if (!isFinishing && !isDestroyed && ticket==hostLoadEpoch && view === webView && view.url == url && mounted == "true") {
+                        workspaceHostReady=true;applyWorkspacePresentation()
+                    }
                 }
             }
             super.onPageFinished(view, url)
@@ -324,6 +346,7 @@ class MainActivity : AppCompatActivity() {
             error: WebResourceErrorCompat
         ) {
             if (request.isForMainFrame && request.url.host == VIRTUAL_HOST) {
+                hostLoadEpoch++;workspaceHostReady=false;view.visibility=android.view.View.INVISIBLE
                 view.loadUrl("file:///android_asset/web/index.html")
             }
             super.onReceivedError(view, request, error)

@@ -19,11 +19,15 @@ class ResearchRunner(private val port: Port, private val now: () -> Long,
     fun approve(plan: ResearchPlan, browser: ResearchBrowser): Boolean {
         if (busy) return false
         val time = now(); if (time < 0 || time > Long.MAX_VALUE - 60000) return false
-        sources.clear(); approval = Approval(plan,browser,time); state=State.APPROVED; notifyChange(); return approval != null
+        cancel(deadline);deadline=null
+        sources.clear();val ticket=Approval(plan,browser,time);approval=ticket;state=State.APPROVED
+        try {deadline=schedule(60000) {if(approval===ticket && !busy) end(State.EXPIRED)}}
+        catch (_: Exception) {end(State.FAILED);return false}
+        notifyChange();return approval===ticket
     }
     fun start(plan: ResearchPlan, browser: ResearchBrowser): Boolean {
         if (busy) return false
-        val a=approval ?: return false; approval=null
+        val a=approval ?: return false; approval=null;cancel(deadline);deadline=null
         if (plan.source != a.plan.source || browser != a.browser) { state=State.CHANGED; notifyChange(); return false }
         val time=now()
         if (time < a.time || time-a.time >= 60000 || time > Long.MAX_VALUE-45000) { state=State.EXPIRED; notifyChange(); return false }

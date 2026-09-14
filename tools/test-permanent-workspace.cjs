@@ -3,7 +3,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{JSDOM}=require
 const html=fs.readFileSync('public/index.html','utf8');
 const script=html.match(/\/\* PERMANENT_WORKSPACE_START[\s\S]*?\*\/([\s\S]*?)\/\* PERMANENT_WORKSPACE_END \*\//)[1];
 const make=()=>new JSDOM(html,{runScripts:'outside-only',url:'https://appassets.androidplatform.net/assets/web/index.html'});
-const d=make(),w=d.window;w.eval(script);
+const d=make(),w=d.window;w.scrollTo=()=>{};w.eval(script);
 assert.equal(w.__mayaWorkspaceMount(),false);assert(!w.document.documentElement.classList.contains('maya-workspace-host'));
 w.MayaBridge={};const orb=w.document.getElementById('orb');let legacyVoice=0;
 orb.addEventListener('click',()=>legacyVoice++);
@@ -14,7 +14,21 @@ assert.equal(w.document.querySelectorAll('.workspace-orb-link').length,1);assert
 assert.equal(w.document.querySelector('.workspace-orb-link').getAttribute('href'),'maya-private-chat://open');
 const e=new w.MouseEvent('click',{bubbles:true,cancelable:true});orb.dispatchEvent(e);
 assert.equal(legacyVoice,0);assert(e.defaultPrevented); // synthetic event cannot navigate or trigger hidden legacy AI
-w.__mayaWorkspaceSettings(true);assert(w.document.documentElement.classList.contains('maya-settings-expanded'));
+assert.equal(w.__mayaWorkspaceSettings(true),true);assert(w.document.documentElement.classList.contains('maya-settings-expanded'));
+assert.equal(w.getComputedStyle(w.document.getElementById('tab-home')).display,'none');
+// Exercise the real theme function, including the old bug: className replacement used to erase host flags.
+w.settings={theme:'day',accent:'#abc123',radius:18,fontScale:1,edgeGlow:false};w.THEMES={day:{},obsidian:{}};
+w.accent2Of=c=>c;w.$=s=>w.document.querySelector(s);
+w.eval(html.slice(html.indexOf('function applyTheme(){'),html.indexOf('function renderThemeUI(){')));
+for(const theme of ['day','obsidian','day']) {
+  w.settings.theme=theme;w.applyTheme();
+  assert(w.document.documentElement.classList.contains('maya-workspace-host'));
+  assert(w.document.documentElement.classList.contains('maya-settings-expanded'));
+  assert.equal(w.getComputedStyle(w.document.querySelector('nav')).display,'none');
+  assert.equal(w.getComputedStyle(w.document.querySelector('header')).display,'none');
+  assert.equal(w.getComputedStyle(w.document.getElementById('tab-home')).display,'none');
+}
+assert.equal(w.__mayaWorkspaceMount(),true);assert.equal(w.document.querySelectorAll('.workspace-orb-link').length,1);
 w.__mayaWorkspaceSettings(false);assert(!w.document.documentElement.classList.contains('maya-settings-expanded'));
 for(const [el,value] of fields) assert.equal(el.value,value); // mount/settings presentation never rewrites voice/provider settings
 assert.equal(w.getComputedStyle(w.document.querySelector('header')).display,'none');
@@ -28,6 +42,10 @@ w.document.documentElement.classList.add('t-day');
 assert.equal(w.getComputedStyle(w.document.getElementById('app')).color,'rgb(238, 234, 228)');
 assert.equal(w.getComputedStyle(w.document.querySelector('#tab-set .ui-group')).backgroundColor,'rgb(33, 34, 37)');
 w.document.documentElement.classList.remove('t-day');
+const early=make();early.window.MayaBridge={};early.window.scrollTo=()=>{};
+early.window.eval(html.match(/<script>\/\* NATIVE_HOST_BOOT[\s\S]*?<\/script>/)[0].replace(/<\/?script>/g,''));
+assert.equal(early.window.getComputedStyle(early.window.document.querySelector('nav')).display,'none');
+early.window.eval(script);assert.equal(early.window.__mayaWorkspaceMount(),true);assert.equal(early.window.document.querySelectorAll('.workspace-orb-link').length,1);
 // JSDOM has no layout/media-query renderer. Verify compact host rules exist without claiming pixels.
 assert(html.includes('@media(max-height:90px)'));
 assert(html.includes('html.maya-workspace-host:not(.maya-settings-expanded) #orb{width:56px;height:56px}'));

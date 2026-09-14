@@ -81,7 +81,9 @@ object MayaTheme {
     }
     fun caption(title: String): String=when(title) {
         "Clear local chat" -> "New conversation"
-        "Original settings · expand here" -> "Voice & appearance"
+        "Original settings · expand here" -> "Voice & appearance ›"
+        "Checks ▾" -> "Checks & identity ›"
+        "Privacy ▾" -> "Privacy & limits ›"
         "Check local Send readiness · no network" -> "Check local readiness"
         "Check saved Fish setup · no network" -> "Check saved voice"
         "Test saved Fish voice · short sample" -> "Test saved voice"

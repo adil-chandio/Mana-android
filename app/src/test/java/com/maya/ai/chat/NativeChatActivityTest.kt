@@ -49,6 +49,15 @@ class NativeChatActivityTest {
     private fun invoke(name: String) = NativeChatWorkspace::class.java.getDeclaredMethod(name)
         .apply { isAccessible = true }.invoke(workspace)
     private fun tab(name: String) = content.findViewWithTag<Button>(if(name=="chat") "details_close" else "details_$name")
+    private fun openPage(name: String) {
+        if(name=="chat") {if(field<Int>("section") in 1..3) workspace.requestClose();if(field<Int>("section")==4) workspace.requestClose();return}
+        if(field<Int>("section") in 1..3) workspace.requestClose()
+        if(field<Int>("section")==0) {
+            if(content.findViewWithTag<View>("workspace_menu").visibility!=View.VISIBLE) content.findViewWithTag<Button>("workspace_menu_toggle").performClick()
+            content.findViewWithTag<Button>("open_settings").performClick()
+        }
+        tab(name).performClick()
+    }
     private fun page(name: String) = content.findViewWithTag<View>("${name}_page")
     private fun button(title: String): Button {
         fun find(view: View): Button? {
@@ -121,14 +130,14 @@ class NativeChatActivityTest {
         field<Button>("stop").performClick(); cancelled(job)
         assertFalse(field<Button>("stop").isEnabled); noTransport()
     }
-    @Test fun inlineDetailsPreserveVisibleConversationComposerAndContextWithoutSending() {
+    @Test fun dedicatedSettingsHideComposerButPreserveConversationAndContext() {
         completedHistory(); fill()
         for (name in listOf("checks", "info", "chat")) {
-            tab(name).performClick()
+            openPage(name)
             assertEquals(View.VISIBLE, page(name).visibility)
             assertTrue(tab(name).isSelected)
-            assertEquals(View.VISIBLE,page("chat").visibility)
-            assertEquals(View.VISIBLE,content.findViewWithTag<View>("shared_composer_area").visibility)
+            assertEquals(if(name=="chat") View.VISIBLE else View.GONE,page("chat").visibility)
+            assertEquals(if(name=="chat") View.VISIBLE else View.GONE,content.findViewWithTag<View>("shared_composer_area").visibility)
             assertEquals("PRIVATE_SYNTHETIC_DRAFT", field<EditText>("draft").text.toString())
             assertTrue(field<CheckBox>("consent").isChecked)
             assertEquals(2, field<NativeChatConversation>("session").messages().size)
@@ -153,7 +162,7 @@ class NativeChatActivityTest {
     }
     @Test fun stopOnAnyTabRejectsOldCompletionAndPreservesCompletedHistory() {
         completedHistory(); fill(); val job = pending()
-        tab("info").performClick(); field<Button>("stop").performClick()
+        openPage("info"); field<Button>("stop").performClick()
         cancelled(job); complete(job)
         assertNull(field<Any?>("active"))
         assertEquals(2, field<NativeChatConversation>("session").messages().size)
@@ -170,7 +179,7 @@ class NativeChatActivityTest {
     }
     @Test fun backgroundClearsSensitiveUiButKeepsFixedReadinessReport() {
         activity.getSharedPreferences("maya", Context.MODE_PRIVATE).edit().putBoolean("wake", true).commit()
-        tab("checks").performClick(); field<Button>("readinessButton").performClick()
+        openPage("checks"); field<Button>("readinessButton").performClick()
         assertTrue(field<TextView>("readinessResult").text.contains("WAKE_ENABLED"))
         completedHistory(); fill(); val job = pending()
         controller!!.pause().stop()
@@ -204,13 +213,13 @@ class NativeChatActivityTest {
         assertFalse(field<CheckBox>("consent").isChecked); noTransport()
     }
     @Test fun publicKeyConfirmationCancelDoesNotCreateOrReadKey() {
-        tab("checks").performClick(); field<Button>("create").performClick()
+        openPage("checks"); field<Button>("create").performClick()
         ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
         shadowOf(Looper.getMainLooper()).idle()
         assertNull(field<Any?>("active")); noTransport()
     }
     @Test fun readinessClipboardContainsFixedMetadataNotDraftOrHistory() {
-        completedHistory(); fill(); tab("checks").performClick(); button("Copy readiness report").performClick()
+        completedHistory(); fill(); openPage("checks"); button("Copy readiness report").performClick()
         val text = (activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
             .primaryClip!!.getItemAt(0).text.toString()
         assertTrue(text.contains("Last local readiness:"))
@@ -234,7 +243,7 @@ class NativeChatActivityTest {
     @Test fun obscuredAndPartiallyObscuredTouchesRemainBlockedOnAllTabs() {
         fill()
         for (name in listOf("chat", "checks", "info")) {
-            tab(name).performClick()
+            openPage(name)
             for (flag in listOf(MotionEvent.FLAG_WINDOW_IS_OBSCURED, MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)) {
                 val prop = MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_FINGER }
                 val coord = MotionEvent.PointerCoords().apply { x = 10f; y = 10f }
@@ -310,19 +319,19 @@ class NativeChatActivityTest {
         shadowOf(Looper.getMainLooper()).idle()
         port.requests.single().second(NativeFishPolicy.Result.Prepared("SYNTHETIC","SYNTHETIC"))
         assertEquals(1,port.plays)
-        tab("checks").performClick();assertEquals(0,port.stops)
+        openPage("checks");assertEquals(0,port.stops)
         controller!!.pause().stop();assertEquals(1,port.stops)
         port.event!!("done",200)
         assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
         controller!!.restart().start().resume();noTransport()
     }
     @Test fun savedFishCheckWithoutOriginalMainFailsLocallyWithoutLaunchingIt() {
-        tab("checks").performClick();field<Button>("fishCheck").performClick()
+        openPage("checks");field<Button>("fishCheck").performClick()
         assertTrue(field<TextView>("speechStatus").text.contains("MAIN_REQUIRED"))
         assertNull(field<Any?>("speechPlayer"));noTransport()
     }
     @Test fun sampleAlsoRequiresSeparateConfirmationAndDoesNotSendDraft() {
-        val port=fakeSpeech();fill();tab("checks").performClick()
+        val port=fakeSpeech();fill();openPage("checks")
         field<Button>("fishSample").performClick();assertEquals(0,port.requests.size)
         ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
         shadowOf(Looper.getMainLooper()).idle()
@@ -331,7 +340,7 @@ class NativeChatActivityTest {
     }
 
     @Test fun oldSpeechConfirmationCannotPlayAfterLeavingAndResuming() {
-        val port=fakeSpeech();tab("checks").performClick();field<Button>("fishSample").performClick()
+        val port=fakeSpeech();openPage("checks");field<Button>("fishSample").performClick()
         val old=ShadowAlertDialog.getLatestAlertDialog()
         controller!!.pause().stop().restart().start().resume()
         old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
@@ -339,7 +348,7 @@ class NativeChatActivityTest {
     }
 
     @Test fun fishReportCopiesOnlyFixedStateNotReplyDraftOrCredentials() {
-        fakeSpeech();completedHistory();fill();tab("checks").performClick();button("Copy Fish report").performClick()
+        fakeSpeech();completedHistory();fill();openPage("checks");button("Copy Fish report").performClick()
         val text=(activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip!!.getItemAt(0).text.toString()
         assertTrue(text.contains("Fish: IDLE"));assertFalse(text.contains("PRIVATE_SYNTHETIC"));assertFalse(text.contains("SYNTHETIC_REPLY"))
         noTransport()
@@ -440,14 +449,14 @@ class NativeChatActivityTest {
         noTransport()
     }
 
-    @Test fun quietEntryMenuAndConsentRevocationStayInWorkspace() {
+    @Test fun quietEntryAndDedicatedPrivacyRevocationKeepConversation() {
         val menu=content.findViewWithTag<View>("workspace_menu")
         assertEquals(View.GONE,menu.visibility);assertEquals(View.VISIBLE,content.findViewWithTag<View>("empty_state").visibility)
         assertEquals(View.GONE,field<TextView>("status").visibility);assertEquals(View.GONE,field<TextView>("counter").visibility)
         val composer=field<EditText>("draft");fill()
         assertEquals(View.GONE,field<CheckBox>("consent").visibility)
         content.findViewWithTag<Button>("workspace_menu_toggle").performClick();assertEquals(View.VISIBLE,menu.visibility)
-        tab("info").performClick();assertEquals(View.GONE,menu.visibility);assertTrue(composer.isShown)
+        openPage("info");assertEquals(View.GONE,menu.visibility);assertFalse(composer.isShown)
         val job=pending();button("Revoke Direct consent").performClick();cancelled(job)
         assertFalse(field<CheckBox>("consent").isChecked);assertEquals(View.VISIBLE,field<CheckBox>("consent").visibility)
         assertFalse(field<Button>("send").isEnabled);assertEquals("PRIVATE_SYNTHETIC_DRAFT",composer.text.toString());noTransport()
@@ -481,7 +490,7 @@ class NativeChatActivityTest {
         surface.measure(View.MeasureSpec.makeMeasureSpec(320,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(320,View.MeasureSpec.EXACTLY));surface.layout(0,0,320,320)
         fun bounds(view: View)=android.graphics.Rect().also {view.getDrawingRect(it);surface.offsetDescendantRectToMyCoords(view,it)}
         val input=bounds(field<EditText>("draft"));val stop=bounds(field<Button>("stop"));val send=bounds(field<Button>("send"))
-        assertTrue(input.top>=0);assertTrue(input.bottom<=stop.top);assertTrue(stop.bottom<=320);assertTrue(stop.width()>=48);assertTrue(stop.height()>=48)
+        assertTrue(input.top>=0);assertFalse(android.graphics.Rect.intersects(input,stop));assertTrue(stop.bottom<=320);assertTrue(stop.width()>=48);assertTrue(stop.height()>=48)
         assertFalse(android.graphics.Rect.intersects(send,stop));assertEquals(View.VISIBLE,field<Button>("stop").visibility)
         field<Button>("stop").performClick();cancelled(job);noTransport()
     }
@@ -490,6 +499,23 @@ class NativeChatActivityTest {
         assertTrue(androidx.core.graphics.ColorUtils.calculateContrast(MayaTheme.muted,MayaTheme.surface)>=4.5)
         assertTrue(androidx.core.graphics.ColorUtils.calculateContrast(MayaTheme.ink,MayaTheme.copper)>=4.5)
         assertTrue(androidx.core.graphics.ColorUtils.calculateContrast(MayaTheme.danger,android.graphics.Color.rgb(65,37,40))>=4.5)
+    }
+
+    @Test fun selectorsGetAnUnbrokenRowSeparateFromSendAndStop() {
+        mode(true);val surface=content.getChildAt(0) as ViewGroup
+        surface.measure(View.MeasureSpec.makeMeasureSpec(320,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(480,View.MeasureSpec.EXACTLY));surface.layout(0,0,320,480)
+        val mode=field<android.widget.Spinner>("modePicker");val kind=field<android.widget.Spinner>("agentKind")
+        assertEquals(0,mode.paddingLeft);assertEquals(0,kind.paddingRight)
+        assertTrue(mode.width>=128);assertTrue(kind.width>=128)
+        assertNotSame(mode.parent,field<Button>("send").parent)
+        val selected=kind.selectedView as TextView;assertEquals(1,selected.maxLines)
+        assertEquals("Research ▾",selected.text.toString());noTransport()
+    }
+    @Test fun settingsBackClosesDestinationWithoutFinishingOrClearingDraft() {
+        fill();openPage("info");workspace.requestClose()
+        assertEquals(4,field<Int>("section"));assertFalse(field<EditText>("draft").isShown)
+        workspace.requestClose();assertEquals(0,field<Int>("section"));assertTrue(field<EditText>("draft").isShown)
+        assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString());assertFalse(activity.isFinishing);noTransport()
     }
 
 }

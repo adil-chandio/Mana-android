@@ -115,6 +115,10 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private lateinit var agentKind: Spinner
     private var buildTask: com.maya.ai.agent.InlineBuildTurn?=null
     private var collapseVoiceSettings: () -> Unit = {}
+    private var navigateSettings: (Int) -> Unit = {}
+    private var restoreVoicePresentation: () -> Unit = {}
+    private var settingsSurface: LinearLayout?=null
+    private var voiceSlot: FrameLayout?=null
     private val researchServices: com.maya.ai.agent.ResearchServices by lazy { com.maya.ai.agent.ResearchBackend(applicationContext) }
     private val agentBusy get() = agentCards.any { it.busy }
     private val anyBusy get() = active != null || speech.busy || agentBusy
@@ -227,26 +231,16 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if(voiceSurface!=null) {
             voiceSurface.isSaveEnabled=false
             voiceSurface.importantForAutofill=View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
-            root.addView(voiceSurface,LinearLayout.LayoutParams(-1,dp(128)))
+            voiceSlot=FrameLayout(this).apply {isSaveEnabled=false;tag="original_orb_slot"}
+            root.addView(voiceSlot,LinearLayout.LayoutParams(-1,dp(128)))
+            voiceSlot!!.addView(voiceSurface,FrameLayout.LayoutParams(-1,dp(128)))
             voiceExpanded=false
             voiceSurface.setOnTouchListener {v,event ->
                 if(voiceExpanded && event.actionMasked==MotionEvent.ACTION_DOWN) v.parent?.requestDisallowInterceptTouchEvent(true)
                 if(event.actionMasked==MotionEvent.ACTION_UP || event.actionMasked==MotionEvent.ACTION_CANCEL) v.parent?.requestDisallowInterceptTouchEvent(false)
                 false // Original WebView still handles the gesture, not an alternate activity.
             }
-            collapseVoiceSettings={
-                voiceExpanded=false
-                voiceSurface.layoutParams=voiceSurface.layoutParams.apply {height=dp(128)}
-                voiceSettings?.invoke(false)
-            }
-            val voiceButton=button("Original settings · expand here") {
-                if(anyBusy || !visible) return@button
-                stopActive("Settings toggled; pending work/confirmations revoked.")
-                voiceExpanded=!voiceExpanded
-                voiceSurface.layoutParams=voiceSurface.layoutParams.apply {height=dp(if(voiceExpanded) 460 else 128)}
-                voiceSettings?.invoke(voiceExpanded)
-                menuPanel.visibility=View.GONE
-            }
+            val voiceButton=button("Original settings · expand here") {navigateSettings(3)}
             root.removeView(voiceButton);menuPanel.addView(voiceButton)
         }
         emptyState=column().apply {tag="empty_state";setPadding(0,dp(12),0,dp(24))}
@@ -268,7 +262,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         root = composer
         val controls=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;gravity=android.view.Gravity.CENTER_VERTICAL;tag="composer_controls"}
         modePicker=Spinner(this).apply {
-            tag="mode_picker";isSaveEnabled=false;filterTouchesWhenObscured=true
+            tag="mode_picker";isSaveEnabled=false;setPadding(0,0,0,0);filterTouchesWhenObscured=true
             adapter=choiceAdapter(listOf("Direct Chat", "Agent"));background=MayaTheme.shape(this@NativeChatWorkspace,MayaTheme.surface,10,false)
             contentDescription="Choose Direct Chat or Agent mode"
             onItemSelectedListener=object : AdapterView.OnItemSelectedListener {
@@ -276,12 +270,12 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                 override fun onItemSelected(parent: AdapterView<*>?,view: View?,position: Int,id: Long) {changeMode(position==1)}
             }
         }
-        controls.addView(modePicker,LinearLayout.LayoutParams(dp(88),dp(48)))
+        controls.addView(modePicker,LinearLayout.LayoutParams(0,dp(48),1f))
         agentKind=Spinner(this).apply {
-            tag="agent_kind";isSaveEnabled=false
+            tag="agent_kind";isSaveEnabled=false;setPadding(0,0,0,0)
             adapter=choiceAdapter(listOf("Research", "Build page"));contentDescription="Agent task: public research or static page Builder"
             filterTouchesWhenObscured=true;background=MayaTheme.shape(this@NativeChatWorkspace,MayaTheme.surface,10,false)
-            controls.addView(this,LinearLayout.LayoutParams(dp(88),dp(48)))
+            controls.addView(this,LinearLayout.LayoutParams(0,dp(48),1f))
             onItemSelectedListener=object : AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: AdapterView<*>?) {}
                 override fun onItemSelected(parent: AdapterView<*>?,view: View?,position: Int,id: Long) {
@@ -290,7 +284,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             }
         }
         counter = label("Your message · 0 / 2,000",12f).apply {setPadding(0,0,0,0)}
-        val composeRow = LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;root.addView(this)}
+        val composeRow = LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;gravity=android.view.Gravity.BOTTOM;root.addView(this)}
         draft = EditText(this).apply {
             tag="shared_composer";hint="Message Maya…";setHintTextColor(MayaTheme.muted);setTextColor(MayaTheme.text);textSize=16f
             minLines=1;maxLines=if(resources.configuration.fontScale>1.3f) 1 else 3;inputType=InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
@@ -313,12 +307,23 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             } catch(e: NativeChatProtocol.Rejected) {status.text=errorText(e.code,false);paint()}
         }
         draft.minHeight=dp(56)
-        composeRow.addView(draft,LinearLayout.LayoutParams(-1,-2))
+        composeRow.addView(draft,LinearLayout.LayoutParams(0,-2,1f))
         composer.addView(consent)
-        controls.addView(View(this),LinearLayout.LayoutParams(0,1,1f))
-        controls.addView(send,LinearLayout.LayoutParams(dp(48),dp(48)))
-        stopSpace=View(this).apply {visibility=View.GONE};controls.addView(stopSpace,LinearLayout.LayoutParams(dp(48),dp(48)))
-        composer.addView(controls)
+        composeRow.addView(send,LinearLayout.LayoutParams(dp(48),dp(48)))
+        stopSpace=View(this).apply {visibility=View.GONE};composeRow.addView(stopSpace,LinearLayout.LayoutParams(dp(48),dp(48)))
+        composer.addView(controls,1)
+        fun fitSelectors() {
+            if(controls.width<=0) return
+            val textPaint=android.text.TextPaint().apply {textSize=14f*resources.displayMetrics.scaledDensity}
+            val needed=textPaint.measureText("Agent ▾ Research ▾")+dp(48)
+            val stacked=agentSelected && controls.width<needed
+            val orientation=if(stacked) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+            if(controls.orientation!=orientation) {
+                controls.orientation=orientation
+                listOf(modePicker,agentKind).forEach {it.layoutParams=if(stacked) LinearLayout.LayoutParams(-1,dp(48)) else LinearLayout.LayoutParams(0,dp(48),1f)}
+            }
+        }
+        controls.addOnLayoutChangeListener {_,_,_,_,_,_,_,_,_->fitSelectors()}
         stop=actionButton("STOP") {stopActive("Stopped locally.")}.apply {tag="global_stop";text="■";textSize=20f;contentDescription="Stop current work"}
         buttonColors(send,MayaTheme.copper,MayaTheme.ink);buttonColors(stop,Color.rgb(65,37,40),MayaTheme.danger)
         root = infoPage
@@ -333,8 +338,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         label("MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · development build",12f)
         label("The original orb focuses this composer. Sunao uses saved Fish after confirmation; unified voice dictation is not available here.",13f)
         label("Normal Chat sends text only, with optional manual Fish playback. Agent mode adds inline, separately consented bounded public research to this same conversation. Original assistant settings remain separate.")
-        label("LEAVING THIS SCREEN = NEW CONVERSATION", 17f)
-        label("Backgrounding, closing or recreating this screen clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
+        label("BACKGROUND / EXIT CLEARS THIS CONVERSATION", 17f)
+        label("Internal Settings navigation keeps the conversation. Backgrounding, closing or recreating the Activity clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
         label("2,000 characters/message · 6,000 in context · 12 messages. 5 admitted requests/minute, 50/day shared with browser Chat; no guarantee of free capacity.")
         label("STOP ends local waiting, not guaranteed remote work or a refund. Failed/uncertain turns are excluded from follow-ups. No automatic retries, history storage or message logging.")
         label("Replies are untrusted plain text and may be inaccurate. Never enter passwords, OTPs, provider tokens or private keys.")
@@ -357,7 +362,6 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             menuPanel.visibility=if(menuPanel.visibility==View.GONE) View.VISIBLE else View.GONE
         }.apply {text="⋯";textSize=24f;tag="workspace_menu_toggle"},LinearLayout.LayoutParams(dp(48),dp(48)))
         shell.addView(header)
-        val tabs=menuPanel
         val body = column()
         status = labelView("No Chat request sent. Server Chat is owner-controlled.", 13f).apply {
             tag = "chat_status"; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
@@ -365,15 +369,16 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         body.addView(menuPanel)
         observeText(status) {updateStatusVisibility()}
         MayaTheme.status(status)
-        body.addView(status)
+        val notices=column().apply {tag="workspace_notices"}
+        body.addView(notices)
+        notices.addView(status)
         speechStatus = labelView("Fish · IDLE\n" + NativeFishPolicy.Code.IDLE.hint, 13f).apply {
             tag = "fish_status"; visibility = View.GONE; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
-        body.addView(speechStatus)
+        notices.addView(speechStatus)
         // Overlay warnings remain visible on every tab, never hidden in setup details.
-        checksPage.removeView(touchWarning); body.addView(touchWarning)
-        val pages = listOf(checksPage, infoPage, chatPage)
-        pages.forEach { body.addView(it) }
+        checksPage.removeView(touchWarning); notices.addView(touchWarning)
+        body.addView(chatPage)
         val scroll = ScrollView(this).apply { isSaveEnabled = false; isFillViewport = true; addView(body) }
         shell.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         // Reserve the fixed footer in the content layout; it cannot be pushed offscreen by IME/wrapping.
@@ -394,26 +399,64 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             if(shell.paddingBottom!=space) shell.setPadding(dp(16),dp(8),dp(16),space)
         }
         composer.addOnLayoutChangeListener {_,_,_,_,_,_,_,_,_ -> reserveComposer()}
-        // Utilities expand IN the conversation; never hide its timeline or composer.
+        // Dedicated internal Settings destination; the same conversation/composer objects stay owned.
+        // No Activity launch or onStop: real background/exit keeps the existing clear policy.
+        val settings=column().apply {tag="settings_screen";visibility=View.GONE;setBackgroundColor(MayaTheme.background);setPadding(dp(16),dp(8),dp(16),dp(16))}
+        settingsSurface=settings
+        val settingsHeader=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;gravity=android.view.Gravity.CENTER_VERTICAL}
+        val settingsTitle=labelView("Settings",21f)
+        settingsHeader.addView(actionButton("Back to workspace") {navigateSettings(if(section in 1..3) 4 else 0)}.apply {text="‹";textSize=28f;tag="settings_back"},LinearLayout.LayoutParams(dp(48),dp(56)))
+        settingsHeader.addView(settingsTitle,LinearLayout.LayoutParams(0,-2,1f));settings.addView(settingsHeader)
+        val settingsNotices=column();settings.addView(settingsNotices)
+        val settingsBody=FrameLayout(this).apply {tag="settings_body";isSaveEnabled=false}
+        settings.addView(settingsBody,LinearLayout.LayoutParams(-1,0,1f))
+        val settingsHome=column().apply {tag="settings_home"}
+        settingsHome.addView(labelView("Your Maya",13f).apply {setTextColor(MayaTheme.muted)})
+        val oldVoice=menuPanel.getChildAt(menuPanel.childCount-1).takeIf {voiceSurface!=null}
+        if(oldVoice!=null) {menuPanel.removeView(oldVoice);settingsHome.addView(oldVoice)}
         val detailButtons=mutableListOf<Button>()
-        fun showDetails(index: Int) {
-            confirmationGeneration++;disclosure?.dismiss();disclosure=null;agentCards.forEach {it.stop()}
-            menuPanel.visibility=View.GONE
-            checksPage.visibility=if(index==1) View.VISIBLE else View.GONE
-            infoPage.visibility=if(index==2) View.VISIBLE else View.GONE
-            chatPage.visibility=View.VISIBLE
-            detailButtons.forEachIndexed {i,button -> button.isSelected=i==index}
-            detailButtons.firstOrNull()?.visibility=if(index==0) View.GONE else View.VISIBLE
-            paint()
-        }
         listOf("Close details", "Checks ▾", "Privacy ▾").forEachIndexed {i,title ->
-            actionButton(title) {showDetails(if(i>0 && detailButtons[i].isSelected) 0 else i)}.also {
-                it.tag=listOf("details_close","details_checks","details_info")[i]
-                detailButtons.add(it)
-                if(i==0) body.addView(it,0) else tabs.addView(it,LinearLayout.LayoutParams(-1,-2))
+            actionButton(title) {navigateSettings(i)}.also {
+                it.tag=listOf("details_close","details_checks","details_info")[i];detailButtons.add(it)
+                if(i==0) {it.visibility=View.GONE;settingsHome.addView(it)} else settingsHome.addView(it)
             }
         }
-        showDetails(0)
+        settingsHome.addView(labelView("Conversation stays here when you open Settings. Backgrounding or leaving the app still clears this temporary conversation.",13f).apply {setTextColor(MayaTheme.muted)})
+        fun scrolling(page: View)=ScrollView(this).apply {isSaveEnabled=false;isFillViewport=true;addView(page)}
+        val homeScroll=scrolling(settingsHome);val checksScroll=scrolling(checksPage);val infoScroll=scrolling(infoPage)
+        val voicePage=FrameLayout(this).apply {tag="voice_settings_page";isSaveEnabled=false}
+        listOf(homeScroll,checksScroll,infoScroll,voicePage).forEach {settingsBody.addView(it,FrameLayout.LayoutParams(-1,-1))}
+        surface.addView(settings,FrameLayout.LayoutParams(-1,-1));stop.bringToFront()
+        fun placeVoice() {
+            if(voiceSurface!=null) {
+                val target=if(section==3) voicePage else voiceSlot!!
+                if(voiceSurface.parent!==target) {(voiceSurface.parent as? android.view.ViewGroup)?.removeView(voiceSurface);target.addView(voiceSurface,FrameLayout.LayoutParams(-1,if(section==3) -1 else dp(128)))}
+                voiceExpanded=section==3
+                voiceSettings?.invoke(voiceExpanded)
+            }
+        }
+        restoreVoicePresentation={placeVoice()}
+        navigateSettings={index ->
+            if(index!=section) stopActive("Settings toggled; active work and approvals stopped. Conversation retained.")
+            hideKeyboard();draft.clearFocus();confirmationGeneration++;disclosure?.dismiss();disclosure=null
+            section=index;menuPanel.visibility=View.GONE
+            shell.visibility=if(index==0) View.VISIBLE else View.GONE
+            composer.visibility=shell.visibility;chatPage.visibility=shell.visibility
+            settings.visibility=if(index==0) View.GONE else View.VISIBLE
+            settingsTitle.text=when(index) {1->"Checks & identity";2->"Privacy & limits";3->"Voice & appearance";else->"Settings"}
+            homeScroll.visibility=if(index==4) View.VISIBLE else View.GONE
+            checksScroll.visibility=if(index==1) View.VISIBLE else View.GONE;checksPage.visibility=checksScroll.visibility
+            infoScroll.visibility=if(index==2) View.VISIBLE else View.GONE;infoPage.visibility=infoScroll.visibility
+            voicePage.visibility=if(index==3) View.VISIBLE else View.GONE
+            val target=if(index==0) body else settingsNotices
+            if(notices.parent!==target) {(notices.parent as android.view.ViewGroup).removeView(notices);target.addView(notices,if(index==0) 1 else 0)}
+            detailButtons.forEachIndexed {i,button->button.isSelected=i==index}
+            placeVoice();paint()
+            settingsHeader.announceForAccessibility(if(index==0) "Conversation" else settingsTitle.text)
+        }
+        collapseVoiceSettings={navigateSettings(0)}
+        menuPanel.addView(actionButton("Settings") {navigateSettings(4)}.apply {tag="open_settings"})
+        navigateSettings(0)
         draft.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { paint() }
@@ -433,7 +476,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     fun selectAgentMode() {modePicker.setSelection(1);changeMode(true)}
     fun selectDirectMode() {modePicker.setSelection(0);changeMode(false)}
     fun focusComposer() {
-        if(!visible || anyBusy) return
+        if(!visible || anyBusy || section!=0) return
         draft.requestFocus()
         (getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.showSoftInput(draft,InputMethodManager.SHOW_IMPLICIT)
     }
@@ -665,7 +708,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun paint() {
         if (!::send.isInitialized || !::stop.isInitialized) return
         val busy = anyBusy
-        send.isEnabled = !busy && (agentSelected || consent.isChecked) && draft.text.toString().isNotBlank()
+        send.isEnabled = !busy && section==0 && (agentSelected || consent.isChecked) && draft.text.toString().isNotBlank()
         send.text="↑";send.textSize=22f
         send.contentDescription=if(agentSelected) "Submit Agent task" else "Send message"
         projectChip.visibility=if(agentSelected && buildTask!=null && kindSelection==1) View.VISIBLE else View.GONE
@@ -680,10 +723,12 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         stop.isEnabled = busy || agentCards.any {it.stoppable}
         stop.visibility=if(stop.isEnabled) View.VISIBLE else View.GONE
         stopSpace.visibility=stop.visibility
+        settingsSurface?.setPadding(dp(16),dp(8),dp(16),dp(if(stop.isEnabled) 84 else 16))
         emptyState.visibility=if(timeline.isEmpty() && !busy) View.VISIBLE else View.GONE
         voiceComponent?.let {view ->
-            val height=dp(if(voiceExpanded) 460 else if(timeline.isEmpty() && !busy) 128 else 72)
+            val height=if(voiceExpanded) -1 else dp(if(timeline.isEmpty() && !busy) 128 else 72)
             if(view.layoutParams.height!=height) view.layoutParams=view.layoutParams.apply {this.height=height}
+            if(!voiceExpanded) voiceSlot?.let {slot->if(slot.layoutParams.height!=height) slot.layoutParams=slot.layoutParams.apply {this.height=height}}
         }
         updateStatusVisibility()
         touchWarning.visibility=if(touchWarning.text.isEmpty()) View.GONE else View.VISIBLE
@@ -769,8 +814,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun choiceAdapter(values: List<String>)=object : ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,values) {
         override fun getView(position: Int,convertView: View?,parent: android.view.ViewGroup): View = TextView(this@NativeChatWorkspace).apply {
-            text=(if(values[position]=="Direct Chat") "Direct" else values[position])+" ▾";MayaTheme.label(this,12f);setPadding(dp(6),0,dp(2),0);gravity=android.view.Gravity.CENTER_VERTICAL
-            maxLines=2;ellipsize=android.text.TextUtils.TruncateAt.END
+            text=(if(values[position]=="Direct Chat") "Direct" else values[position])+" ▾";MayaTheme.label(this,14f);setPadding(dp(8),0,dp(8),0);gravity=android.view.Gravity.CENTER_VERTICAL
+            maxLines=1;ellipsize=android.text.TextUtils.TruncateAt.END
             layoutParams=android.view.ViewGroup.LayoutParams(-1,dp(48));contentDescription=values[position]
         }
         override fun getDropDownView(position: Int,convertView: View?,parent: android.view.ViewGroup): View = TextView(this@NativeChatWorkspace).apply {
@@ -779,12 +824,13 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun runOnUiThread(action: () -> Unit) { host.runOnUiThread { action() } }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    fun resume() { visible = true; collapseVoiceSettings(); showAccessDiagnostic(); paint() }
+    fun resume() { visible = true; restoreVoicePresentation(); showAccessDiagnostic(); paint() }
     fun pause() { visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
     fun focusChanged(hasFocus: Boolean) {
         if(!hasFocus && agentBusy) agentCards.forEach {it.stop()}
     }
     private fun endLocalSession() {
+        collapseVoiceSettings()
         clearAgents()
         visible = false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null
         stopActive("This screen was left; local chat was cleared.", NativeAccessDiagnostic.State.LEFT_SCREEN)
@@ -799,6 +845,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         endLocalSession(); handler.removeCallbacksAndMessages(null)
     }
     fun requestClose() {
+        if(disclosure?.isShowing==true) {confirmationGeneration++;disclosure?.dismiss();disclosure=null;return}
+        if(section!=0) {navigateSettings(if(section in 1..3) 4 else 0);return}
+        if(menuPanel.visibility==View.VISIBLE) {menuPanel.visibility=View.GONE;return}
         if (draft.text.isNotEmpty() || session.messages().isNotEmpty() || active != null || speech.busy || agentCards.isNotEmpty())
             confirm("Leave private Chat?", "Leaving clears Chat and Agent data and stops local waiting. It does not erase provider records or refund usage.") { endLocalSession(); close() }
         else { endLocalSession(); close() }

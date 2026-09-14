@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>/* NATIVE_HOST_BOOT: presentation only, before first body paint. */
+if (window.MayaBridge) document.documentElement.classList.add("maya-workspace-host");
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#050508">
 <meta name="description" content="MAYA v4 — personal AI assistant. Voice + Gemini brain + phone commands + personas.">
@@ -10,7 +13,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>MAYA — Personal AI v4</title>
 <style>
-/* ================= MAYA v5.28.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+/* ================= MAYA v5.29.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
    Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
 :root{
   /* new tokens */
@@ -548,7 +551,8 @@ html.maya-workspace-host #tab-home > :not(.workspace-orb-link){display:none!impo
 html.maya-workspace-host .workspace-orb-link{display:block;width:100px;height:100px;margin:0 auto;text-decoration:none}
 html.maya-workspace-host #orb{width:100px;height:100px}
 html.maya-workspace-host #orb .orbCore{font-size:30px}
-html.maya-workspace-host.maya-settings-expanded #tab-set{display:block!important;max-height:none;padding:12px 12px 30px;overflow:visible}
+html.maya-workspace-host.maya-settings-expanded #tab-home{display:none!important}
+html.maya-workspace-host.maya-settings-expanded #tab-set{display:block!important;max-height:none;padding:8px 0 24px;overflow:visible}
 html.maya-workspace-host #tab-set > .ui-card{display:none!important}
 html.maya-workspace-host [data-main-chat]{display:none!important}
 /* Local host presentation only: preserve the original orb/settings and all saved values. */
@@ -575,7 +579,7 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver"><span data-build-version>v5.28.0</span> — DEVELOPMENT TEST · phone validation pending</div>
+  <div class="ver"><span data-build-version>v5.29.0</span> — DEVELOPMENT TEST · phone validation pending</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -600,14 +604,14 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.28.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.29.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.28.0</span></small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.29.0</span></small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -771,7 +775,7 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.28.0</span></div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.29.0</span></div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -1256,7 +1260,7 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.28.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.29.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1271,7 +1275,7 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.28.0</span> · loading</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.29.0</span> · loading</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1337,8 +1341,8 @@ setTimeout(function(){
 
 <script>
 "use strict";
-/* ================= MAYA v5.28.0 — Doctor Build ================= */
-var MAYA_BUILD = { versionName: "5.28.0", versionCode: 99 };
+/* ================= MAYA v5.29.0 — Doctor Build ================= */
+var MAYA_BUILD = { versionName: "5.29.0", versionCode: 100 };
 window.__mayaJSOK = true;
 try { document.getElementById("dbgBadge").textContent = "v" + MAYA_BUILD.versionName + " · script loaded"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
@@ -1372,7 +1376,7 @@ try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.ma
 window.__mayaWorkspaceMount = function () {
   var orb = document.getElementById("orb");
   if (!orb || !window.MayaBridge) return false;
-  if (!document.documentElement.classList.contains("maya-workspace-host")) {
+  if (!orb.parentNode.classList.contains("workspace-orb-link")) {
     var link = document.createElement("a");
     link.className = "workspace-orb-link";
     link.href = "maya-private-chat://open";
@@ -1389,13 +1393,17 @@ window.__mayaWorkspaceMount = function () {
       legacyStop.textContent = "STOP original voice / background turn";
       settingsPanel.insertBefore(legacyStop, settingsPanel.firstChild);
     }
-    document.documentElement.classList.add("maya-workspace-host");
   }
-  return true;
+  document.documentElement.classList.add("maya-workspace-host");
+  return orb.parentNode.classList.contains("workspace-orb-link");
 };
 window.__mayaWorkspaceSettings = function (expanded) {
-  if (!document.documentElement.classList.contains("maya-workspace-host")) return;
-  document.documentElement.classList.toggle("maya-settings-expanded", expanded === true);
+  if (!window.__mayaWorkspaceMount()) return false;
+  var root = document.documentElement;
+  var wasExpanded = root.classList.contains("maya-settings-expanded");
+  root.classList.toggle("maya-settings-expanded", expanded === true);
+  if (wasExpanded !== (expanded === true)) window.scrollTo(0, 0);
+  return root.classList.contains("maya-workspace-host") && root.classList.contains("maya-settings-expanded") === (expanded === true);
 };
 /* PERMANENT_WORKSPACE_END */
 
@@ -1500,7 +1508,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.28.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.29.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -9634,7 +9642,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.28.0 — DOCTOR REPORT");
+  out.push("MAYA v5.29.0 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -10200,7 +10208,12 @@ function accent2Of(a){
   return "#" + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
 }
 function applyTheme(){
-  document.documentElement.className = "t-" + (settings.theme || "obsidian") + (window.__compatClass || "");
+  // Only replace theme tokens. Never erase native host/settings or compatibility state.
+  var root = document.documentElement;
+  Array.prototype.slice.call(root.classList).forEach(function (name) {
+    if (name.indexOf("t-") === 0) root.classList.remove(name);
+  });
+  root.classList.add("t-" + (Object.prototype.hasOwnProperty.call(THEMES, settings.theme) ? settings.theme : "obsidian"));
   document.documentElement.style.setProperty("--accent", settings.accent || "#FF7A1A");
   document.documentElement.style.setProperty("--accent2", accent2Of(settings.accent || "#FF7A1A"));
   document.documentElement.style.setProperty("--radius", (settings.radius || 18) + "px");
@@ -10346,8 +10359,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.28.0"; } catch(e){}
-try { pushLog("MAYA v5.28.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.29.0"; } catch(e){}
+try { pushLog("MAYA v5.29.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)

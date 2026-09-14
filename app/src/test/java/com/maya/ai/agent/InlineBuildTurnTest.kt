@@ -182,4 +182,23 @@ class InlineBuildTurnTest {
         assertFalse(card.busy);assertEquals(1,fake.cancels)
     }
 
+    @Test fun undoIsExplicitLocalOnlyAndManualEditRevokesIt() {
+        submit(html);submit("make the title blue");yes()
+        val revised="<html><body>Revised</body></html>"
+        fake.calls[0].second(revised,null);button("Apply reviewed proposal locally").performClick();yes()
+        assertEquals(revised,card.editor.text.toString());assertTrue(button("Undo last apply").isShown)
+        button("Undo last apply").performClick();assertEquals(revised,card.editor.text.toString());yes()
+        assertEquals(html,card.editor.text.toString());assertEquals(1,fake.calls.size)
+        assertNull(root.findViewWithTag<WebView>("isolated_static_preview"));assertFalse(button("Undo last apply").isShown)
+        submit("revise again");yes();fake.calls[1].second(revised,null);button("Apply reviewed proposal locally").performClick();yes()
+        card.editor.setText("<html>Owner edit</html>");assertFalse(button("Undo last apply").isShown)
+    }
+    @Test fun dedicatedSettingsStopsPreviewButKeepsCodeAndSameProject() {
+        submit(html);button("Render static preview here").performClick();yes();val original=card
+        button("Workspace menu").performClick();button("Settings").performClick()
+        assertFalse(original.stoppable);assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+        assertEquals(html,original.editor.text.toString());assertFalse(field<EditText>("draft").isShown)
+        workspace.requestClose();assertSame(original,card);assertTrue(field<EditText>("draft").isShown);assertTrue(fake.calls.isEmpty())
+    }
+
 }
