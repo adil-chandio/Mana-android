@@ -232,7 +232,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             id=View.generateViewId();text="Agent mode";textSize=13f;tag="mode_agent";setTextColor(Color.WHITE);isSaveEnabled=false;filterTouchesWhenObscured=true
             setOnCheckedChangeListener {_,checked -> if(checked) changeMode(true)}
         }
-        modes.addView(directMode,RadioGroup.LayoutParams(0,dp(40),1f));modes.addView(agentMode,RadioGroup.LayoutParams(0,dp(40),1f));directMode.isChecked=true
+        modes.addView(directMode,RadioGroup.LayoutParams(0,dp(48),1f));modes.addView(agentMode,RadioGroup.LayoutParams(0,dp(48),1f));directMode.isChecked=true
         counter = label("Your message · 0 / 2,000",12f).apply {setPadding(0,0,0,0)}
         val composeRow = LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;root.addView(this)}
         draft = EditText(this).apply {
@@ -374,9 +374,16 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                 if(draft.text.isEmpty()) putSource() else confirm("Replace the existing draft?", "The source will replace the text currently in your shared composer. Cancel keeps your draft. Nothing is sent now.") {putSource()}
             },
             {text -> confirmSpeech(text) {card in agentCards && card.explanation==text}})
-        agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory()
+        agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
         status.text="Agent task added to this conversation. No action without plan approval."
         if(manual==null) card.propose()
+    }
+    private fun revealTurn(view: View) {
+        val generation=confirmationGeneration
+        handler.post {
+            if(visible && section==0 && generation==confirmationGeneration && view.parent===history)
+                view.requestRectangleOnScreen(android.graphics.Rect(0,0,view.width,dp(120)),true)
+        }
     }
     private fun confirm(title: String, text: String, yes: () -> Unit) {
         if (disclosure?.isShowing == true) return
@@ -438,7 +445,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                 }
                 result is NativeChatResponse.Result.Reply && job.turn != null -> {
                     if (session.complete(job.turn, result.text) == NativeChatConversation.Completion.ACCEPTED) {
-                        draft.setText(""); renderHistory(); status.text = "Model response received; it may be inaccurate."
+                        draft.setText(""); renderHistory(); history.getChildAt((history.childCount-2).coerceAtLeast(0))?.let {revealTurn(it)}; status.text = "Model response received; it may be inaccurate."
                     } else status.text = "Late result excluded. No automatic resend."
                 }
                 result === NativeChatResponse.Result.Access && job.kind == "check" ->

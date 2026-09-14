@@ -422,4 +422,17 @@ class NativeChatActivityTest {
         port.requests.single().second(NativeFishPolicy.Result.Prepared("SYNTHETIC","SYNTHETIC"));assertEquals(0,port.plays);noTransport()
     }
 
+    @Test fun sharedComposerAndStopRemainReachableInBothModesAtCompactSize() {
+        val surface=content.getChildAt(0) as ViewGroup
+        for(agent in listOf(false,true)) {
+            mode(agent);field<EditText>("draft").setText("x".repeat(401))
+            surface.measure(View.MeasureSpec.makeMeasureSpec(320,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(320,View.MeasureSpec.EXACTLY))
+            surface.layout(0,0,320,320)
+            val draft=field<EditText>("draft");val box=android.graphics.Rect();draft.getDrawingRect(box);surface.offsetDescendantRectToMyCoords(draft,box)
+            assertTrue(draft.height>=48);assertTrue(box.top>=0);assertTrue(box.bottom<=field<Button>("stop").top)
+            assertTrue(field<RadioButton>("agentMode").height>=48);assertTrue(field<Button>("stop").bottom<=320)
+        }
+        noTransport()
+    }
+
 }

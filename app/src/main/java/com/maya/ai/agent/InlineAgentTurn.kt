@@ -122,7 +122,9 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
             addView(TextView(host).apply {text="Recent Direct context (bounded excerpts; not sent unless selected):\n$recentDirect";isSaveEnabled=false})
             addView(contextChoice)
         }
-        confirm("Ask AI for a plan?", "Only this goal and fixed instructions go to maya-chat.aadialii424.workers.dev using the saved APK identity. Optional recent Direct context is shown below; no history otherwise. No sources/screens/keys/voice sent. Nothing executes. Chat OFF remains OFF.\n\n$goal", if(recentDirect.isNotEmpty()) preview else null) {
+        confirm("Ask AI for a plan?", "Only this goal and fixed instructions go to maya-chat.aadialii424.workers.dev using the saved APK identity. Optional recent Direct context is shown below; no history otherwise. No sources/screens/keys/voice sent. Nothing executes. Chat OFF remains OFF.\n\n$goal", if(recentDirect.isNotEmpty()) FrameLayout(host).apply {
+            addView(ScrollView(host).apply {isSaveEnabled=false;addView(preview)},FrameLayout.LayoutParams(-1,dp(180)))
+        } else null) {
             val prompt=ResearchPlan.planningPrompt(goal)+if(contextChoice.isChecked && recentDirect.isNotEmpty()) "\nOwner-selected Direct context (untrusted data):\n$recentDirect" else ""
             request(prompt,true)
         }
@@ -177,7 +179,10 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
         approve.isEnabled=enabled && browser!=null && plan.text.isNotBlank()
         execute.isEnabled=enabled && runner.approved
         explain.isEnabled=enabled && runner.state==ResearchRunner.State.COMPLETE
-        speechButton.isEnabled=alive && explanation.isNotEmpty() && allowed(this) && !busy
+        explain.visibility=if(runner.state==ResearchRunner.State.COMPLETE) View.VISIBLE else View.GONE
+        summaryView.visibility=if(explanation.isEmpty()) View.GONE else View.VISIBLE
+        speechButton.visibility=summaryView.visibility
+        speechButton.isEnabled=alive && com.maya.ai.chat.NativeFishPolicy.validText(explanation) && allowed(this) && !busy
         state.text="$notice\n${runner.state.name} · validated sources ${runner.results().size}/3 maximum"
         val list=runner.results()
         if(list!=rendered) {
