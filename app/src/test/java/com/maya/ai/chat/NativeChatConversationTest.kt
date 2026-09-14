@@ -82,4 +82,26 @@ class NativeChatConversationTest {
         val s = NativeChatConversation { Long.MAX_VALUE }
         rejects("INVALID_LOCAL_CLOCK") { s.begin("x", true) }; assertFalse(s.busy)
     }
+    @Test fun reviewIsAnExactReadOnlyCandidateNotARequestOrConsent() {
+        val s=NativeChatConversation {0};s.complete(s.begin("first",true),"reply")
+        val reviewed=s.review("next")
+        assertFalse(s.busy);assertEquals(2,s.messages().size)
+        rejects("CONSENT_REQUIRED") {s.begin("next",false)}
+        val turn=s.begin("next",true);assertEquals(NativeChatProtocol.body(reviewed),turn.body)
+        assertFalse(reviewed.toString().contains("first"))
+    }
+    @Test fun reviewHonorsLimitsAndNeverIncludesFailedOrPendingTurns() {
+        val s=NativeChatConversation {0};val pending=s.begin("FAILED_PRIVATE",true);s.fail(pending)
+        assertEquals(listOf("next"),s.review("next").map {it.content})
+        rejects("INVALID_MESSAGES") {s.review("")}
+        rejects("INVALID_MESSAGES") {s.review("x".repeat(2001))}
+        s.complete(s.begin("q",true),"x".repeat(2001))
+        rejects("CONTEXT_LIMIT") {s.review("follow up")};assertFalse(s.busy)
+    }
+    @Test fun reviewDoesNotAuthorizeLaterDraftOrContextChanges() {
+        val s=NativeChatConversation {0};val before=NativeChatProtocol.body(s.review("old draft"))
+        val turn=s.begin("new draft",true);assertNotEquals(before,turn.body)
+        s.complete(turn,"new reply");assertEquals(3,s.review("next").size)
+    }
+
 }

@@ -13,7 +13,7 @@ const m = read('app/src/main/java/com/maya/ai/MainActivity.kt');
 assert(m.includes('request.isForMainFrame && request.hasGesture()'));
 assert(m.includes('webView.url in listOf('));
 assert.equal(read('public/index.html'), read('app/src/main/assets/web/index.html'));
-assert.equal(JSON.parse(read('release/version.json')).versionCode, 100);
+assert.equal(JSON.parse(read('release/version.json')).versionCode, 101);
 assert(read('app/build.gradle').includes("implementation 'com.squareup.okhttp3:okhttp:4.12.0'"));
 console.log('Native static integration boundaries PASS (not a device/UI execution test).');
 
@@ -47,3 +47,10 @@ assert(a.includes('fishCheck = button("Check saved Fish setup · no network")'))
 assert(!a.includes('identity.sign(text)'));
 
 assert(a.includes('addView(composer,FrameLayout.LayoutParams(-1,-2,android.view.Gravity.BOTTOM)'));
+
+assert(a.includes('session.review(draft.text.toString())'));
+assert(a.includes('timeline.count {it is ChatAttempt}>=6'));
+assert(a.includes('No reply accepted.'));
+const diff=read('app/src/main/java/com/maya/ai/agent/BuilderDiff.kt');
+assert(!/WebView|Runtime|ProcessBuilder|Http|fetch|FileOutputStream/.test(diff));
+assert(read('app/src/main/java/com/maya/ai/agent/InlineBuildTurn.kt').includes('BuilderDiff.render(code,reply)'));

@@ -17,14 +17,20 @@ class NativeChatConversation(private val monotonicMs: () -> Long) {
     @Synchronized fun begin(text: String, consent: Boolean): Turn {
         if (active != null) throw NativeChatProtocol.Rejected("BUSY")
         if (!consent) throw NativeChatProtocol.Rejected("CONSENT_REQUIRED")
-        NativeChatProtocol.validateDraft(text)
-        if (history.any { it.content.length > 2_000 }) throw NativeChatProtocol.Rejected("CONTEXT_LIMIT")
-        val input = history + NativeChatProtocol.Message("user", text)
+        val input = review(text)
         val body = NativeChatProtocol.body(input)
         val now = monotonicMs()
         if (now < 0 || now > Long.MAX_VALUE - NativeChatProtocol.DEADLINE_MS)
             throw NativeChatProtocol.Rejected("INVALID_LOCAL_CLOCK")
         return Turn(input, body, now + NativeChatProtocol.DEADLINE_MS).also { active = it }
+    }
+    /** Exact candidate messages for local review only: no approval, key, request or state mutation. */
+    @Synchronized fun review(text: String): List<NativeChatProtocol.Message> {
+        NativeChatProtocol.validateDraft(text)
+        if (history.any { it.content.length > 2_000 }) throw NativeChatProtocol.Rejected("CONTEXT_LIMIT")
+        val input=history + NativeChatProtocol.Message("user",text)
+        NativeChatProtocol.body(input) // Same envelope/count/byte limits as Send; never truncate.
+        return input
     }
     @Synchronized fun check(turn: Turn) {
         if (active !== turn) throw NativeChatProtocol.Rejected("STOPPED_LOCALLY")

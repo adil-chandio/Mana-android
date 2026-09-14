@@ -530,4 +530,67 @@ class NativeChatActivityTest {
         openPage("chat");assertEquals(1,port.stops);noTransport()
     }
 
+    private fun pendingWithCard(): Any {
+        val job=pending()
+        NativeChatWorkspace::class.java.getDeclaredMethod("attachAttempt",job.javaClass).apply {isAccessible=true}.invoke(workspace,job)
+        return job
+    }
+    private fun yesDialog() {ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()}
+    @Test fun contextReviewShowsOnlyCandidateDirectMessagesWithoutConsentOrTransport() {
+        completedHistory();field<EditText>("draft").setText("CURRENT_DRAFT")
+        assertFalse(field<CheckBox>("consent").isChecked)
+        button("Review Direct context").performClick()
+        val d=ShadowAlertDialog.getLatestAlertDialog();val text=d.findViewWithTagForTest("direct_context_snapshot")
+        assertTrue(text.contains("SYNTHETIC_CONTEXT"));assertTrue(text.contains("SYNTHETIC_REPLY"));assertTrue(text.contains("CURRENT_DRAFT"))
+        assertFalse(field<NativeChatConversation>("session").busy);assertFalse(field<CheckBox>("consent").isChecked)
+        yesDialog();assertFalse(field<Button>("send").isEnabled);noTransport()
+    }
+    private fun android.app.AlertDialog.findViewWithTagForTest(tag: String): String = window!!.decorView.findViewWithTag<TextView>(tag).text.toString()
+    @Test fun blockedSendHasInlineRecoveryButNeverEntersAiContext() {
+        activity.getSharedPreferences("maya",Context.MODE_PRIVATE).edit().putBoolean("wake",true).commit()
+        fill();field<Button>("send").performClick()
+        assertNotNull(content.findViewWithTag<View>("chat_attempt"))
+        assertTrue(content.findViewWithTag<TextView>("attempt_status").text.contains("No model request was sent"))
+        val session=field<NativeChatConversation>("session");assertTrue(session.messages().isEmpty())
+        assertEquals(listOf("fresh draft"),session.review("fresh draft").map {it.content})
+        field<EditText>("draft").setText("KEEP_NEW_DRAFT");button("Restore draft").performClick()
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("KEEP_NEW_DRAFT",field<EditText>("draft").text.toString())
+        button("Restore draft").performClick();yesDialog()
+        assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString());assertFalse(session.busy);noTransport()
+    }
+    @Test fun acceptedReplyReplacesPendingCardWithoutDuplicateMessage() {
+        val job=pendingWithCard();assertNotNull(content.findViewWithTag<View>("chat_attempt"))
+        complete(job)
+        assertNull(content.findViewWithTag<View>("chat_attempt"));assertEquals(2,field<NativeChatConversation>("session").messages().size)
+        assertEquals(3,field<LinearLayout>("history").childCount);noTransport()
+    }
+    @Test fun stoppedAttemptRemainsLocalAndStaleCompletionCannotReviveIt() {
+        val job=pendingWithCard();field<Button>("stop").performClick();cancelled(job);complete(job)
+        assertNotNull(content.findViewWithTag<View>("chat_attempt"));assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
+        field<EditText>("draft").setText("");button("Restore draft").performClick()
+        assertEquals("SYNTHETIC_PENDING",field<EditText>("draft").text.toString());assertNull(field<Any?>("active"));noTransport()
+    }
+    @Test fun dismissIsConfirmedAndKeepsDraftAndCompletedContext() {
+        completedHistory();val job=pendingWithCard();field<Button>("stop").performClick();fill()
+        button("Dismiss attempt").performClick();assertNotNull(content.findViewWithTag<View>("chat_attempt"));yesDialog()
+        assertNull(content.findViewWithTag<View>("chat_attempt"));assertEquals(2,field<NativeChatConversation>("session").messages().size)
+        assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString());cancelled(job);noTransport()
+    }
+    @Test fun attemptCapDoesNotSilentlyEvictOrSendAndBackgroundClearsAll() {
+        activity.getSharedPreferences("maya",Context.MODE_PRIVATE).edit().putBoolean("wake",true).commit()
+        repeat(6) {fill();field<Button>("send").performClick()}
+        assertEquals(6,field<LinearLayout>("history").childCount)
+        field<Button>("send").performClick();assertTrue(field<TextView>("status").text.contains("Six local attempt cards"))
+        assertEquals(6,field<LinearLayout>("history").childCount)
+        controller!!.pause().stop();assertEquals(0,field<LinearLayout>("history").childCount);assertTrue(field<List<Any>>("timeline").isEmpty());noTransport()
+    }
+    @Test fun staleRestoreConfirmationCannotOverwriteAnotherDraftOrSend() {
+        val job=pendingWithCard();field<Button>("stop").performClick();field<EditText>("draft").setText("original")
+        button("Restore draft").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
+        field<EditText>("draft").setText("changed after confirmation opened")
+        old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals("changed after confirmation opened",field<EditText>("draft").text.toString());cancelled(job);noTransport()
+    }
+
 }

@@ -201,4 +201,18 @@ class InlineBuildTurnTest {
         workspace.requestClose();assertSame(original,card);assertTrue(field<EditText>("draft").isShown);assertTrue(fake.calls.isEmpty())
     }
 
+    @Test fun actualDiffIsLocalReadOnlyAndDisappearsWhenCodeChanges() {
+        submit(html);submit("revise");yes();val revised="<html><body>DIFF_NEW</body></html>"
+        fake.calls[0].second(revised,null)
+        val diff=root.findViewWithTag<TextView>("builder_diff")
+        assertEquals(View.GONE,diff.visibility);root.findViewWithTag<Button>("builder_diff_toggle").performClick()
+        assertEquals(View.VISIBLE,diff.visibility);assertTrue(diff.text.contains("− "+html));assertTrue(diff.text.contains("+ "+revised))
+        assertEquals(html,card.editor.text.toString());assertEquals(1,fake.calls.size);assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
+        card.editor.setText("<html>OWNER_CHANGE</html>");assertEquals(View.GONE,diff.visibility);assertEquals("",diff.text.toString())
+    }
+    @Test fun hiddenBuilderCannotRequestAiFromDedicatedSettings() {
+        submit(html);button("Workspace menu").performClick();button("Settings").performClick()
+        card.propose("must not send from hidden card");assertTrue(fake.calls.isEmpty());assertEquals(html,card.editor.text.toString())
+    }
+
 }

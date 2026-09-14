@@ -54,6 +54,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         var timeout: Runnable? = null
         var readinessTimeout: Runnable? = null
         var waitingReadiness = false
+        var attempt: ChatAttempt?=null
         var accessTicket: NativeAccessDiagnostic.Ticket? = null
         @Volatile var accessHttp = 0
     }
@@ -96,7 +97,14 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private lateinit var speechStatus: TextView
     private lateinit var fishCheck: Button
     private lateinit var fishSample: Button
+    private val recoveryButtons=mutableListOf<Button>()
     private val speechButtons = mutableListOf<Pair<Button, String>>()
+    private class ChatAttempt(var text: String) {
+        var pending=true
+        var detail="Preparing request… No response received yet."
+        fun clear() {text="";detail="";pending=false}
+        override fun toString()="ChatAttempt(redacted)"
+    }
     private var active: Job? = null
     private var visible = false
     private var agentSelected = false
@@ -128,6 +136,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private lateinit var readinessButton: Button
     private var readinessReason = Reason.NOT_CHECKED
     private lateinit var contextNote: TextView
+    private lateinit var contextReview: Button
     private lateinit var history: LinearLayout
     private lateinit var keyText: TextView
     private lateinit var counter: TextView
@@ -283,6 +292,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                 }
             }
         }
+        contextReview=actionButton("Review Direct context") {reviewDirectContext()}.apply {tag="review_direct_context";text="Context";maxLines=1}
+        controls.addView(contextReview,LinearLayout.LayoutParams(0,dp(48),1f))
         counter = label("Your message · 0 / 2,000",12f).apply {setPadding(0,0,0,0)}
         val composeRow = LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;gravity=android.view.Gravity.BOTTOM;root.addView(this)}
         draft = EditText(this).apply {
@@ -296,13 +307,17 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         send = actionButton("Send message") {
             if(anyBusy || !visible || section!=0) return@actionButton
             if(agentSelected) { submitAgent();return@actionButton }
+            if(timeline.count {it is ChatAttempt}>=6) {status.text="Six local attempt cards retained. Dismiss one explicitly or clear the conversation before another Send. Nothing sent.";return@actionButton}
             agentCards.forEach {it.stop()}
             try {
                 val turn=session.begin(draft.text.toString(),consent.isChecked);hideKeyboard()
                 start("chat",turn) {job ->
                     val signed=identity.sign(turn.input);job.operation.check()
                     if(signed.body!=turn.body) throw NativeChatProtocol.Rejected("INVALID_REQUEST")
-                    transport.execute(signed,job.operation) {session.markDispatched(turn)}
+                    transport.execute(signed,job.operation) {
+                        session.markDispatched(turn)
+                        runOnUiThread {if(active===job && visible) {job.attempt?.detail="Waiting for response… Request dispatched; no reply accepted yet.";renderHistory()}}
+                    }
                 }
             } catch(e: NativeChatProtocol.Rejected) {status.text=errorText(e.code,false);paint()}
         }
@@ -481,7 +496,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         (getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.showSoftInput(draft,InputMethodManager.SHOW_IMPLICIT)
     }
     private fun clearAgents() {
-        val old=agentCards.toList();agentCards.clear();buildTask=null;timeline.clear();shownDirect=0
+        val old=agentCards.toList();agentCards.clear();buildTask=null;timeline.filterIsInstance<ChatAttempt>().forEach {it.clear()};timeline.clear();shownDirect=0
         old.forEach {it.dispose()}
     }
     private fun submitAgent() {
@@ -524,7 +539,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if(agentCards.size>=3) {status.text="Three task cards already exist. Clear explicitly to start another; draft kept.";return}
         agentCards.forEach {it.stop()}
         val card=com.maya.ai.agent.InlineBuildTurn(host,value,researchServices,
-            {turn -> visible && agentSelected && active==null && !speech.busy && agentCards.none {it!==turn && it.busy}}, {paint()})
+            {turn -> visible && section==0 && agentSelected && active==null && !speech.busy && agentCards.none {it!==turn && it.busy}}, {paint()})
         buildTask=card;agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
         status.text="Builder stays in this conversation. One memory-only index.html; static preview needs confirmation."
         if(!manual) card.propose(value)
@@ -549,6 +564,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun start(kind: String, turn: NativeChatConversation.Turn?, work: (Job) -> Any) {
         if (anyBusy || !visible || (kind == "chat" && agentSelected)) { if (turn != null) session.fail(turn); return }
         val job = Job(kind, turn, SystemClock.elapsedRealtime()); active = job
+        attachAttempt(job)
         if (kind == "check") {
             obscuredTouchSeen = false; touchWarning.text = ""
             job.accessTicket = accessDiagnostic.begin(); showAccessDiagnostic()
@@ -585,6 +601,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             accessDiagnostic.finish(ticket, state, code, job.accessHttp, SystemClock.elapsedRealtime() - job.started)
             showAccessDiagnostic()
         }
+        var accepted=false
         val seconds = (SystemClock.elapsedRealtime() - job.started).coerceAtLeast(0) / 1000.0
         try {
             when {
@@ -596,6 +613,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                 }
                 result is NativeChatResponse.Result.Reply && job.turn != null -> {
                     if (session.complete(job.turn, result.text) == NativeChatConversation.Completion.ACCEPTED) {
+                        accepted=true;job.attempt?.let {timeline.remove(it);it.clear()};job.attempt=null
                         draft.setText(""); renderHistory(); history.getChildAt((history.childCount-2).coerceAtLeast(0))?.let {revealTurn(it)}; status.text = "Model response received; it may be inaccurate."
                     } else status.text = "Late result excluded. No automatic resend."
                 }
@@ -612,6 +630,10 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             val duration = String.format(java.util.Locale.US, "%.2f", seconds)
             status.append(if (job.operation.attempted) "\nLocal wait: $duration s (key/signing + network + server; not model-only speed)."
                 else "\nLocal pre-dispatch wait: $duration s. No network request sent.")
+        }
+        if(job.kind=="chat" && !accepted) {
+            job.attempt?.takeIf {it in timeline}?.let {it.pending=false;it.detail="No reply accepted.\n"+status.text.toString()}
+            renderHistory()
         }
         paint()
     }
@@ -631,6 +653,10 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                 showAccessDiagnostic()
             }
             if (::status.isInitialized) status.text = message + if (job.kind == "chat" && job.operation.attempted) " Remote work may continue/completed; usage may count. No retry." else " No model dispatch confirmed; no automatic retry."
+            if(job.kind=="chat") {
+                job.attempt?.takeIf {it in timeline}?.let {it.pending=false;it.detail=status.text.toString()}
+                renderHistory()
+            }
         } else if (::status.isInitialized) status.text = message
         paint()
     }
@@ -658,6 +684,51 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
         return message + if (uncertain) " Remote work may have completed/continue; usage may count." else " This operation did not confirm a model dispatch."
     }
+    private fun attachAttempt(job: Job) {
+        if(job.kind!="chat" || job.turn==null || job.attempt!=null) return
+        val attempt=ChatAttempt(job.turn.input.last().content)
+        job.attempt=attempt;timeline.add(attempt);renderHistory()
+        history.getChildAt(history.childCount-1)?.let {revealTurn(it)}
+    }
+    private fun attemptView(attempt: ChatAttempt): View {
+        val card=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;tag="chat_attempt";isSaveEnabled=false;background=MayaTheme.shape(this@NativeChatWorkspace);setPadding(dp(12),dp(8),dp(12),dp(8));layoutParams=LinearLayout.LayoutParams(-1,-2).apply {bottomMargin=dp(12)}}
+        card.addView(labelView("You · Direct attempt",13f))
+        card.addView(labelView(attempt.text,16f).apply {setTextIsSelectable(true);maxLines=6;ellipsize=android.text.TextUtils.TruncateAt.END;setOnClickListener {maxLines=if(maxLines==6) Int.MAX_VALUE else 6};minHeight=dp(48)})
+        card.addView(labelView(attempt.detail,13f).apply {tag="attempt_status";MayaTheme.status(this);accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE})
+        if(!attempt.pending) {
+            card.addView(labelView("Not automatically included in AI context. Restore copies to the draft; it never resends.",12f))
+            val actions=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;card.addView(this)}
+            actions.addView(actionButton("Restore draft") {
+                if(!visible || section!=0 || anyBusy || attempt !in timeline) return@actionButton
+                val original=draft.text.toString();val text=attempt.text
+                fun restore() {if(visible && section==0 && !anyBusy && attempt in timeline && draft.text.toString()==original) {selectDirectMode();draft.setText(text);draft.setSelection(draft.text.length);status.text="Draft restored locally. Review context and consent before a separate Send."}}
+                if(original.isNotEmpty() && original!=text) confirm("Replace the current draft?","Restore this failed/cancelled attempt locally. No network request; Cancel keeps the current draft.") {restore()} else restore()
+            }.also {recoveryButtons.add(it)},LinearLayout.LayoutParams(0,-2,1f))
+            actions.addView(actionButton("Dismiss attempt") {
+                if(!visible || section!=0 || anyBusy || attempt !in timeline) return@actionButton
+                confirm("Remove this local attempt card?","Only this attempt card is removed. The draft and completed AI context stay unchanged; remote records/usage are not erased.") {
+                    if(!anyBusy && attempt in timeline) {timeline.remove(attempt);attempt.clear();renderHistory()}
+                }
+            }.also {recoveryButtons.add(it)},LinearLayout.LayoutParams(0,-2,1f))
+        }
+        return card
+    }
+    private fun reviewDirectContext() {
+        if(!visible || section!=0 || agentSelected || anyBusy || disclosure?.isShowing==true) return
+        hideKeyboard();draft.clearFocus()
+        val candidate=try {session.review(draft.text.toString())} catch(e: NativeChatProtocol.Rejected) {status.text=errorText(e.code,false);return}
+        val text="LOCAL SNAPSHOT · not a request or approval\nDestination: ${NativeChatProtocol.ORIGIN}\n${candidate.size} messages · ${candidate.sumOf {it.content.length}} characters\nOnly the exact Direct messages below are candidate context. Agent cards, failed attempts, files, keys and voice are excluded unless their text was explicitly placed in this draft. Send checks limits and consent again. Fixed server instructions and signing metadata are not shown here. Changes after closing require a new review.\n\n"+
+            candidate.mapIndexed {i,message->"${i+1}. ${if(message.role=="user") "You" else "Maya"}\n${message.content}"}.joinToString("\n\n")
+        val copy=labelView(text,14f).apply {tag="direct_context_snapshot";setTextIsSelectable(true);setPadding(dp(16),dp(8),dp(16),dp(8))}
+        val scroll=ScrollView(this).apply {isSaveEnabled=false;addView(copy)}
+        confirmationGeneration++
+        disclosure=AlertDialog.Builder(this).setTitle("Review Direct context").setView(scroll).setPositiveButton("Close",null).create().also {
+            it.show();MayaTheme.dialog(it);it.getButton(AlertDialog.BUTTON_POSITIVE).filterTouchesWhenObscured=true
+            val width=host.window.decorView.width.takeIf {it>0} ?: resources.displayMetrics.widthPixels
+            val height=host.window.decorView.height.takeIf {it>0} ?: resources.displayMetrics.heightPixels
+            it.window?.setLayout((width-dp(32)).coerceAtLeast(1),(height*0.75f).toInt().coerceAtLeast(1))
+        }
+    }
     private fun confirmSpeech(text: String, stillAvailable: () -> Boolean) {
         if (!visible || anyBusy) return
         if (!NativeFishPolicy.validText(text)) {
@@ -668,7 +739,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
     }
     private fun renderHistory() {
-        history.removeAllViews(); speechButtons.clear()
+        history.removeAllViews(); speechButtons.clear();recoveryButtons.clear()
         val direct=session.messages()
         if(direct.size<shownDirect) {timeline.removeAll {it is NativeChatProtocol.Message};shownDirect=0}
         timeline.addAll(direct.drop(shownDirect));shownDirect=direct.size
@@ -676,6 +747,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             if(entry is com.maya.ai.agent.WorkspaceTask) {
                 (entry.view.parent as? android.view.ViewGroup)?.removeView(entry.view);history.addView(entry.view);return@forEach
             }
+            if(entry is ChatAttempt) {history.addView(attemptView(entry));return@forEach}
             val message=entry as NativeChatProtocol.Message
             history.addView(labelView((if (message.role == "user") "You\n" else "Maya\n") + message.content).apply {
                 setPadding(dp(14), dp(12), dp(14), dp(12)); setTextIsSelectable(true)
@@ -712,11 +784,14 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         send.text="↑";send.textSize=22f
         send.contentDescription=if(agentSelected) "Submit Agent task" else "Send message"
         projectChip.visibility=if(agentSelected && buildTask!=null && kindSelection==1) View.VISIBLE else View.GONE
+        contextReview.visibility=if(agentSelected) View.GONE else View.VISIBLE
+        contextReview.isEnabled=visible && section==0 && !busy
         agentKind.visibility=if(agentSelected) View.VISIBLE else View.GONE
         agentKind.isEnabled=!busy
         consent.visibility=if(agentSelected || consent.isChecked) View.GONE else View.VISIBLE
         draft.hint=if(agentSelected) (if(kindSelection==1) "Build or revise this page…" else "What should I research?") else "Message Maya…"
         agentCards.forEach {it.refresh()}
+        recoveryButtons.forEach {it.isEnabled=visible && section==0 && !busy}
         readinessButton.isEnabled = !busy
         fishCheck.isEnabled = !busy; fishSample.isEnabled = !busy
         speechButtons.forEach { (button, text) -> button.isEnabled = !busy && NativeFishPolicy.validText(text) }
