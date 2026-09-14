@@ -77,7 +77,7 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
         for(b in ResearchBrowser.values()) {
             val choice=RadioButton(host).apply {
                 id=View.generateViewId();text=b.label;isSaveEnabled=false;filterTouchesWhenObscured=true;setTextColor(Color.WHITE)
-                setOnCheckedChangeListener {_,checked -> if(checked) {browser=b;invalidate()}}
+                setOnCheckedChangeListener {_,checked -> if(checked) {browser=b;this@InlineAgentTurn.invalidate()}}
             };choices.add(choice);group.addView(choice,RadioGroup.LayoutParams(0,-2,1f))
         }
         view.addView(group)

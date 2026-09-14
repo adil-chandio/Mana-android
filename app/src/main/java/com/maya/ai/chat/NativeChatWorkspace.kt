@@ -302,7 +302,16 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         val scroll = ScrollView(this).apply { isSaveEnabled = false; isFillViewport = true; addView(body) }
         shell.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         shell.addView(composer,LinearLayout.LayoutParams(-1,-2))
-        shell.addView(stop,LinearLayout.LayoutParams(-1,-2))
+        // Reserve the fixed footer in the content layout; it cannot be pushed offscreen by IME/wrapping.
+        shell.setPadding(dp(16),dp(8),dp(16),dp(64))
+        val surface=FrameLayout(this).apply {
+            isSaveEnabled=false;setBackgroundColor(Color.rgb(16,19,27))
+            importantForAutofill=View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+            addView(shell,FrameLayout.LayoutParams(-1,-1))
+            addView(stop,FrameLayout.LayoutParams(-1,dp(48),android.view.Gravity.BOTTOM).apply {
+                leftMargin=dp(16);rightMargin=dp(16);bottomMargin=dp(8)
+            })
+        }
         val tabButtons = mutableListOf<Button>()
         fun showPage(index: Int) {
             hideKeyboard()
@@ -333,7 +342,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         consent.setOnCheckedChangeListener { _, _ -> paint() }
         paint()
         // Deliberately no key creation, read, check, request or intent parsing on load.
-        return shell
+        return surface
     }
     private fun changeMode(agent: Boolean) {
         if(agentSelected==agent) return
@@ -610,7 +619,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun runOnUiThread(action: () -> Unit) { host.runOnUiThread { action() } }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     fun resume() { visible = true; showAccessDiagnostic(); paint() }
-    fun pause() { confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
+    fun pause() { visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
     fun focusChanged(hasFocus: Boolean) {
         if(!hasFocus && agentBusy) agentCards.forEach {it.stop()}
     }

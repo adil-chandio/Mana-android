@@ -411,4 +411,15 @@ class NativeChatActivityTest {
         assertEquals(0,card.view.childCount);assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
         assertEquals("",field<EditText>("draft").text.toString());assertFalse(field<CheckBox>("consent").isChecked);noTransport()
     }
+    @Test fun inlineExplanationUsesSameExplicitSelectedFishOwnerAndStop() {
+        val port=fakeSpeech();val fake=researchFake();submit("WIKI Dog")
+        button("Chrome").performClick();button("Review & approve plan").performClick();yes()
+        button("Run approved plan").performClick();shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(650))
+        fake.completion!!(com.maya.ai.agent.ResearchSource("https://en.wikipedia.org/wiki/Dog","SYNTHETIC_EXCERPT"))
+        button("Explain sources · AI consent").performClick();yes();fake.model!!("AGENT_EXPLANATION",null)
+        assertTrue(port.requests.isEmpty());button("Sunao · Agent explanation").performClick();assertTrue(port.requests.isEmpty());yes()
+        assertEquals("AGENT_EXPLANATION",port.requests.single().first);field<Button>("stop").performClick()
+        port.requests.single().second(NativeFishPolicy.Result.Prepared("SYNTHETIC","SYNTHETIC"));assertEquals(0,port.plays);noTransport()
+    }
+
 }

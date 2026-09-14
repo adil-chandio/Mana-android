@@ -34,8 +34,8 @@ assert(a.includes('putString("reason", reason.name)'));
 assert(!m.includes('!settings.convoMode'));
 
 assert(a.includes('listOf("Chat", "Checks", "Info")'));
-assert(a.includes('showPage(0)')); assert(a.includes('return shell'));
-assert(a.includes('shell.addView(stop,LinearLayout.LayoutParams(-1,-2))'));
+assert(a.includes('showPage(0)')); assert(a.includes('return surface'));
+assert(a.includes('addView(stop,FrameLayout.LayoutParams(-1,dp(48),android.view.Gravity.BOTTOM)'));
 assert(a.includes('{ endLocalSession(); close() }'));
 assert(a.includes('endLocalSession(); handler.removeCallbacksAndMessages(null)'));
 
