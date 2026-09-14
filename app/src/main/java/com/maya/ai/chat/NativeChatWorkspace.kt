@@ -584,7 +584,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if (::consent.isInitialized) consent.isChecked = false
         if (::history.isInitialized && ::contextNote.isInitialized) renderHistory()
     }
-    fun stop() { endLocalSession() }
+    fun leaveScreen() { endLocalSession() }
     fun dispose() {
         // Also fence callbacks if destruction occurs without the normal onStop path.
         endLocalSession(); if (::researchWorkspace.isInitialized) researchWorkspace.dispose(); handler.removeCallbacksAndMessages(null)

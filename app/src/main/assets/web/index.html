@@ -333,10 +333,10 @@ option.f{background:#0E0E16;color:#F5F5FA}
 #drawer.open{transform:none}
 #drawer .dhead{font-size:16px;font-weight:900;letter-spacing:6px;padding:6px 8px 16px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
-#drawer button.dbtn{display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;
+#drawer .dbtn{display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;
   color:#F5F5FA;font-size:13.5px;font-weight:700;padding:13px 10px;border-radius:12px;cursor:pointer;text-align:left}
-#drawer button.dbtn:active,#drawer button.dbtn.active{background:#4d2006;color:#FFB347}
-@supports(background:color-mix(in srgb,red 50%,blue)){#drawer button.dbtn:active,#drawer button.dbtn.active{background:color-mix(in srgb,var(--accent) 15%,transparent)}}
+#drawer .dbtn:active,#drawer .dbtn.active{background:#4d2006;color:#FFB347}
+@supports(background:color-mix(in srgb,red 50%,blue)){#drawer .dbtn:active,#drawer .dbtn.active{background:color-mix(in srgb,var(--accent) 15%,transparent)}}
 #drawer .dsep{height:1px;background:#3a2a10;margin:10px 6px}
 #drawer .dfoot{margin-top:auto;font-size:9px;color:#A2A2B5;letter-spacing:1.5px;padding:8px;text-align:center}
 #drawerScrim{position:fixed;inset:0;z-index:44;background:#404040;opacity:0;pointer-events:none;transition:opacity .3s}
@@ -344,11 +344,11 @@ option.f{background:#0E0E16;color:#F5F5FA}
 
 nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;gap:4px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));
   background:#0A0A10;border-top:1px solid #3a2a10}
-nav button{flex:1;background:none;border:none;color:#A2A2B5;font-size:9px;font-weight:800;letter-spacing:1px;
+nav button,nav a[data-main-chat]{flex:1;background:none;border:none;color:#A2A2B5;font-size:9px;font-weight:800;letter-spacing:1px;
   padding:7px 2px;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
-nav button .ic{font-size:17px}
-nav button.active{color:#FFB347;background:#441c05}
-@supports(background:color-mix(in srgb,red 50%,blue)){nav button.active{background:color-mix(in srgb,var(--accent) 13%,transparent)}}
+nav button .ic,nav a[data-main-chat] .ic{font-size:17px}
+nav button.active,nav a[data-main-chat].active{color:#FFB347;background:#441c05}
+@supports(background:color-mix(in srgb,red 50%,blue)){nav button.active,nav a[data-main-chat].active{background:color-mix(in srgb,var(--accent) 13%,transparent)}}
 
 #toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%) translateY(20px);z-index:70;
   background:var(--panel2);border:1px solid var(--line);color:var(--text0);border-radius:999px;
@@ -528,6 +528,7 @@ nav{padding:8px 10px 10px}
 @supports(padding-bottom:env(safe-area-inset-bottom)){nav{padding-bottom:calc(10px + env(safe-area-inset-bottom))}}
 
 /* Main conversation entry: primary, not buried in Settings. Old-WebView safe. */
+#drawer a.dbtn,nav a[data-main-chat]{text-decoration:none;box-sizing:border-box}
 .main-chat-entry{display:block;width:100%;max-width:400px;box-sizing:border-box;padding:16px 18px;margin:0 auto 10px;border:1px solid #ffae59;border-radius:16px;background:#43230d;color:#fff0da;text-align:left;text-decoration:none;min-height:72px}
 .main-chat-entry strong{display:block;font-size:19px;letter-spacing:1px}
 .main-chat-entry span{display:block;font-size:12px;line-height:1.5;margin-top:5px;color:#f4c695}
@@ -560,7 +561,7 @@ nav{padding:8px 10px 10px}
 <aside id="drawer">
   <div class="dhead">MAYA</div>
   <button class="dbtn" data-tab="tab-home">🏠 Home</button>
-  <button class="dbtn" data-tab="tab-chat">💬 Chat</button>
+  <a class="dbtn" data-tab="tab-chat" data-main-chat href="maya-private-chat://open">💬 Chat + Agent</a>
   <button class="dbtn" data-tab="tab-mem">🧠 Memories</button>
   <button class="dbtn" data-tab="tab-skills">🧩 Skills</button>
   <button class="dbtn" data-tab="tab-hud">🎯 HUD</button>
@@ -1230,7 +1231,7 @@ nav{padding:8px 10px 10px}
 
   <nav>
     <button data-tab="tab-home" class="active"><span class="ic">🏠</span>HOME</button>
-    <button data-tab="tab-chat"><span class="ic">💬</span>CHAT</button>
+    <a data-tab="tab-chat" data-main-chat href="maya-private-chat://open"><span class="ic">💬</span>CHAT</a>
     <button data-tab="tab-mem"><span class="ic">🧠</span>MEM</button>
     <button data-tab="tab-cmds"><span class="ic">⚡</span>CMDS</button>
     <button data-tab="tab-set"><span class="ic">⚙️</span>SET</button>
@@ -1310,26 +1311,26 @@ window.__mayaJSOK = true;
 try { document.getElementById("dbgBadge").textContent = "v" + MAYA_BUILD.versionName + " · script loaded"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
-/* MAIN_CHAT_ENTRY_START — fixed navigation only; no messages, history or keys cross JS. */
+/* MAIN_CHAT_ENTRY_START — fixed native links only; no messages, history or keys cross JS. */
 (function () {
-  document.querySelectorAll('[data-main-chat], [data-tab="tab-chat"]').forEach(function (link) {
+  document.querySelectorAll('[data-main-chat]').forEach(function (link) {
     link.addEventListener("click", function (event) {
+      event.stopImmediatePropagation();
+      if (link.getAttribute("href") !== "maya-private-chat://open") { event.preventDefault(); return; }
       if (!window.MayaBridge) {
-        if (link.hasAttribute("data-main-chat")) {
-          event.preventDefault();
+        event.preventDefault();
+        if (link.getAttribute("data-tab") === "tab-chat") showTab("tab-chat");
+        else {
           var hint = document.getElementById("mainChatHint");
           if (hint) hint.textContent = "Chat + Agent needs the Android APK. No request or app launch was made.";
           var oldHint = document.getElementById("nativePrivateChatHint");
           if (oldHint) oldHint.textContent = "Open this feature inside the Maya Android APK.";
         }
-        return; // browser keeps its existing text-chat tab, no fake native panel
-      }
-      event.preventDefault(); event.stopImmediatePropagation();
-      if (event.isTrusted === false) return; // native also enforces main-frame + real gesture + packaged page
+      } else if (event.isTrusted === false) { event.preventDefault(); return; }
+      // Leave a real anchor's default navigation intact: preserves WebView's native user-gesture signal.
       ["drawer", "drawerScrim"].forEach(function (id) {
         var item = document.getElementById(id); if (item) item.classList.remove("open");
       });
-      window.location.href = "maya-private-chat://open";
     }, true);
   });
 })();
@@ -1425,9 +1426,9 @@ function pushLog(msg){
 /* ---------- TABS ---------- */
 function showTab(id){
   document.querySelectorAll(".tab").forEach(function(t){ t.classList.toggle("active", t.id === id); });
-  document.querySelectorAll("nav button").forEach(function(b){ b.classList.toggle("active", b.dataset.tab === id); });
+  document.querySelectorAll("nav button, nav a[data-main-chat]").forEach(function(b){ b.classList.toggle("active", b.dataset.tab === id); });
 }
-document.querySelectorAll("nav button").forEach(function(b){
+document.querySelectorAll("nav button, nav a[data-main-chat]").forEach(function(b){
   b.addEventListener("click", function(){ showTab(b.dataset.tab); });
 });
 
@@ -10174,7 +10175,7 @@ try {
   function drawerToggle(open){ drawerEl.classList.toggle("open", open); scrimEl.classList.toggle("open", open); }
   $("#drawerBtn").addEventListener("click", function(){ drawerToggle(true); });
   scrimEl.addEventListener("click", function(){ drawerToggle(false); });
-  drawerEl.querySelectorAll("button.dbtn").forEach(function(b){
+  drawerEl.querySelectorAll(".dbtn").forEach(function(b){
     b.addEventListener("click", function(){ showTab(b.dataset.tab); drawerToggle(false); });
   });
 } catch(e){}

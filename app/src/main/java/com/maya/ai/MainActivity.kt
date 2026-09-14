@@ -268,7 +268,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); mainResumed = true; nativeChat?.resume() }
     override fun onPause() { mainResumed = false; nativeChat?.pause(); super.onPause() }
-    override fun onStop() { nativeChat?.stop(); super.onStop() }
+    override fun onStop() { nativeChat?.leaveScreen(); super.onStop() }
     override fun onWindowFocusChanged(hasFocus: Boolean) { super.onWindowFocusChanged(hasFocus); nativeChat?.focusChanged(hasFocus) }
     override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
         if (nativeChat?.consumeTouch(event) == true) return true

@@ -14,7 +14,7 @@ class NativeChatActivity : AppCompatActivity() {
     }
     override fun onResume() {super.onResume();workspace.resume()}
     override fun onPause() {workspace.pause();super.onPause()}
-    override fun onStop() {workspace.stop();super.onStop()}
+    override fun onStop() {workspace.leaveScreen();super.onStop()}
     override fun onDestroy() {workspace.dispose();super.onDestroy()}
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus);if(::workspace.isInitialized) workspace.focusChanged(hasFocus)
