@@ -45,3 +45,5 @@ assert(a.includes('strictNetwork = true'));
 assert(a.includes('speech.stop()'));
 assert(a.includes('fishCheck = button("Check saved Fish setup · no network")'));
 assert(!a.includes('identity.sign(text)'));
+
+assert(a.includes('addView(composer,FrameLayout.LayoutParams(-1,-2,android.view.Gravity.BOTTOM)'));

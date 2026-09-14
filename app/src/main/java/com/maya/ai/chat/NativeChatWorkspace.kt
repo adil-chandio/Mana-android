@@ -301,23 +301,31 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         pages.forEach { body.addView(it) }
         val scroll = ScrollView(this).apply { isSaveEnabled = false; isFillViewport = true; addView(body) }
         shell.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        shell.addView(composer,LinearLayout.LayoutParams(-1,-2))
         // Reserve the fixed footer in the content layout; it cannot be pushed offscreen by IME/wrapping.
-        shell.setPadding(dp(16),dp(8),dp(16),dp(64))
+        shell.setPadding(dp(16),dp(8),dp(16),dp(208))
         val surface=FrameLayout(this).apply {
             isSaveEnabled=false;setBackgroundColor(Color.rgb(16,19,27))
             importantForAutofill=View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
             addView(shell,FrameLayout.LayoutParams(-1,-1))
+            addView(composer,FrameLayout.LayoutParams(-1,-2,android.view.Gravity.BOTTOM).apply {
+                leftMargin=dp(16);rightMargin=dp(16);bottomMargin=dp(64)
+            })
             addView(stop,FrameLayout.LayoutParams(-1,dp(48),android.view.Gravity.BOTTOM).apply {
                 leftMargin=dp(16);rightMargin=dp(16);bottomMargin=dp(8)
             })
         }
+        fun reserveComposer() {
+            val space=dp(64)+if(section==0) composer.measuredHeight.coerceAtLeast(dp(128)) else 0
+            if(shell.paddingBottom!=space) shell.setPadding(dp(16),dp(8),dp(16),space)
+        }
+        composer.addOnLayoutChangeListener {_,_,_,_,_,_,_,_,_ -> reserveComposer()}
         val tabButtons = mutableListOf<Button>()
         fun showPage(index: Int) {
             hideKeyboard()
             if(section!=index) {confirmationGeneration++;disclosure?.dismiss();disclosure=null;agentCards.forEach {it.stop()}}
             section=index
             composer.visibility=if(index==0) View.VISIBLE else View.GONE
+            reserveComposer()
             pages.forEachIndexed { i, page -> page.visibility = if (i == index) View.VISIBLE else View.GONE }
             tabButtons.forEachIndexed { i, button ->
                 button.isSelected = i == index
