@@ -100,7 +100,6 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private var active: Job? = null
     private var visible = false
     private var agentSelected = false
-    private var showSection: (Int) -> Unit = {}
     private var section = 0
     private lateinit var directMode: RadioButton
     private lateinit var agentMode: RadioButton
@@ -319,7 +318,6 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             }
             scroll.scrollTo(0, 0); paint()
         }
-        showSection = { showPage(it) }
         listOf("Chat", "Checks", "Info").forEachIndexed { i, title ->
             actionButton(title) { showPage(i) }.also {
                 it.tag = "tab_" + title.lowercase(java.util.Locale.ROOT)
@@ -578,6 +576,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
     }
     fun consumeTouch(event: MotionEvent): Boolean {
+        if(event.actionMasked==MotionEvent.ACTION_DOWN && agentCards.any {it.executing}) agentCards.forEach {it.stop()}
         if(event.actionMasked==MotionEvent.ACTION_DOWN && agentCards.any {it.busy || it.approved} && event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) agentCards.forEach {it.stop()}
         val obscured = event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0
         if (obscured) {

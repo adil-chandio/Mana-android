@@ -54,6 +54,7 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
         val cancel: () -> Unit={handler.removeCallbacks(pending)};cancel
     },{refresh();changed()})
     val busy get()=runner.busy || cancelModel!=null
+    val executing get()=runner.busy
     val approved get()=runner.approved
     init {
         require(goal.length in 1..450 && NativeChatProtocol.validReply(goal))
@@ -82,7 +83,7 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
         view.addView(group)
         approve=button("Review & approve plan") {
             val p=parse() ?: return@button;val b=browser ?: return@button
-            confirm("Approve these read-only steps?", "One run, ${p.size} sources, expiry 60 seconds. Wikipedia titles go to en.wikipedia.org; repo names to api.github.com. No token/cookie. 45-second run limit, no retry. AI explanation needs separate consent. Browser: ${b.label}.\n\n${p.source}") {
+            confirm("Approve these read-only steps?", "One run, ${p.size} sources, expiry 60 seconds. Wikipedia titles go to en.wikipedia.org; repo names to api.github.com. No token/cookie. 45-second run limit, no retry. Touch/intervention while reading stops the run; no automatic resume. AI explanation needs separate consent. Browser: ${b.label}.\n\n${p.source}") {
                 if(p.source==plan.text.toString() && browser==b) {explanation="";summaryView.text="";notice="Approved once. Press Run.";runner.approve(p,b);refresh();changed()}
             }
         }
@@ -135,7 +136,7 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
             NativeChatProtocol.validateDraft(prompt)
             cancelModel=services.text(prompt) {reply,error ->
                 if(!alive || ticket!=epoch) return@text
-                cancelModel=null
+                epoch++;cancelModel=null
                 if(reply==null) notice=when(error) {
                     ResearchBackend.TextFailure.CHAT_OFF -> "Chat OFF. Manual plans still work; server switch was not changed."
                     ResearchBackend.TextFailure.LOCAL_NOT_READY -> "Local assistant not ready. No AI request sent; settings unchanged."
@@ -205,7 +206,7 @@ class InlineAgentTurn(private val host: AppCompatActivity, goal: String, recentD
         }
     }
     fun stop() {epoch++;dialog?.dismiss();dialog=null;val cancel=cancelModel;cancelModel=null;try {cancel?.invoke()} catch (_: Exception) {};runner.stop();notice="Stopped/revoked locally. No automatic resume.";refresh();changed()}
-    fun dispose() {alive=false;stop();runner.clear();plan.setText("");summaryView.text="";explanation="";result.removeAllViews();goal="";recentDirect="";view.removeAllViews();handler.removeCallbacksAndMessages(null)}
+    fun dispose() {alive=false;stop();runner.clear();plan.setText("");summaryView.text="";explanation="";result.removeAllViews();goal="";recentDirect="";view.removeAllViews();rendered=emptyList();sourceButtons.clear();buttons.clear();choices.clear();handler.removeCallbacksAndMessages(null)}
     private fun label(text: String,size: Float=14f)=TextView(host).apply {this.text=text;textSize=size;setTextColor(Color.WHITE);setPadding(0,dp(6),0,dp(6));isSaveEnabled=false;view.addView(this)}
     private fun button(title: String, action: () -> Unit)=Button(host).apply {text=title;isAllCaps=false;isSaveEnabled=false;filterTouchesWhenObscured=true;setOnClickListener {if(canAct()) action()};buttons.add(this);view.addView(this)}
     private fun dp(v: Int)=(host.resources.displayMetrics.density*v).toInt()

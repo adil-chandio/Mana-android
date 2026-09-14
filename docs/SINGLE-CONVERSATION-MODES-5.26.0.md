@@ -25,7 +25,7 @@ A source card can place that exact displayed source in the shared composer after
 
 ## Ownership and privacy
 
-Mode changes stop/fence native work, revoke Agent approvals and stale consent dialogs, but preserve completed conversation, sources, draft and Direct consent. Switching utility pages revokes Agent work/approvals. Late callbacks cannot restore stopped/cleared cards. Background/exit/destruction clears the private timeline, cards, goals, excerpts, explanations, draft and consent; public identity/settings remain untouched. State saving and autofill remain disabled. Obscured dialog confirmations are rejected and fenced.
+Mode changes stop/fence native work, revoke Agent approvals and stale consent dialogs, but preserve completed conversation, sources, draft and Direct consent. Switching utility pages revokes Agent work/approvals. As in the previous bounded runner UI, touch/intervention during public reads halts the run without automatic resume. Late callbacks cannot restore stopped/cleared cards. Background/exit/destruction clears the private timeline, cards, goals, excerpts, explanations, draft and consent; public identity/settings remain untouched. State saving and autofill remain disabled. Obscured dialog confirmations are rejected and fenced.
 
 No private content is copied into the WebView, history, bridge or intents for navigation. Existing explicitly consented selected-text Fish preparation remains the documented exception: it uses the original trusted pronunciation conversion and restores BOLI.last in finally. No backend changes, deployment, permissions, provider test or Chat activation are part of this revision. Chat remains owner-controlled/OFF.
 

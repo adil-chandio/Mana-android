@@ -155,4 +155,15 @@ class ResearchActivityTest {
         field<Button>("stop").performClick();fake.source(0);shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
         assertEquals(1,fake.gets.size);assertEquals(0,turnField<LinearLayout>("result").childCount)
     }
+    @Test fun duplicateModelCompletionCannotOverwriteFirstExplanation() {
+        completed();find("Explain sources · AI consent").performClick();confirm()
+        fake.texts[0].second("FIRST_EXPLANATION",null);fake.texts[0].second("LATE_DUPLICATE",null)
+        assertEquals("FIRST_EXPLANATION",card.explanation)
+    }
+    @Test fun manualInterventionStopsReadingAndRejectsLateCallback() {
+        approve();run();val touch=MotionEvent.obtain(0,0,MotionEvent.ACTION_DOWN,10f,10f,0)
+        try {workspace.consumeTouch(touch)} finally {touch.recycle()}
+        fake.source(0);assertFalse(card.busy);assertEquals(0,turnField<LinearLayout>("result").childCount)
+    }
+
 }

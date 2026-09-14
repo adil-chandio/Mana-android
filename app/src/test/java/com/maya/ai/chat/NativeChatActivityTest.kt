@@ -369,7 +369,7 @@ class NativeChatActivityTest {
         val port=fakeSpeech();completedHistory();button("Sunao · selected Fish").performClick()
         val old=ShadowAlertDialog.getLatestAlertDialog();mode(true)
         old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertTrue(port.requests.isEmpty())
-        mode(false);val job=pending();mode(true);assertNull(field<Any?>("active"));cancelled(job);finish(job,"STALE")
+        mode(false);val job=pending();mode(true);assertNull(field<Any?>("active"));cancelled(job);complete(job,"STALE")
         assertEquals(2,field<NativeChatConversation>("session").messages().size);noTransport()
     }
     @Test fun privateDirectContextIsNotAutomaticallySentToAgent() {
