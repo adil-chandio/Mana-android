@@ -6,8 +6,8 @@ object NativeChatReadiness {
         NOT_CHECKED("Run the local readiness check first; it sends no request."),
         CHECKING("Reading local assistant state; no request sent."),
         READY("Local assistant is idle at this check. Send still requires consent, a valid key and server authorization."),
-        WAKE_ENABLED("Saved Wake setting is ON. Turn Wake OFF in the original Maya; selected Fish voice stays unchanged."),
-        WAKE_SERVICE("Wake service is still present. Stop it through the original Maya and wait for its notification to close."),
+        WAKE_ENABLED("Wake is ON. In Settings → Voice & appearance, turn Wake OFF yourself, then return and tap Send. Saved Fish voice stays unchanged."),
+        WAKE_SERVICE("Wake service is still present. In Settings → Voice & appearance, turn Wake OFF and wait for its notification to close."),
         FISH_OUTPUT("Selected Fish output is still active. Finish or STOP the old reply; do not change the selected voice."),
         AUDIO_BUSY("The existing audio/microphone owner is busy. Use STOP in the original assistant."),
         AUDIO_UNKNOWN("Existing audio state is unknown; readiness cannot be confirmed."),
@@ -18,7 +18,7 @@ object NativeChatReadiness {
         LEGACY_TTS("The original Maya is still speaking. Finish or STOP its reply."),
         UNTRUSTED_VIEW("Original assistant page is not the trusted packaged page; readiness is blocked."),
         JS_LOADING("The original assistant page has not finished loading."),
-        JS_WAKE_ENABLED("Wake is ON in the original assistant's UI. Turn that switch OFF there."),
+        JS_WAKE_ENABLED("Wake is ON in Voice & appearance. Turn it OFF there, then return and tap Send."),
         AUTO_LISTEN_ENABLED("Auto-listen is ON in the original assistant. Turn that switch OFF there."),
         PROACTIVE_ENABLED("Proactive speech is enabled. Turn Proactive OFF in the original assistant for isolated text Chat."),
         NOTIFY_SPEECH_ENABLED("Speak notifications is enabled. Turn it OFF in the original assistant for isolated text Chat."),
@@ -30,6 +30,17 @@ object NativeChatReadiness {
         UI_UNRESPONSIVE("Original assistant did not answer the local readiness check. No network request was sent."),
         CANCELLED("Local readiness check was interrupted. No READY result is assumed."),
         UNKNOWN("Local assistant state could not be validated. No request was sent through this gate.")
+    }
+    fun voiceSettingsFix(reason: Reason)=reason in setOf(Reason.WAKE_ENABLED,Reason.WAKE_SERVICE,Reason.JS_WAKE_ENABLED,
+        Reason.AUTO_LISTEN_ENABLED,Reason.PROACTIVE_ENABLED,Reason.NOTIFY_SPEECH_ENABLED,Reason.FISH_OUTPUT,Reason.AUDIO_BUSY,
+        Reason.AUDIO_UNKNOWN,Reason.LEGACY_MIC,Reason.LEGACY_TTS,Reason.JS_SPEAKING,Reason.JS_LISTENING)
+    fun sendSummary(reason: Reason)=when(reason) {
+        Reason.WAKE_ENABLED,Reason.JS_WAKE_ENABLED -> "Not sent · Wake is ON. Open Voice settings, turn Wake OFF yourself, then return and tap Send."
+        Reason.WAKE_SERVICE -> "Not sent · Wake service is still present. Turn Wake OFF in Voice settings and wait for its notification to close."
+        Reason.AUTO_LISTEN_ENABLED -> "Not sent · Auto-listen is ON. Turn it OFF in Voice settings before sending."
+        Reason.PROACTIVE_ENABLED -> "Not sent · Proactive speech is ON. Turn it OFF in Voice settings before sending."
+        Reason.NOTIFY_SPEECH_ENABLED -> "Not sent · Speak notifications is ON. Turn it OFF in Voice settings before sending."
+        else -> "Not sent · Another assistant/voice owner is busy or readiness is unconfirmed. Open details for the specific reason."
     }
     fun restore(value: String?): Reason = Reason.values().firstOrNull { it.name == value }?.let {
         if (it == Reason.CHECKING) Reason.CANCELLED else it

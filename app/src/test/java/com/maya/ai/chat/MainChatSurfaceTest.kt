@@ -454,4 +454,118 @@ class MainChatSurfaceTest {
         assertTrue(local<NativeChatConversation>("session").messages().isEmpty());assertEquals("",local<EditText>("draft").text.toString())
     }
 
+    private class PermissionMemory: DirectSendPermission.Store {
+        var value: String?=null;var writes=0
+        override fun read()=value
+        override fun write(value: String) {this.value=value;writes++}
+    }
+    private fun permissionFixture(): PermissionMemory {
+        val store=PermissionMemory()
+        NativeChatWorkspace::class.java.getDeclaredField("directPermission\$delegate").apply {isAccessible=true}.set(workspace,lazyOf(DirectSendPermission(store)))
+        // Block before signing/network; this changes only the Robolectric fixture preference.
+        a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
+        return store
+    }
+    @Test fun composerHasNoAllowCheckboxAndSendOpensConsentWithoutCreatingAttempt() {
+        val store=permissionFixture();local<EditText>("draft").setText("hi")
+        assertNull(local<android.widget.CheckBox>("consent").parent)
+        assertTrue(local<android.widget.Button>("send").isEnabled)
+        local<android.widget.Button>("send").performClick()
+        val d=ShadowAlertDialog.getLatestAlertDialog()
+        assertFalse(d.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked)
+        assertTrue(d.window!!.decorView.findViewWithTag<android.widget.TextView>("direct_send_review").text.contains("hi"))
+        assertTrue(local<List<Any>>("timeline").isEmpty());assertEquals(0,store.writes)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun cancelledOrStaleConsentNeverSendsOrRemembers() {
+        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
+        val old=ShadowAlertDialog.getLatestAlertDialog();old.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true
+        old.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0,store.writes);assertFalse(local<android.widget.CheckBox>("consent").isChecked);assertTrue(local<List<Any>>("timeline").isEmpty())
+    }
+    @Test fun editingDraftAfterConsentReviewRejectsBothSendAndRemember() {
+        val store=permissionFixture();local<EditText>("draft").setText("first");local<android.widget.Button>("send").performClick()
+        ShadowAlertDialog.getLatestAlertDialog().window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true
+        local<EditText>("draft").setText("edited");positive()
+        assertEquals(0,store.writes);assertTrue(local<List<Any>>("timeline").isEmpty());assertFalse(local<android.widget.CheckBox>("consent").isChecked)
+    }
+    @Test fun rememberedManualSendingDoesNotBypassWakeOrRepeatConsentAfterBackground() {
+        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
+        val consentDialog=ShadowAlertDialog.getLatestAlertDialog()
+        consentDialog.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true;positive()
+        assertEquals(1,store.writes);assertTrue(button("Open Voice settings").isShown)
+        assertEquals(View.GONE,local<android.widget.TextView>("status").visibility)
+        assertTrue(local<NativeChatConversation>("session").messages().isEmpty());assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        c.pause().stop().restart().start().resume();assertFalse(local<android.widget.CheckBox>("consent").isChecked)
+        local<EditText>("draft").setText("new manual message");local<android.widget.Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertSame(consentDialog,ShadowAlertDialog.getLatestAlertDialog());assertTrue(button("Open Voice settings").isShown)
+        assertEquals(1,store.writes);assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun voiceSettingsShortcutPreservesDraftAndDoesNotTurnWakeOffOrResend() {
+        permissionFixture();local<android.widget.CheckBox>("consent").isChecked=true;local<EditText>("draft").setText("hi")
+        local<android.widget.Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle();val before=local<List<Any>>("timeline").size
+        button("Open Voice settings").performClick()
+        assertEquals(3,local<Int>("section"));assertEquals("hi",local<EditText>("draft").text.toString())
+        assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false));assertNull(shadowOf(a).nextStartedActivity)
+        a.onBackPressed();a.onBackPressed();assertEquals(0,local<Int>("section"))
+        assertEquals(before,local<List<Any>>("timeline").size);assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun rememberRevocationPreservesDraftButNextSendAsksAgain() {
+        val store=permissionFixture();store.value=DirectSendPermission.POLICY
+        local<EditText>("draft").setText("KEEP");openSettings();button("Privacy ▾").performClick();button("Revoke Direct consent").performClick()
+        assertEquals("",store.value);assertEquals("KEEP",local<EditText>("draft").text.toString())
+        a.onBackPressed();a.onBackPressed();local<android.widget.Button>("send").performClick()
+        assertTrue(ShadowAlertDialog.getLatestAlertDialog().isShowing);assertTrue(local<List<Any>>("timeline").isEmpty())
+    }
+    @Test fun restoringSavedWorkRequiresFreshConsentEvenWithRememberedPermission() {
+        val store=permissionFixture();store.value=DirectSendPermission.POLICY
+        val item=SavedWorkspace(java.util.UUID.randomUUID().toString(),"saved",0,
+            listOf(NativeChatProtocol.Message("user","old question"),NativeChatProtocol.Message("assistant","old reply")),"new question",null)
+        NativeChatWorkspace::class.java.getDeclaredField("section").apply {isAccessible=true}.set(workspace,5)
+        NativeChatWorkspace::class.java.getDeclaredMethod("openSavedWorkspace",SavedWorkspace::class.java).apply {isAccessible=true}.invoke(workspace,item)
+        local<android.widget.Button>("send").performClick()
+        assertTrue(ShadowAlertDialog.getLatestAlertDialog().isShowing)
+        assertEquals(2,local<List<Any>>("timeline").size);assertEquals(0,store.writes);assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun backgroundRevokesAStillOpenRememberDialog() {
+        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
+        val old=ShadowAlertDialog.getLatestAlertDialog();old.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true
+        c.pause().stop().restart().start().resume();old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0,store.writes);assertEquals("",local<EditText>("draft").text.toString());assertTrue(local<List<Any>>("timeline").isEmpty())
+    }
+    @Test fun emptyBackgroundDoesNotLeaveARepeatedClearBanner() {
+        c.pause().stop().restart().start().resume()
+        assertEquals("",local<android.widget.TextView>("status").text.toString());assertEquals(View.GONE,local<android.widget.TextView>("status").visibility)
+    }
+    @Test fun permissionRecordIsNotAStoredConversationOrAutomaticStartupGrant() {
+        val file=java.io.File(a.noBackupFilesDir,"direct-send-permission-v1");file.delete()
+        try {
+            val permission=AndroidDirectSendPermission.create(a)
+            assertFalse(permission.remembered());assertFalse(file.exists());assertTrue(permission.remember())
+            assertEquals(DirectSendPermission.POLICY,file.readText())
+            assertTrue(AndroidDirectSendPermission.create(a).remembered())
+            file.writeText("x".repeat(1024));assertFalse(AndroidDirectSendPermission.create(a).remembered())
+            assertTrue(permission.forget());assertFalse(AndroidDirectSendPermission.create(a).remembered())
+        } finally {file.delete()}
+    }
+
+    @Test fun temporaryGrantCoversOnlyThisConversationWithoutWritingRemember() {
+        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
+        val first=ShadowAlertDialog.getLatestAlertDialog();positive();local<android.widget.Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertSame(first,ShadowAlertDialog.getLatestAlertDialog());assertEquals(0,store.writes);assertEquals(2,local<List<Any>>("timeline").size)
+        c.pause().stop().restart().start().resume();local<EditText>("draft").setText("new");local<android.widget.Button>("send").performClick()
+        assertNotSame(first,ShadowAlertDialog.getLatestAlertDialog());assertTrue(local<List<Any>>("timeline").isEmpty())
+    }
+    @Test fun obscuredSendPermissionCannotPersistOrCreateAnAttempt() {
+        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
+        val d=ShadowAlertDialog.getLatestAlertDialog();d.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true
+        val prop=android.view.MotionEvent.PointerProperties().apply {id=0;toolType=android.view.MotionEvent.TOOL_TYPE_FINGER}
+        val coords=android.view.MotionEvent.PointerCoords().apply {x=10f;y=10f}
+        val e=android.view.MotionEvent.obtain(0,0,android.view.MotionEvent.ACTION_DOWN,1,arrayOf(prop),arrayOf(coords),0,0,1f,1f,0,0,android.view.InputDevice.SOURCE_TOUCHSCREEN,android.view.MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)
+        try {assertTrue(d.window!!.callback.dispatchTouchEvent(e))} finally {e.recycle()}
+        d.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(0,store.writes);assertTrue(local<List<Any>>("timeline").isEmpty());assertFalse(local<android.widget.CheckBox>("consent").isChecked)
+    }
+
 }

@@ -49,6 +49,7 @@ early.window.eval(script);assert.equal(early.window.__mayaWorkspaceMount(),true)
 // JSDOM has no layout/media-query renderer. Verify compact host rules exist without claiming pixels.
 assert(html.includes('@media(max-height:90px)'));
 assert(html.includes('html.maya-workspace-host:not(.maya-settings-expanded) #orb{width:56px;height:56px}'));
+assert(html.includes('html.maya-workspace-host:not(.maya-settings-expanded) #orb .orbTag{display:none}'));
 assert(html.includes('@media(prefers-reduced-motion:reduce)'));
 const main=fs.readFileSync('app/src/main/java/com/maya/ai/MainActivity.kt','utf8');
 const create=main.slice(main.indexOf('override fun onCreate('),main.indexOf('override fun onActivityResult('));

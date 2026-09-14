@@ -458,7 +458,7 @@ class NativeChatActivityTest {
         content.findViewWithTag<Button>("workspace_menu_toggle").performClick();assertEquals(View.VISIBLE,menu.visibility)
         openPage("info");assertEquals(View.GONE,menu.visibility);assertFalse(composer.isShown)
         val job=pending();button("Revoke Direct consent").performClick();cancelled(job)
-        assertFalse(field<CheckBox>("consent").isChecked);assertEquals(View.VISIBLE,field<CheckBox>("consent").visibility)
+        assertFalse(field<CheckBox>("consent").isChecked);assertEquals(View.GONE,field<CheckBox>("consent").visibility)
         assertFalse(field<Button>("send").isEnabled);assertEquals("PRIVATE_SYNTHETIC_DRAFT",composer.text.toString());noTransport()
     }
     @Test fun errorsAndUncertaintyReappearWithoutAnotherPaint() {
@@ -543,7 +543,7 @@ class NativeChatActivityTest {
         val d=ShadowAlertDialog.getLatestAlertDialog();val text=d.findViewWithTagForTest("direct_context_snapshot")
         assertTrue(text.contains("SYNTHETIC_CONTEXT"));assertTrue(text.contains("SYNTHETIC_REPLY"));assertTrue(text.contains("CURRENT_DRAFT"))
         assertFalse(field<NativeChatConversation>("session").busy);assertFalse(field<CheckBox>("consent").isChecked)
-        yesDialog();assertFalse(field<Button>("send").isEnabled);noTransport()
+        yesDialog();assertTrue(field<Button>("send").isEnabled);noTransport()
     }
     private fun android.app.AlertDialog.findViewWithTagForTest(tag: String): String = window!!.decorView.findViewWithTag<TextView>(tag).text.toString()
     @Test fun blockedSendHasInlineRecoveryButNeverEntersAiContext() {

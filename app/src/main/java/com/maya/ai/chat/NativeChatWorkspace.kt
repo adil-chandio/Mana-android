@@ -61,6 +61,71 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private val handler = Handler(Looper.getMainLooper())
     private val session = NativeChatConversation { SystemClock.elapsedRealtime() }
     private val identity = NativeChatIdentity()
+    private val directPermission by lazy {AndroidDirectSendPermission.create(host)}
+    private var restoredConsentRequired=false
+    private lateinit var directPermissionStatus: TextView
+    private fun updateDirectPermissionStatus() {
+        if(::directPermissionStatus.isInitialized) directPermissionStatus.text=if(directPermission.remembered())
+            "Manual Direct Send permission is remembered on this device. No automatic requests or history saving. Restore of saved work still needs one review. Revoke below at any time."
+        else "Ask on first Direct Send in each temporary conversation. You can choose Remember in that dialog. Nothing is sent just by opening Maya."
+    }
+    private fun requestDirectSend() {
+        if(anyBusy || !visible || section!=0 || agentSelected || disclosure?.isShowing==true) return
+        if(timeline.count {it is ChatAttempt}>=6) {status.text="Six local attempt cards retained. Dismiss one explicitly or clear the conversation before another Send. Nothing sent.";return}
+        val text=draft.text.toString()
+        val candidate=try {session.review(text)} catch(e: NativeChatProtocol.Rejected) {status.text=errorText(e.code,false);return}
+        if(consent.isChecked || (!restoredConsentRequired && directPermission.remembered())) {sendDirectNow();return}
+        hideKeyboard();draft.clearFocus()
+        val body=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setPadding(dp(16),0,dp(16),0);isSaveEnabled=false}
+        val remember=CheckBox(this).apply {
+            tag="remember_direct_permission";text="Remember permission for my manual Direct Sends on this device";isChecked=false
+            isSaveEnabled=false;filterTouchesWhenObscured=true;MayaTheme.toggle(this)
+        }
+        body.addView(remember)
+        body.addView(labelView("Optional: avoids asking again for new typed conversations after background/restart. Does not save messages, enable server Chat, or authorize Mic, Fish, Agent tools or phone actions. Saved-work restore still asks once. Revoke in Settings → Privacy & limits.",13f))
+        body.addView(labelView(candidate.mapIndexed {i,m->"${i+1}. ${m.role}\n${m.content}"}.joinToString("\n\n"),14f).apply {tag="direct_send_review";setTextIsSelectable(true)})
+        val generation=++confirmationGeneration
+        disclosure=AlertDialog.Builder(this).setTitle("Allow Direct text sending?")
+            .setMessage("Your message and completed Direct context (${candidate.size} messages) will go to Cloudflare AI via ${NativeChatProtocol.ORIGIN}. Use nonsensitive text. Provider processing/usage may apply; this is not zero-retention or unlimited service. Nothing sends until you choose Allow & Send. Future Sends in this conversation use the same permission. Chat OFF stays unchanged.")
+            .setView(ScrollView(this).apply {isSaveEnabled=false;addView(body)})
+            .setNegativeButton("Cancel",null).setPositiveButton("Allow & Send") {_,_->
+                if(visible && section==0 && !agentSelected && !anyBusy && generation==confirmationGeneration && draft.text.toString()==text &&
+                    runCatching {session.review(text)==candidate}.getOrDefault(false)) {
+                    confirmationGeneration++
+                    if(remember.isChecked && !directPermission.remember()) {status.text="Could not save sending permission. Nothing sent. Try again without Remember or retry explicitly.";return@setPositiveButton}
+                    consent.isChecked=true;restoredConsentRequired=false;updateDirectPermissionStatus()
+                    handler.post {if(visible && section==0 && !agentSelected && !anyBusy && generation+1==confirmationGeneration && draft.text.toString()==text &&
+                        runCatching {session.review(text)==candidate}.getOrDefault(false)) sendDirectNow()}
+                }
+            }.create().also {d ->
+                d.setOnDismissListener {if(generation==confirmationGeneration) confirmationGeneration++}
+                d.show();MayaTheme.dialog(d);d.getButton(AlertDialog.BUTTON_POSITIVE).filterTouchesWhenObscured=true
+                val window=d.window;val callback=window?.callback
+                if(window!=null && callback!=null) window.callback=object : android.view.Window.Callback by callback {
+                    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                        if(event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) {confirmationGeneration++;d.dismiss();return true}
+                        return callback.dispatchTouchEvent(event)
+                    }
+                }
+            }
+    }
+    private fun sendDirectNow() {
+        if(anyBusy || !visible || section!=0 || agentSelected) return
+        val allowed=consent.isChecked || (!restoredConsentRequired && directPermission.remembered())
+        if(!allowed) return
+        agentCards.forEach {it.stop()}
+        try {
+            val turn=session.begin(draft.text.toString(),allowed);hideKeyboard()
+            start("chat",turn) {job ->
+                val signed=identity.sign(turn.input);job.operation.check()
+                if(signed.body!=turn.body) throw NativeChatProtocol.Rejected("INVALID_REQUEST")
+                transport.execute(signed,job.operation) {
+                    session.markDispatched(turn)
+                    runOnUiThread {if(active===job && visible) {job.attempt?.detail="Waiting for response… Request dispatched; no reply accepted yet.";renderHistory()}}
+                }
+            }
+        } catch(e: NativeChatProtocol.Rejected) {status.text=errorText(e.code,false);paint()}
+    }
     private val transport by lazy { NativeChatTransport() }
     private var speechPlayer: com.maya.ai.voice.FishStreamPlayer? = null
     private var speechProbeGeneration = 0L
@@ -114,9 +179,10 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private val recoveryButtons=mutableListOf<Button>()
     private val speechButtons = mutableListOf<Pair<Button, String>>()
     private class ChatAttempt(var text: String) {
+        var readinessFailure: Reason?=null
         var pending=true
         var detail="Preparing request… No response received yet."
-        fun clear() {text="";detail="";pending=false}
+        fun clear() {text="";detail="";pending=false;readinessFailure=null}
         override fun toString()="ChatAttempt(redacted)"
     }
     private var active: Job? = null
@@ -136,7 +202,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         // Restore data only. No action, proposal, preview, provider consent or task ownership is restored.
         stopActive("Opening saved work locally. Nothing sent or resumed.")
         clearAgents();session.clear();timeline.clear();session.restore(item.messages)
-        timeline.addAll(item.messages);shownDirect=item.messages.size;draft.setText(item.draft);consent.isChecked=false
+        timeline.addAll(item.messages);shownDirect=item.messages.size;draft.setText(item.draft);consent.isChecked=false;restoredConsentRequired=true
         item.code?.let {code ->
             val card=com.maya.ai.agent.InlineBuildTurn(host,"Restored local project",researchServices,
                 {turn -> taskAllowed(turn)}, {paint()})
@@ -302,7 +368,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                 NativeChatResponse.Result.Access
             }
         } }
-        label("Uses your existing saved APK key directly. No need to show/copy it first. This check never creates a key and does not require Chat ON or the message-consent checkbox.")
+        label("Uses your existing saved APK key directly. No need to show/copy it first. This check never creates a key and does not require Chat ON or a Direct sending grant.")
         button("Copy check report") {
             val report = "MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n" + accessDiagnostic.report() +
                 "\nObscured touch blocked: $obscuredTouchSeen"
@@ -312,7 +378,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         button("Clear check report") {
             if (active == null) { accessDiagnostic.clear(); showAccessDiagnostic() }
         }
-        label("Only the last fixed diagnostic state/code/count/duration is retained locally (best effort). Chat, keys, signatures and server bodies are NOT stored in that report. Backgrounding still clears conversation/consent, not the completed check report.")
+        label("Only the last fixed diagnostic state/code/count/duration is retained locally (best effort). Chat, keys, signatures and server bodies are NOT stored in that report. Backgrounding still clears temporary conversation consent, not the completed check report or your explicit Remember choice.")
         label("APK identity · advanced setup", 18f)
         label("Creates/shows only this APK's public identity. Server authorization is manual: APK_PUBLIC_JWK. Never replace OWNER_PUBLIC_JWK or copy a browser private key.")
         create = button("Create / show APK public key") {
@@ -355,12 +421,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         emptyState.addView(labelView("Baat karo. Research karo. Kuch banao.",14f).apply {gravity=android.view.Gravity.CENTER;setTextColor(MayaTheme.muted)})
         root.addView(emptyState)
         contextNote = labelView("Context: no completed messages.",13f).also {infoPage.addView(it)}
-        consent = CheckBox(this).apply {
-            text = "Allow this Direct conversation → Cloudflare AI"
-            contentDescription="Allow sending this Direct conversation to Cloudflare AI. Use nonsensitive text. Details and revocation are in Privacy."
-            textSize=13f
-            filterTouchesWhenObscured = true; MayaTheme.toggle(this); isSaveEnabled = false; root.addView(this)
-        }
+        // Transitional in-memory grant holder only; never attached to the view hierarchy or saved by Android.
+        consent = CheckBox(this).apply {isSaveEnabled=false;visibility=View.GONE}
         dictationPanel=column().apply {tag="dictation_panel";background=MayaTheme.shape(this@NativeChatWorkspace);setPadding(dp(12),dp(8),dp(12),dp(8));root.addView(this)}
         dictationStatus=labelView("",13f).apply {tag="dictation_status";MayaTheme.status(this);accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE;dictationPanel.addView(this)}
         dictationText=labelView("",16f).apply {tag="dictation_transcript";setTextIsSelectable(true);maxLines=4;minHeight=dp(48);ellipsize=android.text.TextUtils.TruncateAt.END;setOnClickListener {maxLines=if(maxLines==4) Int.MAX_VALUE else 4};dictationPanel.addView(this)}
@@ -370,7 +432,6 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         microphonePermission=actionButton("Allow microphone") {if(visible && section==0) dictation.requestPermission()}.also {dictationPanel.addView(it)}
         history = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; isSaveEnabled = false; tag = "conversation_timeline"; root.addView(this) }
         val composer = column().apply {tag = "shared_composer_area";background=MayaTheme.shape(this@NativeChatWorkspace,radius=20);setPadding(dp(8),dp(8),dp(8),dp(8))}
-        root.removeView(consent)
         projectChip=labelView("index.html · current project",12f).apply {tag="current_project";setTextColor(MayaTheme.copper);setPadding(dp(8),0,dp(8),dp(4));visibility=View.GONE}
         composer.addView(projectChip)
         root = composer
@@ -411,24 +472,10 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
         send = actionButton("Send message") {
             if(anyBusy || !visible || section!=0) return@actionButton
-            if(agentSelected) { submitAgent();return@actionButton }
-            if(timeline.count {it is ChatAttempt}>=6) {status.text="Six local attempt cards retained. Dismiss one explicitly or clear the conversation before another Send. Nothing sent.";return@actionButton}
-            agentCards.forEach {it.stop()}
-            try {
-                val turn=session.begin(draft.text.toString(),consent.isChecked);hideKeyboard()
-                start("chat",turn) {job ->
-                    val signed=identity.sign(turn.input);job.operation.check()
-                    if(signed.body!=turn.body) throw NativeChatProtocol.Rejected("INVALID_REQUEST")
-                    transport.execute(signed,job.operation) {
-                        session.markDispatched(turn)
-                        runOnUiThread {if(active===job && visible) {job.attempt?.detail="Waiting for response… Request dispatched; no reply accepted yet.";renderHistory()}}
-                    }
-                }
-            } catch(e: NativeChatProtocol.Rejected) {status.text=errorText(e.code,false);paint()}
+            if(agentSelected) submitAgent() else requestDirectSend()
         }
         draft.minHeight=dp(56)
         composeRow.addView(draft,LinearLayout.LayoutParams(0,-2,1f))
-        composer.addView(consent)
         dictate=actionButton("Voice input") {confirmDictation()}.apply {tag="composer_voice";text="Mic";setPadding(0,0,0,0)}
         composeRow.addView(dictate,LinearLayout.LayoutParams(dp(48),dp(48)))
         composeRow.addView(send,LinearLayout.LayoutParams(dp(48),dp(48)))
@@ -450,18 +497,27 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         buttonColors(send,MayaTheme.copper,MayaTheme.ink);buttonColors(stop,Color.rgb(65,37,40),MayaTheme.danger)
         root = infoPage
         val newConversation=button("Clear local chat") {
-            confirm("Clear this conversation?", "Clear Direct Chat, inline Agent tasks, sources, draft and approvals. Saved key and voice stay unchanged; remote records/usage are not erased.") {
-                stopActive("Cleared locally.");clearAgents();session.clear();draft.setText("");consent.isChecked=false;renderHistory();paint()
+            confirm("Clear this conversation?", "Clear Direct Chat, inline Agent tasks, sources, draft and approvals. Saved key, voice and your explicit Remember permission stay unchanged; remote records/usage are not erased. Revoke remembered sending separately in Privacy & limits.") {
+                stopActive("Cleared locally.");clearAgents();session.clear();draft.setText("");consent.isChecked=false;restoredConsentRequired=false;renderHistory();paint()
             }
         }
         root.removeView(newConversation);menuPanel.addView(newConversation,0)
-        button("Revoke Direct consent") {stopActive("Direct consent revoked.");consent.isChecked=false;paint()}
+        directPermissionStatus=label("Direct sending: ask on first Send.",13f).apply {tag="direct_permission_status"}
+        button("Revoke Direct consent") {
+            val remoteUncertain=active?.operation?.attempted==true
+            stopActive("Direct consent revoked.");consent.isChecked=false;restoredConsentRequired=true
+            val saved=directPermission.forget();updateDirectPermissionStatus()
+            status.text=if(saved) "Direct sending permission revoked, including Remember. Your text and saved work stay. Next Send asks again; Chat OFF is unchanged."
+                else "Direct permission revoked for this screen, but the remembered record could not be cleared. Retry Revoke before restarting the app. Nothing resent."
+            if(remoteUncertain) status.append(" Already dispatched work may continue; usage may count. Revocation is not provider deletion or a refund.")
+            paint()
+        }
         label("Privacy & limits", 21f)
         label("MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · development build",12f)
         label("The original orb focuses this composer. Sunao uses saved Fish after confirmation; Mic offers explicit voice-to-composer input with transcript review; it never auto-sends.",13f)
         label("Normal Chat sends text only, with optional manual Fish playback. Agent mode adds inline, separately consented bounded public research to this same conversation. Original assistant settings remain separate.")
         label("BACKGROUND / EXIT CLEARS THIS CONVERSATION", 17f)
-        label("Internal Settings navigation keeps the conversation. Backgrounding, closing or recreating the Activity clears draft, consent and chat. Keep follow-ups here. Your APK key stays in Android Keystore.")
+        label("Internal Settings navigation keeps the conversation. Backgrounding, closing or recreating the Activity clears draft, temporary consent and chat. An explicitly remembered Send permission is separate and revocable here. Keep follow-ups here. Your APK key stays in Android Keystore.")
         label("2,000 characters/message · 6,000 in context · 12 messages. 5 admitted requests/minute, 50/day shared with browser Chat; no guarantee of free capacity.")
         label("STOP ends local waiting, not guaranteed remote work or a refund. Failed/uncertain turns are excluded from follow-ups. No automatic retries, auto-save or message logging. Explicit encrypted snapshots are separate in Settings → Saved work & backups.")
         label("Replies are untrusted plain text and may be inaccurate. Never enter passwords, OTPs, provider tokens or private keys.")
@@ -591,6 +647,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             voicePage.visibility=if(index==3) View.VISIBLE else View.GONE
             savedScroll.visibility=if(index==5) View.VISIBLE else View.GONE
             if(index==5) library?.enter()
+            if(index==2) updateDirectPermissionStatus()
             val target=if(index==0) body else settingsNotices
             if(notices.parent!==target) {(notices.parent as android.view.ViewGroup).removeView(notices);target.addView(notices,if(index==0) 1 else 0)}
             detailButtons.forEachIndexed {i,button->button.isSelected=i==index}
@@ -602,7 +659,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         navigateSettings(0)
         draft.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { paint() }
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { if(!s.isNullOrEmpty() && status.text.toString()=="Temporary chat cleared on leaving. Saved work kept.") status.text="";paint() }
             override fun afterTextChanged(s: Editable?) {}
         })
         consent.setOnCheckedChangeListener { _, _ -> paint() }
@@ -738,6 +795,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             val code = error ?: (result as? NativeChatResponse.Result.Error)?.code ?: "INVALID_SERVER_RESPONSE"
             accessDiagnostic.finish(ticket, state, code, job.accessHttp, SystemClock.elapsedRealtime() - job.started)
             showAccessDiagnostic()
+        }
+        if(job.kind=="chat" && error?.startsWith("READINESS_")==true && !job.operation.attempted) {
+            job.attempt?.readinessFailure=Reason.values().firstOrNull {it.name==error.removePrefix("READINESS_")}
         }
         var accepted=false
         val seconds = (SystemClock.elapsedRealtime() - job.started).coerceAtLeast(0) / 1000.0
@@ -895,7 +955,27 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         val card=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;tag="chat_attempt";isSaveEnabled=false;background=MayaTheme.shape(this@NativeChatWorkspace);setPadding(dp(12),dp(8),dp(12),dp(8));layoutParams=LinearLayout.LayoutParams(-1,-2).apply {bottomMargin=dp(12)}}
         card.addView(labelView("You · Direct attempt",13f))
         card.addView(labelView(attempt.text,16f).apply {setTextIsSelectable(true);maxLines=6;ellipsize=android.text.TextUtils.TruncateAt.END;setOnClickListener {maxLines=if(maxLines==6) Int.MAX_VALUE else 6};minHeight=dp(48)})
-        card.addView(labelView(attempt.detail,13f).apply {tag="attempt_status";MayaTheme.status(this);accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE})
+        val reason=attempt.readinessFailure
+        card.addView(labelView(if(reason!=null) NativeChatReadiness.sendSummary(reason) else attempt.detail,13f).apply {
+            tag="attempt_status";MayaTheme.status(this);if(reason!=null) {maxLines=Int.MAX_VALUE;ellipsize=null}
+            accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE
+        })
+        if(reason!=null && !attempt.pending) {
+            card.addView(actionButton(if(NativeChatReadiness.voiceSettingsFix(reason)) "Open Voice settings" else "Open readiness checks") {
+                if(visible && section==0 && !anyBusy && attempt in timeline) {
+                    navigateSettings(if(NativeChatReadiness.voiceSettingsFix(reason)) 3 else 1)
+                    status.text=reason.hint+" No setting changed automatically. Return here and tap Send yourself."
+                }
+            }.also {recoveryButtons.add(it)})
+            card.addView(actionButton("Why Send was blocked") {
+                if(visible && section==0 && attempt in timeline && disclosure?.isShowing!=true) {
+                    confirmationGeneration++
+                    disclosure=AlertDialog.Builder(this).setTitle("Local Send check · ${reason.name}")
+                        .setMessage(reason.hint+"\n\n"+attempt.detail+"\n\nNo automatic retry. Opening Settings keeps this draft and conversation; actually leaving/backgrounding still clears temporary work.")
+                        .setPositiveButton("Close",null).create().also {it.show();MayaTheme.dialog(it)}
+                }
+            }.also {recoveryButtons.add(it)})
+        }
         if(!attempt.pending) {
             card.addView(labelView("Not automatically included in AI context. Restore copies to the draft; it never resends.",12f))
             val actions=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;card.addView(this)}
@@ -983,7 +1063,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun paint() {
         if (!::send.isInitialized || !::stop.isInitialized) return
         val busy = anyBusy
-        send.isEnabled = !busy && section==0 && (agentSelected || consent.isChecked) && draft.text.toString().isNotBlank()
+        send.isEnabled = !busy && section==0 && draft.text.toString().isNotBlank()
         paintDictation()
         dictate.visibility=if(busy) View.GONE else View.VISIBLE
         dictate.isEnabled=visible && section==0 && !busy
@@ -994,7 +1074,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         contextReview.isEnabled=visible && section==0 && !busy
         agentKind.visibility=if(agentSelected) View.VISIBLE else View.GONE
         agentKind.isEnabled=!busy
-        consent.visibility=if(agentSelected || consent.isChecked) View.GONE else View.VISIBLE
+        consent.visibility=View.GONE
         draft.hint=if(agentSelected) (if(kindSelection==1) "Build or revise this page…" else "What should I research?") else "Message Maya…"
         agentCards.forEach {task ->
             task.refresh()
@@ -1040,7 +1120,10 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun updateStatusVisibility() {
         val text=status.text.toString()
         val routine=listOf("No Chat request", "Mode changed", "Task type selected", "Settings toggled").any {text.startsWith(it)}
-        status.visibility=if(text.isBlank() || (routine && !text.contains("Remote",true))) View.GONE else View.VISIBLE
+        val repeatedReadiness=section==0 && timeline.filterIsInstance<ChatAttempt>().any {
+            !it.pending && it.readinessFailure!=null && it.detail=="No reply accepted.\n"+text
+        }
+        status.visibility=if(text.isBlank() || repeatedReadiness || (routine && !text.contains("Remote",true))) View.GONE else View.VISIBLE
     }
     private fun observeText(view: TextView, changed: (TextView) -> Unit) {
         view.addTextChangedListener(object : TextWatcher {
@@ -1121,20 +1204,22 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun runOnUiThread(action: () -> Unit) { host.runOnUiThread { action() } }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    fun resume() { visible = true;if(section==5) library?.enter(); restoreVoicePresentation(); showAccessDiagnostic(); paint() }
+    fun resume() { visible = true;if(section==2) updateDirectPermissionStatus();if(section==5) library?.enter(); restoreVoicePresentation(); showAccessDiagnostic(); paint() }
     fun pause() { library?.leave();dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
     fun focusChanged(hasFocus: Boolean) {
         if(!hasFocus && dictation.busy) dictation.stop()
         if(!hasFocus && agentBusy) agentCards.forEach {it.stop()}
     }
     private fun endLocalSession() {
+        val hadData=(::draft.isInitialized && draft.text.isNotEmpty()) || session.messages().isNotEmpty() || timeline.isNotEmpty()
         collapseVoiceSettings()
         clearAgents()
         visible = false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null
-        stopActive("This screen was left; local chat was cleared.", NativeAccessDiagnostic.State.LEFT_SCREEN)
+        stopActive(if(hadData) "Temporary chat cleared on leaving. Saved work kept." else "", NativeAccessDiagnostic.State.LEFT_SCREEN)
         session.clear()
         if (::draft.isInitialized) draft.setText("")
         if (::consent.isInitialized) consent.isChecked = false
+        restoredConsentRequired=false
         if (::history.isInitialized && ::contextNote.isInitialized) renderHistory()
     }
     fun leaveScreen() { endLocalSession() }
