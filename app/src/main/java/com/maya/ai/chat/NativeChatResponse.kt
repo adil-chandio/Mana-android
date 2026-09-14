@@ -55,7 +55,7 @@ object NativeChatResponse {
         return Result.Reply(content)
     }
 
-    private class Json(private val input: String) {
+    internal class Json(private val input: String) {
         private var i = 0; private var nodes = 0
         private fun ws() { while (i < input.length && input[i] in " \t\r\n") i++ }
         private fun take(): Char { if (i >= input.length) bad(); return input[i++] }

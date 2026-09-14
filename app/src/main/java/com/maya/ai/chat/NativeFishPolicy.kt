@@ -80,10 +80,10 @@ object NativeFishPolicy {
         }
     } catch (_: Exception) { Result.Error(Code.UNAVAILABLE) }
 
-    fun script(text: String?): String {
+    fun script(text: String?, idleOnly: Boolean=false): String {
         require(text == null || validText(text))
         val argument = if (text == null) "null" else JSONObject.quote(text).replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
-        return "(function(text){var idle=" + NativeChatReadiness.LOCAL_SCRIPT + ";" + LOCAL_PREPARE + "})(" + argument + ")"
+        return "(function(text){var idle=" + (if(idleOnly) NativeChatReadiness.IDLE_SCRIPT else NativeChatReadiness.LOCAL_SCRIPT) + ";" + LOCAL_PREPARE + "})(" + argument + ")"
     }
     // Evaluated only in the trusted packaged MainActivity page, never a remote document.
     // FISH.body/headers and BOLI are the existing pure builders, NOT FISH.speak/req.

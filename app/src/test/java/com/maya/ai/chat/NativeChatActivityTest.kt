@@ -75,6 +75,8 @@ class NativeChatActivityTest {
         controller = Robolectric.buildActivity(NativeChatActivity::class.java).setup().visible()
         activity.getSharedPreferences("maya", Context.MODE_PRIVATE).edit().clear().commit()
         field<NativeAccessDiagnostic>("accessDiagnostic").clear()
+        // These existing tests exercise the explicitly selected Cloudflare path.
+        setField("useConfiguredChat",false);setField("cloudflareReviewed",true)
     }
     @After fun close() {
         controller?.pause()?.stop()?.destroy()
@@ -549,18 +551,13 @@ class NativeChatActivityTest {
     @Test fun blockedSendHasInlineRecoveryButNeverEntersAiContext() {
         activity.getSharedPreferences("maya",Context.MODE_PRIVATE).edit().putBoolean("wake",true).commit()
         fill();field<Button>("send").performClick()
-        assertNotNull(content.findViewWithTag<View>("chat_attempt"))
-        assertTrue(content.findViewWithTag<TextView>("attempt_status").text.contains("Not sent · Wake is ON"))
-        button("Why Send was blocked").performClick()
-        assertTrue(ShadowAlertDialog.getLatestAlertDialog().findViewById<TextView>(android.R.id.message).text.contains("No model request was sent"))
-        yesDialog()
+        assertNull(content.findViewWithTag<View>("chat_attempt"))
+        assertTrue(field<TextView>("status").text.contains("No model request was sent"))
         val session=field<NativeChatConversation>("session");assertTrue(session.messages().isEmpty())
         assertEquals(listOf("fresh draft"),session.review("fresh draft").map {it.content})
-        field<EditText>("draft").setText("KEEP_NEW_DRAFT");button("Restore draft").performClick()
-        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
-        assertEquals("KEEP_NEW_DRAFT",field<EditText>("draft").text.toString())
-        button("Restore draft").performClick();yesDialog()
-        assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString());assertFalse(session.busy);noTransport()
+        assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString())
+        field<Button>("send").performClick();assertNull(content.findViewWithTag<View>("chat_attempt"))
+        assertNotNull(button("AI connection"));assertFalse(session.busy);noTransport()
     }
     @Test fun acceptedReplyReplacesPendingCardWithoutDuplicateMessage() {
         val job=pendingWithCard();assertNotNull(content.findViewWithTag<View>("chat_attempt"))
@@ -645,6 +642,15 @@ class NativeChatActivityTest {
         researchFake();submit("WIKI Dog");button("Remove task").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
         openPage("checks");old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
         assertEquals(1,field<List<Any>>("agentCards").size);noTransport()
+    }
+
+    @Test fun serverChatOffLocksTheLocalRouteUntilExplicitOwnerReview() {
+        val job=pendingWithCard();operation(job).markAttempt()
+        NativeChatWorkspace::class.java.getDeclaredMethod("finish",job.javaClass,Any::class.java,String::class.java).apply {isAccessible=true}
+            .invoke(workspace,job,NativeChatResponse.Result.Error("CHAT_NOT_ENABLED",false),null)
+        assertFalse(field<Boolean>("cloudflareReviewed"));val count=field<List<Any>>("timeline").size
+        field<EditText>("draft").setText("Bhai");repeat(10) {field<Button>("send").performClick()}
+        assertEquals(count,field<List<Any>>("timeline").size);assertTrue(field<TextView>("status").text.contains("unavailable"));noTransport()
     }
 
 }

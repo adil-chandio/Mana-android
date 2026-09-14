@@ -50,6 +50,20 @@ test('five-minute session ceiling also interrupts long output',()=>{const s=worl
 test('session ends after five answers instead of evicting or uploading older context',()=>{const s=world();s.begin();for(let i=1;i<=5;i++){s.say('q');s.answer('a');s.FISH_TALK.audioEvent('a'.repeat(32),i,'done');s.advance(600);}assert.equal(s.posts.length,5);assert(!s.FISH_TALK.active());});
 test('spoken STOP ends only this conversation and sends no AI request',()=>{const s=world();s.begin();s.say('bas karo');assert.equal(s.posts.length,0);assert(!s.FISH_TALK.active());});
 test('model mismatch and paid OpenRouter model are refused, no discovery',()=>{const s=world('openrouter');s.BRAIN.plan=()=>[{p:{id:'openrouter',url:'https://openrouter.ai/api/v1/chat/completions',models:['paid-model']},ki:0}];assert.equal(JSON.parse(s.FISH_TALK.describe()).code,'AI');assert.equal(s.posts.length,0);});
+test('typed config read is independent of Fish, input language and microphone',()=>{
+ const s=world();s.FISH.block=()=> 'KEY_MISSING';s.settings.voiceOn=false;s.settings.stt='unsupported';
+ const c=JSON.parse(s.FISH_TALK.chatConfig());assert.equal(c.code,'READY');assert.equal(c.provider,'groq');
+ assert.equal(c.key,'PRIVATE_AI_KEY');assert(!('fishKey' in c));assert(!('voice' in c));
+ assert.equal(s.inputs.length+s.posts.length+s.audio.length,0);
+});
+test('typed and spoken preflights choose the same configured account/model without requests',()=>{
+ const s=world();const typed=JSON.parse(s.FISH_TALK.chatConfig()),talk=JSON.parse(s.FISH_TALK.describe());
+ assert.equal(typed.provider,talk.provider);assert.equal(typed.model,talk.model);assert.equal(typed.tokens,talk.tokens);
+ assert.equal(s.posts.length,0);
+});
+test('typed config has no keyless fallback when saved account is absent',()=>{
+ const s=world();s.BRAIN.plan=()=>[];assert.equal(JSON.parse(s.FISH_TALK.chatConfig()).code,'AI');assert.equal(s.posts.length,0);
+});
 assert.equal(source,fs.readFileSync('app/src/main/assets/web/fish-talk.js','utf8'));
 assert(!/handleUserText\(|execTool\(|geminiChat\(|localStorage|sessionStorage|chatHist|saveSettings\(|AWAAZ\.speak|AWAAZ\.device|TextToSpeech|SpeechSynthesis/.test(source));
 console.log(`FISH TALK: ${passed}/${passed} passed. Synthetic transports only; no microphone/provider/Fish calls.`);

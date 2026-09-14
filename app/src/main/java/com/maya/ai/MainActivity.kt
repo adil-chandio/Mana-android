@@ -361,15 +361,51 @@ class MainActivity : AppCompatActivity() {
     fun releaseComposerMicrophone(token: Any) {if(composerMicLease===token) composerMicLease=null}
 
     /** Read-only local readiness; no preference writes, service starts or remote page evaluation. */
-    fun nativeChatReady(result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) {
+    fun nativeChatReady(result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) = nativeReady(false,result)
+    fun nativeConfiguredReady(result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) {
+        val policy=com.maya.ai.chat.NativeChatReadiness
+        val runtime=policy.runtime(false,WakeWordService.instance!=null,WakeWordService.fishOutputActive,WakeWordService.haal,MayaAct.hasPendingActions())
+        if(runtime!=com.maya.ai.chat.NativeChatReadiness.Reason.READY) {result(runtime);return}
+        nativeReady(true,result)
+    }
+    private fun nativeReady(idleOnly: Boolean,result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) {
         val policy = com.maya.ai.chat.NativeChatReadiness
         try {
             val state = policy.main(!mainResumed || isFinishing || isDestroyed, httpRequests.isNotEmpty(), recognitionActive || composerMicLease!=null,
                 tts?.isSpeaking == true, webView.url in listOf(
                     "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html"))
             if (state != com.maya.ai.chat.NativeChatReadiness.Reason.READY) { result(state); return }
-            webView.evaluateJavascript(policy.LOCAL_SCRIPT) { result(policy.fromJavascript(it)) }
+            webView.evaluateJavascript(if(idleOnly) policy.IDLE_SCRIPT else policy.LOCAL_SCRIPT) { result(policy.fromJavascript(it)) }
         } catch (_: Exception) { result(com.maya.ai.chat.NativeChatReadiness.Reason.UNKNOWN) }
+    }
+
+    fun prepareConfiguredChat(wanted: ()->Boolean, pauseWake: Boolean, done: (com.maya.ai.chat.ConfiguredChatPolicy.Config?,String)->Unit) {
+        if(!wanted()) return
+        val presentation=hostPresentationEpoch
+        var answered=false
+        lateinit var timeout: Runnable
+        fun finish(config: com.maya.ai.chat.ConfiguredChatPolicy.Config?,code: String) {
+            if(answered) return
+            answered=true;hostHandler.removeCallbacks(timeout)
+            if(wanted() && presentation==hostPresentationEpoch) done(config,code)
+        }
+        timeout=Runnable {finish(null,"LOCAL_CONFIG_TIMEOUT")};hostHandler.postDelayed(timeout,1800)
+        fun read() {
+            if(!wanted() || !voiceForeground() || presentation!=hostPresentationEpoch) {finish(null,"MAIN_TRANSITION");return}
+            try {webView.evaluateJavascript("window.FISH_TALK ? FISH_TALK.chatConfig() : null") {raw ->
+                val config=com.maya.ai.chat.ConfiguredChatPolicy.decode(raw)
+                finish(config,if(config==null) "CONFIGURED_AI_UNAVAILABLE" else "READY")
+            }} catch(_: Exception) {finish(null,"LOCAL_CONFIG_UNAVAILABLE")}
+        }
+        if(pauseWake) {
+            WakeWordService.stop(this) // Explicit manual-Send permission pauses runtime wake, not its saved preference.
+            hostHandler.postDelayed({
+                if(!wanted() || answered) return@postDelayed
+                nativeConfiguredReady {reason ->
+                    if(reason==com.maya.ai.chat.NativeChatReadiness.Reason.READY) read() else finish(null,"READINESS_"+reason.name)
+                }
+            },300)
+        } else read()
     }
 
     /** Explicit native Sunao/setup only. No JS bridge method, key export UI or preference writes. */
@@ -377,16 +413,16 @@ class MainActivity : AppCompatActivity() {
         val policy = com.maya.ai.chat.NativeFishPolicy
         fun unavailable() = result(com.maya.ai.chat.NativeFishPolicy.Result.Error(com.maya.ai.chat.NativeFishPolicy.Code.UNAVAILABLE))
         if (!wanted()) return
-        nativeChatReady { ready ->
-            if (!wanted()) return@nativeChatReady
+        nativeConfiguredReady { ready ->
+            if (!wanted()) return@nativeConfiguredReady
             if (ready != com.maya.ai.chat.NativeChatReadiness.Reason.READY) {
                 result(com.maya.ai.chat.NativeFishPolicy.Result.Error(com.maya.ai.chat.NativeFishPolicy.Code.ASSISTANT_BUSY))
             } else try {
                 if (isFinishing || isDestroyed || webView.url !in listOf(
                         "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
-                    unavailable(); return@nativeChatReady
+                    unavailable(); return@nativeConfiguredReady
                 }
-                webView.evaluateJavascript(policy.script(text)) { raw ->
+                webView.evaluateJavascript(policy.script(text,true)) { raw ->
                     if (!wanted()) return@evaluateJavascript
                     try {
                         if (instance !== this || isFinishing || isDestroyed || httpRequests.isNotEmpty() || recognitionActive ||

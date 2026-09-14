@@ -49,6 +49,7 @@ class MainChatSurfaceTest {
     }
     @Before fun open() {
         RuntimeEnvironment.getApplication().getSharedPreferences("maya",Context.MODE_PRIVATE).edit().clear().commit()
+        RuntimeEnvironment.getApplication().getSharedPreferences("maya_connections",Context.MODE_PRIVATE).edit().clear().commit()
         c=Robolectric.buildActivity(MainActivity::class.java).setup().visible()
         // Opening text Chat no longer requests microphone/contacts/call permissions.
         assertNull(shadowOf(a).nextStartedActivity)
@@ -467,6 +468,8 @@ class MainChatSurfaceTest {
     }
     private fun permissionFixture(): PermissionMemory {
         val store=PermissionMemory()
+        NativeChatWorkspace::class.java.getDeclaredField("useConfiguredChat").apply {isAccessible=true}.set(workspace,false)
+        NativeChatWorkspace::class.java.getDeclaredField("cloudflareReviewed").apply {isAccessible=true}.set(workspace,true)
         NativeChatWorkspace::class.java.getDeclaredField("directPermission\$delegate").apply {isAccessible=true}.set(workspace,lazyOf(DirectSendPermission(store)))
         // Block before signing/network; this changes only the Robolectric fixture preference.
         a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
@@ -501,7 +504,7 @@ class MainChatSurfaceTest {
         val consentDialog=ShadowAlertDialog.getLatestAlertDialog()
         consentDialog.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true;positive()
         assertEquals(1,store.writes);assertTrue(button("Open Voice settings").isShown)
-        assertEquals(View.GONE,local<android.widget.TextView>("status").visibility)
+        assertEquals(View.VISIBLE,local<android.widget.TextView>("status").visibility)
         assertTrue(local<NativeChatConversation>("session").messages().isEmpty());assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
         c.pause().stop().restart().start().resume();assertFalse(local<android.widget.CheckBox>("consent").isChecked)
         local<EditText>("draft").setText("new manual message");local<android.widget.Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle()
@@ -559,7 +562,7 @@ class MainChatSurfaceTest {
     @Test fun temporaryGrantCoversOnlyThisConversationWithoutWritingRemember() {
         val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
         val first=ShadowAlertDialog.getLatestAlertDialog();positive();local<android.widget.Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle()
-        assertSame(first,ShadowAlertDialog.getLatestAlertDialog());assertEquals(0,store.writes);assertEquals(2,local<List<Any>>("timeline").size)
+        assertSame(first,ShadowAlertDialog.getLatestAlertDialog());assertEquals(0,store.writes);assertTrue(local<List<Any>>("timeline").isEmpty())
         c.pause().stop().restart().start().resume();local<EditText>("draft").setText("new");local<android.widget.Button>("send").performClick()
         assertNotSame(first,ShadowAlertDialog.getLatestAlertDialog());assertTrue(local<List<Any>>("timeline").isEmpty())
     }
@@ -699,6 +702,85 @@ class MainChatSurfaceTest {
         button("Stop current work").performClick();assertNull(field<String?>("fishTalkId"));assertFalse(local<Boolean>("fishTalkBusy"))
         a.MayaBridge().fishTalkEvent(id,"assistant","late");shadowOf(Looper.getMainLooper()).idle()
         assertEquals(2,local<List<Any>>("timeline").size)
+    }
+
+    private class ConfigHost {
+        var packet="{\"code\":\"READY\",\"provider\":\"groq\",\"model\":\"saved-model\",\"key\":\"SYNTHETIC_AI_KEY\",\"tokens\":400}"
+        val scripts=mutableListOf<String>()
+    }
+    private fun withConfiguredHost(block: (ConfigHost)->Unit) {
+        val original=web;val fixture=ConfigHost()
+        val fake=object : WebView(a) {
+            override fun getUrl()="https://appassets.androidplatform.net/assets/web/index.html"
+            override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {
+                fixture.scripts.add(script)
+                if(script.contains("FISH_TALK.chatConfig()")) callback?.onReceiveValue(org.json.JSONObject.quote(fixture.packet))
+                else if(script==NativeChatReadiness.IDLE_SCRIPT) callback?.onReceiveValue("\"READY\"")
+                else callback?.onReceiveValue("null")
+            }
+        }
+        MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,fake)
+        MainActivity::class.java.getDeclaredField("voiceHostTrusted").apply {isAccessible=true}.set(a,true)
+        try {block(fixture)} finally {MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,original);fake.destroy()}
+    }
+    @Test fun defaultChatUsesSavedAiAndNeverInheritsCloudflareConsent() = withConfiguredHost {f ->
+        assertTrue(local<Boolean>("useConfiguredChat"));assertFalse(local<Boolean>("cloudflareReviewed"))
+        a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
+        local<android.widget.CheckBox>("consent").isChecked=true
+        local<EditText>("draft").setText("PRIVATE_NATIVE_DRAFT")
+        local<Button>("send").performClick()
+        val d=ShadowAlertDialog.getLatestAlertDialog();assertTrue(d.isShowing)
+        assertTrue(d.window!!.decorView.findViewWithTag<android.widget.TextView>("configured_context_review").text.contains("PRIVATE_NATIVE_DRAFT"))
+        assertFalse(f.scripts.any {it.contains("PRIVATE_NATIVE_DRAFT")})
+        assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
+        assertTrue(local<List<Any>>("timeline").isEmpty())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized());assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+        d.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
+    }
+    @Test fun missingAiNeverStartsMicOrAppendsRepeatedFailureCards() = withConfiguredHost {f ->
+        f.packet="{\"code\":\"AI\"}";local<EditText>("draft").setText("Bhai")
+        repeat(12) {local<Button>("send").performClick()}
+        assertTrue(local<List<Any>>("timeline").isEmpty());assertEquals("Bhai",local<EditText>("draft").text.toString())
+        assertTrue(local<android.widget.TextView>("status").text.contains("no eligible saved AI"))
+        assertTrue(f.scripts.all {it=="window.FISH_TALK ? FISH_TALK.chatConfig() : null"})
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized());assertNull(field<String?>("fishTalkId"))
+    }
+    @Test fun changedProviderKeyAfterReviewRequiresFreshConsentAndKeepsDraft() = withConfiguredHost {f ->
+        local<EditText>("draft").setText("PRIVATE_TYPED")
+        local<Button>("send").performClick();f.packet=f.packet.replace("SYNTHETIC_AI_KEY","CHANGED_KEY")
+        positive();shadowOf(Looper.getMainLooper()).idleFor(300,java.util.concurrent.TimeUnit.MILLISECONDS)
+        assertTrue(local<android.widget.TextView>("status").text.contains("AI selection changed"))
+        assertEquals("PRIVATE_TYPED",local<EditText>("draft").text.toString());assertTrue(local<List<Any>>("timeline").isEmpty())
+        assertFalse(f.scripts.any {it.contains("PRIVATE_TYPED")});assertNull(local<String?>("configuredGrant"))
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
+    }
+    @Test fun editingNativeDraftInvalidatesTheReviewedConfiguredSend() = withConfiguredHost {f ->
+        local<EditText>("draft").setText("OLD_PRIVATE");local<Button>("send").performClick()
+        local<EditText>("draft").setText("NEW_PRIVATE");positive()
+        assertTrue(local<List<Any>>("timeline").isEmpty());assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
+        assertFalse(f.scripts.any {it.contains("PRIVATE")})
+    }
+    @Test fun disabledCloudflareDoesNotCreateAttemptsOrFallBackWithoutReview() {
+        NativeChatWorkspace::class.java.getDeclaredField("useConfiguredChat").apply {isAccessible=true}.set(workspace,false)
+        local<EditText>("draft").setText("Bhai")
+        repeat(10) {local<Button>("send").performClick()}
+        assertTrue(local<List<Any>>("timeline").isEmpty())
+        assertTrue(local<android.widget.TextView>("status").text.contains("Cloudflare Direct is unavailable"))
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized());assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
+        button("AI connection").performClick();assertTrue(ShadowAlertDialog.getLatestAlertDialog().isShowing)
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+        assertFalse(local<Boolean>("useConfiguredChat"));assertEquals("Bhai",local<EditText>("draft").text.toString())
+    }
+    @Test fun savedWakeSwitchDoesNotEqualAnActiveMicrophoneOwner() = withConfiguredHost { _ ->
+        a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
+        var result: NativeChatReadiness.Reason?=null;a.nativeConfiguredReady {result=it}
+        assertEquals(NativeChatReadiness.Reason.READY,result)
+        val service=Robolectric.buildService(com.maya.ai.WakeWordService::class.java).get()
+        com.maya.ai.WakeWordService.instance=service
+        try {a.nativeConfiguredReady {result=it};assertEquals(NativeChatReadiness.Reason.WAKE_SERVICE,result)} finally {com.maya.ai.WakeWordService.instance=null}
+        assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
     }
 
 }

@@ -34,10 +34,7 @@
     return typeof s === "string" && s.trim().length > 0 && s.length <= max &&
       !/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(s) && !/(?:[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF])/.test(s);
   }
-  function config() {
-    if (FISH.block()) throw Error("FISH");
-    if (settings.voiceOn === false || settings.voiceEngine === "off") throw Error("FISH");
-    if (["ur-PK", "hi-IN", "en-IN", "en-US"].indexOf(settings.stt) < 0) throw Error("INPUT");
+  function aiConfig() {
     var choices = BRAIN.plan(false).filter(function (it) { return !it.p.keyless && routes[it.p.id]; });
     if (!choices.length) throw Error("AI");
     var it = choices[0], p = it.p, key = BRAIN.keys(p)[it.ki], model;
@@ -49,7 +46,12 @@
     if (p.id === "openrouter" && !/:free$/.test(model)) throw Error("AI");
     if (p.id !== "gemini" && p.url !== routes[p.id]) throw Error("AI");
     if (p.id !== "gemini" && [400,1400].indexOf(BRAIN.budget(model)) < 0) throw Error("AI");
-    return { provider: p.id, model: model, key: key, voice: FISH.voice(), fishKey: FISH.key(), language: settings.stt, tokens: p.id === "gemini" ? 280 : BRAIN.budget(model) };
+    return { provider: p.id, model: model, key: key, tokens: p.id === "gemini" ? 280 : BRAIN.budget(model) };
+  }
+  function config() {
+    if (FISH.block() || settings.voiceOn === false || settings.voiceEngine === "off") throw Error("FISH");
+    if (["ur-PK", "hi-IN", "en-IN", "en-US"].indexOf(settings.stt) < 0) throw Error("INPUT");
+    var c=aiConfig();c.voice=FISH.voice();c.fishKey=FISH.key();c.language=settings.stt;return c;
   }
   function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
   function emit(s, kind, value) {
@@ -172,6 +174,10 @@
   }
   function owns(owner) { return !!active && active.input === owner && (active.phase === "starting" || active.phase === "listening" || active.phase === "finalizing"); }
   w.FISH_TALK = {
+    // Native-only configuration read. No draft/context argument, microphone or provider request.
+    chatConfig: function () {
+      try {var c=aiConfig();c.code="READY";return JSON.stringify(c);} catch(e) {return JSON.stringify({code:"AI"});}
+    },
     describe: describe, start: start, stop: stop,
     active: function () { return !!active; },
     owns: owns,

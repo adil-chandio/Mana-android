@@ -87,4 +87,7 @@ object NativeChatReadiness {
       if(INPUT_SESSION.active!==null) return 'INPUT_BUSY';
       return 'READY';
     }catch(e){return 'UNKNOWN';}})()"""
+    // Only native callers which separately verify actual service/mic ownership may use this.
+    val IDLE_SCRIPT=LOCAL_SCRIPT.replace("if(settings.wakeWord) return 'JS_WAKE_ENABLED';", "")
+
 }
