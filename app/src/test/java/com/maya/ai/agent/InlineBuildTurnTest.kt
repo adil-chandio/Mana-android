@@ -250,6 +250,7 @@ class InlineBuildTurnTest {
     @Test fun foldDoesNotDisposeProjectOrPreviewAndUnfoldDoesNotReapproveOldDialog() {
         submit(html);button("Render static preview here").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
         button("Fold task").performClick();assertEquals(View.GONE,card.view.visibility);assertEquals(html,card.editor.text.toString())
+        assertEquals("Expand task",root.findViewWithTag<Button>("task_fold").contentDescription)
         old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
         button("Expand task").performClick();old.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
         assertEquals(View.VISIBLE,card.view.visibility);assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))

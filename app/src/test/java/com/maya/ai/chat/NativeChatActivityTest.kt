@@ -620,7 +620,7 @@ class NativeChatActivityTest {
         old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertEquals(3,field<List<Any>>("agentCards").size)
         button("Remove task").performClick();yes();assertEquals(2,field<List<Any>>("agentCards").size)
         assertEquals(original,field<NativeChatConversation>("session").messages());assertEquals("KEEP_DRAFT",field<EditText>("draft").text.toString())
-        assertEquals(0,tasks[0].view.childCount);assertTrue(tasks[1].view.childCount>0)
+        assertEquals(0,(tasks[0].view as ViewGroup).childCount);assertTrue((tasks[1].view as ViewGroup).childCount>0)
         submit("WIKI Cat");assertEquals(3,field<List<Any>>("agentCards").size);noTransport()
     }
     @Test fun foldedApprovedResearchKeepsExpiryButCannotRunWhileHidden() {
@@ -636,7 +636,7 @@ class NativeChatActivityTest {
         val task=field<List<com.maya.ai.agent.WorkspaceTask>>("agentCards").single()
         assertTrue(task.busy);assertFalse(button("Remove task").isEnabled);assertFalse(button("Fold task").isEnabled)
         button("Stop this task").performClick();assertFalse(task.busy);button("Remove task").performClick();yes()
-        fake.model!!("WIKI Dog",null);assertTrue(field<List<Any>>("agentCards").isEmpty());assertEquals(0,task.view.childCount);noTransport()
+        fake.model!!("WIKI Dog",null);assertTrue(field<List<Any>>("agentCards").isEmpty());assertEquals(0,(task.view as ViewGroup).childCount);noTransport()
     }
     @Test fun leavingOrSettingsRevokesOldTaskRemovalConfirmation() {
         researchFake();submit("WIKI Dog");button("Remove task").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()

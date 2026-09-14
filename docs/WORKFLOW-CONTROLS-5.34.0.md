@@ -2,7 +2,7 @@
 
 ## Task management in the permanent workspace
 
-Each Research/Builder task now has compact native controls next to its card: fold/expand, owned-task STOP when applicable, and confirmed Remove. The header names the task/file, states whether it is waiting/running/approved/idle or retaining a local preview, and shows the current **0–3 task slot** occupancy. Idle is explicitly not a claim that the task succeeded.
+Each Research/Builder task now has compact native controls next to its card: fold/expand, owned-task STOP when applicable, and confirmed Remove. The header names the task/file, states whether it is waiting/running/approved/idle or retaining a local preview, and shows the current **0–3 task slot** occupancy. Idle is not a claim that the task succeeded. Status text can wrap rather than clipping at a fixed line count; fold/checkpoint controls update their accessibility labels to match their current action.
 
 - **Fold is presentation only.** It keeps task data, local preview and existing approved-plan expiry; it neither stops/disposes the task nor grants/renews approval. Fold/removal are unavailable during active workspace work. Folding dismisses outstanding local review dialogs, and folded cards cannot invoke hidden Builder/Research actions. Expanding does not restore a dismissed dialog's authority.
 - **Stop this task** stops/revokes that owned task, not another task, Direct request or Fish playback. It keeps task data and does not free capacity. Existing global/obscured-touch/lifecycle protections remain; this is not a universal remote cancellation/refund control.

@@ -178,7 +178,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         taskControls[turn]?.folded!=true && active==null && !speech.busy && !dictation.stoppable && agentCards.none {it!==turn && it.busy}
     private fun controlsFor(task: com.maya.ai.agent.WorkspaceTask): TaskControls = taskControls.getOrPut(task) {
         val row=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;isSaveEnabled=false;tag="task_controls"}
-        val summary=labelView("",13f).apply {maxLines=3;ellipsize=android.text.TextUtils.TruncateAt.END;row.addView(this)}
+        val summary=labelView("",13f).apply {row.addView(this)}
         val actions=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;row.addView(this)}
         val fold=actionButton("Fold task") {
             if(visible && section==0 && !anyBusy && task in agentCards) {
@@ -1001,10 +1001,11 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             taskControls[task]?.let {ui ->
                 task.view.visibility=if(ui.folded) View.GONE else View.VISIBLE
                 val kind=if(task is com.maya.ai.agent.InlineBuildTurn) "Builder" else "Research"
-                val state=when {task.executing->"running";task.busy->"waiting";task.approved->"approved · expiry still applies";task.stoppable->"local preview active";else->"idle · not a completion claim"}
+                val state=when {task.executing->"running";task.busy->"waiting";task.approved->"approved · expiry still applies";task.stoppable->"local preview active";else->"idle"}
                 val label=if(task is com.maya.ai.agent.InlineBuildTurn) "index.html" else task.goal.take(80).let {if(it.lastOrNull()?.isHighSurrogate()==true) it.dropLast(1) else it}
                 ui.summary.text="$kind · $label\n$state · ${agentCards.size}/3 slots used"+if(ui.folded) " · folded (not stopped)" else ""
                 ui.fold.text=if(ui.folded) "Expand task" else "Fold task"
+                ui.fold.contentDescription=ui.fold.text;ui.fold.isSelected=ui.folded
                 ui.fold.isEnabled=visible && section==0 && !busy
                 ui.remove.isEnabled=visible && section==0 && !busy
                 ui.stop.visibility=if(task.stoppable) View.VISIBLE else View.GONE

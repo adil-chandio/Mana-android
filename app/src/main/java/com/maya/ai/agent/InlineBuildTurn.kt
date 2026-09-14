@@ -248,6 +248,7 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
         checkpointSave.isEnabled=enabled
         checkpointToggle.visibility=if(points.isEmpty()) View.GONE else View.VISIBLE
         checkpointToggle.text="Checkpoints · ${points.size}/5 ▾"
+        checkpointToggle.contentDescription="${if(checkpointExpanded) "Hide" else "Show"} local checkpoints · ${points.size} of 5";checkpointToggle.isSelected=checkpointExpanded
         checkpointRows.visibility=if(checkpointExpanded && points.isNotEmpty()) View.VISIBLE else View.GONE
         checkpointButtons.forEach {it.isEnabled=enabled}
     }
