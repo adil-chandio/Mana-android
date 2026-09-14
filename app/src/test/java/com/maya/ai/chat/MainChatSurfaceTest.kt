@@ -50,6 +50,11 @@ class MainChatSurfaceTest {
     @Before fun open() {
         RuntimeEnvironment.getApplication().getSharedPreferences("maya",Context.MODE_PRIVATE).edit().clear().commit()
         c=Robolectric.buildActivity(MainActivity::class.java).setup().visible()
+        // Original Main requests its existing voice/contact/call permissions at startup.
+        // Distinguish that unchanged OS request from any NEW navigation by the Chat entry.
+        val startup=shadowOf(a).nextStartedActivity
+        if(startup!=null) assertEquals("android.content.pm.action.REQUEST_PERMISSIONS",startup.action)
+        assertNull(shadowOf(a).nextStartedActivity)
     }
     @After fun close() {c.pause().stop().destroy()}
     @Test fun mainChatIsInPlaceAndOpeningSendsNoContentOrActivityIntent() {
