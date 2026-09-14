@@ -90,4 +90,25 @@ class NativeDictationTest {
         val f=F();f.d.start("https://evil.invalid",false,true);assertEquals(0,f.checks)
         f.begin();f.events[0].result("PRIVATE_TRANSCRIPT");assertFalse(f.d.toString().contains("PRIVATE_TRANSCRIPT"))
     }
+    @Test fun specificAvailabilityFailuresNeverRequestPermissionOrFallback() {
+        for(state in listOf(NativeDictation.State.ON_DEVICE_UNAVAILABLE,NativeDictation.State.SYSTEM_UNAVAILABLE,NativeDictation.State.LANGUAGE_UNSUPPORTED)) {
+            val f=F();f.d.start("ur-PK",true,true);f.ready!!(state)
+            assertEquals(state,f.d.state);assertTrue(f.d.recoverable);assertEquals(0,f.starts);assertEquals(0,f.permissions)
+            assertTrue(f.d.selectionLabel.contains("ur-PK"));assertTrue(f.d.selectionLabel.contains("On-device"))
+            assertTrue(f.timers.isEmpty());f.d.clear();assertEquals("",f.d.selectionLabel);assertFalse(f.d.recoverable)
+        }
+    }
+    @Test fun specificRecognitionErrorsDiscardPartialsAndRequireAnotherExplicitStart() {
+        for(state in listOf(NativeDictation.State.LANGUAGE_UNSUPPORTED,NativeDictation.State.LANGUAGE_UNAVAILABLE,NativeDictation.State.NETWORK_ERROR)) {
+            val f=F();f.begin();f.events[0].partial("private partial");f.events[0].error(state)
+            assertEquals(state,f.d.state);assertEquals("",f.d.transcript);assertTrue(f.d.recoverable);assertEquals(1,f.starts)
+            f.events[0].result("late");assertEquals("",f.d.transcript);assertTrue(f.timers.isEmpty())
+        }
+    }
+    @Test fun recoveryControlIsAbsentDuringBusyAndReviewedTranscriptStates() {
+        val f=F();f.d.start("en-US",false,true);assertFalse(f.d.recoverable)
+        f.ready!!(null);assertFalse(f.d.recoverable);f.events[0].ready();assertFalse(f.d.recoverable)
+        f.events[0].result("review");assertFalse(f.d.recoverable);assertTrue(f.d.selectionLabel.contains("System service"))
+    }
+
 }

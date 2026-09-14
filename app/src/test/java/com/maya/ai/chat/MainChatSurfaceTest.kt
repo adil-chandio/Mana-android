@@ -255,7 +255,7 @@ class MainChatSurfaceTest {
             override fun result(text: String) {fail("No result")}
             override fun error(state: NativeDictation.State) {errors.add(state)}
         })
-        assertEquals(listOf(NativeDictation.State.UNAVAILABLE),errors)
+        assertEquals(listOf(NativeDictation.State.ON_DEVICE_UNAVAILABLE),errors)
         val token=Any();assertTrue(a.acquireComposerMicrophone(token));a.releaseComposerMicrophone(token)
         assertNull(shadowOf(a).nextStartedActivity)
     }
@@ -271,6 +271,157 @@ class MainChatSurfaceTest {
         button("Use transcript").performClick();local<EditText>("draft").setText("new draft");positive()
         assertEquals("new draft",local<EditText>("draft").text.toString());assertEquals(NativeDictation.State.REVIEW,owner.state)
         assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+
+    @Test fun voiceFailureShowsSelectionAndRecoveryReopensConsentWithoutStarting() {
+        val (owner,port)=fakeDictation();local<EditText>("draft").setText("KEEP_TYPED")
+        button("Voice input").performClick();positive();port.ready!!(NativeDictation.State.ON_DEVICE_UNAVAILABLE)
+        assertTrue(button("Choose voice options").isShown)
+        assertTrue(local<android.widget.TextView>("dictationStatus").text.contains("ur-PK"))
+        assertEquals(0,port.starts);button("Choose voice options").performClick()
+        val dialog=ShadowAlertDialog.getLatestAlertDialog()
+        assertTrue(dialog.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<android.widget.TextView>("recognition_availability").text.contains("unavailable"))
+        dialog.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(NativeDictation.State.ON_DEVICE_UNAVAILABLE,owner.state)
+        assertEquals("KEEP_TYPED",local<EditText>("draft").text.toString());assertEquals(0,port.starts);assertEquals(0,port.requests)
+    }
+    @Test fun recoveryNeverRemembersOnlineChoiceAsANewDefault() {
+        val (_,port)=fakeDictation();button("Voice input").performClick()
+        fun box(v: View): android.widget.CheckBox? {
+            if(v is android.widget.CheckBox) return v
+            if(v is ViewGroup) for(i in 0 until v.childCount) box(v.getChildAt(i))?.let {return it}
+            return null
+        }
+        val first=ShadowAlertDialog.getLatestAlertDialog();box(first.findViewById(android.R.id.content))!!.isChecked=false
+        positive();port.ready!!(null);assertFalse(port.offline)
+        port.events!!.error(NativeDictation.State.LANGUAGE_UNAVAILABLE)
+        button("Choose voice options").performClick()
+        assertTrue(box(ShadowAlertDialog.getLatestAlertDialog().findViewById(android.R.id.content))!!.isChecked)
+        assertEquals(1,port.starts);assertFalse(local<android.widget.CheckBox>("consent").isChecked)
+    }
+    @Test fun unavailableServiceIsReportedBeforePermissionWithoutLaunchingAnything() {
+        shadowOf(RuntimeEnvironment.getApplication()).denyPermissions(android.Manifest.permission.RECORD_AUDIO)
+        var result: NativeDictation.State?=null
+        AndroidDictationPort(a).check("ur-PK",true) {result=it}
+        assertEquals(NativeDictation.State.ON_DEVICE_UNAVAILABLE,result)
+        assertNull(shadowOf(a).nextStartedActivity)
+    }
+    @Test fun AndroidErrorCodesKeepLanguageNetworkAndPermissionDistinct() {
+        val codes=mapOf(12 to NativeDictation.State.LANGUAGE_UNSUPPORTED,13 to NativeDictation.State.LANGUAGE_UNAVAILABLE,
+            1 to NativeDictation.State.NETWORK_ERROR,2 to NativeDictation.State.NETWORK_ERROR,
+            9 to NativeDictation.State.PERMISSION_REQUIRED,8 to NativeDictation.State.BLOCKED,7 to NativeDictation.State.NO_MATCH,
+            999 to NativeDictation.State.ERROR)
+        codes.forEach {(code,state)->assertEquals(state,AndroidDictationPort.recognitionFailure(code))}
+    }
+    private fun invokeMain(name: String) {MainActivity::class.java.getDeclaredMethod(name).apply {isAccessible=true}.invoke(a)}
+    @Test fun missingHostMountTimesOutWithoutResendingOrClearingDraft() {
+        local<EditText>("draft").setText("KEEP_LOCAL")
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(8))
+        assertTrue(field<Boolean>("hostFailed"));assertFalse(field<Boolean>("workspaceHostReady"));assertEquals(View.INVISIBLE,web.visibility)
+        assertTrue(button("Retry local interface").isShown)
+        assertEquals("KEEP_LOCAL",local<EditText>("draft").text.toString())
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        web.webViewClient!!.onPageFinished(web,web.url)
+        web.webViewClient!!.onPageStarted(web,web.url,null)
+        assertTrue(field<Boolean>("hostFailed")) // A late load must not defeat the manual retry gate.
+    }
+    @Test fun hostRetryCancelAndStaleConfirmationDoNotReload() {
+        invokeMain("failWorkspaceHost");val epoch=field<Long>("hostLoadEpoch")
+        button("Retry local interface").performClick();val dialog=ShadowAlertDialog.getLatestAlertDialog()
+        dialog.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(epoch,field<Long>("hostLoadEpoch"));assertTrue(field<Boolean>("hostFailed"))
+    }
+    @Test fun confirmedHostRetryIsBoundedAndPreservesNativeDraftAndConsent() {
+        local<EditText>("draft").setText("KEEP_LOCAL");invokeMain("failWorkspaceHost")
+        button("Retry local interface").performClick();positive()
+        assertFalse(field<Boolean>("hostFailed"));assertEquals("KEEP_LOCAL",local<EditText>("draft").text.toString())
+        assertFalse(local<android.widget.CheckBox>("consent").isChecked)
+        assertEquals(View.INVISIBLE,web.visibility)
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(8))
+        assertTrue(field<Boolean>("hostFailed"));val epoch=field<Long>("hostLoadEpoch")
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(25))
+        assertEquals(epoch,field<Long>("hostLoadEpoch"));assertNull(shadowOf(a).nextStartedActivity)
+    }
+    @Test fun hostRetryIsDeniedWhileNativeMicOwnerExists() {
+        val token=Any();assertTrue(a.acquireComposerMicrophone(token));invokeMain("failWorkspaceHost")
+        assertFalse(a.retryWorkspaceHost());assertTrue(field<Boolean>("hostFailed"))
+        a.releaseComposerMicrophone(token)
+    }
+    @Test fun failedHostNoticeTravelsIntoDedicatedSettingsAndBack() {
+        invokeMain("failWorkspaceHost");openSettings();button("Original settings · expand here").performClick()
+        assertEquals("voice_settings_page",(local<android.widget.ScrollView>("hostNoticeContainer").parent as View).tag)
+        assertTrue(button("Retry local interface").isShown);assertFalse(local<EditText>("draft").isShown)
+        a.onBackPressed();a.onBackPressed()
+        assertEquals("host_notice_slot",(local<android.widget.ScrollView>("hostNoticeContainer").parent as View).tag)
+        assertTrue(button("Retry local interface").isShown)
+    }
+    @Test fun presentationTimeoutRejectsLateAckAndExplicitReloadFencesOldMounts() {
+        val original=web;val callbacks=mutableListOf<android.webkit.ValueCallback<String>>()
+        val testWeb=object : WebView(a) {
+            override fun getUrl()="https://appassets.androidplatform.net/assets/web/index.html"
+            override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {callbacks.add(callback!!)}
+        }
+        fun set(name: String,value: Any)=MainActivity::class.java.getDeclaredField(name).apply {isAccessible=true}.set(a,value)
+        try {
+            set("webView",testWeb);set("workspaceHostReady",true)
+            invokeMain("applyWorkspacePresentation")
+            shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(8))
+            callbacks[0].onReceiveValue("true");assertEquals(View.INVISIBLE,testWeb.visibility);assertTrue(field<Boolean>("hostFailed"))
+            assertTrue(a.retryWorkspaceHost());original.webViewClient!!.onPageFinished(testWeb,testWeb.url)
+            val old=callbacks.last();invokeMain("beginWorkspaceHostLoad")
+            old.onReceiveValue("true");assertFalse(field<Boolean>("workspaceHostReady"))
+        } finally {set("webView",original);testWeb.destroy()}
+    }
+    @Test fun successfulMountAndPresentationDismissNoticeButDuplicateAckCannotBreakIt() {
+        val original=web;val callbacks=mutableListOf<android.webkit.ValueCallback<String>>()
+        val testWeb=object : WebView(a) {
+            override fun getUrl()="https://appassets.androidplatform.net/assets/web/index.html"
+            override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {callbacks.add(callback!!)}
+        }
+        fun set(value: WebView)=MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,value)
+        try {
+            set(testWeb);original.webViewClient!!.onPageFinished(testWeb,testWeb.url)
+            callbacks[0].onReceiveValue("true");callbacks[1].onReceiveValue("true")
+            assertEquals(View.VISIBLE,testWeb.visibility);assertFalse(button("Retry local interface").isShown)
+            callbacks[0].onReceiveValue("false");callbacks[1].onReceiveValue("false")
+            shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(9))
+            assertFalse(field<Boolean>("hostFailed"));assertEquals(View.VISIBLE,testWeb.visibility)
+        } finally {set(original);testWeb.destroy()}
+    }
+
+    @Test fun falseMountAckFailsImmediatelyAndCannotLaterBecomeReady() {
+        val original=web;val callbacks=mutableListOf<android.webkit.ValueCallback<String>>()
+        val testWeb=object : WebView(a) {
+            override fun getUrl()="https://appassets.androidplatform.net/assets/web/index.html"
+            override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {callbacks.add(callback!!)}
+        }
+        fun set(value: WebView)=MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,value)
+        try {
+            set(testWeb);original.webViewClient!!.onPageFinished(testWeb,testWeb.url)
+            callbacks[0].onReceiveValue("false");assertTrue(field<Boolean>("hostFailed"))
+            callbacks[0].onReceiveValue("true");assertFalse(field<Boolean>("workspaceHostReady"));assertEquals(View.INVISIBLE,testWeb.visibility)
+        } finally {set(original);testWeb.destroy()}
+    }
+    @Test fun pauseRevokesHostPresentationAndResumeNeedsFreshAck() {
+        val original=web;val callbacks=mutableListOf<android.webkit.ValueCallback<String>>()
+        val testWeb=object : WebView(a) {
+            override fun getUrl()="https://appassets.androidplatform.net/assets/web/index.html"
+            override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {callbacks.add(callback!!)}
+        }
+        fun set(name: String,value: Any)=MainActivity::class.java.getDeclaredField(name).apply {isAccessible=true}.set(a,value)
+        try {
+            set("webView",testWeb);set("workspaceHostReady",true);invokeMain("applyWorkspacePresentation")
+            val old=callbacks.last();c.pause();old.onReceiveValue("true");assertEquals(View.INVISIBLE,testWeb.visibility)
+            c.resume();old.onReceiveValue("true");assertEquals(View.INVISIBLE,testWeb.visibility)
+            callbacks.last().onReceiveValue("true");assertEquals(View.VISIBLE,testWeb.visibility)
+        } finally {set("webView",original);testWeb.destroy()}
+    }
+    @Test fun navigatingAwayRevokesHostRetryConfirmation() {
+        invokeMain("failWorkspaceHost");val epoch=field<Long>("hostLoadEpoch")
+        button("Retry local interface").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
+        c.pause().resume();old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(field<Boolean>("hostFailed"));assertEquals(epoch,field<Long>("hostLoadEpoch"))
     }
 
 }

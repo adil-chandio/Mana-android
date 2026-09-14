@@ -83,6 +83,38 @@ class MainActivity : AppCompatActivity() {
     private var workspaceHostReady=false
     private var hostLoadEpoch=0L
     private var hostPresentationEpoch=0L
+    private var hostMountEpoch=0L
+    private val hostHandler=android.os.Handler(Looper.getMainLooper())
+    private var hostDeadline: Runnable?=null
+    private var hostFailed=false
+    private var hostFallbackUsed=false
+    private fun cancelHostDeadline() {hostDeadline?.let {hostHandler.removeCallbacks(it)};hostDeadline=null}
+    private fun failWorkspaceHost() {
+        cancelHostDeadline();hostLoadEpoch++;hostPresentationEpoch++;hostMountEpoch++;hostFailed=true;workspaceHostReady=false
+        webView.visibility=android.view.View.INVISIBLE
+        nativeChat?.hostPresentationState(false,true)
+    }
+    private fun armHostDeadline() {
+        cancelHostDeadline()
+        val load=hostLoadEpoch;val presentation=hostPresentationEpoch
+        hostDeadline=Runnable {if(!isFinishing && !isDestroyed && load==hostLoadEpoch && presentation==hostPresentationEpoch) failWorkspaceHost()}
+            .also {hostHandler.postDelayed(it,8000)}
+    }
+    private fun beginWorkspaceHostLoad() {
+        hostLoadEpoch++;hostPresentationEpoch++;hostMountEpoch++;workspaceHostReady=false;hostFailed=false
+        webView.visibility=android.view.View.INVISIBLE
+        nativeChat?.hostPresentationState(true,false);armHostDeadline()
+    }
+    /** Explicit confirmed native retry only; no bridge method, data wipe, navigation or automatic loop. */
+    fun retryWorkspaceHost(): Boolean {
+        if(!hostFailed || !mainResumed || isFinishing || isDestroyed || composerMicLease!=null || recognitionActive ||
+            httpRequests.isNotEmpty() || tts?.isSpeaking==true ||
+            com.maya.ai.chat.NativeChatReadiness.runtime(getSharedPreferences("maya",0).getBoolean("wake",false),
+                WakeWordService.instance!=null,WakeWordService.fishOutputActive,WakeWordService.haal,MayaAct.hasPendingActions())!=com.maya.ai.chat.NativeChatReadiness.Reason.READY) return false
+        hostFallbackUsed=false;beginWorkspaceHostLoad()
+        try {webView.stopLoading();webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")} catch(_: Exception) {failWorkspaceHost()}
+        return true
+    }
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     @Volatile private var ttsBooting = false
@@ -153,15 +185,10 @@ class MainActivity : AppCompatActivity() {
         }
         mainSurface.addView(nativeChatView, android.widget.FrameLayout.LayoutParams(-1, -1))
         setContentView(mainSurface)
+        beginWorkspaceHostLoad()
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
         Toast.makeText(this, "MAYA " + BuildConfig.VERSION_NAME + " • Main workspace", Toast.LENGTH_LONG).show()
-        // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
-        android.os.Handler(Looper.getMainLooper()).postDelayed({
-            if (!webViewAlive) {
-                Toast.makeText(this, "WebView load NAHI hua (blank ka wajah) — developer ko batayen", Toast.LENGTH_LONG).show()
-            }
-        }, 8000)
         // v4.0.1: PURANA Android System WebView detect — layout (inset/color-mix) kharab ho sakta hai
         val wvVer = try { WebViewCompat.getCurrentWebViewPackage(this)?.versionName ?: "" } catch (e: Exception) { "" }
         val wvMajor = wvVer.split(".").firstOrNull()?.toIntOrNull() ?: 0
@@ -229,6 +256,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        cancelHostDeadline();hostLoadEpoch++;hostPresentationEpoch++
         nativeChat?.dispose(); nativeChat = null; nativeChatView = null
         httpClosed = true
         httpDeadlines.shutdownNow()
@@ -251,7 +279,7 @@ class MainActivity : AppCompatActivity() {
         if (mainResumed && !isFinishing && !isDestroyed) nativeChat?.focusComposer()
     }
     override fun onResume() { super.onResume(); mainResumed = true; nativeChat?.resume() }
-    override fun onPause() { mainResumed = false; nativeChat?.pause(); super.onPause() }
+    override fun onPause() { mainResumed = false; hostPresentationEpoch++;cancelHostDeadline();webView.visibility=android.view.View.INVISIBLE; nativeChat?.pause(); super.onPause() }
     override fun onStop() { nativeChat?.leaveScreen(); super.onStop() }
     override fun onWindowFocusChanged(hasFocus: Boolean) { super.onWindowFocusChanged(hasFocus); nativeChat?.focusChanged(hasFocus) }
     override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
@@ -310,22 +338,29 @@ class MainActivity : AppCompatActivity() {
 
     /** Presentation handshake only; no conversation/code/settings credentials enter JS. */
     private fun applyWorkspacePresentation() {
-        if(!workspaceHostReady || !mainResumed) return
+        if(!mainResumed || hostFailed) return
+        if(!workspaceHostReady) {nativeChat?.hostPresentationState(true,false);armHostDeadline();return}
         val url=webView.url
-        if(url !in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) return
+        if(url !in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {failWorkspaceHost();return}
         val ticket=hostLoadEpoch;val presentationTicket=++hostPresentationEpoch;val expanded=workspaceSettingsOpen
         webView.visibility=android.view.View.INVISIBLE
-        webView.evaluateJavascript("window.__mayaWorkspaceSettings ? window.__mayaWorkspaceSettings($expanded) : false;") {applied ->
+        nativeChat?.hostPresentationState(true,false);armHostDeadline()
+        var answered=false
+        try {webView.evaluateJavascript("window.__mayaWorkspaceSettings ? window.__mayaWorkspaceSettings($expanded) : false;") {applied ->
             if(!isFinishing && !isDestroyed && mainResumed && ticket==hostLoadEpoch && workspaceHostReady &&
-                presentationTicket==hostPresentationEpoch && expanded==workspaceSettingsOpen && webView.url==url && applied=="true") webView.visibility=android.view.View.VISIBLE
-        }
+                presentationTicket==hostPresentationEpoch && !answered && expanded==workspaceSettingsOpen && webView.url==url) {
+                answered=true
+                if(applied=="true") {cancelHostDeadline();webView.visibility=android.view.View.VISIBLE;nativeChat?.hostPresentationState(false,false)}
+                else failWorkspaceHost()
+            }
+        }} catch(_: Exception) {failWorkspaceHost()}
     }
 
     /* ================= WEBVIEW CLIENT ================= */
 
     inner class MayaWebViewClient : WebViewClientCompat() {
         override fun onPageStarted(view: WebView,url: String?,favicon: android.graphics.Bitmap?) {
-            hostLoadEpoch++;workspaceHostReady=false;view.visibility=android.view.View.INVISIBLE
+            if(view===webView) {if(hostFailed) {view.stopLoading();view.visibility=android.view.View.INVISIBLE} else beginWorkspaceHostLoad()}
             super.onPageStarted(view,url,favicon)
         }
         override fun shouldInterceptRequest(
@@ -339,13 +374,15 @@ class MainActivity : AppCompatActivity() {
             if (url != null && (url.startsWith("https://$VIRTUAL_HOST") || url.startsWith("file:///android_asset"))) {
                 webViewAlive = true
             }
-            if (url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
-                val ticket=hostLoadEpoch
-                view.evaluateJavascript("window.__mayaWorkspaceMount ? window.__mayaWorkspaceMount() : false;") { mounted ->
-                    if (!isFinishing && !isDestroyed && ticket==hostLoadEpoch && view === webView && view.url == url && mounted == "true") {
-                        workspaceHostReady=true;applyWorkspacePresentation()
+            if (!hostFailed && view===webView && view.url==url && url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                val ticket=hostLoadEpoch;val mountTicket=++hostMountEpoch
+                var answered=false
+                try {view.evaluateJavascript("window.__mayaWorkspaceMount ? window.__mayaWorkspaceMount() : false;") { mounted ->
+                    if (!isFinishing && !isDestroyed && ticket==hostLoadEpoch && mountTicket==hostMountEpoch && !answered && view === webView && view.url == url && !hostFailed) {
+                        answered=true
+                        if(mounted=="true") {workspaceHostReady=true;applyWorkspacePresentation()} else failWorkspaceHost()
                     }
-                }
+                }} catch(_: Exception) {failWorkspaceHost()}
             }
             super.onPageFinished(view, url)
         }
@@ -357,11 +394,18 @@ class MainActivity : AppCompatActivity() {
             request: WebResourceRequest,
             error: WebResourceErrorCompat
         ) {
-            if (request.isForMainFrame && request.url.host == VIRTUAL_HOST) {
-                hostLoadEpoch++;workspaceHostReady=false;view.visibility=android.view.View.INVISIBLE
-                view.loadUrl("file:///android_asset/web/index.html")
+            if (view===webView && request.isForMainFrame && request.url.toString()==view.url && !hostFailed) {
+                if(request.url.toString()=="https://$VIRTUAL_HOST/assets/web/index.html" && !hostFallbackUsed) {
+                    hostFallbackUsed=true;beginWorkspaceHostLoad()
+                    try {view.loadUrl("file:///android_asset/web/index.html")} catch(_: Exception) {failWorkspaceHost()}
+                } else failWorkspaceHost()
             }
             super.onReceivedError(view, request, error)
+        }
+
+        override fun onReceivedHttpError(view: WebView,request: WebResourceRequest,response: WebResourceResponse) {
+            if(view===webView && request.isForMainFrame && request.url.toString()==view.url && response.statusCode>=400) failWorkspaceHost()
+            super.onReceivedHttpError(view,request,response)
         }
 
         override fun shouldOverrideUrlLoading(

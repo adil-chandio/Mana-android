@@ -13,7 +13,7 @@ const m = read('app/src/main/java/com/maya/ai/MainActivity.kt');
 assert(m.includes('request.isForMainFrame && request.hasGesture()'));
 assert(m.includes('webView.url in listOf('));
 assert.equal(read('public/index.html'), read('app/src/main/assets/web/index.html'));
-assert.equal(JSON.parse(read('release/version.json')).versionCode, 102);
+assert.equal(JSON.parse(read('release/version.json')).versionCode, 103);
 assert(read('app/build.gradle').includes("implementation 'com.squareup.okhttp3:okhttp:4.12.0'"));
 console.log('Native static integration boundaries PASS (not a device/UI execution test).');
 
@@ -66,3 +66,19 @@ assert(inputPort.includes('createSpeechRecognizer(activity)'));
 assert(inputPort.includes('if(main!=null && !permission()) ActivityCompat.requestPermissions'));
 assert(!m.includes('requestNeededPermissions()'));
 assert(a.includes('dictation.transcript==text && draft.text.toString()==before'));
+
+// Recovery is explicit, fixed-reason, and cannot become provider consent or a download ladder.
+assert(inputPort.includes('fun serviceFailure(onDeviceOnly: Boolean)'));
+assert(!inputPort.includes('triggerModelDownload'));
+assert(inputPort.includes('ERROR_LANGUAGE_NOT_SUPPORTED -> NativeDictation.State.LANGUAGE_UNSUPPORTED'));
+assert(inputPort.includes('ERROR_LANGUAGE_UNAVAILABLE -> NativeDictation.State.LANGUAGE_UNAVAILABLE'));
+assert(a.includes('Choose voice options')); assert(a.includes('isChecked=true'));
+assert(a.includes('tag="recognition_availability"'));
+assert(a.includes('Retry local interface')); assert(a.includes('confirmHostRetry()'));
+assert(m.includes('hostHandler.postDelayed(it,8000)'));
+assert(m.includes('mountTicket==hostMountEpoch && !answered'));
+assert(m.includes('presentationTicket==hostPresentationEpoch && !answered'));
+assert(m.includes('hostFallbackUsed=true;beginWorkspaceHostLoad()'));
+assert(m.includes('if(hostFailed) {view.stopLoading()'));
+assert(!m.slice(m.indexOf('inner class MayaBridge')).includes('retryWorkspaceHost'));
+console.log('Voice and bundled-host recovery boundaries PASS (no live device/service proof).');

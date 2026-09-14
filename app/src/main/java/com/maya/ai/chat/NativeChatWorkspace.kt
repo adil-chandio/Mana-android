@@ -102,6 +102,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private lateinit var dictationPanel: LinearLayout
     private lateinit var dictationStatus: TextView
+    private lateinit var voiceOptions: Button
     private lateinit var dictationText: TextView
     private lateinit var useTranscript: Button
     private lateinit var discardTranscript: Button
@@ -128,6 +129,28 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private lateinit var projectChip: TextView
     private lateinit var stopSpace: View
     private var voiceComponent: View?=null
+    private var hostNotice: LinearLayout?=null
+    private var hostNoticeContainer: ScrollView?=null
+    private var hostNoticeText: TextView?=null
+    private var hostRetryButton: Button?=null
+    private var hostFailed=false
+    private var hostNoticeVisible=false
+    /** Native fixed messages only; never forward workspace content into the privileged WebView. */
+    fun hostPresentationState(loading: Boolean,failed: Boolean) {
+        hostFailed=failed;hostNoticeVisible=loading || failed
+        hostNoticeText?.text=if(failed) "Maya interface did not become ready. You can keep typing, go Back, or retry the local interface. Nothing was resent." else "Loading Maya interface…"
+        hostNoticeContainer?.visibility=if(hostNoticeVisible) View.VISIBLE else View.GONE
+        hostRetryButton?.visibility=if(failed) View.VISIBLE else View.GONE
+    }
+    private fun confirmHostRetry() {
+        if(!visible || !hostFailed || section !in listOf(0,3)) return
+        confirm("Reload local Maya interface?","Current local workspace work and approvals will stop. Your draft, completed conversation and saved settings stay here. Remote work may continue; this does not resend requests or clear app data.") {
+            if(visible && hostFailed && section in listOf(0,3)) {
+                stopActive("Local interface retry requested. Approvals revoked; no request resent.")
+                if((host as? MainActivity)?.retryWorkspaceHost()!=true) status.text="Interface retry blocked while another native/voice owner is active. Stop that owner first. Nothing reloaded."
+            }
+        }
+    }
     private var voiceExpanded=false
     private val agentCards = mutableListOf<com.maya.ai.agent.WorkspaceTask>()
     private val timeline = mutableListOf<Any>() // completed Direct messages and owned inline Agent cards
@@ -259,6 +282,10 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             voiceSlot=FrameLayout(this).apply {isSaveEnabled=false;tag="original_orb_slot"}
             root.addView(voiceSlot,LinearLayout.LayoutParams(-1,dp(128)))
             voiceSlot!!.addView(voiceSurface,FrameLayout.LayoutParams(-1,dp(128)))
+            hostNotice=column().apply {tag="host_notice";background=MayaTheme.shape(this@NativeChatWorkspace);setPadding(dp(12),dp(4),dp(12),dp(4))}
+            hostNoticeText=labelView("",13f).apply {accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE;hostNotice!!.addView(this)}
+            hostRetryButton=actionButton("Retry local interface") {confirmHostRetry()}.also {hostNotice!!.addView(it)}
+            hostNoticeContainer=ScrollView(this).apply {tag="host_notice_container";isSaveEnabled=false;visibility=View.GONE;addView(hostNotice)}
             voiceExpanded=false
             voiceSurface.setOnTouchListener {v,event ->
                 if(voiceExpanded && event.actionMasked==MotionEvent.ACTION_DOWN) v.parent?.requestDisallowInterceptTouchEvent(true)
@@ -268,6 +295,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             val voiceButton=button("Original settings · expand here") {navigateSettings(3)}
             root.removeView(voiceButton);menuPanel.addView(voiceButton)
         }
+        val hostNoticeSlot=FrameLayout(this).apply {tag="host_notice_slot"}
+        root.addView(hostNoticeSlot)
+        hostNoticeContainer?.let {hostNoticeSlot.addView(it)}
         emptyState=column().apply {tag="empty_state";setPadding(0,dp(12),0,dp(24))}
         emptyState.addView(labelView("Kya karna hai?",26f).apply {gravity=android.view.Gravity.CENTER;typeface=Typeface.create("sans-serif-medium",Typeface.NORMAL)})
         emptyState.addView(labelView("Baat karo. Research karo. Kuch banao.",14f).apply {gravity=android.view.Gravity.CENTER;setTextColor(MayaTheme.muted)})
@@ -283,6 +313,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         dictationStatus=labelView("",13f).apply {tag="dictation_status";MayaTheme.status(this);accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE;dictationPanel.addView(this)}
         dictationText=labelView("",16f).apply {tag="dictation_transcript";setTextIsSelectable(true);maxLines=4;minHeight=dp(48);ellipsize=android.text.TextUtils.TruncateAt.END;setOnClickListener {maxLines=if(maxLines==4) Int.MAX_VALUE else 4};dictationPanel.addView(this)}
         useTranscript=actionButton("Use transcript") {useDictationTranscript()}.also {dictationPanel.addView(it)}
+        voiceOptions=actionButton("Choose voice options") {confirmDictation()}.also {it.tag="dictation_options";dictationPanel.addView(it)}
         discardTranscript=actionButton("Discard voice input") {dictation.clear()}.also {dictationPanel.addView(it)}
         microphonePermission=actionButton("Allow microphone") {if(visible && section==0) dictation.requestPermission()}.also {dictationPanel.addView(it)}
         history = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; isSaveEnabled = false; tag = "conversation_timeline"; root.addView(this) }
@@ -480,6 +511,11 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             if(voiceSurface!=null) {
                 val target=if(section==3) voicePage else voiceSlot!!
                 if(voiceSurface.parent!==target) {(voiceSurface.parent as? android.view.ViewGroup)?.removeView(voiceSurface);target.addView(voiceSurface,FrameLayout.LayoutParams(-1,if(section==3) -1 else dp(128)))}
+                hostNoticeContainer?.let {notice ->
+                    val noticeTarget=if(section==3) voicePage else hostNoticeSlot
+                    if(notice.parent!==noticeTarget) {(notice.parent as? android.view.ViewGroup)?.removeView(notice);noticeTarget.addView(notice,FrameLayout.LayoutParams(-1,-2))}
+                    notice.bringToFront()
+                }
                 voiceExpanded=section==3
                 voiceSettings?.invoke(voiceExpanded)
             }
@@ -593,8 +629,15 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         disclosure = AlertDialog.Builder(this).setTitle(title).setMessage(text)
             .setNegativeButton("Cancel") { _, _ -> if (confirmationGeneration == generation) confirmationGeneration++ }
             .setPositiveButton("Continue") { _, _ -> if (visible && confirmationGeneration == generation) { confirmationGeneration++; yes() } }.create().also {
-                it.setOnCancelListener { if (confirmationGeneration == generation) confirmationGeneration++ }
+                it.setOnDismissListener { if (confirmationGeneration == generation) confirmationGeneration++ }
                 it.show(); MayaTheme.dialog(it); it.getButton(AlertDialog.BUTTON_POSITIVE).filterTouchesWhenObscured = true
+                val dialog=it;val window=dialog.window;val callback=window?.callback
+                if(window!=null && callback!=null) window.callback=object : android.view.Window.Callback by callback {
+                    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                        if(event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) {confirmationGeneration++;dialog.dismiss();return true}
+                        return callback.dispatchTouchEvent(event)
+                    }
+                }
             }
     }
     private fun start(kind: String, turn: NativeChatConversation.Turn?, work: (Job) -> Any) {
@@ -725,7 +768,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if(!::dictationPanel.isInitialized) return
         val state=dictation.state
         dictationPanel.visibility=if(state==NativeDictation.State.IDLE) View.GONE else View.VISIBLE
-        dictationStatus.text=state.hint
+        dictationStatus.text=listOf(dictation.selectionLabel,state.hint).filter {it.isNotEmpty()}.joinToString("\n")
+        voiceOptions.visibility=if(dictation.recoverable) View.VISIBLE else View.GONE
+        voiceOptions.isEnabled=visible && section==0 && !anyBusy
         dictationText.text=dictation.transcript
         dictationText.visibility=if(dictation.transcript.isEmpty()) View.GONE else View.VISIBLE
         useTranscript.visibility=if(state==NativeDictation.State.REVIEW) View.VISIBLE else View.GONE
@@ -740,12 +785,24 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         val options=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL;setPadding(dp(16),0,dp(16),0);isSaveEnabled=false}
         val language=Spinner(this).apply {adapter=choiceAdapter(listOf("Urdu · ur-PK","Hindi · hi-IN","English · en-IN","English · en-US"));isSaveEnabled=false;filterTouchesWhenObscured=true;contentDescription="Recognition language"}
         val offline=CheckBox(this).apply {text="On-device engine only · no network fallback";isChecked=true;isSaveEnabled=false;filterTouchesWhenObscured=true;MayaTheme.toggle(this)}
-        options.addView(language,LinearLayout.LayoutParams(-1,dp(48)));options.addView(offline)
+        val availability=labelView("",13f).apply {tag="recognition_availability";accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE}
+        fun showServicePresence() {
+            val failure=AndroidDictationPort(host).serviceFailure(offline.isChecked)
+            availability.text=when(failure) {
+                NativeDictation.State.ON_DEVICE_UNAVAILABLE -> "On-device engine: unavailable on this phone. To try the installed system service, uncheck on-device only yourself; it may use internet/data."
+                NativeDictation.State.SYSTEM_UNAVAILABLE -> "System recognition service: not found. Typing remains available."
+                null -> "Selected engine: installed. Language/model support is not confirmed until recognition responds."
+                else -> "Service availability could not be checked. Typing remains available."
+            }
+        }
+        offline.setOnCheckedChangeListener {_,_->showServicePresence()};showServicePresence()
+        options.addView(language,LinearLayout.LayoutParams(-1,dp(48)));options.addView(offline);options.addView(availability)
+        val optionScroll=ScrollView(this).apply {isSaveEnabled=false;addView(options)}
         if(disclosure?.isShowing==true) return
         val generation=++confirmationGeneration
         disclosure=AlertDialog.Builder(this).setTitle("Voice input to composer")
             .setMessage("Record up to 20 seconds for a transcript you review before use. On-device mode fails if unavailable; it never switches services. If you uncheck it, Android's default speech service may process audio remotely using internet/data. No audio to Chat or Fish; saved output voice stays unchanged. Nothing auto-sends.")
-            .setView(options).setNegativeButton("Cancel",null).setPositiveButton("Start voice") {_,_->
+            .setView(optionScroll).setNegativeButton("Cancel",null).setPositiveButton("Start voice") {_,_->
                 if(visible && section==0 && !anyBusy && generation==confirmationGeneration) {
                     confirmationGeneration++
                     val selected=NativeDictation.LANGUAGES.getOrNull(language.selectedItemPosition) ?: return@setPositiveButton
@@ -887,9 +944,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         stop.visibility=if(stop.isEnabled) View.VISIBLE else View.GONE
         stopSpace.visibility=stop.visibility
         settingsSurface?.setPadding(dp(16),dp(8),dp(16),dp(if(stop.isEnabled) 84 else 16))
-        emptyState.visibility=if(timeline.isEmpty() && !busy) View.VISIBLE else View.GONE
+        emptyState.visibility=if(timeline.isEmpty() && !busy && dictation.state==NativeDictation.State.IDLE) View.VISIBLE else View.GONE
         voiceComponent?.let {view ->
-            val height=if(voiceExpanded) -1 else dp(if(timeline.isEmpty() && !busy) 128 else 72)
+            val height=if(voiceExpanded) -1 else dp(if(timeline.isEmpty() && !busy && dictation.state==NativeDictation.State.IDLE) 128 else 72)
             if(view.layoutParams.height!=height) view.layoutParams=view.layoutParams.apply {this.height=height}
             if(!voiceExpanded) voiceSlot?.let {slot->if(slot.layoutParams.height!=height) slot.layoutParams=slot.layoutParams.apply {this.height=height}}
         }

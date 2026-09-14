@@ -9,11 +9,16 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
         STARTING("Starting the selected recognition service…"), LISTENING("Listening · STOP cancels. No message is sent."),
         REVIEW("Review the transcript. Use transcript only copies to the composer; Send is separate."),
         MAIN_REQUIRED("Voice input is available in the main Maya workspace, not a compatibility launcher."),
-        CONSENT_REQUIRED("Voice-input consent is required."), PERMISSION_REQUIRED("Microphone permission is missing. Allow it explicitly, then tap Voice again."),
+        CONSENT_REQUIRED("Voice-input consent is required."), PERMISSION_REQUIRED("Microphone permission is missing. Allow it explicitly, then tap Mic again."),
         BLOCKED("Original assistant/voice is busy or not ready. No microphone started; no settings changed."),
-        UNAVAILABLE("Selected recognition service/language unavailable. No fallback or model download started."),
+        UNAVAILABLE("Could not verify the selected recognition service. Choose voice options or type instead. No fallback or download started."),
+        ON_DEVICE_UNAVAILABLE("Android on-device recognition is unavailable here. Choose voice options to explicitly select the installed system service, or type instead. No automatic switch or download."),
+        SYSTEM_UNAVAILABLE("No installed system recognition service was found. You can type instead. Maya has not installed, enabled or switched any service."),
+        LANGUAGE_UNSUPPORTED("The selected service reports this language is not supported. Choose voice options and select another language you speak. Nothing was inserted."),
+        LANGUAGE_UNAVAILABLE("The selected service reports this language is currently unavailable; its model may be missing. Choose another language or explicitly select the system service. No model download started."),
+        NETWORK_ERROR("The selected service reported a network problem. Choose voice options to retry explicitly, or type instead. No automatic retry."),
         TIMEOUT("Voice-input deadline reached. No retry; partial transcript discarded."),
-        NO_MATCH("No usable final transcript. Tap Voice to try again explicitly."),
+        NO_MATCH("No usable final transcript. Choose voice options to try again explicitly."),
         INVALID("Transcript exceeds 2,000 characters or is invalid. Nothing truncated or inserted."),
         ERROR("Recognition failed. Audio may have reached the selected system service; no automatic retry."),
         STOPPED("Voice input stopped locally. Transcript discarded; no message sent.")
@@ -27,6 +32,8 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
     }
     var state=State.IDLE;private set
     var transcript="";private set
+    var selectionLabel="";private set
+    val recoverable get()=state !in listOf(State.IDLE,State.CHECKING,State.STARTING,State.LISTENING,State.REVIEW,State.MAIN_REQUIRED)
     private var epoch=0L
     private var started=0L
     private var timer: (()->Unit)?=null
@@ -39,6 +46,7 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
         if(stoppable) return
         if(!consent) {finish(State.CONSENT_REQUIRED);return}
         if(language !in LANGUAGES) {finish(State.UNAVAILABLE);return}
+        selectionLabel="$language · ${if(onDeviceOnly) "On-device only" else "System service (may use internet)"}"
         transcript="";val ticket=++epoch;started=now();publish(State.CHECKING)
         if(epoch!=ticket) return
         if(started<0 || started>Long.MAX_VALUE-22000) {finish(State.TIMEOUT);return}
@@ -52,7 +60,7 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
             timer=schedule(1500) {if(ticket==epoch) finish(State.TIMEOUT)}
             port.check(language,onDeviceOnly) {failure ->
                 if(state!=State.CHECKING || !current(1500)) return@check
-                if(failure!=null) {finish(if(failure in listOf(State.PERMISSION_REQUIRED,State.MAIN_REQUIRED,State.UNAVAILABLE)) failure else State.BLOCKED);return@check}
+                if(failure!=null) {finish(if(failure in CHECK_FAILURES) failure else State.BLOCKED);return@check}
                 val waitTimer=timer;timer=null;try {waitTimer?.invoke()} catch(_: Exception) {}
                 started=now();publish(State.STARTING)
                 if(epoch!=ticket) return@check
@@ -73,7 +81,7 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
                         transcript=text;finish(State.REVIEW)
                     }
                     override fun error(state: State) {
-                        if(current(20000)) finish(if(state in listOf(State.PERMISSION_REQUIRED,State.UNAVAILABLE,State.NO_MATCH,State.BLOCKED)) state else State.ERROR)
+                        if(current(20000)) finish(if(state in RECOGNITION_FAILURES) state else State.ERROR)
                     }
                 })} catch(_: Exception) {if(ticket==epoch) finish(State.ERROR)}
             }
@@ -81,7 +89,11 @@ class NativeDictation(private val port: Port,private val now: () -> Long,
     }
     fun requestPermission() {if(state==State.PERMISSION_REQUIRED) {finish(State.STOPPED);try {port.requestPermission()} catch(_: Exception) {finish(State.ERROR)}}}
     fun stop() {if(stoppable) finish(State.STOPPED)}
-    fun clear() {finish(State.IDLE)}
+    fun clear() {selectionLabel="";finish(State.IDLE)}
     override fun toString()="NativeDictation(redacted)"
-    companion object {val LANGUAGES=listOf("ur-PK","hi-IN","en-IN","en-US")}
+    companion object {
+        val LANGUAGES=listOf("ur-PK","hi-IN","en-IN","en-US")
+        private val CHECK_FAILURES=setOf(State.PERMISSION_REQUIRED,State.MAIN_REQUIRED,State.UNAVAILABLE,State.ON_DEVICE_UNAVAILABLE,State.SYSTEM_UNAVAILABLE,State.LANGUAGE_UNSUPPORTED)
+        private val RECOGNITION_FAILURES=CHECK_FAILURES+setOf(State.NO_MATCH,State.BLOCKED,State.LANGUAGE_UNAVAILABLE,State.NETWORK_ERROR)
+    }
 }

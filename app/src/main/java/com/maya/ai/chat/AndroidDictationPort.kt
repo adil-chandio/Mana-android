@@ -28,15 +28,19 @@ class AndroidDictationPort(private val activity: AppCompatActivity): NativeDicta
     private fun runtimeReady()=NativeChatReadiness.runtime(
         activity.getSharedPreferences("maya",0).getBoolean("wake",false),WakeWordService.instance!=null,
         WakeWordService.fishOutputActive,WakeWordService.haal,com.maya.ai.MayaAct.hasPendingActions())==NativeChatReadiness.Reason.READY
-    private fun available(onDeviceOnly: Boolean): Boolean=try {
-        if(onDeviceOnly) Build.VERSION.SDK_INT>=31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(activity)
-        else SpeechRecognizer.isRecognitionAvailable(activity)
-    } catch(_: Exception) {false}
+    /** Package/service presence only: no engine creation, mic permission, audio, download or language guarantee. */
+    fun serviceFailure(onDeviceOnly: Boolean): NativeDictation.State?=try {
+        if(onDeviceOnly) {
+            if(Build.VERSION.SDK_INT>=31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(activity)) null
+            else NativeDictation.State.ON_DEVICE_UNAVAILABLE
+        } else if(SpeechRecognizer.isRecognitionAvailable(activity)) null else NativeDictation.State.SYSTEM_UNAVAILABLE
+    } catch(_: Exception) {NativeDictation.State.UNAVAILABLE}
     override fun check(language: String,onDeviceOnly: Boolean,done: (NativeDictation.State?)->Unit) {
         val ticket=++readinessEpoch;checkedAt=null
         val owner=main
         if(owner==null) {done(NativeDictation.State.MAIN_REQUIRED);return}
-        if(language !in NativeDictation.LANGUAGES || !available(onDeviceOnly)) {done(NativeDictation.State.UNAVAILABLE);return}
+        if(language !in NativeDictation.LANGUAGES) {done(NativeDictation.State.LANGUAGE_UNSUPPORTED);return}
+        serviceFailure(onDeviceOnly)?.let {done(it);return}
         if(!permission()) {done(NativeDictation.State.PERMISSION_REQUIRED);return}
         if(!runtimeReady()) {done(NativeDictation.State.BLOCKED);return}
         owner.nativeChatReady {reason ->
@@ -50,11 +54,8 @@ class AndroidDictationPort(private val activity: AppCompatActivity): NativeDicta
         if(!permission()) {events.error(NativeDictation.State.PERMISSION_REQUIRED);return}
         val owner=main
         if(owner==null || !runtimeReady() || recognizer!=null) {events.error(NativeDictation.State.BLOCKED);return}
-        if(language !in NativeDictation.LANGUAGES) {events.error(NativeDictation.State.UNAVAILABLE);return}
-        if(onDeviceOnly && (Build.VERSION.SDK_INT<31 || !SpeechRecognizer.isOnDeviceRecognitionAvailable(activity))) {
-            events.error(NativeDictation.State.UNAVAILABLE);return
-        }
-        if(!onDeviceOnly && !SpeechRecognizer.isRecognitionAvailable(activity)) {events.error(NativeDictation.State.UNAVAILABLE);return}
+        if(language !in NativeDictation.LANGUAGES) {events.error(NativeDictation.State.LANGUAGE_UNSUPPORTED);return}
+        serviceFailure(onDeviceOnly)?.let {events.error(it);return}
         val checkTime=checkedAt;checkedAt=null
         if(checkTime==null || android.os.SystemClock.elapsedRealtime()-checkTime !in 0..1499 || language!=checkedLanguage || onDeviceOnly!=checkedOnDevice) {
             events.error(NativeDictation.State.BLOCKED);return
@@ -76,13 +77,7 @@ class AndroidDictationPort(private val activity: AppCompatActivity): NativeDicta
                 override fun onEndOfSpeech() {}
                 override fun onError(error: Int) {
                     if(lease!==token) return
-                    events.error(when(error) {
-                        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> NativeDictation.State.PERMISSION_REQUIRED
-                        SpeechRecognizer.ERROR_NO_MATCH,SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> NativeDictation.State.NO_MATCH
-                        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> NativeDictation.State.BLOCKED
-                        SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED,SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> NativeDictation.State.UNAVAILABLE
-                        else -> NativeDictation.State.ERROR
-                    })
+                    events.error(recognitionFailure(error))
                 }
                 override fun onResults(results: Bundle?) {if(current()) events.result(text(results)) else if(lease===token) events.error(NativeDictation.State.BLOCKED)}
                 override fun onPartialResults(partialResults: Bundle?) {if(current()) events.partial(text(partialResults))}
@@ -94,7 +89,18 @@ class AndroidDictationPort(private val activity: AppCompatActivity): NativeDicta
                 putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,1)
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true)
             })
-        } catch(_: Exception) {stop();events.error(NativeDictation.State.UNAVAILABLE)}
+        } catch(_: Exception) {stop();events.error(NativeDictation.State.ERROR)}
+    }
+    companion object {
+        internal fun recognitionFailure(error: Int)=when(error) {
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> NativeDictation.State.PERMISSION_REQUIRED
+            SpeechRecognizer.ERROR_NO_MATCH,SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> NativeDictation.State.NO_MATCH
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> NativeDictation.State.BLOCKED
+            SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> NativeDictation.State.LANGUAGE_UNSUPPORTED
+            SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> NativeDictation.State.LANGUAGE_UNAVAILABLE
+            SpeechRecognizer.ERROR_NETWORK,SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> NativeDictation.State.NETWORK_ERROR
+            else -> NativeDictation.State.ERROR
+        }
     }
     override fun stop() {
         readinessEpoch++;checkedAt=null;checkedLanguage=""
