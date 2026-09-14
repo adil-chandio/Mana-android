@@ -147,7 +147,7 @@ class InlineBuildTurnTest {
         }
         assertEquals(403,web.webViewClient.shouldInterceptRequest(web,request)!!.statusCode)
         var denied=false
-        web.webChromeClient.onPermissionRequest(object : android.webkit.PermissionRequest() {
+        web.webChromeClient!!.onPermissionRequest(object : android.webkit.PermissionRequest() {
             override fun getOrigin()=android.net.Uri.parse("https://maya-preview.invalid/")
             override fun getResources()=arrayOf(android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE)
             override fun grant(resources: Array<String>) {fail("No permission grant")}

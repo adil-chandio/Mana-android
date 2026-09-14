@@ -223,6 +223,11 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             root.addView(voiceSurface,LinearLayout.LayoutParams(-1,dp(128)))
             label("Original Maya orb · tap to write here. Sunao uses your saved Fish voice; no automatic microphone or playback.",12f)
             var settingsOpen=false
+            voiceSurface.setOnTouchListener {v,event ->
+                if(settingsOpen && event.actionMasked==MotionEvent.ACTION_DOWN) v.parent?.requestDisallowInterceptTouchEvent(true)
+                if(event.actionMasked==MotionEvent.ACTION_UP || event.actionMasked==MotionEvent.ACTION_CANCEL) v.parent?.requestDisallowInterceptTouchEvent(false)
+                false // Original WebView still handles the gesture, not an alternate activity.
+            }
             collapseVoiceSettings={
                 settingsOpen=false
                 voiceSurface.layoutParams=voiceSurface.layoutParams.apply {height=dp(128)}

@@ -108,4 +108,20 @@ class MainChatSurfaceTest {
         assertEquals(View.VISIBLE,a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("shared_composer_area").visibility)
         assertNull(shadowOf(a).nextStartedActivity)
     }
+    @Test fun expandedOriginalSettingsCanScrollWithoutParentStealingGesture() {
+        button("Original settings · expand here").performClick()
+        val originalParent=web.parent as ViewGroup;originalParent.removeView(web)
+        val requests=mutableListOf<Boolean>()
+        val spy=object : android.widget.FrameLayout(a) {
+            override fun requestDisallowInterceptTouchEvent(disallow: Boolean) {requests.add(disallow);super.requestDisallowInterceptTouchEvent(disallow)}
+        }
+        spy.addView(web)
+        val listener=shadowOf(web).onTouchListener!!
+        val down=android.view.MotionEvent.obtain(0,0,android.view.MotionEvent.ACTION_DOWN,10f,10f,0)
+        val up=android.view.MotionEvent.obtain(0,1,android.view.MotionEvent.ACTION_UP,10f,10f,0)
+        try {assertFalse(listener.onTouch(web,down));assertFalse(listener.onTouch(web,up))} finally {down.recycle();up.recycle()}
+        assertEquals(listOf(true,false),requests)
+        spy.removeView(web);originalParent.addView(web,0)
+    }
+
 }
