@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>MAYA — Personal AI v4</title>
 <style>
-/* ================= MAYA v5.24.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+/* ================= MAYA v5.25.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
    Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
 :root{
   /* new tokens */
@@ -527,6 +527,12 @@ main{position:relative;min-height:0}
 nav{padding:8px 10px 10px}
 @supports(padding-bottom:env(safe-area-inset-bottom)){nav{padding-bottom:calc(10px + env(safe-area-inset-bottom))}}
 
+/* Main conversation entry: primary, not buried in Settings. Old-WebView safe. */
+.main-chat-entry{display:block;width:100%;max-width:400px;box-sizing:border-box;padding:16px 18px;margin:0 auto 10px;border:1px solid #ffae59;border-radius:16px;background:#43230d;color:#fff0da;text-align:left;text-decoration:none;min-height:72px}
+.main-chat-entry strong{display:block;font-size:19px;letter-spacing:1px}
+.main-chat-entry span{display:block;font-size:12px;line-height:1.5;margin-top:5px;color:#f4c695}
+.main-chat-hint{font-size:12px;color:var(--text1,#A2A2B5);line-height:1.5}
+
 </style>
 </head>
 <body>
@@ -536,7 +542,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver"><span data-build-version>v5.24.0</span> — DEVELOPMENT TEST · phone validation pending</div>
+  <div class="ver"><span data-build-version>v5.25.0</span> — DEVELOPMENT TEST · phone validation pending</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,20 +567,22 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.24.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.25.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.24.0</span></small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.25.0</span></small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
   <main>
     <!-- ============ HOME (orb — video jaisa) ============ -->
     <section class="tab active" id="tab-home">
+      <a class="main-chat-entry" data-main-chat href="maya-private-chat://open"><strong>CHAT + AGENT →</strong><span>Maya ki main conversation · Chat, research aur reviewed plans</span></a>
+      <div class="main-chat-hint" id="mainChatHint">CHAT neeche se bhi yahin khulega. Voice / orb neeche waise hi hain.</div>
       <div id="orb" data-state="idle" aria-label="MAYA — tap to speak">
         <div class="orbCore">M<span class="orbTag" id="orbPersona">MAYA</span></div>
       </div>
@@ -599,6 +607,7 @@ nav{padding:8px 10px 10px}
 
     <!-- ============ CHAT (text replies) ============ -->
     <section class="tab" id="tab-chat">
+      <a class="main-chat-entry" data-main-chat href="maya-private-chat://open"><strong>CHAT + AGENT →</strong><span>Main Maya conversation · neeche original voice-chat controls hain</span></a>
       <div class="chatHead">
         <span class="dot" id="dot"></span>
         <span class="t" id="chatState">MAYA READY</span>
@@ -729,7 +738,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.24.0</span></div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.25.0</span></div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -753,9 +762,9 @@ nav{padding:8px 10px 10px}
     <section class="tab" id="tab-set">
       <div class="ui-card">
         <div class="ui-card-h">PRIVATE TEXT CHAT · NATIVE</div>
-        <div class="ui-hint">Separate secure Chat inside the APK. Its own Android Keystore identity; no browser or phone actions. Optional selected-Fish playback requires confirmation. Leaving the screen clears its conversation.</div>
-        <a class="ui-btn" id="nativePrivateChatLink" href="maya-private-chat://open">OPEN PRIVATE TEXT CHAT</a>
-        <div class="ui-hint" id="nativePrivateChatHint">Also available through the Maya Text Chat launcher icon. Sunao needs the original Maya already open; text uses the authorized APK key.</div>
+        <div class="ui-hint">Main Maya Chat + Agent is available on Home and the bottom CHAT button. Its signing identity stays native; research and selected-Fish playback require their own consent. Returning Home clears the private workspace.</div>
+        <a class="ui-btn" id="nativePrivateChatLink" data-main-chat href="maya-private-chat://open">OPEN PRIVATE TEXT CHAT</a>
+        <div class="ui-hint" id="nativePrivateChatHint">The Maya Text Chat launcher remains an optional shortcut. In main Maya, Chat opens in-place; saved voice and keys stay unchanged.</div>
       </div>
       <div class="ui-card">
         <div class="ui-card-h">MAYA UPDATE CENTER</div>
@@ -1214,7 +1223,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.24.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.25.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1229,7 +1238,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.24.0</span> · loading</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.25.0</span> · loading</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1295,23 +1304,36 @@ setTimeout(function(){
 
 <script>
 "use strict";
-/* ================= MAYA v5.24.0 — Doctor Build ================= */
-var MAYA_BUILD = { versionName: "5.24.0", versionCode: 95 };
+/* ================= MAYA v5.25.0 — Doctor Build ================= */
+var MAYA_BUILD = { versionName: "5.25.0", versionCode: 96 };
 window.__mayaJSOK = true;
 try { document.getElementById("dbgBadge").textContent = "v" + MAYA_BUILD.versionName + " · script loaded"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
-/* Native text screen navigation only; no content or key is forwarded. */
+/* MAIN_CHAT_ENTRY_START — fixed navigation only; no messages, history or keys cross JS. */
 (function () {
-  var link = document.getElementById("nativePrivateChatLink");
-  if (!link) return;
-  link.addEventListener("click", function (event) {
-    if (!window.MayaBridge) {
-      event.preventDefault();
-      document.getElementById("nativePrivateChatHint").textContent = "This entry requires the Android APK. No browser registration or automatic navigation was performed.";
-    }
+  document.querySelectorAll('[data-main-chat], [data-tab="tab-chat"]').forEach(function (link) {
+    link.addEventListener("click", function (event) {
+      if (!window.MayaBridge) {
+        if (link.hasAttribute("data-main-chat")) {
+          event.preventDefault();
+          var hint = document.getElementById("mainChatHint");
+          if (hint) hint.textContent = "Chat + Agent needs the Android APK. No request or app launch was made.";
+          var oldHint = document.getElementById("nativePrivateChatHint");
+          if (oldHint) oldHint.textContent = "Open this feature inside the Maya Android APK.";
+        }
+        return; // browser keeps its existing text-chat tab, no fake native panel
+      }
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (event.isTrusted === false) return; // native also enforces main-frame + real gesture + packaged page
+      ["drawer", "drawerScrim"].forEach(function (id) {
+        var item = document.getElementById(id); if (item) item.classList.remove("open");
+      });
+      window.location.href = "maya-private-chat://open";
+    }, true);
   });
 })();
+/* MAIN_CHAT_ENTRY_END */
 
 /* Native update navigation; deliberately no URLs, download or install API in JS. */
 (function () {
@@ -1414,7 +1436,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.24.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.25.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -9548,7 +9570,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.24.0 — DOCTOR REPORT");
+  out.push("MAYA v5.25.0 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -10260,8 +10282,8 @@ function startProactive(){
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.24.0"; } catch(e){}
-try { pushLog("MAYA v5.24.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.25.0"; } catch(e){}
+try { pushLog("MAYA v5.25.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)

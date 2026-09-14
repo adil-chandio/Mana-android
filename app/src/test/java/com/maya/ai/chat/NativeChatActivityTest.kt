@@ -39,13 +39,14 @@ import org.robolectric.shadows.ShadowAlertDialog
 class NativeChatActivityTest {
     private var controller: ActivityController<NativeChatActivity>? = null
     private val activity get() = controller!!.get()
+    private val workspace get() = NativeChatActivity::class.java.getDeclaredField("workspace").apply {isAccessible=true}.get(activity) as NativeChatWorkspace
     private val content get() = activity.findViewById<ViewGroup>(android.R.id.content)
-    private inline fun <reified T> field(name: String): T = NativeChatActivity::class.java.getDeclaredField(name)
-        .apply { isAccessible = true }.get(activity) as T
-    private fun setField(name: String, value: Any?) = NativeChatActivity::class.java.getDeclaredField(name)
-        .apply { isAccessible = true }.set(activity, value)
-    private fun invoke(name: String) = NativeChatActivity::class.java.getDeclaredMethod(name)
-        .apply { isAccessible = true }.invoke(activity)
+    private inline fun <reified T> field(name: String): T = NativeChatWorkspace::class.java.getDeclaredField(name)
+        .apply { isAccessible = true }.get(workspace) as T
+    private fun setField(name: String, value: Any?) = NativeChatWorkspace::class.java.getDeclaredField(name)
+        .apply { isAccessible = true }.set(workspace, value)
+    private fun invoke(name: String) = NativeChatWorkspace::class.java.getDeclaredMethod(name)
+        .apply { isAccessible = true }.invoke(workspace)
     private fun tab(name: String) = content.findViewWithTag<Button>("tab_$name")
     private fun page(name: String) = content.findViewWithTag<View>("${name}_page")
     private fun button(title: String): Button {
@@ -81,7 +82,7 @@ class NativeChatActivityTest {
     }
     private fun pending(): Any {
         val turn = field<NativeChatConversation>("session").begin("SYNTHETIC_PENDING", true)
-        val jobType = Class.forName("com.maya.ai.chat.NativeChatActivity\$Job")
+        val jobType = Class.forName("com.maya.ai.chat.NativeChatWorkspace\$Job")
         val job = jobType.declaredConstructors.single { it.parameterTypes.size == 3 }
             .apply { isAccessible = true }.newInstance("chat", turn, SystemClock.elapsedRealtime())
         setField("active", job); invoke("paint")
@@ -90,8 +91,8 @@ class NativeChatActivityTest {
     private fun operation(job: Any) = job.javaClass.getDeclaredField("operation")
         .apply { isAccessible = true }.get(job) as NativeChatTransport.Operation
     private fun complete(job: Any, text: String = "SYNTHETIC_LATE_REPLY") {
-        NativeChatActivity::class.java.getDeclaredMethod("finish", job.javaClass, Any::class.java, String::class.java)
-            .apply { isAccessible = true }.invoke(activity, job, NativeChatResponse.Result.Reply(text), null)
+        NativeChatWorkspace::class.java.getDeclaredMethod("finish", job.javaClass, Any::class.java, String::class.java)
+            .apply { isAccessible = true }.invoke(workspace, job, NativeChatResponse.Result.Reply(text), null)
     }
     private fun cancelled(job: Any) {
         try { operation(job).check(); fail("Expected cancellation") }
