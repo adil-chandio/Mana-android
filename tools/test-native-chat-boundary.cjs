@@ -9,13 +9,13 @@ assert(a.includes('send.isEnabled = !busy && section==0 && draft.text.toString()
 assert(a.includes('session.begin(draft.text.toString(),allowed)'));
 assert(!a.includes('composer.addView(consent)'));
 assert(!a.includes('send.isEnabled = !busy && publicText')); assert(a.includes('isSaveEnabled = false'));
-const create = a.slice(a.indexOf('fun createView'), a.indexOf('private fun confirm'));
+const create = a.slice(a.indexOf('fun createView'), a.indexOf('private fun confirm', a.indexOf('fun createView')));
 assert(!create.includes('identity.publicJwk()')); // no startup identity inspection
 const m = read('app/src/main/java/com/maya/ai/MainActivity.kt');
 assert(m.includes('request.isForMainFrame && request.hasGesture()'));
 assert(m.includes('webView.url in listOf('));
 assert.equal(read('public/index.html'), read('app/src/main/assets/web/index.html'));
-assert.equal(JSON.parse(read('release/version.json')).versionCode, 107);
+assert.equal(JSON.parse(read('release/version.json')).versionCode, 108);
 assert(read('app/build.gradle').includes("implementation 'com.squareup.okhttp3:okhttp:4.12.0'"));
 console.log('Native static integration boundaries PASS (not a device/UI execution test).');
 

@@ -126,6 +126,54 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             }
         } catch(e: NativeChatProtocol.Rejected) {status.text=errorText(e.code,false);paint()}
     }
+    private var fishTalkBusy=false
+    private var fishTalkPreparing=false
+    private lateinit var talkButton: Button
+    private data class VoiceLine(val role: String,val text: String)
+    fun fishTalkEvent(kind: String,value: String) {
+        if(!visible || !fishTalkBusy) return
+        if(kind=="state") status.text=when(value) {
+            "starting" -> "Starting microphone… Fish will speak the reply."
+            "listening" -> "Listening · bolo. STOP ends the conversation."
+            "finalizing" -> "Understanding your words…"
+            "thinking" -> "Maya is preparing an answer…"
+            "fish-starting" -> "Waiting for your saved Fish voice…"
+            "fish-playing" -> "Your saved Fish voice is speaking."
+            else -> "Reply finished · listening again shortly…"
+        } else if(kind in setOf("user","assistant")) {timeline.add(VoiceLine(kind,value));renderHistory();if(followLatest) conversationScroll.post {conversationScroll.fullScroll(View.FOCUS_DOWN)}}
+        paint()
+    }
+    fun fishTalkEnded(message: String) {fishTalkBusy=false;fishTalkPreparing=false;if(visible) status.text=message;paint()}
+    private fun confirmFishTalk() {
+        if(!visible || section!=0 || anyBusy || agentSelected || disclosure?.isShowing==true) return
+        if(timeline.count {it is VoiceLine}>10) {status.text="Voice timeline is full. Clear local chat explicitly or start a fresh workspace; nothing sent.";return}
+        cancelPendingVoiceStart();voiceSession.end();hideKeyboard();draft.clearFocus()
+        val main=host as? MainActivity ?: return
+        val ticket=++confirmationGeneration;fishTalkPreparing=true;status.text="Checking saved AI and Fish setup locally…";paint()
+        main.prepareFishTalk {raw ->
+            if(!visible || section!=0 || ticket!=confirmationGeneration) return@prepareFishTalk
+            fishTalkPreparing=false
+            val review=com.maya.ai.voice.FishTalkProtocol.review(raw)
+            if(review==null) {
+                status.text=when(com.maya.ai.voice.FishTalkProtocol.problem(raw)) {
+                    "AI" -> "No eligible configured voice AI account/model. Fish supplies the voice, not the answer. Check your existing AI settings; no new provider or keyless fallback was selected."
+                    "FISH" -> "Your saved Fish setup is unavailable or voice is OFF. Check the existing Fish reference/key; no phone TTS or other voice was used."
+                    "INPUT" -> "Select Urdu, Hindi or English input language in Voice settings. No microphone started."
+                    "BUSY" -> "Stop the old voice/request first. Auto Listen, Proactive and Speak notifications must be OFF for this conversation; their settings were not changed."
+                    else -> "The local voice host is not ready. Let the app finish loading, then tap Talk again. No request was sent."
+                };paint();return@prepareFishTalk
+            }
+            confirm("Talk with your Fish voice?", "Speak naturally; each recognized sentence is sent to ${review.provider} / ${review.model}, using your existing configured account. Replies automatically go to your saved Fish Audio voice. Input uses your installed speech service (${review.language}); audio may be processed remotely. No phone/device TTS replacement.\n\nUp to 5 minutes / 5 turns / ${review.tokens} maximum output tokens per answer, matching the existing voice AI route. Only this new voice conversation is shared, not Direct chat, saved work or memories. No tools, phone actions, paid fallback, retries or automatic saving. Account quotas apply. Start pauses legacy Wake without changing its saved switch. STOP/background ends the session; provider processing may already have occurred. Cloudflare Direct Chat OFF is unchanged.") {
+                awaitVoiceFocus(confirmationGeneration) {
+                    fishTalkBusy=true;paint()
+                    val startGeneration=confirmationGeneration
+                    main.startFishTalk(review.token) {ok ->
+                        if(visible && startGeneration==confirmationGeneration && !ok && fishTalkBusy) fishTalkEnded("Conversation did not start. Allow microphone permission if requested, then tap Talk again. Check existing AI/Fish settings; no automatic retry.")
+                    }
+                }
+            }
+        }
+    }
     private val transport by lazy { NativeChatTransport() }
     private var speechPlayer: com.maya.ai.voice.FishStreamPlayer? = null
     private var speechProbeGeneration = 0L
@@ -338,7 +386,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private var voiceSlot: FrameLayout?=null
     private val researchServices: com.maya.ai.agent.ResearchServices by lazy { com.maya.ai.agent.ResearchBackend(applicationContext) }
     private val agentBusy get() = agentCards.any { it.busy }
-    private val anyBusy get() = active != null || speech.busy || agentBusy || dictation.stoppable
+    private val anyBusy get() = fishTalkBusy || fishTalkPreparing || active != null || speech.busy || agentBusy || dictation.stoppable
     private var publicText: String? = null
     private lateinit var status: TextView
     private lateinit var readinessResult: TextView
@@ -520,6 +568,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
         contextReview=actionButton("Review Direct context") {reviewDirectContext()}.apply {tag="review_direct_context";text="Context";maxLines=1}
         controls.addView(contextReview,LinearLayout.LayoutParams(0,dp(48),1f))
+        talkButton=actionButton("Talk with Fish") {confirmFishTalk()}.apply {tag="talk_fish";text="Talk"}
+        buttonColors(talkButton,MayaTheme.copper,MayaTheme.ink)
+        controls.addView(talkButton,LinearLayout.LayoutParams(0,dp(48),1f))
         counter = label("Your message · 0 / 2,000",12f).apply {setPadding(0,0,0,0)}
         val composeRow = LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;gravity=android.view.Gravity.BOTTOM;root.addView(this)}
         draft = EditText(this).apply {
@@ -582,6 +633,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         label("STOP ends local waiting, not guaranteed remote work or a refund. Failed/uncertain turns are excluded from follow-ups. No automatic retries, auto-save or message logging. Explicit encrypted snapshots are separate in Settings → Saved work & backups.")
         label("Replies are untrusted plain text and may be inaccurate. Never enter passwords, OTPs, provider tokens or private keys.")
         label("Chat uses the saved APK key; displaying it is not required. Server Chat availability is controlled by the owner, not by these tabs. Checks are explicit; opening this screen performs none.")
+        label("Talk is a separate, explicitly started Fish conversation: recognized sentences go to the reviewed existing voice AI account and replies are spoken automatically by the saved Fish voice. Only this session is shared. STOP/background ends it. Voice rows are not included in Direct context or saved-work snapshots.")
         label("Sunao sends only the chosen reply (using the original local speech-text conversion) to api.fish.audio with the saved Fish reference/key. Nothing plays automatically; confirmation is required each time. Never paste keys into Chat.")
         label("Sunao: 2,000 input characters, one synthesis request, no silent truncation or retries. Startup wait is capped at 30 seconds, playback at 180 seconds, and the total local job at 210 seconds. STOP/exit stops local audio, not guaranteed remote work or a refund.")
         label("Selected Fish voice, wake and original assistant settings remain unchanged. The configured free Fish model may be unavailable or quota-limited; no free/unlimited guarantee or fallback. Media analysis and cross-app automation are not enabled. Agent mode uses this composer and timeline, with explicit consent and plan approval.")
@@ -901,6 +953,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun stopActive(message: String, accessState: NativeAccessDiagnostic.State = NativeAccessDiagnostic.State.STOPPED) {
         confirmationGeneration++;disclosure?.dismiss();disclosure=null
         agentCards.forEach {it.stop()}
+        fishTalkBusy=false;fishTalkPreparing=false;(host as? MainActivity)?.stopFishTalk()
         cancelPendingVoiceStart();voiceSession.end();speech.stop();dictation.clear()
         val job = active
         if (job != null) {
@@ -966,7 +1019,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     fun offerForegroundVoice() {
         if(!visible || section!=0 || agentSelected || anyBusy || disclosure?.isShowing==true) return
         status.text="Wake detected. Start native voice input below; nothing was sent or executed."
-        confirmDictation()
+        confirmFishTalk()
     }
     private fun confirmDictation() {
         if(!visible || section!=0 || anyBusy) return
@@ -1088,7 +1141,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         if(!visible || section!=0 || agentSelected || anyBusy || disclosure?.isShowing==true) return
         hideKeyboard();draft.clearFocus()
         val candidate=try {session.review(draft.text.toString())} catch(e: NativeChatProtocol.Rejected) {status.text=errorText(e.code,false);return}
-        val text="LOCAL SNAPSHOT · not a request or approval\nDestination: ${NativeChatProtocol.ORIGIN}\n${candidate.size} messages · ${candidate.sumOf {it.content.length}} characters\nOnly the exact Direct messages below are candidate context. Agent cards, failed attempts, files, keys and voice are excluded unless their text was explicitly placed in this draft. Send checks limits and consent again. Fixed server instructions and signing metadata are not shown here. Changes after closing require a new review.\n\n"+
+        val text="LOCAL SNAPSHOT · not a request or approval\nDestination: ${NativeChatProtocol.ORIGIN}\n${candidate.size} messages · ${candidate.sumOf {it.content.length}} characters\nOnly the exact Direct messages below are candidate context. Agent cards, failed attempts, files, keys and Fish voice conversations are excluded unless their text was explicitly placed in this draft. Send checks limits and consent again. Fixed server instructions and signing metadata are not shown here. Changes after closing require a new review.\n\n"+
             candidate.mapIndexed {i,message->"${i+1}. ${if(message.role=="user") "You" else "Maya"}\n${message.content}"}.joinToString("\n\n")
         val copy=labelView(text,14f).apply {tag="direct_context_snapshot";setTextIsSelectable(true);setPadding(dp(16),dp(8),dp(16),dp(8))}
         val scroll=ScrollView(this).apply {isSaveEnabled=false;addView(copy)}
@@ -1119,6 +1172,12 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                 val controls=controlsFor(entry)
                 (controls.root.parent as? android.view.ViewGroup)?.removeView(controls.root);history.addView(controls.root)
                 (entry.view.parent as? android.view.ViewGroup)?.removeView(entry.view);history.addView(entry.view);return@forEach
+            }
+            if(entry is VoiceLine) {
+                history.addView(labelView((if(entry.role=="user") "You · voice\n" else "Maya · Fish conversation\n")+entry.text).apply {
+                    setTextIsSelectable(true);setPadding(dp(14),dp(12),dp(14),dp(12));background=MayaTheme.shape(this@NativeChatWorkspace)
+                    maxLines=6;ellipsize=android.text.TextUtils.TruncateAt.END;minHeight=dp(48);setOnClickListener {maxLines=if(maxLines==6) Int.MAX_VALUE else 6}
+                });return@forEach
             }
             if(entry is ChatAttempt) {history.addView(attemptView(entry));return@forEach}
             val message=entry as NativeChatProtocol.Message
@@ -1155,6 +1214,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         val busy = anyBusy
         send.isEnabled = !busy && section==0 && draft.text.toString().isNotBlank()
         paintDictation()
+        talkButton.visibility=if(agentSelected || busy) View.GONE else View.VISIBLE
+        talkButton.isEnabled=visible && section==0 && !busy
         dictate.visibility=if(busy) View.GONE else View.VISIBLE
         dictate.isEnabled=visible && section==0 && !busy
         send.text="↑";send.textSize=22f
@@ -1257,7 +1318,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
     }
     fun consumeTouch(event: MotionEvent): Boolean {
-        if(event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) {cancelPendingVoiceStart();voiceSession.end();dictation.stop()}
+        if(event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) {if(fishTalkBusy) {(host as? MainActivity)?.stopFishTalk();fishTalkEnded("Conversation stopped: obscured screen.")};cancelPendingVoiceStart();voiceSession.end();dictation.stop()}
         if(event.actionMasked==MotionEvent.ACTION_DOWN && agentCards.any {it.executing}) agentCards.forEach {it.stop()}
         if(event.actionMasked==MotionEvent.ACTION_DOWN && agentCards.any {it.busy || it.approved} && event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)!=0) agentCards.forEach {it.stop()}
         val obscured = event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0
@@ -1295,11 +1356,12 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun runOnUiThread(action: () -> Unit) { host.runOnUiThread { action() } }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     fun resume() { visible = true;if(section==2) updateDirectPermissionStatus();if(section==5) library?.enter(); restoreVoicePresentation(); showAccessDiagnostic(); paint() }
-    fun pause() { library?.leave();inputWindowFocused=false;cancelPendingVoiceStart();voiceSession.end();dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
+    fun pause() { fishTalkBusy=false;fishTalkPreparing=false;(host as? MainActivity)?.stopFishTalk();library?.leave();inputWindowFocused=false;cancelPendingVoiceStart();voiceSession.end();dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
     fun focusChanged(hasFocus: Boolean) {
         inputWindowFocused=hasFocus
         if(hasFocus) pendingVoiceStart?.invoke(true)
-        if(!hasFocus && (dictation.busy || voiceSession.phase==com.maya.ai.voice.ForegroundVoiceSession.Phase.ECHO)) {cancelPendingVoiceStart();voiceSession.end();dictation.stop()}
+        if(!hasFocus && (dictation.busy || voiceSession.phase==com.maya.ai.voice.ForegroundVoiceSession.Phase.ECHO)) {if(fishTalkBusy) {(host as? MainActivity)?.stopFishTalk();fishTalkEnded("Conversation stopped: obscured screen.")};cancelPendingVoiceStart();voiceSession.end();dictation.stop()}
+        if(!hasFocus && fishTalkBusy) {(host as? MainActivity)?.stopFishTalk();fishTalkEnded("Conversation paused because the app lost focus. Tap Talk to start again.")}
         if(!hasFocus && agentBusy) agentCards.forEach {it.stop()}
     }
     private fun endLocalSession() {

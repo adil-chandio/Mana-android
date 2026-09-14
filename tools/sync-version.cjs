@@ -26,7 +26,7 @@ html = html.replace(/<span data-build-version>v[^<]+<\/span>/g, `<span data-buil
   .replace(/textContent = "v\d+\.\d+\.\d+"/g, `textContent = "v${v.versionName}"`);
 output('public/index.html', html);
 output('public/sw.js', fs.readFileSync('public/sw.js', 'utf8').replace(/var CACHE = 'maya-v[^']+';/, `var CACHE = 'maya-v${v.versionName}';`));
-for (const file of ['index.html', 'sw.js', 'manifest.json', 'favicon.svg', 'icons/icon-96.svg', 'icons/icon-192.svg', 'icons/icon-512.svg']) {
+for (const file of ['index.html', 'fish-talk.js', 'sw.js', 'manifest.json', 'favicon.svg', 'icons/icon-96.svg', 'icons/icon-192.svg', 'icons/icon-512.svg']) {
   const bytes = file === 'index.html' ? html : fs.readFileSync(`public/${file}`);
   output(`app/src/main/assets/web/${file}`, bytes);
 }

@@ -596,11 +596,9 @@ class MainChatSurfaceTest {
         val surface=field<View>("nativeChatView")
         MainActivity::class.java.getDeclaredField("voiceHostTrusted").apply {isAccessible=true}.set(a,true)
         a.MayaBridge().nativeWakeNotice();shadowOf(Looper.getMainLooper()).idle()
-        val d=ShadowAlertDialog.getLatestAlertDialog();assertTrue(d.isShowing)
-        assertNotNull(d.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("voice_session_opt_in"))
+        assertTrue(local<Boolean>("fishTalkPreparing")) // Local preflight only; shadow WebView does not execute it.
         assertSame(surface,field<View>("nativeChatView"));assertTrue(local<NativeChatConversation>("session").messages().isEmpty())
         assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized());assertEquals("",local<EditText>("draft").text.toString())
-        d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
     }
     @Test fun backgroundRejectsWakeInvitationAndKeepsSavedPreferenceButNotCapture() {
         a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
@@ -655,6 +653,52 @@ class MainChatSurfaceTest {
         assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
         assertTrue(local<NativeChatConversation>("session").messages().isEmpty())
         button("End voice session").performClick();assertFalse(grant.armed);assertFalse(input.busy)
+    }
+
+    @Test fun talkIsAvailableWithoutStartingMicAndUnownedVoiceEventsAreIgnored() {
+        assertNotNull(button("Talk with Fish"));val before=local<List<Any>>("timeline").size
+        a.MayaBridge().fishTalkEvent("a".repeat(32),"user","unowned")
+        a.MayaBridge().fishTalkSpeak("a".repeat(32),1,"{}","{}")
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(before,local<List<Any>>("timeline").size)
+        assertNull(field<Any?>("talkPlayer"));assertNull(field<String?>("fishTalkId"))
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    private fun withTalkHost(block: ()->Unit) {
+        val original=web
+        val fake=object : WebView(a) {
+            override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {
+                when {
+                    script.contains("FISH_TALK.describe()") -> callback?.onReceiveValue(org.json.JSONObject.quote("{\"code\":\"READY\",\"review\":\"review1\",\"provider\":\"groq\",\"model\":\"saved-model\",\"language\":\"ur-PK\",\"tokens\":400}"))
+                    script.startsWith("FISH_TALK.start(") -> callback?.onReceiveValue("true")
+                    else -> callback?.onReceiveValue("null")
+                }
+            }
+        }
+        MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,fake)
+        MainActivity::class.java.getDeclaredField("voiceHostTrusted").apply {isAccessible=true}.set(a,true)
+        try {block()} finally {a.stopFishTalk();MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,original);fake.destroy()}
+    }
+    @Test fun talkDisclosureIsOncePerSessionAndCancelStartsNothing() = withTalkHost {
+        button("Talk with Fish").performClick();val d=ShadowAlertDialog.getLatestAlertDialog()
+        assertTrue(d.isShowing);assertNull(field<String?>("fishTalkId"))
+        d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(local<Boolean>("fishTalkBusy"));assertNull(field<String?>("fishTalkId"))
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun talkEventsStayInSameTimelineButNeverEnterDirectContext() = withTalkHost {
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
+        val surface=field<View>("nativeChatView");button("Talk with Fish").performClick();positive();a.onWindowFocusChanged(true)
+        val id=field<String?>("fishTalkId")!!;assertTrue(local<Boolean>("fishTalkBusy"))
+        a.MayaBridge().fishTalkEvent(id,"state","thinking")
+        a.MayaBridge().fishTalkEvent(id,"user","voice question")
+        a.MayaBridge().fishTalkEvent(id,"assistant","voice answer")
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(2,local<List<Any>>("timeline").size);assertTrue(local<NativeChatConversation>("session").messages().isEmpty())
+        assertSame(surface,field<View>("nativeChatView"));assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        button("Stop current work").performClick();assertNull(field<String?>("fishTalkId"));assertFalse(local<Boolean>("fishTalkBusy"))
+        a.MayaBridge().fishTalkEvent(id,"assistant","late");shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(2,local<List<Any>>("timeline").size)
     }
 
 }

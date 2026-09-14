@@ -1,10 +1,11 @@
 /* MAYA Service Worker — v4.6.0 (FULL ES5 — old Android System WebView par bhi parse hota hai)
    Network-first for HTML (so updates apply immediately),
    cache-first for static assets. */
-var CACHE = 'maya-v5.36.0';
+var CACHE = 'maya-v5.37.0';
 var ASSETS = [
   './',
   './index.html',
+  './fish-talk.js',
   './manifest.json',
   './favicon.svg',
   './icons/icon-96.svg',

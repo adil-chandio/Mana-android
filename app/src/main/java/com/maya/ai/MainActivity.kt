@@ -133,6 +133,47 @@ class MainActivity : AppCompatActivity() {
     private val httpDeadlines = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
     private val httpRequests = java.util.concurrent.ConcurrentHashMap<String, com.maya.ai.net.CancelableRequest>()
     private var fishPlayer: com.maya.ai.voice.FishStreamPlayer? = null
+    @Volatile private var fishTalkId: String?=null
+    private val fishTalkRequests=java.util.concurrent.ConcurrentHashMap<String,Boolean>()
+    private var fishTalkLastSpoken=0
+    private var talkPlayer: com.maya.ai.voice.FishStreamPlayer?=null
+    private var fishTalkDeadline: Runnable?=null
+    private var fishTalkEvents=com.maya.ai.voice.FishTalkProtocol.Events()
+    fun prepareFishTalk(done: (String?)->Unit) {
+        if(!voiceForeground() || composerMicLease!=null || recognitionActive || httpRequests.isNotEmpty() || WakeWordService.fishOutputActive || MayaAct.hasPendingActions()) {done(null);return}
+        val presentation=hostPresentationEpoch
+        var answered=false
+        val timeout=Runnable {if(!answered) {answered=true;done(null)}}
+        hostHandler.postDelayed(timeout,1500)
+        try {webView.evaluateJavascript("window.FISH_TALK ? FISH_TALK.describe() : null") {raw ->
+            if(!answered) {answered=true;hostHandler.removeCallbacks(timeout);done(if(voiceForeground() && presentation==hostPresentationEpoch) raw else null)}
+        }} catch(_: Exception) {if(!answered) {answered=true;hostHandler.removeCallbacks(timeout);done(null)}}
+    }
+    fun startFishTalk(review: String,done: (Boolean)->Unit) {
+        if(!voiceForeground() || fishTalkId!=null || composerMicLease!=null || recognitionActive || httpRequests.isNotEmpty() || WakeWordService.fishOutputActive || MayaAct.hasPendingActions() || !Regex("review[0-9]{1,12}").matches(review)) {done(false);return}
+        if(ContextCompat.checkSelfPermission(this,Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) {requestMicPermission();done(false);return}
+        val id=java.util.UUID.randomUUID().toString().replace("-","")
+        fishTalkRequests.clear();fishTalkLastSpoken=0;fishTalkId=id;fishTalkEvents=com.maya.ai.voice.FishTalkProtocol.Events()
+        WakeWordService.stop(this) // Runtime pause only; saved Wake/Fish/AI choices are untouched.
+        fishTalkDeadline=Runnable {if(fishTalkId==id) {stopFishTalk();nativeChat?.fishTalkEnded("Fish conversation reached its 5-minute limit.")}}.also {hostHandler.postDelayed(it,300000)}
+        var answered=false
+        val timeout=Runnable {if(!answered) {answered=true;if(fishTalkId==id) stopFishTalk();done(false)}}
+        hostHandler.postDelayed(timeout,2000)
+        try {webView.evaluateJavascript("FISH_TALK.start('$id','$review')") {raw ->
+            if(!answered) {answered=true;hostHandler.removeCallbacks(timeout)
+                val ok=voiceForeground() && fishTalkId==id && raw=="true"
+                if(!ok && fishTalkId==id) stopFishTalk()
+                done(ok)
+            }
+        }} catch(_: Exception) {if(!answered) {answered=true;hostHandler.removeCallbacks(timeout);stopFishTalk();done(false)}}
+    }
+    fun stopFishTalk() {
+        val id=fishTalkId ?: return
+        fishTalkId=null;fishTalkDeadline?.let {hostHandler.removeCallbacks(it)};fishTalkDeadline=null
+        stopRecognizer();talkPlayer?.stop();talkPlayer=null
+        httpRequests.keys.filter {it.startsWith("ft_${id}_")}.forEach {httpRequests.remove(it)?.cancel()}
+        evalAsync("if(window.FISH_TALK) FISH_TALK.stop('$id','STOPPED')")
+    }
 
     /* ================= LIFECYCLE ================= */
 
@@ -283,7 +324,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onResume() { super.onResume(); mainResumed = true; nativeChat?.resume() }
     override fun onPause() { mainResumed = false;
-        WakeWordService.stop(this);stopRecognizer()
+        stopFishTalk();WakeWordService.stop(this);stopRecognizer()
         evalAsync("if(typeof KAAN!=='undefined')KAAN.DARWAZA.close();if(typeof stopListening==='function')stopListening();if(typeof AWAAZ!=='undefined')AWAAZ.stop();")
         hostPresentationEpoch++;cancelHostDeadline();webView.visibility=android.view.View.INVISIBLE; nativeChat?.pause(); super.onPause() }
     override fun onStop() { nativeChat?.leaveScreen(); super.onStop() }
@@ -931,6 +972,35 @@ class MainActivity : AppCompatActivity() {
 
         /** Explicit local read, fixed fields only. No transcript/keys/raw exception messages. */
         @JavascriptInterface
+        fun fishTalkSpeak(id: String,turn: Int,body: String,headers: String) {
+            if(body.length>16000 || headers.length>4096) return
+            runOnUiThread {
+                if(fishTalkId!=id || !voiceForeground() || turn !in 1..5 || turn!=fishTalkLastSpoken+1 || talkPlayer!=null || !fishTalkEvents.readyForSpeech(turn)) return@runOnUiThread
+                fishTalkLastSpoken=turn
+                lateinit var player: com.maya.ai.voice.FishStreamPlayer
+                player=com.maya.ai.voice.FishStreamPlayer(this@MainActivity,strictNetwork=true) {_,event,status ->
+                    if(event!="playing" && talkPlayer===player) talkPlayer=null
+                    if(fishTalkId==id && voiceForeground()) evalAsync("if(window.FISH_TALK) FISH_TALK.audioEvent('$id',$turn,'$event',$status)")
+                }
+                talkPlayer=player
+                if(!player.speakExclusive(body,headers,"talk_${id}_$turn") {
+                    if(fishTalkId==id) evalAsync("if(window.FISH_TALK) FISH_TALK.audioEvent('$id',$turn,'interrupted',0)")
+                }) evalAsync("if(window.FISH_TALK) FISH_TALK.audioEvent('$id',$turn,'error',0)")
+            }
+        }
+
+        @JavascriptInterface
+        fun fishTalkEvent(id: String,kind: String,value: String) {
+            if(id.length!=32 || value.length>2000 || kind.length>12) return
+            runOnUiThread {
+                if(fishTalkId!=id || !voiceForeground()) return@runOnUiThread
+                if(!fishTalkEvents.accept(kind,value)) {stopFishTalk();nativeChat?.fishTalkEnded("Invalid voice event rejected. Nothing executed.");return@runOnUiThread}
+                if(kind=="end") {stopFishTalk();nativeChat?.fishTalkEnded(value)}
+                else nativeChat?.fishTalkEvent(kind,value)
+            }
+        }
+
+        @JavascriptInterface
         fun nativeWakeNotice() {
             val presentation=hostPresentationEpoch
             if(!voiceForeground()) return
@@ -1401,9 +1471,14 @@ class MainActivity : AppCompatActivity() {
 
         private fun httpAsync(method: String, url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) {
             if (httpClosed) return
+            val talk=reqId.startsWith("ft_")
+            val talkOwner=fishTalkId
+            fun currentTalk()=!talk || (talkOwner!=null && talkOwner==fishTalkId && voiceForeground())
+            if(talk && (!currentTalk() || method!="POST" || !Regex("ft_${talkOwner}_[1-5]").matches(reqId) ||
+                body.toByteArray(Charsets.UTF_8).size>16384 || !com.maya.ai.voice.FishTalkProtocol.allowedUrl(url) || fishTalkRequests.putIfAbsent(reqId,true)!=null)) return
             val job = com.maya.ai.net.CancelableRequest()
             if (httpRequests.putIfAbsent(reqId, job) != null) return
-            if (httpClosed) { httpRequests.remove(reqId, job); job.cancel(); return }
+            if (httpClosed || !currentTalk()) { httpRequests.remove(reqId, job); job.cancel(); return }
             // A suspended WebView must not leave a slow/dripping socket alive indefinitely.
             val deadline = try {
                 httpDeadlines.schedule(Runnable { job.cancel() }, timeoutMs.coerceIn(1, 25000).toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
@@ -1414,7 +1489,9 @@ class MainActivity : AppCompatActivity() {
                 var code = 0
                 var txt = ""
                 try {
+                    if(!currentTalk()) {job.cancel();return@Thread}
                     val conn = URL(url).openConnection() as HttpURLConnection
+                    if(talk) conn.setFixedLengthStreamingMode(body.toByteArray(Charsets.UTF_8).size)
                     if (!job.attach(conn)) return@Thread
                     conn.requestMethod = method
                     conn.instanceFollowRedirects = false
@@ -1434,7 +1511,7 @@ class MainActivity : AppCompatActivity() {
                         while (!job.cancelled) {
                             val n = reader.read(buffer)
                             if (n < 0) break
-                            if (out.length + n > 8_000_000) throw java.io.IOException("Response too large")
+                            if (out.length + n > (if(reqId.startsWith("ft_")) 65536 else 8_000_000)) throw java.io.IOException("Response too large")
                             out.append(buffer, 0, n)
                         }
                         out.toString()
