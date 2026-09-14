@@ -82,6 +82,7 @@ class MainActivity : AppCompatActivity() {
     private var workspaceSettingsOpen=false
     private var workspaceHostReady=false
     private var hostLoadEpoch=0L
+    private var hostPresentationEpoch=0L
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     @Volatile private var ttsBooting = false
@@ -301,11 +302,11 @@ class MainActivity : AppCompatActivity() {
         if(!workspaceHostReady || !mainResumed) return
         val url=webView.url
         if(url !in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) return
-        val ticket=hostLoadEpoch;val expanded=workspaceSettingsOpen
+        val ticket=hostLoadEpoch;val presentationTicket=++hostPresentationEpoch;val expanded=workspaceSettingsOpen
         webView.visibility=android.view.View.INVISIBLE
         webView.evaluateJavascript("window.__mayaWorkspaceSettings ? window.__mayaWorkspaceSettings($expanded) : false;") {applied ->
             if(!isFinishing && !isDestroyed && mainResumed && ticket==hostLoadEpoch && workspaceHostReady &&
-                expanded==workspaceSettingsOpen && webView.url==url && applied=="true") webView.visibility=android.view.View.VISIBLE
+                presentationTicket==hostPresentationEpoch && expanded==workspaceSettingsOpen && webView.url==url && applied=="true") webView.visibility=android.view.View.VISIBLE
         }
     }
 

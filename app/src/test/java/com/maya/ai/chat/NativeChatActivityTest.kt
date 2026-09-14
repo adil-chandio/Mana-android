@@ -319,7 +319,7 @@ class NativeChatActivityTest {
         shadowOf(Looper.getMainLooper()).idle()
         port.requests.single().second(NativeFishPolicy.Result.Prepared("SYNTHETIC","SYNTHETIC"))
         assertEquals(1,port.plays)
-        openPage("checks");assertEquals(0,port.stops)
+        assertEquals(0,port.stops)
         controller!!.pause().stop();assertEquals(1,port.stops)
         port.event!!("done",200)
         assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
@@ -516,6 +516,18 @@ class NativeChatActivityTest {
         assertEquals(4,field<Int>("section"));assertFalse(field<EditText>("draft").isShown)
         workspace.requestClose();assertEquals(0,field<Int>("section"));assertTrue(field<EditText>("draft").isShown)
         assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString());assertFalse(activity.isFinishing);noTransport()
+    }
+
+    @Test fun dedicatedSettingsStopsOwnedSpeechButDoesNotClearCompletedConversation() {
+        val port=fakeSpeech();completedHistory();fill()
+        button("Sunao · selected Fish").performClick()
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        port.requests.single().second(NativeFishPolicy.Result.Prepared("SYNTHETIC","SYNTHETIC"))
+        assertEquals(1,port.plays);openPage("checks");assertEquals(1,port.stops)
+        port.event!!("done",200)
+        assertEquals(2,field<NativeChatConversation>("session").messages().size)
+        assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString())
+        openPage("chat");assertEquals(1,port.stops);noTransport()
     }
 
 }

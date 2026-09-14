@@ -160,4 +160,25 @@ class MainChatSurfaceTest {
         assertEquals("original_orb_slot",(web.parent as View).tag)
     }
 
+    @Test fun stalePresentationCallbacksCannotRevealOldRouteAfterRapidToggleOrReload() {
+        val original=web;val callbacks=mutableListOf<android.webkit.ValueCallback<String>>()
+        val testWeb=object : WebView(a) {
+            override fun getUrl()="https://appassets.androidplatform.net/assets/web/index.html"
+            override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {callbacks.add(callback!!)}
+        }
+        fun set(name: String,value: Any)=MainActivity::class.java.getDeclaredField(name).apply {isAccessible=true}.set(a,value)
+        val apply=MainActivity::class.java.getDeclaredMethod("applyWorkspacePresentation").apply {isAccessible=true}
+        try {
+            set("webView",testWeb);set("workspaceHostReady",true);set("mainResumed",true)
+            for(expanded in listOf(true,false,true)) {set("workspaceSettingsOpen",expanded);apply.invoke(a)}
+            assertEquals(3,callbacks.size)
+            callbacks[0].onReceiveValue("true");assertEquals(View.INVISIBLE,testWeb.visibility)
+            callbacks[1].onReceiveValue("true");assertEquals(View.INVISIBLE,testWeb.visibility)
+            callbacks[2].onReceiveValue("true");assertEquals(View.VISIBLE,testWeb.visibility)
+            original.webViewClient!!.onPageStarted(testWeb,testWeb.url,null)
+            callbacks[2].onReceiveValue("true");assertEquals(View.INVISIBLE,testWeb.visibility)
+        } finally {set("webView",original);testWeb.destroy()}
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+
 }

@@ -437,7 +437,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
         restoreVoicePresentation={placeVoice()}
         navigateSettings={index ->
-            if(index!=section) stopActive("Settings toggled; active work and approvals stopped. Conversation retained.")
+            if(index!=section) stopActive(if(anyBusy || agentCards.any {it.stoppable}) "Workspace work stopped for Settings. Conversation retained." else "Settings toggled; conversation retained.")
             hideKeyboard();draft.clearFocus();confirmationGeneration++;disclosure?.dismiss();disclosure=null
             section=index;menuPanel.visibility=View.GONE
             shell.visibility=if(index==0) View.VISIBLE else View.GONE
