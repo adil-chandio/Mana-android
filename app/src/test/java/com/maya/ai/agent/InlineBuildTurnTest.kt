@@ -28,8 +28,17 @@ class InlineBuildTurnTest {
     private val fake=object : ResearchServices {
         val calls=mutableListOf<Pair<String,(String?,ResearchBackend.TextFailure?) -> Unit>>()
         var cancels=0
+        var deferReview=false
+        var lastReview: AiTaskReview?=null
+        var lastReviewPrompt=""
+        var reviewCompletion: ((AiTaskReview?,ResearchBackend.TextFailure?)->Unit)?=null
         override fun fetch(item: ResearchPlan.Item,done: (ResearchSource?) -> Unit): () -> Unit=error("Builder cannot research implicitly")
-        override fun text(prompt: String,done: (String?,ResearchBackend.TextFailure?) -> Unit): () -> Unit {calls.add(prompt to done);return {cancels++}}
+        override fun review(kind: AiTaskReview.Kind,prompts: List<String>,done: (AiTaskReview?,ResearchBackend.TextFailure?)->Unit): ()->Unit {
+            val ticket=AiTaskReview(kind,AiTaskReview.Route.SAVED_AI,"synthetic","test-model","test-fingerprint",prompts,android.os.SystemClock.elapsedRealtime());lastReview=ticket;lastReviewPrompt=prompts.first()
+            if(deferReview) reviewCompletion=done else done(ticket,null)
+            return {if(deferReview) cancels++}
+        }
+        override fun text(review: AiTaskReview,prompt: String,done: (String?,ResearchBackend.TextFailure?) -> Unit): () -> Unit {check(review.claim(prompt,android.os.SystemClock.elapsedRealtime()));calls.add(prompt to done);return {cancels++}}
     }
     private val html="<!DOCTYPE html><html><body><h1>Bakery</h1></body></html>"
     private fun button(text: String): Button {
@@ -276,6 +285,21 @@ class InlineBuildTurnTest {
         controller.pause().stop().restart().start().resume();oldDialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
         val history=InlineBuildTurn::class.java.getDeclaredField("checkpoints").apply {isAccessible=true}.get(old) as BuilderCheckpoints
         assertTrue(history.list().isEmpty());assertEquals("",old.editor.text.toString());assertNull(field<InlineBuildTurn?>("buildTask"))
+    }
+
+    @Test fun stoppingDuringConnectionReviewRejectsLatePermissionAndDoesNotSendCode() {
+        fake.deferReview=true;submit("Create a tiny page")
+        assertTrue(card.busy);assertTrue(fake.calls.isEmpty())
+        button("Stop current work").performClick();assertFalse(card.busy)
+        val ticket=fake.lastReview!!;fake.reviewCompletion!!(ticket,null)
+        assertFalse(ticket.approve(fake.lastReviewPrompt,android.os.SystemClock.elapsedRealtime()))
+        assertTrue(fake.calls.isEmpty());assertEquals("",card.editor.text.toString())
+    }
+    @Test fun cancellingModelReviewRevokesTicketWithoutApplyingOrRequesting() {
+        submit("Create a tiny page");val ticket=fake.lastReview!!
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(ticket.approve(fake.lastReviewPrompt,android.os.SystemClock.elapsedRealtime()))
+        assertTrue(fake.calls.isEmpty());assertEquals("",card.editor.text.toString());assertNull(root.findViewWithTag<WebView>("isolated_static_preview"))
     }
 
 }

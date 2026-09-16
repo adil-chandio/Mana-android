@@ -57,6 +57,6 @@ assert(create.includes('workspace.createView(webView)'));assert(create.includes(
 const focus=main.slice(main.indexOf('private fun openMainChat()'),main.indexOf('override fun onResume()'));
 assert(!/createView|addView|removeView|visibility|startActivity|loadUrl/.test(focus));assert(focus.includes('focusComposer()'));
 const builder=fs.readFileSync('app/src/main/java/com/maya/ai/agent/InlineBuildTurn.kt','utf8');
-for(const text of ['javaScriptEnabled=false','blockNetworkLoads=true','allowFileAccess=false','allowContentAccess=false','domStorageEnabled=false',"default-src 'none'","form-action 'none'",'request.deny()','handler.postDelayed(it,20000)','epoch!=ticket','services.text(prompt)']) assert(builder.includes(text),text);
+for(const text of ['javaScriptEnabled=false','blockNetworkLoads=true','allowFileAccess=false','allowContentAccess=false','domStorageEnabled=false',"default-src 'none'","form-action 'none'",'request.deny()','handler.postDelayed(it,20000)','epoch!=ticket','services.text(review,prompt)']) assert(builder.includes(text),text);
 assert(!/addJavascriptInterface|startActivity|createExplicitly|Runtime\.getRuntime|ProcessBuilder|FileOutputStream|ACTION_VIEW|evaluateJavascript/.test(builder));
 console.log('Permanent workspace PASS: startup ownership, idempotent original-orb mounting, no duplicate chat/legacy dispatch/settings writes; isolated static Builder boundaries. Not device or live-provider proof.');

@@ -14,12 +14,28 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 interface ResearchServices {
     fun fetch(item: ResearchPlan.Item, done: (ResearchSource?) -> Unit): () -> Unit
-    fun text(prompt: String, done: (String?, ResearchBackend.TextFailure?) -> Unit): () -> Unit
+    fun review(kind: AiTaskReview.Kind, prompts: List<String>, done: (AiTaskReview?, ResearchBackend.TextFailure?) -> Unit): () -> Unit
+    fun text(review: AiTaskReview, prompt: String, done: (String?, ResearchBackend.TextFailure?) -> Unit): () -> Unit
 }
 
 /** No automatic startup. Explicit UI requests only; one worker, zero queued work, fixed destinations. */
-class ResearchBackend(private val context: Context) : ResearchServices {
-    enum class TextFailure { STOPPED_OR_TIMEOUT, LOCAL_NOT_READY, UNAVAILABLE, CHAT_OFF, INVALID_PROPOSAL }
+class ResearchBackend(private val context: Context,
+    private val configuredTransport: ()->ConfiguredChatTransport={ConfiguredChatTransport()},
+    private val signedTransport: ()->NativeChatTransport={NativeChatTransport()},
+    private val dispatch: ((()->Unit)->Unit)={task->executor.execute {task()}}
+) : ResearchServices {
+    enum class TextFailure { STOPPED_OR_TIMEOUT, LOCAL_NOT_READY, UNAVAILABLE, CHAT_OFF, INVALID_PROPOSAL, REVIEW_REQUIRED, CONNECTION_CHANGED, ACCOUNT_LIMIT }
+    private fun route(): AiTaskReview.Route?=runCatching {
+        val prefs=context.getSharedPreferences("maya_connections",Context.MODE_PRIVATE)
+        when(prefs.getString("text_route","saved")) {
+            "saved" -> AiTaskReview.Route.SAVED_AI
+            "cloudflare" -> if(prefs.getBoolean("cloudflare_reviewed",false)) AiTaskReview.Route.CLOUDFLARE else null
+            else -> null
+        }
+    }.getOrNull()
+    private val main get()=(context as? MainActivity)?.takeIf {MainActivity.instance===it && it.voiceForeground()}
+    private val cloudflareFingerprint="cloudflare-v1|${NativeChatProtocol.ORIGIN}|${NativeChatProtocol.MODEL}|256"
+
     companion object {
         private val executor=ThreadPoolExecutor(1,1,30,TimeUnit.SECONDS,SynchronousQueue()).apply { allowCoreThreadTimeOut(true) }
         fun summaryPrompt(goal: String, sources: List<ResearchSource>): String {
@@ -41,45 +57,88 @@ class ResearchBackend(private val context: Context) : ResearchServices {
         } } catch (_: Exception) { handler.post { if(live.compareAndSet(true,false)) { handler.removeCallbacks(timeout); done(null) } } }
         return { live.set(false); handler.removeCallbacks(timeout); op.cancel() }
     }
-    override fun text(prompt: String, done: (String?, TextFailure?) -> Unit): () -> Unit {
+    override fun review(kind: AiTaskReview.Kind,prompts: List<String>,done: (AiTaskReview?,TextFailure?)->Unit): ()->Unit {
+        require(prompts.size in 1..2);prompts.forEach {NativeChatProtocol.validateDraft(it)}
+        val options=prompts.toList();val live=AtomicBoolean(true)
+        lateinit var timeout: Runnable
+        fun finish(review: AiTaskReview?,failure: TextFailure?) {
+            if(live.compareAndSet(true,false)) {handler.removeCallbacks(timeout);done(review,failure)} else review?.revoke()
+        }
+        timeout=Runnable {finish(null,TextFailure.STOPPED_OR_TIMEOUT)};handler.postDelayed(timeout,2000)
+        handler.post {
+            if(!live.get()) return@post
+            val selected=route();val host=main
+            if(selected==null) {finish(null,TextFailure.CHAT_OFF);return@post}
+            if(host==null) {finish(null,TextFailure.LOCAL_NOT_READY);return@post}
+            if(selected==AiTaskReview.Route.CLOUDFLARE) {
+                finish(AiTaskReview(kind,selected,"Cloudflare",NativeChatProtocol.MODEL,cloudflareFingerprint,options,SystemClock.elapsedRealtime()),null)
+            } else host.prepareConfiguredChat({live.get()},false) {config,_ ->
+                if(route()!=selected) finish(null,TextFailure.CONNECTION_CHANGED)
+                else if(config==null) finish(null,TextFailure.UNAVAILABLE)
+                else finish(AiTaskReview(kind,selected,config.provider,config.model,config.fingerprint,options,SystemClock.elapsedRealtime()),null)
+            }
+        }
+        return {live.set(false);handler.removeCallbacks(timeout)}
+    }
+    override fun text(review: AiTaskReview,prompt: String, done: (String?, TextFailure?) -> Unit): () -> Unit {
         NativeChatProtocol.validateDraft(prompt)
         val live=AtomicBoolean(true); val op=NativeChatTransport.Operation { SystemClock.elapsedRealtime() }
-        var waiting=true
         val timeout=Runnable { if(live.compareAndSet(true,false)) { op.cancel(); done(null,TextFailure.STOPPED_OR_TIMEOUT) } }
         fun finish(text: String?, error: TextFailure?) {
             if(live.compareAndSet(true,false)) { handler.removeCallbacks(timeout); done(text,error) }
         }
         handler.postDelayed(timeout,20000)
-        val readyTimeout=Runnable { if(waiting && live.get()) { waiting=false; finish(null,TextFailure.LOCAL_NOT_READY) } }
-        handler.postDelayed(readyTimeout,1500)
-        fun ready(reason: NativeChatReadiness.Reason) {
-            if(!waiting || !live.get()) return
-            waiting=false;handler.removeCallbacks(readyTimeout)
-            if(reason != NativeChatReadiness.Reason.READY) { finish(null,TextFailure.LOCAL_NOT_READY);return }
-            try { executor.execute {
-                var result: String?=null;var failure: TextFailure?=TextFailure.UNAVAILABLE
-                try {
-                    op.check()
-                    val signed=NativeChatIdentity().sign(listOf(NativeChatProtocol.Message("user",prompt)))
-                    op.check()
-                    when(val response=NativeChatTransport().execute(signed,op)) {
-                        is NativeChatResponse.Result.Reply -> { result=response.text;failure=null }
-                        is NativeChatResponse.Result.Error -> if(response.code=="CHAT_NOT_ENABLED") failure=TextFailure.CHAT_OFF
-                        else -> Unit
-                    }
-                } catch (_: Exception) { /* Fixed redacted result; never exception/server/key data. */ }
-                handler.post { finish(result,failure) }
-            } } catch (_: Exception) { finish(null,TextFailure.UNAVAILABLE) }
+        fun execute(config: ConfiguredChatPolicy.Config?) {
+            if(!live.get()) return
+            if(route()!=review.route) {finish(null,TextFailure.CONNECTION_CHANGED);return}
+            if(review.route==AiTaskReview.Route.SAVED_AI && (config==null || config.fingerprint!=review.connectionFingerprint)) {finish(null,TextFailure.CONNECTION_CHANGED);return}
+            val host=main
+            if(host==null) {finish(null,TextFailure.LOCAL_NOT_READY);return}
+            host.nativeConfiguredReady {reason ->
+                if(!live.get()) return@nativeConfiguredReady
+                if(reason!=NativeChatReadiness.Reason.READY) {finish(null,TextFailure.LOCAL_NOT_READY);return@nativeConfiguredReady}
+                try {dispatch {
+                    var result: String?=null;var failure: TextFailure?=TextFailure.UNAVAILABLE
+                    try {
+                        op.check()
+                        if(route()!=review.route) throw NativeChatProtocol.Rejected("CONNECTION_CHANGED")
+                        val messages=listOf(NativeChatProtocol.Message("user",prompt))
+                        val response=if(config!=null) configuredTransport().execute(config,messages,op,AiTaskReview.OUTPUT_TOKENS,when(review.kind) {
+                            AiTaskReview.Kind.RESEARCH_PLAN -> ConfiguredChatPolicy.Purpose.RESEARCH_PLAN
+                            AiTaskReview.Kind.SOURCE_SUMMARY -> ConfiguredChatPolicy.Purpose.SOURCE_SUMMARY
+                            AiTaskReview.Kind.BUILDER_PROPOSAL -> ConfiguredChatPolicy.Purpose.BUILDER_PROPOSAL
+                        }) {op.check()}
+                            else signedTransport().execute(NativeChatIdentity().sign(messages),op)
+                        when(response) {
+                            is NativeChatResponse.Result.Reply -> {result=response.text;failure=null}
+                            is NativeChatResponse.Result.Error -> failure=when(response.code) {
+                                "CHAT_NOT_ENABLED" -> TextFailure.CHAT_OFF
+                                "CONFIGURED_RATE_LIMIT","CONFIGURED_ACCESS_DENIED","REQUEST_LIMIT" -> TextFailure.ACCOUNT_LIMIT
+                                else -> TextFailure.UNAVAILABLE
+                            }
+                            else -> Unit
+                        }
+                    } catch(e: NativeChatProtocol.Rejected) {failure=when(e.code) {
+                        "CONNECTION_CHANGED" -> TextFailure.CONNECTION_CHANGED
+                        "STOPPED_LOCALLY","DEADLINE_EXCEEDED" -> TextFailure.STOPPED_OR_TIMEOUT
+                        else -> TextFailure.UNAVAILABLE
+                    }} catch(_: Exception) { /* Fixed failure only; never export key/URL/response data. */ }
+                    handler.post {finish(result,failure)}
+                }} catch(_: Exception) {finish(null,TextFailure.UNAVAILABLE)}
+            }
         }
-        // Always defer: caller installs its cancellation handle before any callback.
+        // Deferred admission lets the UI install cancellation before any terminal callback.
         handler.post {
-            if(live.get()) try {
-                val runtime=NativeChatReadiness.runtime(false,
-                    WakeWordService.instance != null,WakeWordService.fishOutputActive,WakeWordService.haal,com.maya.ai.MayaAct.hasPendingActions())
-                if(runtime != NativeChatReadiness.Reason.READY) ready(runtime)
-                else MainActivity.instance?.nativeConfiguredReady { ready(it) } ?: ready(NativeChatReadiness.Reason.READY)
-            } catch (_: Exception) { ready(NativeChatReadiness.Reason.UNKNOWN) }
+            if(!live.get()) return@post
+            if(!review.claim(prompt,SystemClock.elapsedRealtime())) {finish(null,TextFailure.REVIEW_REQUIRED);return@post}
+            if(route()!=review.route) {finish(null,TextFailure.CONNECTION_CHANGED);return@post}
+            val host=main
+            if(host==null) {finish(null,TextFailure.LOCAL_NOT_READY);return@post}
+            if(review.route==AiTaskReview.Route.CLOUDFLARE) execute(null)
+            else host.prepareConfiguredChat({live.get()},false) {config,_ ->
+                if(config==null) finish(null,TextFailure.UNAVAILABLE) else execute(config)
+            }
         }
-        return { live.set(false);handler.removeCallbacks(timeout);handler.removeCallbacks(readyTimeout);op.cancel() }
+        return {live.set(false);review.revoke();handler.removeCallbacks(timeout);op.cancel()}
     }
 }

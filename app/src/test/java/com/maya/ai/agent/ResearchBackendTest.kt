@@ -15,6 +15,10 @@ import org.robolectric.annotation.LooperMode
 @Config(sdk=[28])
 @LooperMode(LooperMode.Mode.PAUSED)
 class ResearchBackendTest {
+    private fun approved(prompt: String): AiTaskReview {
+        val now=android.os.SystemClock.elapsedRealtime()
+        return AiTaskReview(AiTaskReview.Kind.RESEARCH_PLAN,AiTaskReview.Route.SAVED_AI,"test","test-model","fingerprint",listOf(prompt),now).also {check(it.approve(prompt,now))}
+    }
     @Test fun freshLocalGateBlocksModelBeforeSigningAndPreservesSettings() {
         val context=RuntimeEnvironment.getApplication()
         val prefs=context.getSharedPreferences("maya",Context.MODE_PRIVATE)
@@ -24,7 +28,7 @@ class ResearchBackendTest {
         com.maya.ai.WakeWordService.instance=org.robolectric.Robolectric.buildService(com.maya.ai.WakeWordService::class.java).get()
         try {
             var result: ResearchBackend.TextFailure?=null
-            ResearchBackend(context).text("SYNTHETIC_GOAL") {text,error -> assertNull(text);result=error}
+            ResearchBackend(context).text(approved("SYNTHETIC_GOAL"),"SYNTHETIC_GOAL") {text,error -> assertNull(text);result=error}
             shadowOf(Looper.getMainLooper()).idle()
             assertEquals(ResearchBackend.TextFailure.LOCAL_NOT_READY,result)
             assertTrue(prefs.getBoolean("wake",false))
@@ -32,7 +36,7 @@ class ResearchBackendTest {
     }
     @Test fun cancelBeforeDeferredReadinessNeverDeliversOrSigns() {
         var calls=0
-        val cancel=ResearchBackend(RuntimeEnvironment.getApplication()).text("SYNTHETIC_GOAL") {_,_->calls++}
+        val cancel=ResearchBackend(RuntimeEnvironment.getApplication()).text(approved("SYNTHETIC_GOAL"),"SYNTHETIC_GOAL") {_,_->calls++}
         cancel();shadowOf(Looper.getMainLooper()).idle();assertEquals(0,calls)
     }
 }

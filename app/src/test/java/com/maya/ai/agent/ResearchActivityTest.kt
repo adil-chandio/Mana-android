@@ -31,7 +31,11 @@ class ResearchActivityTest {
         val texts=mutableListOf<Pair<String,(String?,ResearchBackend.TextFailure?) -> Unit>>()
         var cancels=0
         override fun fetch(item: ResearchPlan.Item,done: (ResearchSource?) -> Unit): () -> Unit {gets.add(item to done);return {cancels++}}
-        override fun text(prompt: String,done: (String?,ResearchBackend.TextFailure?) -> Unit): () -> Unit {texts.add(prompt to done);return {cancels++}}
+        override fun review(kind: AiTaskReview.Kind,prompts: List<String>,done: (AiTaskReview?,ResearchBackend.TextFailure?)->Unit): ()->Unit {
+            done(AiTaskReview(kind,AiTaskReview.Route.SAVED_AI,"synthetic","test-model","test-fingerprint",prompts,android.os.SystemClock.elapsedRealtime()),null)
+            return {}
+        }
+        override fun text(review: AiTaskReview,prompt: String,done: (String?,ResearchBackend.TextFailure?) -> Unit): () -> Unit {check(review.claim(prompt,android.os.SystemClock.elapsedRealtime()));texts.add(prompt to done);return {cancels++}}
         fun source(i: Int) {val t=gets[i];t.second(ResearchSource(t.first.pageUrl,"SYNTHETIC_EXCERPT"))}
     }
     private val workspace get()=ResearchActivity::class.java.getDeclaredField("workspace").apply {isAccessible=true}.get(a) as NativeChatWorkspace

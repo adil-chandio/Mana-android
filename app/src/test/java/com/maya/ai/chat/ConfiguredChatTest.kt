@@ -96,4 +96,15 @@ class ConfiguredChatTest {
         try {ConfiguredChatTransport(f).execute(config(),messages(),op) {};fail()} catch(e: NativeChatProtocol.Rejected) {assertEquals("CONFIGURED_NETWORK_ERROR",e.code)}
         assertTrue(op.attempted);assertEquals(1,f.executions)
     }
+    @Test fun taskPurposeUsesItsOwnFixedInstructionsAndCannotIncreaseAccountBudget() {
+        val c=config()
+        val plan=JSONObject(ConfiguredChatPolicy.body(c,messages(),256,ConfiguredChatPolicy.Purpose.RESEARCH_PLAN))
+        assertEquals(256,plan.getInt("max_tokens"));assertFalse(plan.has("tools"))
+        assertTrue(plan.getJSONArray("messages").getJSONObject(0).getString("content").contains("WIKI / REPO"))
+        val code=JSONObject(ConfiguredChatPolicy.body(c,messages(),256,ConfiguredChatPolicy.Purpose.BUILDER_PROPOSAL))
+        assertTrue(code.getJSONArray("messages").getJSONObject(0).getString("content").contains("HTML/CSS"))
+        assertEquals(400,JSONObject(ConfiguredChatPolicy.body(c,messages())).getInt("max_tokens"))
+        try {ConfiguredChatPolicy.body(c,messages(),401);fail()} catch(_: IllegalArgumentException) {}
+    }
+
 }

@@ -363,7 +363,11 @@ class NativeChatActivityTest {
         var model: ((String?,com.maya.ai.agent.ResearchBackend.TextFailure?) -> Unit)?=null
         var cancels=0
         override fun fetch(item: com.maya.ai.agent.ResearchPlan.Item,done: (com.maya.ai.agent.ResearchSource?) -> Unit): () -> Unit {completion=done;return {cancels++}}
-        override fun text(prompt: String,done: (String?,com.maya.ai.agent.ResearchBackend.TextFailure?) -> Unit): () -> Unit {prompts.add(prompt);model=done;return {cancels++}}
+        override fun review(kind: com.maya.ai.agent.AiTaskReview.Kind,prompts: List<String>,done: (com.maya.ai.agent.AiTaskReview?,com.maya.ai.agent.ResearchBackend.TextFailure?)->Unit): ()->Unit {
+            done(com.maya.ai.agent.AiTaskReview(kind,com.maya.ai.agent.AiTaskReview.Route.SAVED_AI,"synthetic","test-model","test-fingerprint",prompts,android.os.SystemClock.elapsedRealtime()),null)
+            return {}
+        }
+        override fun text(review: com.maya.ai.agent.AiTaskReview,prompt: String,done: (String?,com.maya.ai.agent.ResearchBackend.TextFailure?) -> Unit): () -> Unit {check(review.claim(prompt,android.os.SystemClock.elapsedRealtime()));prompts.add(prompt);model=done;return {cancels++}}
     }
     private fun researchFake()=ResearchFake().also {setField("researchServices\$delegate",lazy<com.maya.ai.agent.ResearchServices> {it})}
     private fun submit(goal: String) {mode(true);field<EditText>("draft").setText(goal);field<Button>("send").performClick()}

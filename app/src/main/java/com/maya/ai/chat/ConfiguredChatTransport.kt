@@ -9,11 +9,11 @@ import java.util.concurrent.TimeUnit
 
 /** Native-only text transport sharing the proven one-exchange/no-retry client. */
 class ConfiguredChatTransport internal constructor(private val calls: Call.Factory=NativeChatTransport.client) {
-    fun execute(config: ConfiguredChatPolicy.Config,messages: List<NativeChatProtocol.Message>,operation: NativeChatTransport.Operation,beforeDispatch: ()->Unit): NativeChatResponse.Result {
+    fun execute(config: ConfiguredChatPolicy.Config,messages: List<NativeChatProtocol.Message>,operation: NativeChatTransport.Operation,outputTokens: Int=config.tokens,purpose: ConfiguredChatPolicy.Purpose=ConfiguredChatPolicy.Purpose.CHAT,beforeDispatch: ()->Unit): NativeChatResponse.Result {
         operation.check()
         val url=config.url()
         if(!com.maya.ai.voice.FishTalkProtocol.allowedUrl(url)) throw NativeChatProtocol.Rejected("INVALID_TARGET")
-        val body=ConfiguredChatPolicy.body(config,messages)
+        val body=ConfiguredChatPolicy.body(config,messages,outputTokens,purpose)
         val request=Request.Builder().url(url).tag(NativeChatTransport.AttemptGuard::class.java,NativeChatTransport.AttemptGuard())
             .post(body.toByteArray(Charsets.UTF_8).toRequestBody("application/json".toMediaType()))
             .header("Accept","application/json").header("Accept-Encoding","identity").header("Cache-Control","no-store")

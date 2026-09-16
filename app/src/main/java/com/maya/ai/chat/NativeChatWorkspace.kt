@@ -500,7 +500,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private var restoreVoicePresentation: () -> Unit = {}
     private var settingsSurface: LinearLayout?=null
     private var voiceSlot: FrameLayout?=null
-    private val researchServices: com.maya.ai.agent.ResearchServices by lazy { com.maya.ai.agent.ResearchBackend(applicationContext) }
+    private val researchServices: com.maya.ai.agent.ResearchServices by lazy { com.maya.ai.agent.ResearchBackend(host) }
     private val agentBusy get() = agentCards.any { it.busy }
     private val anyBusy get() = configuredPreparing || fishTalkBusy || fishTalkPreparing || active != null || speech.busy || agentBusy || dictation.stoppable
     private var publicText: String? = null
