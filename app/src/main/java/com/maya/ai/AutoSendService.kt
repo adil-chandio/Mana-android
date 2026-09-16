@@ -28,6 +28,7 @@ class AutoSendService : AccessibilityService() {
 
         @JvmStatic
         fun pending(ctx: Context): Boolean {
+            if(!LegacyCapabilities.phoneActions) return false
             return try {
                 val t = ctx.getSharedPreferences("maya", Context.MODE_PRIVATE)
                     .getLong("autosend_at", 0L)
@@ -48,7 +49,7 @@ class AutoSendService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        instance = this
+        if(LegacyCapabilities.phoneActions) instance = this
     }
 
     override fun onDestroy() {
@@ -59,6 +60,7 @@ class AutoSendService : AccessibilityService() {
     @Volatile var lastDispatchAt = 0L      /* apne gestures ko user-touch na samjhein */
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if(!LegacyCapabilities.phoneActions) return
         if (event == null) return
         /* 🛡️ GUARDRAIL: user ka touch (<1s) -> automation abort. Apne hi
            dispatched gestures (lastDispatchAt) ko user-touch NAHI maante —
@@ -147,6 +149,7 @@ class AutoSendService : AccessibilityService() {
        (CHHED 9 ka sabaq). Is liye yahin, Kotlin mein, chhaan lete hain.
        ═══════════════════════════════════════════════════════════════════ */
     fun dumpScreen(max: Int): String {
+        if(!LegacyCapabilities.phoneActions) return JSONObject().put("ok",false).put("why",LegacyCapabilities.DISABLED).toString()
         val o = JSONObject()
         val root = try { rootInActiveWindow } catch (e: Exception) { null }
         if (root == null) {
@@ -227,6 +230,7 @@ class AutoSendService : AccessibilityService() {
      *  clickable/editable, phir area. Blind coordinate tap KABHI nahi —
      *  MayaAct hamesha pehle ye dhoondta hai, phir uske center par tap. */
     fun findByText(text: String, index: Int): Triple<Rect, String, AccessibilityNodeInfo>? {
+        if(!LegacyCapabilities.phoneActions) return null
         if (text.isEmpty()) return null
         val root = try { rootInActiveWindow } catch (e: Exception) { return null } ?: return null
         val wanted = text.lowercase()
@@ -258,7 +262,9 @@ class AutoSendService : AccessibilityService() {
     }
 
     private fun dispatch(x1: Float, y1: Float, x2: Float, y2: Float, ms: Long, cb: (Boolean) -> Unit) {
+        if(!LegacyCapabilities.phoneActions) {cb(false);return}
         handler.post {
+            if(!LegacyCapabilities.phoneActions) {cb(false);return@post}
             try {
                 lastDispatchAt = SystemClock.elapsedRealtime()
                 val p = Path().apply { moveTo(x1, y1); lineTo(x2, y2) }
@@ -281,6 +287,7 @@ class AutoSendService : AccessibilityService() {
         dispatch(x1.toFloat(), y1.toFloat(), x2.toFloat(), y2.toFloat(), ms, cb)
 
     fun globalBack(cb: (Boolean) -> Unit) {
+        if(!LegacyCapabilities.phoneActions) {cb(false);return}
         handler.post {
             try { cb(performGlobalAction(GLOBAL_ACTION_BACK)) } catch (e: Exception) { cb(false) }
         }
@@ -288,6 +295,7 @@ class AutoSendService : AccessibilityService() {
 
     /** SET_TEXT — focus + likho. Text KABHI log/report nahi hota. */
     fun typeInto(n: AccessibilityNodeInfo, text: String): Boolean {
+        if(!LegacyCapabilities.phoneActions) return false
         return try {
             n.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
             val b = Bundle()
@@ -298,6 +306,7 @@ class AutoSendService : AccessibilityService() {
 
     /** screen-signature — tap ke baad badlav saabit karne ke liye */
     fun screenSig(): String {
+        if(!LegacyCapabilities.phoneActions) return ""
         return try {
             val root = rootInActiveWindow ?: return ""
             val sb = StringBuilder((root.packageName ?: "").toString())

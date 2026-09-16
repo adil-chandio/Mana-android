@@ -74,10 +74,10 @@ class ResearchBackend(private val context: Context) : ResearchServices {
         // Always defer: caller installs its cancellation handle before any callback.
         handler.post {
             if(live.get()) try {
-                val runtime=NativeChatReadiness.runtime(context.getSharedPreferences("maya",Context.MODE_PRIVATE).getBoolean("wake",false),
+                val runtime=NativeChatReadiness.runtime(false,
                     WakeWordService.instance != null,WakeWordService.fishOutputActive,WakeWordService.haal,com.maya.ai.MayaAct.hasPendingActions())
                 if(runtime != NativeChatReadiness.Reason.READY) ready(runtime)
-                else MainActivity.instance?.nativeChatReady { ready(it) } ?: ready(NativeChatReadiness.Reason.READY)
+                else MainActivity.instance?.nativeConfiguredReady { ready(it) } ?: ready(NativeChatReadiness.Reason.READY)
             } catch (_: Exception) { ready(NativeChatReadiness.Reason.UNKNOWN) }
         }
         return { live.set(false);handler.removeCallbacks(timeout);handler.removeCallbacks(readyTimeout);op.cancel() }

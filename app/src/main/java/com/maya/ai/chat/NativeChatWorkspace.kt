@@ -742,6 +742,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         button("Cloudflare Direct · advanced") {cloudflareConnection()}
         button("Use saved AI for Chat") {chooseConnection()}
         button("Open voice & AI settings") {navigateSettings(3)}
+        label("Legacy containment",21f)
+        label("This build retires legacy AutoSend, notification reading/reply, scheduled actions, raw screen/device control, unowned media uploads, plaintext exports and alternate voice engines. Stored settings/keys/snapshots are preserved, but these old paths cannot be activated by a JS trust flag. Chat, Talk, native Mic/Sunao, local Builder and approved public-source reads remain. Full reviewed phone/media adapters and shared Agent AI routing are still unfinished.")
         label("Privacy & limits", 21f)
         label("MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · development build",12f)
         label("The original orb focuses this composer. Sunao uses saved Fish after confirmation; Mic offers explicit voice-to-composer input with transcript review; it never auto-sends.",13f)

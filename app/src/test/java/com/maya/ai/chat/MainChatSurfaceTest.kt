@@ -786,4 +786,55 @@ class MainChatSurfaceTest {
         assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
     }
 
+    @Test fun documentTransitionSettlesPendingConfigurationInsteadOfStrandingBusyUi() {
+        for(deliver in listOf(true,false)) {
+            val original=web;val callbacks=mutableListOf<android.webkit.ValueCallback<String>>()
+            val fake=object : WebView(a) {
+                override fun getUrl()="https://appassets.androidplatform.net/assets/web/index.html"
+                override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {if(callback!=null) callbacks.add(callback)}
+            }
+            MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,fake)
+            MainActivity::class.java.getDeclaredField("voiceHostTrusted").apply {isAccessible=true}.set(a,true)
+            try {
+                local<EditText>("draft").setText("KEEP_NATIVE_DRAFT");local<Button>("send").performClick()
+                assertTrue(local<Boolean>("configuredPreparing"));assertEquals(1,callbacks.size)
+                val epoch=MainActivity::class.java.getDeclaredField("hostPresentationEpoch").apply {isAccessible=true}
+                epoch.setLong(a,epoch.getLong(a)+1)
+                workspace.hostPresentationState(true,false)
+                if(deliver) callbacks.single().onReceiveValue("null")
+                else shadowOf(Looper.getMainLooper()).idleFor(1801,java.util.concurrent.TimeUnit.MILLISECONDS)
+                assertFalse(local<Boolean>("configuredPreparing"));assertTrue(local<Button>("send").isEnabled)
+                assertEquals("KEEP_NATIVE_DRAFT",local<EditText>("draft").text.toString());assertTrue(local<List<Any>>("timeline").isEmpty())
+                callbacks.single().onReceiveValue("null");assertFalse(local<Boolean>("configuredPreparing"))
+                assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
+            } finally {MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,original);fake.destroy()}
+        }
+    }
+    @Test fun legacyHttpAndUnownedRecognizerCannotAcquireNativeResources() {
+        MainActivity::class.java.getDeclaredField("voiceHostTrusted").apply {isAccessible=true}.set(a,true)
+        val bridge=a.MayaBridge()
+        bridge.httpPostAsync("invalid://retired","","{}","legacy_request",100)
+        bridge.httpPostAsync("https://api.groq.com/openai/v1/chat/completions","","{}","ft_"+"a".repeat(32)+"_1",100)
+        bridge.listenOwned("ur-PK","miabc_1");shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(field<Map<*,*>>("httpRequests").isEmpty());assertNull(field<Any?>("recognizer"));assertFalse(field<Boolean>("recognitionActive"))
+        assertNull(field<Any?>("tts"));assertTrue(bridge.legacyRestricted())
+    }
+    @Test fun sensitivePreferencesCannotBeWrittenThroughTheNarrowBridge() {
+        val bridge=a.MayaBridge();bridge.setPref("trustMode",true);bridge.setPrefString("autosend_at","9999")
+        bridge.setPrefString("key","private");bridge.clearPref("wake")
+        val prefs=a.getSharedPreferences("maya",0)
+        assertFalse(prefs.contains("trustMode"));assertFalse(prefs.contains("autosend_at"));assertFalse(prefs.contains("key"))
+    }
+
+    @Test fun mainWebViewRejectsArbitraryFilesFramesAndUngesturedExternalNavigation() {
+        assertTrue(navigate(url="file:///sdcard/untrusted.html"))
+        assertTrue(navigate(url="https://appassets.androidplatform.net/untrusted.html"))
+        assertTrue(navigate(gesture=false,url="https://example.invalid/"))
+        assertTrue(navigate(main=false,url="https://example.invalid/"))
+        assertFalse(navigate(url="https://appassets.androidplatform.net/assets/web/index.html"))
+        assertNull(shadowOf(a).nextStartedActivity)
+        assertFalse(web.settings.allowUniversalAccessFromFileURLs);assertFalse(web.settings.allowFileAccessFromFileURLs)
+        assertFalse(web.settings.allowContentAccess);assertFalse(web.settings.javaScriptCanOpenWindowsAutomatically)
+    }
+
 }

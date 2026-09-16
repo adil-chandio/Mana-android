@@ -89,5 +89,8 @@ object NativeChatReadiness {
     }catch(e){return 'UNKNOWN';}})()"""
     // Only native callers which separately verify actual service/mic ownership may use this.
     val IDLE_SCRIPT=LOCAL_SCRIPT.replace("if(settings.wakeWord) return 'JS_WAKE_ENABLED';", "")
+        .replace("if(settings.autoListen) return 'AUTO_LISTEN_ENABLED';", "")
+        .replace("if(settings.proactive) return 'PROACTIVE_ENABLED';", "")
+        .replace("if(settings.notifSpeak) return 'NOTIFY_SPEECH_ENABLED';", "")
 
 }

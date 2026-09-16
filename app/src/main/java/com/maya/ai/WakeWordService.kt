@@ -208,9 +208,7 @@ class WakeWordService : Service() {
         attach(this)                              /* P9 — HAAL bridge instance */
         pausedByApp = false
         if (!startAsForeground()) { running = false; stopSelf(); return }
-        try {
-            tts = TextToSpeech(this) { st -> ttsReady = st == TextToSpeech.SUCCESS }
-        } catch (e: Exception) {}
+        // Wake detects input only; never initialize a substitute output voice.
         startLoop()
         handler.postDelayed({if(running) foregroundAllowed()},300000)
         handler.postDelayed(::watchdog, 45000)

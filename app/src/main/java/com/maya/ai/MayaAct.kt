@@ -82,6 +82,7 @@ object MayaAct {
 
     /** MainActivity.mayaAct(json) -> status JSON. NEVER throws. */
     fun enqueue(ctx: Context, json: JSONObject): String {
+        if(!LegacyCapabilities.phoneActions) return JSONObject().put("ok",false).put("why",LegacyCapabilities.DISABLED).toString()
         val out = JSONObject()
         try {
             if (killedCooldownActive()) {
@@ -176,6 +177,7 @@ object MayaAct {
     }
 
     private fun step(appCtx: Context) {
+        if(!LegacyCapabilities.phoneActions) {synchronized(queue) {queue.clear()};executing=false;hideStopNotif(appCtx);return}
         val next: JSONObject? = synchronized(queue) { if (queue.isEmpty()) null else queue.removeFirst() }
         if (next == null) {
             executing = false
@@ -326,6 +328,7 @@ object MayaAct {
     }
 
     private fun finishAction(appCtx: Context, act: JSONObject, chain: String, done: Boolean, changed: Boolean, what: String) {
+        if(!LegacyCapabilities.phoneActions) return
         if (done && changed) {
             attempts.remove(chain)
             h.post { step(appCtx) }              /* agla (queue khali ho to idle) */

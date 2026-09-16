@@ -18,6 +18,8 @@
     FISH: "Saved Fish setup is unavailable. Check the existing Fish settings; no other voice was used.",
     AI: "No eligible configured AI account/model was found. Fish supplies speech, not the AI answer. Check your existing AI settings.",
     CHANGED: "Voice, input language or AI selection changed. Conversation stopped; start again to review it.",
+    INPUT_LANGUAGE: "The speech service reports this language/model is unavailable. Check Voice & AI settings; no service or output voice was silently changed.",
+    INPUT_PERMISSION: "Microphone permission is missing or revoked. Allow it explicitly in the app settings, then start Talk again.",
     INPUT: "Speech input did not finish. Conversation stopped; tap Talk to try again.",
     NETWORK: "AI request failed or timed out. No automatic retry or other provider was used.",
     AI_ACCESS: "The existing AI account denied this request. Check that account; no other provider was used.",
@@ -81,11 +83,16 @@
     try { SUKOON.sunEnd(); } catch (e) {}
     s.messages.length = 0; s.config = null;
   }
+  function legacyFlagsBlock() {
+    var restricted=false;
+    try {restricted=!!(w.MayaBridge && w.MayaBridge.legacyRestricted && w.MayaBridge.legacyRestricted()===true);} catch(e) {return true;}
+    return !restricted && (settings.autoListen || settings.proactive || settings.notifSpeak);
+  }
   function describe() {
     review = null;
     try {
       if (active || listening || thinking || speaking || TURNS.active || INPUT_SESSION.active ||
-          settings.autoListen || settings.proactive || settings.notifSpeak) throw Error("BUSY");
+          legacyFlagsBlock()) throw Error("BUSY");
       var c = config(), token = "review" + (++serial);
       review = { token: token, at: now(), config: c };
       return JSON.stringify({ code: "READY", review: token, provider: c.provider, model: c.model, language: c.language, tokens: c.tokens });
@@ -98,7 +105,7 @@
     if (thinking || speaking || FISH.streamPending) { stop(s.id, "BUSY"); return; }
     clearInput(s);
     phase(s, "starting"); listening = true; SUKOON.sunStart();
-    var input = INPUT_SESSION.begin("fish-talk", 0); s.input = input.id;
+    var input = INPUT_SESSION.begin("fish-talk", 0); s.input = input.id; s.began = false;
     s.inputLimit = setTimeout(function () { if (current(s) && s.input === input.id) stop(s.id, "INPUT"); }, 20000);
     try { w.MayaBridge.listenOwned(s.config.language, input.id); } catch (e) { stop(s.id, "INPUT"); }
   }
@@ -107,7 +114,7 @@
     if (active || !/^[a-f0-9]{32}$/.test(id) || !r || r.token !== token || now() - r.at < 0 || now() - r.at >= 60000) return false;
     try {
       if (listening || thinking || speaking || TURNS.active || INPUT_SESSION.active ||
-          settings.autoListen || settings.proactive || settings.notifSpeak || !same(r.config, config())) return false;
+          legacyFlagsBlock() || !same(r.config, config())) return false;
       var s = { id: id, started: now(), config: r.config, messages: [], turns: 0, phase: "starting", request: null, input: null };
       active = s;
       s.expiry = setTimeout(function () { if (active === s) stop(id, "LIMIT"); }, 300000);
@@ -143,14 +150,16 @@
         if (typeof raw !== "string" || raw.length > 65536) throw Error();
         var data = JSON.parse(raw), answer = "";
         if (c.provider === "gemini") {
+          if (!Array.isArray(data.candidates) || data.candidates.length !== 1) throw Error();
           var candidate = data.candidates && data.candidates[0];
           if (!candidate || candidate.finishReason !== "STOP") throw Error();
           var parts = candidate.content && candidate.content.parts;
           if (!Array.isArray(parts) || parts.some(function (p) { return p.functionCall || p.thought || typeof p.text !== "string"; })) throw Error();
           answer = parts.map(function (p) { return p.text; }).join("");
         } else {
+          if (!Array.isArray(data.choices) || data.choices.length !== 1) throw Error();
           var choice = data.choices && data.choices[0], message = choice && choice.message;
-          if (!choice || choice.finish_reason !== "stop" || !message || message.tool_calls || message.function_call) throw Error();
+          if (!choice || choice.finish_reason !== "stop" || !message || (message.role != null && message.role !== "assistant") || (message.tool_calls != null && (!Array.isArray(message.tool_calls) || message.tool_calls.length > 0)) || message.function_call != null) throw Error();
           answer = message.content;
         }
         if (!text(answer, 2000) || /<\/?think\b/i.test(answer)) throw Error();
@@ -184,9 +193,9 @@
     ready: function (owner) {
       var s = active; if (!owns(owner) || !current(s) || s.phase !== "starting") return;
       phase(s, "listening");
-      s.silence = setTimeout(function () { if (current(s) && s.input === owner) stop(s.id, "INPUT"); }, 15000);
+      if (!s.began) s.silence = setTimeout(function () { if (current(s) && s.input === owner && !s.began) stop(s.id, "INPUT"); }, 15000);
     },
-    began: function (owner) { if (owns(owner)) { clearTimeout(active.silence); active.silence = null; } },
+    began: function (owner) { if (owns(owner)) { active.began = true; clearTimeout(active.silence); active.silence = null; } },
     ended: function (owner) { if (owns(owner)) phase(active, "finalizing"); },
     result: function (owner, value) {
       var s = active; if (!owns(owner) || !current(s) || !INPUT_SESSION.matches(owner)) return;
@@ -196,7 +205,7 @@
       if (/^\s*(stop|bas|bas karo|ruk jao|end conversation|band karo)\s*[.!]?\s*$/i.test(value)) { stop(s.id, "STOPPED"); return; }
       request(s, value.trim());
     },
-    error: function (owner) { if (owns(owner)) stop(active.id, "INPUT"); },
+    error: function (owner, code) { if (owns(owner)) stop(active.id, code===12 || code===13 ? "INPUT_LANGUAGE" : code===9 ? "INPUT_PERMISSION" : "INPUT"); },
     outputActive: function () { return !!active && (active.phase === "fish-starting" || active.phase === "fish-playing"); },
     audioEvent: function (id, turn, event, status) {
       var s=active;

@@ -64,6 +64,23 @@ test('typed and spoken preflights choose the same configured account/model witho
 test('typed config has no keyless fallback when saved account is absent',()=>{
  const s=world();s.BRAIN.plan=()=>[];assert.equal(JSON.parse(s.FISH_TALK.chatConfig()).code,'AI');assert.equal(s.posts.length,0);
 });
+test('empty or null tool fields are plain answers but real tool calls are denied',()=>{
+ for(const calls of [[],null]) {const s=world();s.begin();s.say('hi');s.answer('',200,{choices:[{finish_reason:'stop',message:{role:'assistant',content:'normal answer',tool_calls:calls,function_call:null}}]});assert.equal(s.audio.length,1);}
+ const s=world();s.begin();s.say('hi');s.answer('',200,{choices:[{finish_reason:'stop',message:{content:'unsafe',tool_calls:[{}]}}]});assert.equal(s.audio.length,0);
+});
+test('speech beginning before ready does not rearm silence but still has a hard ceiling',()=>{
+ const s=world();s.begin();const id=s.inputs[0].id;s.FISH_TALK.began(id);s.FISH_TALK.ready(id);s.advance(15001);assert(s.FISH_TALK.active());s.advance(5000);assert(!s.FISH_TALK.active());assert.equal(s.inputs.length,1);
+});
+test('quarantined saved flags cannot block Talk or reactivate old features',()=>{
+ const s=world();s.MayaBridge.legacyRestricted=()=>true;s.settings.autoListen=true;s.settings.proactive=true;s.settings.notifSpeak=true;
+ s.begin();assert.equal(s.inputs.length,1);assert.equal(s.posts.length,0);assert(s.settings.proactive);
+});
+test('input language and permission failures retain fixed useful causes',()=>{
+ for(const code of [12,13,9]) {const s=world();s.begin();s.FISH_TALK.error(s.inputs[0].id,code);const msg=s.events.at(-1).text;assert(msg.includes(code===9?'permission':'language/model'));assert(!s.FISH_TALK.active());assert.equal(s.posts.length,0);}
+});
+test('multiple choices or wrong roles never become speech',()=>{
+ for(const payload of [{choices:[{finish_reason:'stop',message:{content:'one'}},{finish_reason:'stop',message:{content:'two'}}]},{choices:[{finish_reason:'stop',message:{role:'system',content:'wrong'}}]}]) {const s=world();s.begin();s.say('hi');s.answer('',200,payload);assert.equal(s.audio.length,0);}
+});
 assert.equal(source,fs.readFileSync('app/src/main/assets/web/fish-talk.js','utf8'));
 assert(!/handleUserText\(|execTool\(|geminiChat\(|localStorage|sessionStorage|chatHist|saveSettings\(|AWAAZ\.speak|AWAAZ\.device|TextToSpeech|SpeechSynthesis/.test(source));
 console.log(`FISH TALK: ${passed}/${passed} passed. Synthetic transports only; no microphone/provider/Fish calls.`);

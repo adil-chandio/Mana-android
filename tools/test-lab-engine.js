@@ -912,11 +912,11 @@ Here's a thinking process:
     is(/see_camera:\s*\{ question:/.test(src), 'arg alias (q/prompt/ask → question)');
     is(/see_camera: "started", see_image: "started"/.test(src),
       '🤝 SACH: "camera khol diya" — "dekh liya" ka jhoota daawa nahi');
-    is(/AANKH\.waiting\) \? AANKH\.prompt\(\)/.test(src),
-      '🔑 sawal yaad rehta hai — jawab USI sawal ka aata hai');
+    is(/Legacy media analysis is retired/.test(src),
+      'Legacy image callback is retired; no unowned upload is started');
     is(/Tasveer dekh kar jawab do/.test(src) && /hisab maanga gaya hai to hisab karo/.test(src),
       '   → prompt kehta hai: likha hua parho, hisab maanga ho to hisab karo');
-    is(/AANKH: dekh rahi hoon/.test(src), 'log mein bhi darj hota hai');
+    is(!/await visionAsk\(q, b64\)/.test(src), 'Retired callback cannot dispatch a vision request');
 
     const w = world({});
     w.NATIVE = false;
@@ -1057,7 +1057,7 @@ Here's a thinking process:
     is(N.appOf('com.kuch.anjaan') === 'anjaan', 'anjaan app ka bhi kuch naam nikal aata hai');
   }
 
-  head('23b. 🔒 NAZAR ki hadd — dekhna haan, chhuna NAHI');
+  head('23b. Legacy reference shapes only — native exposure is retired, not authorized by these checks');
   {
     const src = HTML;
     const KT = fs.readFileSync(path.join(ROOT, 'app/src/main/java/com/maya/ai/AutoSendService.kt'), 'utf8');
@@ -1074,17 +1074,17 @@ Here's a thinking process:
 
     /* purana kaam salamat */
     is(/com\.whatsapp:id\/send/.test(KT) && /fun findAndClick/.test(KT) && /autosend_at/.test(KT),
-      '🔒 purana WhatsApp AutoSend BILKUL salamat (Qanoon 2)');
+      'Historical AutoSend reference remains, but native policy and manifest now disable it');
 
     /* config */
     const CFGLIVE = CFG.replace(/<!--[\s\S]*?-->/g, '');   /* comment nikal do */
     is(!/android:packageNames/.test(CFGLIVE),
-      '🔑 packageNames hata di gayi — ab har app parh sakti hai');
+      'Historical package filter layout only; disabled service has no read authority');
     is(/packageNames="com\.whatsapp"/.test(CFG),
       '   → aur comment mein likha hai ke pehle kya tha (kyun badla)');
-    is(/flagReportViewIds/.test(CFG), '🔑 flagReportViewIds — ab view-id bhi milte hain');
-    is(/canPerformGestures="true"/.test(CFG), 'canPerformGestures ON (P7b ke liye — abhi istemal nahi)');
-    is(/dobara jorni parti hai/.test(CFG), 'config mein likha hai ke service dobara ON karni paregi');
+    is(!/flagReportViewIds/.test(CFGLIVE), 'Retired service no longer requests view IDs');
+    is(/canPerformGestures="false"/.test(CFGLIVE), 'Retired service cannot perform gestures');
+    is(/retired and disabled/.test(CFG), 'Current policy says not to re-enable legacy service');
 
     /* JS side */
     is(/name: "read_screen"/.test(src), 'read_screen ab asli TOOL hai');
@@ -1529,3 +1529,5 @@ Here's a thinking process:
     process.exit(fail === 0 ? 0 : 1);
   })();
 })();
+
+console.log("Legacy helper tests are historical/mock semantics, NOT native activation or phone-safety proof. Native containment tests verify the current export and service boundaries.");

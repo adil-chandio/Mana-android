@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <script>/* NATIVE_HOST_BOOT: presentation only, before first body paint. */
 if (window.MayaBridge) document.documentElement.classList.add("maya-workspace-host");
+function nativeLegacyRestricted() {
+  try { return !!(window.MayaBridge && typeof window.MayaBridge.legacyRestricted === "function" && window.MayaBridge.legacyRestricted() === true); }
+  catch (e) { return true; }
+}
+if (nativeLegacyRestricted()) {
+  var nativePolicy = document.createElement("meta");
+  nativePolicy.httpEquiv = "Content-Security-Policy";
+  nativePolicy.content = "default-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'; media-src 'none'; base-uri 'none'; form-action 'none'";
+  document.head.appendChild(nativePolicy);
+}
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#050508">
@@ -13,7 +23,7 @@ if (window.MayaBridge) document.documentElement.classList.add("maya-workspace-ho
 <link rel="apple-touch-icon" href="icons/icon-192.svg">
 <title>MAYA — Personal AI v4</title>
 <style>
-/* ================= MAYA v5.38.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+/* ================= MAYA v5.39.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
    Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
 :root{
   /* new tokens */
@@ -580,7 +590,7 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver"><span data-build-version>v5.38.0</span> — DEVELOPMENT TEST · phone validation pending</div>
+  <div class="ver"><span data-build-version>v5.39.0</span> — DEVELOPMENT TEST · phone validation pending</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -605,14 +615,14 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.38.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.39.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.38.0</span></small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI <span data-build-version>v5.39.0</span></small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -776,7 +786,7 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.38.0</span></div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild"><span data-build-version>v5.39.0</span></div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -802,7 +812,7 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
         <div class="ui-card-h">PRIVATE TEXT CHAT · NATIVE</div>
         <div class="ui-hint">Open Maya from Home or CHAT below: one conversation and message box, with Direct Chat / Agent mode. Plans, approval, progress and results stay inline. Research and selected-Fish playback need their own consent. Returning Home clears the private conversation.</div>
         <a class="ui-btn" id="nativePrivateChatLink" data-main-chat href="maya-private-chat://open">OPEN PRIVATE TEXT CHAT</a>
-        <div class="ui-hint" id="nativePrivateChatHint">The Maya Text Chat launcher remains an optional shortcut. In main Maya, Chat opens in-place; saved voice and keys stay unchanged.</div>
+        <div class="ui-hint" id="nativePrivateChatHint">Main Maya contains the conversation. Old Chat/Agent launcher shortcuts are retired; Updates remains the explicit recovery entry. Saved voice and keys stay unchanged.</div>
       </div>
       <div class="ui-card">
         <div class="ui-card-h">MAYA UPDATE CENTER</div>
@@ -1263,7 +1273,7 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.38.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.39.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1278,7 +1288,7 @@ html.maya-workspace-host #tab-set .ui-body{border-color:#343538}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.38.0</span> · loading</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge"><span data-build-version>v5.39.0</span> · loading</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1344,8 +1354,8 @@ setTimeout(function(){
 
 <script>
 "use strict";
-/* ================= MAYA v5.38.0 — Doctor Build ================= */
-var MAYA_BUILD = { versionName: "5.38.0", versionCode: 109 };
+/* ================= MAYA v5.39.0 — Doctor Build ================= */
+var MAYA_BUILD = { versionName: "5.39.0", versionCode: 110 };
 window.__mayaJSOK = true;
 try { document.getElementById("dbgBadge").textContent = "v" + MAYA_BUILD.versionName + " · script loaded"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
@@ -1401,6 +1411,20 @@ window.__mayaWorkspaceMount = function () {
   return orb.parentNode.classList.contains("workspace-orb-link");
 };
 window.__mayaWorkspaceSettings = function (expanded) {
+  if (typeof nativeLegacyRestricted === "function" && nativeLegacyRestricted()) {
+    var panel=document.getElementById("tab-set");
+    if (panel && !document.getElementById("legacy-retired-note")) {
+      var note=document.createElement("p");note.id="legacy-retired-note";note.className="ui-hint";
+      note.textContent="Protected workspace: use Chat, Talk and native Sunao with your saved Fish voice. Legacy phone automation, notification reading, scheduling, media uploads, raw export and alternate voice engines are retired pending reviewed native adapters. Stored settings and Fish selection were not erased.";
+      panel.insertBefore(note,panel.firstChild);
+    }
+    ["readerBtn","fishLib","fishPyari","fishTest","fishDoctor","edgeTest","testVoice","awaazDoctor","testKeys","diagBtn","batShield","asStep1","asStep2","asStep3","autoSendBtn","labMicTest","setBatt","labNazarTest","labHarvest","labDiag"].forEach(function(id){
+      var control=document.getElementById(id);if(control){control.disabled=true;control.style.display="none";control.setAttribute("aria-hidden","true");}
+    });
+    ["sAuto","sProactive","sNotifSpeak","sVoiceEngine","sEdgeTTS"].forEach(function(id){
+      var el=document.getElementById(id); if(el){el.disabled=true;var row=el.closest && el.closest(".ui-row");if(row)row.style.display="none";}
+    });
+  }
   if (!window.__mayaWorkspaceMount()) return false;
   var root = document.documentElement;
   var wasExpanded = root.classList.contains("maya-settings-expanded");
@@ -1511,7 +1535,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.38.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.39.0 — SYSTEMS ONLINE  (SUKOON: audio referee)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -1559,6 +1583,7 @@ function ensureAudio(){
   if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
 }
 function chime(freq, dur, delay){
+  if (typeof nativeLegacyRestricted === "function" && nativeLegacyRestricted()) return;
   ensureAudio(); if (!audioCtx) return;
   try {
     var t0 = audioCtx.currentTime + (delay || 0);
@@ -1775,7 +1800,7 @@ window.__nativeSpeech = function(text, altsJson, owner, recognitionMs){
   } catch (e) { said = text || ""; }
   if (said && said.trim()) handleUserText(said.trim(), true, inputMeta);
 };
-window.__nativePartial = function(t, owner){ if (!listening || (typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.matches(owner))) return; try { interimEl.textContent = t || ""; } catch(e){} };
+window.__nativePartial = function(t, owner){ if (!listening || (typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.matches(owner))) return; if(t && String(t).trim() && typeof FISH_TALK !== "undefined") FISH_TALK.began(owner); try { interimEl.textContent = t || ""; } catch(e){} };
 window.__nativeRms = function(db, owner){
   if (!listening || (typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.matches(owner))) return;
   try {
@@ -1789,7 +1814,7 @@ window.__nativeRms = function(db, owner){
   } catch(e){}
 };
 window.__nativeSpeechErr = function(code, owner){
-  if (typeof FISH_TALK !== "undefined" && FISH_TALK.active()) { FISH_TALK.error(owner); return; }
+  if (typeof FISH_TALK !== "undefined" && FISH_TALK.active()) { FISH_TALK.error(owner, code); return; }
   if (!listening || (typeof INPUT_SESSION !== "undefined" && !INPUT_SESSION.matches(owner))) return;
   if (typeof INPUT_SESSION !== "undefined") { INPUT_SESSION.stop(); INPUT_SESSION.phase = "error"; }
   listening = false; try { SUKOON.sunEnd(); } catch (e) {} setOrb("idle"); interimEl.textContent = "";
@@ -1799,7 +1824,7 @@ window.__nativeSpeechErr = function(code, owner){
 };
 
 /* ---------- TTS ---------- */
-var synth = window.speechSynthesis;
+var synth = typeof nativeLegacyRestricted === "function" && nativeLegacyRestricted() ? null : window.speechSynthesis;
 var voices = [];
 function loadVoices(){ voices = synth ? synth.getVoices() : []; }
 if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; }
@@ -3336,6 +3361,7 @@ var AWAAZ = {
 
   /* ═══ TIER 3 — phone ki apni awaaz (0 data, 0 latency, hamesha maujood) ═══ */
   device: function (text, onDone) {
+    if (typeof nativeLegacyRestricted === "function" && nativeLegacyRestricted()) { if(onDone) onDone(); return; }
     var gen = AWAAZ.gen;
     var s = (typeof settings === "object" && settings) ? settings : {};
     AWAAZ.deviceDone = function () { if (gen === AWAAZ.gen) { AWAAZ.deviceDone = null; onDone(); } };
@@ -3377,6 +3403,12 @@ var AWAAZ = {
      cb = { onStart:function(engine){}, onDone:function(){} } */
   speak: function (text, cb) {
     cb = cb || {};
+    if (typeof nativeLegacyRestricted === "function" && nativeLegacyRestricted()) {
+      try { showVoiceNotice("Legacy voice playback is retired. Use Talk or the native Sunao control for your saved Fish voice."); } catch(e) {}
+      if (cb.onError) cb.onError("LEGACY_DISABLED");
+      if (cb.onDone) cb.onDone();
+      return;
+    }
     AWAAZ.stop();
     try { if (typeof showVoiceNotice === "function") showVoiceNotice(""); } catch (e) {}
     AWAAZ.gen++;
@@ -4234,7 +4266,7 @@ var FISH = {
   why: function (c) { return FISH.WHY[c] || (c ? ("Error: " + c) : ""); },
 
   native: function () {
-    try { return !!(typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge.httpBytes); }
+    try { return !!(typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && (window.MayaBridge.fishTalkSpeak || window.MayaBridge.httpBytes)); }
     catch (e) { return false; }
   },
 
@@ -4933,6 +4965,10 @@ function scheduleListening(delay, explicitWake){
   }, delay);
 }
 function startListening(origin){
+  if (typeof nativeLegacyRestricted === "function" && nativeLegacyRestricted()) {
+    try { showVoiceNotice("Use Talk for spoken conversation or Mic for reviewed dictation. Legacy automatic input is retired."); } catch(e) {}
+    return;
+  }
   origin = ["wake", "followup", "auto"].indexOf(origin) >= 0 ? origin : "tap";
   if (typeof INPUT_EPOCH !== "undefined") INPUT_EPOCH++;
   if (typeof TURNS !== "undefined") TURNS.cancel("interrupted");
@@ -8029,45 +8065,11 @@ var _activeSkill = null;
 /* ---------- VISION ENGINE (Phase 9): Maya ki aankhein ---------- */
 var pendingVisionPrompt = null;
 async function visionAsk(prompt, b64){
-  /* Issue 5: pehle HAR model par poori tasveer dobara-upload hoti thi —
-     ek hi call kaafi hai. Pehla vision-capable model chuno; wo fail ho to
-     hi agli koshish (upload ek hi dafa hota hai, baar-baar nahi). */
-  var models = await resolveModels();
-  for (var i = 0; i < models.length; i++) {
-    try {
-      var body = {
-        contents: [{ role: "user", parts: [
-          { text: (prompt || "Ye dekho aur mukhtasir batado ye kya hai — Roman Urdu mein.") },
-          { inline_data: { mime_type: "image/jpeg", data: b64 } }
-        ]}],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 200 }
-      };
-      if (/2\.5|gemini-3/.test(models[i])) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
-      var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + models[i] + ":generateContent?key=" + encodeURIComponent(settings.apikey), {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
-      });
-      if (!res.ok) continue;
-      var data = await res.json();
-      var parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-      var out = parts.map(function(p){ return p.text || ""; }).join("").trim();
-      if (out) { aiState.provider = "VISION"; return out; }
-    } catch (e) {}
-  }
+  // Retired: no unowned upload/retry loop. A future media adapter requires its own reviewed scope.
   return null;
 }
-window.__photoTaken = async function(b64){
-  /* Issue 5: Kotlin ab nakaam par null bhejta hai — hang nahi, sach. */
-  if (!b64) { reply("Photo nahi khul saki — dobara try karo, " + settings.name + ".", true); return; }
-  if (!settings.apikey) { reply("Photo dekhne ke liye Gemini key chahiye, " + settings.name + " \u2014 wahi key jo dimaag ke liye hai.", true); return; }
-  addBubble("ai", "\uD83D\uDC41\uFE0F Tasveer mil gayi \u2014 dekh rahi hoon...");
-  pushLog("AANKH: dekh rahi hoon...");
-  /* 👁️ sawal AANKH yaad rakhti hai (tool se aaya ho ya purane fast-path se) */
-  var q = (typeof AANKH !== "undefined" && AANKH.waiting) ? AANKH.prompt() : (pendingVisionPrompt || "");
-  pendingVisionPrompt = null;
-  var t0 = (new Date()).getTime();
-  var out = await visionAsk(q, b64);
-  pushLog("AANKH: " + ((new Date()).getTime() - t0) + "ms");
-  reply(out || "Tasveer samajh nahi aayi \u2014 ya to roshni kam thi ya network ka masla hua, " + settings.name + ".", true);
+window.__photoTaken = function(){
+  try { showTurnNotice("Legacy media analysis is retired. No image was uploaded. A reviewed native attachment workflow is not yet enabled."); } catch(e) {}
 };
 
 /* ---------- NAMAZ TIMES (Aladhan — free, Pakistan method) ---------- */
@@ -8164,33 +8166,8 @@ var schedTasks = {};
 try { schedTasks = JSON.parse(localStorage.getItem("maya_sched") || "{}"); } catch(e){}
 function saveSched(){ try { localStorage.setItem("maya_sched", JSON.stringify(schedTasks)); } catch(e){} }
 window.__taskDue = function(id){
-  var t = schedTasks[id];
-  if (!t) return;
-  delete schedTasks[id]; saveSched();
-  pushLog("TASK DUE: " + (t.kind || "?"));
-  if (t.kind === "message") {
-    execTool("call_contact", { name: t.name }).then(function(){
-      /* number mil chuka hoga; ab draft+autosend kholein */
-    });
-    // seedha: naam se number dhoondo
-    if (NATIVE) {
-      try {
-        var r = JSON.parse(window.MayaBridge.contactsSearch(t.name));
-        if (r.matches && r.matches.length) {
-          var asend = false;
-          try { asend = window.MayaBridge.accessibilityEnabled() === true; } catch(e){}
-          var ok = window.MayaBridge.openWhatsAppDraft(r.matches[0].number, t.text, asend);
-          if (ok) {
-            try { window.MayaBridge.notify("\uD83D\uDCE4 MAYA", "Scheduled message " + t.name + " ko bheja gaya"); } catch(e){}
-            reply("Waqt ho gaya tha — maine " + r.matches[0].name + " ko message bhej diya: " + t.text, true);
-            return;
-          }
-        }
-        try { window.MayaBridge.notify("\uD83D\uDCE4 MAYA", t.name + " ko bhejna tha: " + t.text); } catch(e){}
-        reply(settings.name + ", message ka waqt ho gaya tha par phone lock tha shayad — notification mein text rakh diya hai: " + t.text, true);
-      } catch(e){}
-    }
-  }
+  // Preserve stored task data, but never revive a legacy send/call approval.
+  try { showTurnNotice("Legacy scheduled actions are retired. No call or message was sent."); } catch(e) {}
 };
 
 /* ---------- BATTERY FULL ALERT (app khuli ho to) ---------- */
@@ -8268,6 +8245,8 @@ async function listFilesAction(folder){
 
 /* ---------- AGENT MODE: JS Sandbox (safe cage — no DOM, no data access) ---------- */
 function sandboxRun(code, input, turn){
+  if (!turn || (typeof nativeLegacyRestricted === "function" && nativeLegacyRestricted()))
+    return Promise.resolve({ error: "Legacy code execution is retired. Use the isolated native Builder; no code was run." });
   return new Promise(function(resolve){
     var workerSrc = 'self.onmessage=function(e){var logs=[];var console={log:function(){for(var i=0;i<arguments.length;i++)logs.push(String(arguments[i]))}};' +
       'Promise.resolve().then(function(){var AF=Object.getPrototypeOf(async function(){}).constructor;var fn=new AF("input","console","\"use strict\";"+e.data.code);return fn(e.data.input)})' +
@@ -8299,15 +8278,7 @@ function sandboxRun(code, input, turn){
       w.postMessage({ code: code, input: input });
     } catch (e) {
       if (turn) { finish({ error: "Isolated worker unavailable; code was not run on the UI thread." }); return; }
-      /* Fallback: bina worker (old WebView) — try/catch cage */
-      try {
-        var AF2 = Object.getPrototypeOf(async function(){}).constructor;
-        var fn2 = new AF2("input", "console", '"use strict";' + code);
-        Promise.resolve().then(function(){ return fn2(input); }).then(function(r){
-          var o; try { o = typeof r === "string" ? r : JSON.stringify(r); } catch(x){ o = String(r); }
-          finish({ result: o });
-        }).catch(function(err){ finish({ error: String(err && err.message || err) }); });
-      } catch (err2){ finish({ error: String(err2 && err2.message || err2) }); }
+      finish({ error: "Isolated worker unavailable; code was not run on the UI thread." });
     }
   });
 }
@@ -9050,8 +9021,11 @@ var SETFORM = {
       try {
         if (f.t === "check") settings[f.key] = !!el.checked;
         else if (f.t === "keys") settings[f.key] = SETFORM.keys(el.value);
-        else if (f.t === "num") settings[f.key] = parseFloat(el.value) || f.def;
-        else if (f.t === "int") settings[f.key] = parseInt(el.value, 10) || f.def;
+        else if (f.t === "num" || f.t === "int") {
+          var raw = String(el.value == null ? "" : el.value).trim();
+          var value = raw === "" ? NaN : Number(raw);
+          settings[f.key] = isFinite(value) ? (f.t === "int" ? Math.trunc(value) : value) : f.def;
+        }
         else settings[f.key] = String(el.value || "").trim() || (f.def || "");
       } catch (e) {}
     }
@@ -9670,7 +9644,7 @@ $("#sPitch").addEventListener("input", function(){ $("#pitchVal").textContent = 
 /* ---------- DIAGNOSTICS ---------- */
 (function(_b){ if (_b) _b.addEventListener("click", function(){
   var out = [];
-  out.push("MAYA v5.38.0 — DOCTOR REPORT");
+  out.push("MAYA v5.39.0 — DOCTOR REPORT");
   out.push("TIME: " + new Date().toLocaleString());
   out.push("UA: " + String(navigator.userAgent).slice(0, 90));
   out.push("WEBVIEW: Chrome " + window.__webviewMajor + (window.__oldWebview ? " (PURANA < 87 — update karo!)" : " (OK ✅)"));
@@ -10322,11 +10296,7 @@ try {
   $("#newFact").addEventListener("keydown", function(e){ if (e.key === "Enter") $("#addFactBtn").click(); });
 } catch(e){}
 try { $("#expBtn").addEventListener("click", function(){
-  var data = { v:4, settings: settings, facts: facts, skills: customSkills };
-  var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  var a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-  a.download = "maya-backup-v4.json"; a.click();
-  toast("Backup download ho raha hai 💾");
+  toast("Plain legacy backup is retired to protect credentials. Use Settings → Saved work & backups for explicit encrypted snapshots.");
 }); } catch(e){}
 
 /* renderFacts override — edit/delete rows */
@@ -10364,33 +10334,15 @@ var PRO_LINES = [
   "Waise {n}, mujhe tumhari baatein yaad rehti hain — kaafi memory bank bhar gaya hai."
 ];
 function startProactive(){
-  if (MAYA_V4.proactiveTimer) { clearInterval(MAYA_V4.proactiveTimer); MAYA_V4.proactiveTimer = null; }
-  if (!settings.proactive) return;
-  MAYA_V4.proactiveTimer = setInterval(function(){
-    try {
-      if (!settings.proactive) return;
-      if (speaking || thinking) return;
-      var st = "idle"; try { st = $("#orb").dataset.state || "idle"; } catch(e){}
-      if (st === "listening") return;
-      if (Date.now() - MAYA_V4.lastInteract < 300000) return;   /* 5 min aaram */
-      var msg;
-      if (facts.length && Math.random() < 0.5) {
-        msg = "Waise yaad hai tumne bataya tha ki " + facts[Math.floor(Math.random() * facts.length)] + " — uska kya bana?";
-      } else {
-        msg = PRO_LINES[Math.floor(Math.random() * PRO_LINES.length)].replace("{n}", settings.name);
-      }
-      if (measure && w && meta && (meta.origin === "wake" || meta.origin === "followup")) measure.followup = KAAN.DARWAZA.replyTicket();
-  MAYA_V4.lastInteract = Date.now();
-      reply(msg, true);
-      pushLog("PROACTIVE: khud baat ki");
-    } catch(e){}
-  }, 360000);  /* har 6 minute check */
+  if (MAYA_V4.proactiveTimer) clearInterval(MAYA_V4.proactiveTimer);
+  MAYA_V4.proactiveTimer = null;
+  // Retired, not repaired into unsolicited speech. Saved preference is not activation authority.
 }
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.38.0"; } catch(e){}
-try { pushLog("MAYA v5.38.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.39.0"; } catch(e){}
+try { pushLog("MAYA v5.39.0 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
