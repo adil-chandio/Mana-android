@@ -70,8 +70,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             "Manual Direct Send permission is remembered on this device. No automatic requests or history saving. Restore of saved work still needs one review. Revoke below at any time."
         else "Ask on first Direct Send in each temporary conversation. You can choose Remember in that dialog. Nothing is sent just by opening Maya."
     }
-    private var useConfiguredChat=runCatching {getSharedPreferences("maya_connections",0).getString("text_route","saved")!="cloudflare"}.getOrDefault(true)
-    private var cloudflareReviewed=runCatching {getSharedPreferences("maya_connections",0).getBoolean("cloudflare_reviewed",false)}.getOrDefault(false)
+    private var useConfiguredChat=true // Cloudflare is parked; historical preferences are not activation authority.
+    private var cloudflareReviewed=false
     private var configuredPreparing=false
     private var configuredGrant: String?=null
     private lateinit var connectionButton: Button
@@ -83,7 +83,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         cancelPendingVoiceStart();voiceSession.hold()
         val generation=++confirmationGeneration
         val details=(if(localSendBlocked) status.text.toString()+"\n\n" else "")+
-            "Typed Chat and Talk can use the same eligible saved AI account selection. The exact provider/model and candidate messages are reviewed before sending. Cloudflare Direct is separate: ENABLE_CHAT=false cannot answer. Selecting a local route does not enable the server, send the draft or transfer provider permission. Cloudflare setup controls are under Privacy & limits."
+            "Typed Chat and Talk can use the same eligible saved AI account selection. The exact provider/model and candidate messages are reviewed before sending. Only saved AI accounts are used by this APK. The old Cloudflare connection is parked, without deleting its server or keys. Selecting this connection sends no draft and transfers no provider permission."
         disclosure=AlertDialog.Builder(this).setTitle("AI connection").setMessage(details)
             .setNegativeButton("Cancel",null).setNeutralButton("Voice & AI settings") {_,_->
                 if(visible && generation==confirmationGeneration) {confirmationGeneration++;navigateSettings(3)}
@@ -102,14 +102,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             }
     }
     private fun cloudflareConnection() {
-        if(!visible || anyBusy || disclosure?.isShowing==true) return
-        confirm("Cloudflare Direct is operator-controlled", "Only continue if you independently enabled ENABLE_CHAT and completed the required server reviews. The app will NOT change or deploy the Worker. This device choice is not proof that the server is available. Empty signed checks do not prove AI access. Existing saved-account consent will not transfer.") {
-            if(runCatching {getSharedPreferences("maya_connections",0).edit().putString("text_route","cloudflare").putBoolean("cloudflare_reviewed",true).commit()}.getOrDefault(false)) {
-                useConfiguredChat=false;cloudflareReviewed=true;configuredGrant=null;consent.isChecked=false;restoredConsentRequired=true
-                status.text="Cloudflare route selected by you · server availability not verified. First Send requires its own permission."
-            } else status.text="Could not save route choice. Nothing sent."
-            paint()
-        }
+        status.text="Cloudflare is parked in this APK. Existing server data and keys were not deleted. Use the saved AI account."
     }
     private fun configuredFailure(code: String) {
         localSendBlocked=true
@@ -141,7 +134,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             val scroll=ScrollView(this).apply {addView(body);isSaveEnabled=false}
             val token=++confirmationGeneration
             disclosure=AlertDialog.Builder(this).setTitle("Send to ${config.provider}?")
-                .setMessage("${config.model} · ${config.tokens} maximum output tokens. These ${candidate.size} exact messages go to your existing configured AI account. Account limits/processing apply. No tools, retries or provider fallback. Text stays native; no draft/context is passed into JavaScript. Runtime Wake will pause for this manual Send without changing its saved switch. No microphone or automatic Fish playback. Cloudflare Chat OFF is unchanged. Permission applies to manual sends in this temporary conversation for this exact provider/model/key only.")
+                .setMessage("${config.model} · ${config.tokens} maximum output tokens. These ${candidate.size} exact messages go to your existing configured AI account. Account limits/processing apply. No tools, retries or provider fallback. Text stays native; no draft/context is passed into JavaScript. Runtime Wake will pause for this manual Send without changing its saved switch. No microphone or automatic Fish playback. Only the reviewed saved AI account is used. Permission applies to manual sends in this temporary conversation for this exact provider/model/key only.")
                 .setView(scroll).setNegativeButton("Cancel",null).setPositiveButton("Allow & Send") {_,_->
                     if(visible && section==0 && useConfiguredChat && token==confirmationGeneration && !anyBusy && draft.text.toString()==text && runCatching {session.review(text)==candidate}.getOrDefault(false)) {
                         confirmationGeneration++
@@ -480,7 +473,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun removeTask(task: com.maya.ai.agent.WorkspaceTask) {
         if(!visible || section!=0 || anyBusy || task !in agentCards) return
         task.dismissReview();val revision=task.reviewRevision
-        confirm("Remove this ${if(task is com.maya.ai.agent.InlineBuildTurn) "Builder" else "Research"} task?",
+        confirm("Remove this ${if(task is com.maya.ai.agent.InlineBuildTurn) "Builder" else if(task is com.maya.ai.agent.InlineBrowserNavigation) "Browser navigation" else "Research"} task?",
             "Discard this task's local code/checkpoints, results, proposal, preview and approval, and free one task slot. Other tasks, Direct messages, draft and saved snapshots stay. Save current Builder code first if needed. This does not delete provider records or guarantee remote cancellation.") {
             if(visible && section==0 && !anyBusy && task in agentCards && task.reviewRevision==revision) {
                 // Keep its capacity occupied until disposal really returns; a failure does not admit a replacement.
@@ -553,7 +546,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Maya local readiness", report))
             status.text = "Fixed local readiness report copied. No keys, conversation or server details included."
         }
-        label("This check sends nothing and changes no settings. Only its last fixed reason code is kept locally. A READY result is historical; Send checks again and signs with the saved key. Showing/copying the public key is not required. A missing key stops locally.")
+        label("This check sends nothing and changes no settings. Only its last fixed reason code is kept locally. A READY result is historical. Send checks the saved AI connection again; this diagnostic neither sends a message nor creates an identity.")
         label("Selected Fish · optional voice", 18f)
         label("Main Maya already owns this conversation and saved Fish setup. Compatibility launchers cannot start Main or copy credentials. Nothing plays on entry.")
         fishCheck = button("Check saved Fish setup · no network") { if (active == null && visible) speech.check() }
@@ -564,7 +557,9 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             val report = "MAYA ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\nFish: ${speech.state.name}\n${speech.state.hint}\nLocal status at copy time; no keys, reference ID or text included."
             (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Maya Fish status", report))
         }
-        label("Setup check sends nothing. Test/Sunao requires confirmation and sends only that text to Fish. Same saved reference; no default, paid model or replacement voice. Server Chat may stay OFF for the short sample.")
+        label("Setup check sends nothing. Test/Sunao requires confirmation and sends only that text to Fish. Same saved reference; no default, paid model or replacement voice. No AI request is needed for the short sample.")
+        val parkedCloudflare=column().apply {tag="parked_cloudflare_controls";visibility=View.GONE}
+        root.addView(parkedCloudflare);root=parkedCloudflare
         label("APK ACCESS · NO AI", 18f)
         accessResult = label(accessDiagnostic.report(), 15f).apply {
             setTextIsSelectable(true); accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
@@ -674,7 +669,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         controls.addView(modePicker,LinearLayout.LayoutParams(0,dp(48),1f))
         agentKind=Spinner(this).apply {
             tag="agent_kind";isSaveEnabled=false;setPadding(0,0,0,0)
-            adapter=choiceAdapter(listOf("Research", "Build page"));contentDescription="Agent task: public research or static page Builder"
+            adapter=choiceAdapter(listOf("Research", "Build page", "Browser navigation"));contentDescription="Agent task: public research or static page Builder"
             filterTouchesWhenObscured=true;background=MayaTheme.shape(this@NativeChatWorkspace,MayaTheme.surface,10,false)
             controls.addView(this,LinearLayout.LayoutParams(0,dp(48),1f))
             onItemSelectedListener=object : AdapterView.OnItemSelectedListener {
@@ -741,7 +736,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             if(remoteUncertain) status.append(" Already dispatched work may continue; usage may count. Revocation is not provider deletion or a refund.")
             paint()
         }
-        button("Cloudflare Direct · advanced") {cloudflareConnection()}
+        // Cloudflare controls are intentionally absent from normal APK navigation.
         button("Use saved AI for Chat") {chooseConnection()}
         button("Open voice & AI settings") {navigateSettings(3)}
         label("Legacy containment",21f)
@@ -752,10 +747,10 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         label("Normal Chat sends text only, with optional manual Fish playback. Agent mode adds inline, separately consented bounded public research to this same conversation. Original assistant settings remain separate.")
         label("BACKGROUND / EXIT CLEARS THIS CONVERSATION", 17f)
         label("Internal Settings navigation keeps the conversation. Backgrounding, closing or recreating the Activity clears draft, temporary consent and chat. An explicitly remembered Send permission is separate and revocable here. Keep follow-ups here. Your APK key stays in Android Keystore.")
-        label("2,000 characters/message · 6,000 in context · 12 messages. Cloudflare Direct has 5/minute and 50/day shared limits. Saved-account Chat uses that provider's account limits; neither route guarantees free capacity.")
+        label("2,000 characters/message · 6,000 in context · 12 messages. Saved-account AI uses the selected provider's limits. There is no unlimited/free-capacity guarantee.")
         label("STOP ends local waiting, not guaranteed remote work or a refund. Failed/uncertain turns are excluded from follow-ups. No automatic retries, auto-save or message logging. Explicit encrypted snapshots are separate in Settings → Saved work & backups.")
         label("Replies are untrusted plain text and may be inaccurate. Never enter passwords, OTPs, provider tokens or private keys.")
-        label("Saved-account Chat and Talk use the same configured AI selection, reviewed before sending. Typed context remains native; it is not passed into JavaScript. Cloudflare Direct alone uses the APK key and requires server Chat to be enabled independently. Selecting a local route is not a server availability test.")
+        label("Saved-account Chat and Talk use the same configured AI selection, reviewed before sending. Typed context remains native; it is not passed into JavaScript. The Cloudflare route is parked. Local configuration is not proof of live account/model availability.")
         label("Talk is a separate, explicitly started Fish conversation: recognized sentences go to the reviewed existing voice AI account and replies are spoken automatically by the saved Fish voice. Only this session is shared. STOP/background ends it. Voice rows are not included in Direct context or saved-work snapshots.")
         label("Sunao sends only the chosen reply (using the original local speech-text conversion) to api.fish.audio with the saved Fish reference/key. Nothing plays automatically; confirmation is required each time. Never paste keys into Chat.")
         label("Sunao: 2,000 input characters, one synthesis request, no silent truncation or retries. Startup wait is capped at 30 seconds, playback at 180 seconds, and the total local job at 210 seconds. STOP/exit stops local audio, not guaranteed remote work or a refund.")
@@ -781,7 +776,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }.apply {text="⋯";textSize=24f;tag="workspace_menu_toggle"},LinearLayout.LayoutParams(dp(48),dp(48)))
         shell.addView(header)
         val body = column()
-        status = labelView("No Chat request sent. Server Chat is owner-controlled.", 13f).apply {
+        status = labelView("No Chat request sent. Use your saved AI account; connection status is checked on Send.", 13f).apply {
             tag = "chat_status"; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
         body.addView(menuPanel)
@@ -796,7 +791,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         }
         notices.addView(speechStatus)
         // Overlay warnings remain visible on every tab, never hidden in setup details.
-        checksPage.removeView(touchWarning); notices.addView(touchWarning)
+        (touchWarning.parent as? android.view.ViewGroup)?.removeView(touchWarning); notices.addView(touchWarning)
         body.addView(chatPage)
         val scroll = ScrollView(this).apply { isSaveEnabled = false; isFillViewport = true; addView(body) }
         conversationScroll=scroll;scroll.tag="conversation_scroll"
@@ -838,6 +833,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         settingsHome.addView(labelView("Your Maya",13f).apply {setTextColor(MayaTheme.muted)})
         val oldVoice=menuPanel.getChildAt(menuPanel.childCount-1).takeIf {voiceSurface!=null}
         if(oldVoice!=null) {menuPanel.removeView(oldVoice);settingsHome.addView(oldVoice)}
+        settingsHome.addView(actionButton("Latest browser task report") {confirm("Browser navigation report",com.maya.ai.agent.BrowserNavigationService.lastReport) {}})
         settingsHome.addView(actionButton("Saved work & backups") {navigateSettings(5)}.apply {tag="open_saved_work"})
         val detailButtons=mutableListOf<Button>()
         listOf("Close details", "Checks ▾", "Privacy ▾").forEachIndexed {i,title ->
@@ -876,7 +872,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             shell.visibility=if(index==0) View.VISIBLE else View.GONE
             composer.visibility=shell.visibility;chatPage.visibility=shell.visibility
             settings.visibility=if(index==0) View.GONE else View.VISIBLE
-            settingsTitle.text=when(index) {1->"Checks & identity";2->"Privacy & limits";3->"Voice & appearance";5->"Saved work & backups";else->"Settings"}
+            settingsTitle.text=when(index) {1->"Connection & voice checks";2->"Privacy & limits";3->"Voice & appearance";5->"Saved work & backups";else->"Settings"}
             homeScroll.visibility=if(index==4) View.VISIBLE else View.GONE
             checksScroll.visibility=if(index==1) View.VISIBLE else View.GONE;checksPage.visibility=checksScroll.visibility
             infoScroll.visibility=if(index==2) View.VISIBLE else View.GONE;infoPage.visibility=infoScroll.visibility
@@ -923,6 +919,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun submitAgent() {
         if(agentKind.selectedItemPosition==1) {submitBuild();return}
+        if(agentKind.selectedItemPosition==2) {submitBrowserNavigation();return}
         val value=draft.text.toString()
         val manual=try {com.maya.ai.agent.ResearchPlan.parse(value)} catch (_: Exception) {null}
         if(value.isBlank() || !NativeChatProtocol.validReply(value) || (manual==null && value.length>400)) {
@@ -944,6 +941,15 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
         status.text="Agent task added to this conversation. No action without plan approval."
         if(manual==null) card.propose()
+    }
+    private fun submitBrowserNavigation() {
+        val value=draft.text.toString()
+        if(value.isBlank() || !NativeChatProtocol.validReply(value) || value.length>1200 || (!value.startsWith("OPEN ") && value.length>400)) {status.text="Browser goal needs up to400 characters or a supported OPEN/SCROLL plan up to1200. Nothing sent.";return}
+        if(agentCards.size>=3) {status.text="All three task slots are occupied. Remove a task explicitly first.";return}
+        agentCards.forEach {it.stop()}
+        val card=com.maya.ai.agent.InlineBrowserNavigation(host,value,researchServices,{taskAllowed(it)},{paint()})
+        agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
+        status.text="Browser navigation task added. Setup/review/Run are explicit. No phone action has started."
     }
     private fun submitBuild() {
         val value=draft.text.toString()
@@ -1375,12 +1381,12 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         agentKind.visibility=if(agentSelected) View.VISIBLE else View.GONE
         agentKind.isEnabled=!busy
         consent.visibility=View.GONE
-        draft.hint=if(agentSelected) (if(kindSelection==1) "Build or revise this page…" else "What should I research?") else "Message Maya…"
+        draft.hint=if(agentSelected) (when(kindSelection) {1->"Build or revise this page…";2->"Public browser goal or OPEN/SCROLL plan…";else->"What should I research?"}) else "Message Maya…"
         agentCards.forEach {task ->
             task.refresh()
             taskControls[task]?.let {ui ->
                 task.view.visibility=if(ui.folded) View.GONE else View.VISIBLE
-                val kind=if(task is com.maya.ai.agent.InlineBuildTurn) "Builder" else "Research"
+                val kind=when(task) {is com.maya.ai.agent.InlineBuildTurn->"Builder";is com.maya.ai.agent.InlineBrowserNavigation->"Browser navigation";else->"Research"}
                 val state=when {task.executing->"running";task.busy->"waiting";task.approved->"approved · expiry still applies";task.stoppable->"local preview active";else->"idle"}
                 val label=if(task is com.maya.ai.agent.InlineBuildTurn) "index.html" else task.goal.take(80).let {if(it.lastOrNull()?.isHighSurrogate()==true) it.dropLast(1) else it}
                 ui.summary.text="$kind · $label\n$state · ${agentCards.size}/3 slots used"+if(ui.folded) " · folded (not stopped)" else ""
@@ -1494,7 +1500,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     private fun choiceAdapter(values: List<String>)=object : ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,values) {
         override fun getView(position: Int,convertView: View?,parent: android.view.ViewGroup): View = TextView(this@NativeChatWorkspace).apply {
-            text=(if(values[position]=="Direct Chat") "Direct" else values[position])+" ▾";MayaTheme.label(this,14f);setPadding(dp(8),0,dp(8),0);gravity=android.view.Gravity.CENTER_VERTICAL
+            text=(if(values[position]=="Direct Chat") "Direct" else if(values[position]=="Browser navigation") "Browser" else values[position])+" ▾";MayaTheme.label(this,14f);setPadding(dp(8),0,dp(8),0);gravity=android.view.Gravity.CENTER_VERTICAL
             maxLines=1;ellipsize=android.text.TextUtils.TruncateAt.END
             layoutParams=android.view.ViewGroup.LayoutParams(-1,dp(48));contentDescription=values[position]
         }
@@ -1505,13 +1511,13 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun runOnUiThread(action: () -> Unit) { host.runOnUiThread { action() } }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     fun resume() { visible = true;if(section==2) updateDirectPermissionStatus();if(section==5) library?.enter(); restoreVoicePresentation(); showAccessDiagnostic(); paint() }
-    fun pause() { configuredPreparing=false;configuredGrant=null;fishTalkBusy=false;fishTalkPreparing=false;(host as? MainActivity)?.stopFishTalk();library?.leave();inputWindowFocused=false;cancelPendingVoiceStart();voiceSession.end();dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.stop()} }
+    fun pause() { configuredPreparing=false;configuredGrant=null;fishTalkBusy=false;fishTalkPreparing=false;(host as? MainActivity)?.stopFishTalk();library?.leave();inputWindowFocused=false;cancelPendingVoiceStart();voiceSession.end();dictation.stop();visible=false; confirmationGeneration++; disclosure?.dismiss(); disclosure = null; agentCards.forEach {it.onHostPause()} }
     fun focusChanged(hasFocus: Boolean) {
         inputWindowFocused=hasFocus
         if(hasFocus) pendingVoiceStart?.invoke(true)
         if(!hasFocus && (dictation.busy || voiceSession.phase==com.maya.ai.voice.ForegroundVoiceSession.Phase.ECHO)) {if(fishTalkBusy) {(host as? MainActivity)?.stopFishTalk();fishTalkEnded("Conversation stopped: obscured screen.")};cancelPendingVoiceStart();voiceSession.end();dictation.stop()}
         if(!hasFocus && fishTalkBusy) {(host as? MainActivity)?.stopFishTalk();fishTalkEnded("Conversation paused because the app lost focus. Tap Talk to start again.")}
-        if(!hasFocus && agentBusy) agentCards.forEach {it.stop()}
+        if(!hasFocus && agentBusy) agentCards.forEach {it.onHostPause()}
     }
     private fun endLocalSession() {
         val hadData=(::draft.isInitialized && draft.text.isNotEmpty()) || session.messages().isNotEmpty() || timeline.isNotEmpty()
@@ -1531,6 +1537,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         library?.dispose();endLocalSession(); handler.removeCallbacksAndMessages(null)
     }
     fun requestClose() {
+        if(agentCards.any {it is com.maya.ai.agent.InlineBrowserNavigation && it.executing}) {agentCards.forEach {it.stop()};status.text="Browser task stopped locally.";paint();return}
         if(library?.cancelDialog()==true) return
         if(dictation.busy) {voiceSession.end();dictation.stop();return}
         if(disclosure?.isShowing==true) {confirmationGeneration++;disclosure?.dismiss();disclosure=null;return}

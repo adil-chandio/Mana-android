@@ -6,7 +6,7 @@ for(const s of [ui,backend,http,plan,read('ResearchRunner')]) {
   assert(!/JavascriptInterface|evaluateJavascript|AutoSendService|performGlobalAction|tapAt|typeInto|MediaProjection|AccessibilityService|requestPermissions|startService|createExplicitly|fishStreamSpeak|SharedPreferences.*edit\(/.test(s));
 }
 assert(backend.includes('host.nativeConfiguredReady')); // read-only readiness, never execution
-assert(backend.includes('NativeChatIdentity().sign('));assert(backend.includes('signedTransport().execute('));assert(backend.includes('configuredTransport().execute('));assert(backend.includes('review.claim(prompt'));assert(backend.includes('config.fingerprint!=review.connectionFingerprint'));
+assert(!backend.includes('NativeChatIdentity().sign('));assert(!backend.includes('signedTransport().execute('));assert(backend.includes('configuredTransport().execute('));assert(backend.includes('review.claim(prompt'));assert(backend.includes('config.fingerprint!=review.connectionFingerprint'));
 assert(backend.includes('SynchronousQueue()'));assert(backend.includes('handler.postDelayed(timeout,20000)'));
 assert(plan.includes('https://en.wikipedia.org/api/rest_v1/page/summary/'));assert(plan.includes('https://api.github.com/repos/'));
 assert(http.includes('.followRedirects(false)'));assert(http.includes('CookieJar.NO_COOKIES'));assert(http.includes('Authenticator.NONE'));

@@ -13,7 +13,7 @@ class AiTaskReview internal constructor(
     prompts: List<String>,
     private val createdAt: Long
 ) {
-    enum class Kind(val label: String) { RESEARCH_PLAN("Research plan"), SOURCE_SUMMARY("Source explanation"), BUILDER_PROPOSAL("Builder proposal") }
+    enum class Kind(val label: String) { RESEARCH_PLAN("Research plan"), SOURCE_SUMMARY("Source explanation"), BUILDER_PROPOSAL("Builder proposal"), BROWSER_NAVIGATION("Browser navigation proposal") }
     enum class Route { SAVED_AI, CLOUDFLARE }
     private val used=AtomicBoolean(false)
     private var approvedDigest: String?=null

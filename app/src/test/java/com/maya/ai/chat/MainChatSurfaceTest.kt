@@ -873,4 +873,30 @@ class MainChatSurfaceTest {
         a.wakeListenerStopped(current);assertNull(field<String?>("fishTalkId"));assertFalse(local<Boolean>("fishTalkBusy"))
     }
 
+    @Test fun browserTaskUsesPermanentWorkspaceAndCannotRunBeforeSetupAndReview() {
+        val surface=field<View>("nativeChatView")
+        local<android.widget.Spinner>("modePicker").setSelection(1);shadowOf(Looper.getMainLooper()).idle()
+        local<android.widget.Spinner>("agentKind").setSelection(2);shadowOf(Looper.getMainLooper()).idle()
+        local<EditText>("draft").setText("OPEN https://en.wikipedia.org/wiki/Android\nSCROLL DOWN")
+        local<Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle()
+        val tasks=local<List<com.maya.ai.agent.WorkspaceTask>>("agentCards")
+        assertEquals(1,tasks.size);assertTrue(tasks[0] is com.maya.ai.agent.InlineBrowserNavigation)
+        assertSame(surface,field<View>("nativeChatView"));assertFalse(tasks[0].approved);assertFalse(tasks[0].busy)
+        assertFalse(button("Run approved browser plan").isEnabled)
+        button("Review browser plan").performClick();assertFalse(tasks[0].approved)
+        assertNull(shadowOf(a).nextStartedActivity);assertNull(com.maya.ai.agent.BrowserNavigationService.instance)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
+    }
+    @Test fun cloudflareIdentityPanelIsNotShownAndNormalConnectionHasNoEnableRoute() {
+        assertTrue(local<Boolean>("useConfiguredChat"));assertFalse(local<Boolean>("cloudflareReviewed"))
+        val panel=a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("parked_cloudflare_controls")
+        assertNotNull(panel);assertEquals(View.GONE,panel.visibility)
+        button("AI connection").performClick()
+        val message=ShadowAlertDialog.getLatestAlertDialog().findViewById<android.widget.TextView>(android.R.id.message).text.toString()
+        assertTrue(message.contains("parked"));assertFalse(message.contains("Cloudflare setup controls"))
+        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+
 }

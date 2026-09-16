@@ -91,16 +91,17 @@ class TaskAiRoutingTest {
         val calls=Calls();val backend=backend(calls);val review=inspect(backend,"goal");review.approve("goal",android.os.SystemClock.elapsedRealtime())
         a.getSharedPreferences("maya_connections",0).edit().putString("text_route","cloudflare").commit()
         var failure: ResearchBackend.TextFailure?=null;backend.text(review,"goal") {_,e->failure=e};shadowOf(Looper.getMainLooper()).idle()
-        assertEquals(ResearchBackend.TextFailure.CONNECTION_CHANGED,failure);assertEquals(0,calls.count)
+        assertNull(failure);assertEquals(1,calls.count) // Old Cloudflare preference is deliberately ignored.
         a.getSharedPreferences("maya_connections",0).edit().clear().commit();val second=inspect(backend,"second");second.approve("second",android.os.SystemClock.elapsedRealtime())
         var callbacks=0;val cancel=backend.text(second,"second") {_,_->callbacks++};cancel();shadowOf(Looper.getMainLooper()).idle()
-        assertEquals(0,callbacks);assertEquals(0,calls.count)
+        assertEquals(0,callbacks);assertEquals(1,calls.count)
     }
-    @Test fun cloudflareRouteWithoutOperatorReviewFailsLocally() {
-        a.getSharedPreferences("maya_connections",0).edit().putString("text_route","cloudflare").commit()
-        val calls=Calls();var failure: ResearchBackend.TextFailure?=null
-        backend(calls).review(AiTaskReview.Kind.BUILDER_PROPOSAL,listOf("native code prompt")) {r,e->assertNull(r);failure=e}
-        shadowOf(Looper.getMainLooper()).idle();assertEquals(ResearchBackend.TextFailure.CHAT_OFF,failure);assertEquals(0,calls.count)
+    @Test fun oldCloudflarePreferenceCannotReactivateTheParkedRoute() {
+        a.getSharedPreferences("maya_connections",0).edit().putString("text_route","cloudflare").putBoolean("cloudflare_reviewed",true).commit()
+        val calls=Calls();var target: AiTaskReview?=null
+        backend(calls).review(AiTaskReview.Kind.BUILDER_PROPOSAL,listOf("native code prompt")) {r,e->assertNull(e);target=r}
+        shadowOf(Looper.getMainLooper()).idle();assertEquals(AiTaskReview.Route.SAVED_AI,target!!.route);assertEquals(0,calls.count)
+        assertTrue(a.getSharedPreferences("maya_connections",0).getBoolean("cloudflare_reviewed",false)) // Preserve old data; do not use it.
     }
     @Test fun actualWorkspaceBackendUsesItsActivityHostForLocalReview() {
         val workspace=MainActivity::class.java.getDeclaredField("nativeChat").apply {isAccessible=true}.get(a) as NativeChatWorkspace

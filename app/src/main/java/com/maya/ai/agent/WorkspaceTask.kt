@@ -15,5 +15,7 @@ interface WorkspaceTask {
     val stoppable: Boolean get()=busy || approved
     fun refresh()
     fun stop()
+    /** Only an explicitly handed-off native task may keep its service-owned scope outside Maya. */
+    fun onHostPause() {stop()}
     fun dispose()
 }

@@ -25,16 +25,8 @@ class ResearchBackend(private val context: Context,
     private val dispatch: ((()->Unit)->Unit)={task->executor.execute {task()}}
 ) : ResearchServices {
     enum class TextFailure { STOPPED_OR_TIMEOUT, LOCAL_NOT_READY, UNAVAILABLE, CHAT_OFF, INVALID_PROPOSAL, REVIEW_REQUIRED, CONNECTION_CHANGED, ACCOUNT_LIMIT }
-    private fun route(): AiTaskReview.Route?=runCatching {
-        val prefs=context.getSharedPreferences("maya_connections",Context.MODE_PRIVATE)
-        when(prefs.getString("text_route","saved")) {
-            "saved" -> AiTaskReview.Route.SAVED_AI
-            "cloudflare" -> if(prefs.getBoolean("cloudflare_reviewed",false)) AiTaskReview.Route.CLOUDFLARE else null
-            else -> null
-        }
-    }.getOrNull()
+    private fun route(): AiTaskReview.Route = AiTaskReview.Route.SAVED_AI // Cloudflare is parked without erasing old configuration.
     private val main get()=(context as? MainActivity)?.takeIf {MainActivity.instance===it && it.voiceForeground()}
-    private val cloudflareFingerprint="cloudflare-v1|${NativeChatProtocol.ORIGIN}|${NativeChatProtocol.MODEL}|256"
 
     companion object {
         private val executor=ThreadPoolExecutor(1,1,30,TimeUnit.SECONDS,SynchronousQueue()).apply { allowCoreThreadTimeOut(true) }
@@ -70,9 +62,7 @@ class ResearchBackend(private val context: Context,
             val selected=route();val host=main
             if(selected==null) {finish(null,TextFailure.CHAT_OFF);return@post}
             if(host==null) {finish(null,TextFailure.LOCAL_NOT_READY);return@post}
-            if(selected==AiTaskReview.Route.CLOUDFLARE) {
-                finish(AiTaskReview(kind,selected,"Cloudflare",NativeChatProtocol.MODEL,cloudflareFingerprint,options,SystemClock.elapsedRealtime()),null)
-            } else host.prepareConfiguredChat({live.get()},false) {config,_ ->
+            host.prepareConfiguredChat({live.get()},false) {config,_ ->
                 if(route()!=selected) finish(null,TextFailure.CONNECTION_CHANGED)
                 else if(config==null) finish(null,TextFailure.UNAVAILABLE)
                 else finish(AiTaskReview(kind,selected,config.provider,config.model,config.fingerprint,options,SystemClock.elapsedRealtime()),null)
@@ -103,12 +93,13 @@ class ResearchBackend(private val context: Context,
                         op.check()
                         if(route()!=review.route) throw NativeChatProtocol.Rejected("CONNECTION_CHANGED")
                         val messages=listOf(NativeChatProtocol.Message("user",prompt))
-                        val response=if(config!=null) configuredTransport().execute(config,messages,op,AiTaskReview.OUTPUT_TOKENS,when(review.kind) {
+                        val verified=config ?: throw NativeChatProtocol.Rejected("CONNECTION_CHANGED")
+                        val response=configuredTransport().execute(verified,messages,op,AiTaskReview.OUTPUT_TOKENS,when(review.kind) {
                             AiTaskReview.Kind.RESEARCH_PLAN -> ConfiguredChatPolicy.Purpose.RESEARCH_PLAN
                             AiTaskReview.Kind.SOURCE_SUMMARY -> ConfiguredChatPolicy.Purpose.SOURCE_SUMMARY
                             AiTaskReview.Kind.BUILDER_PROPOSAL -> ConfiguredChatPolicy.Purpose.BUILDER_PROPOSAL
+                            AiTaskReview.Kind.BROWSER_NAVIGATION -> ConfiguredChatPolicy.Purpose.BROWSER_NAVIGATION
                         }) {op.check()}
-                            else signedTransport().execute(NativeChatIdentity().sign(messages),op)
                         when(response) {
                             is NativeChatResponse.Result.Reply -> {result=response.text;failure=null}
                             is NativeChatResponse.Result.Error -> failure=when(response.code) {
@@ -134,8 +125,7 @@ class ResearchBackend(private val context: Context,
             if(route()!=review.route) {finish(null,TextFailure.CONNECTION_CHANGED);return@post}
             val host=main
             if(host==null) {finish(null,TextFailure.LOCAL_NOT_READY);return@post}
-            if(review.route==AiTaskReview.Route.CLOUDFLARE) execute(null)
-            else host.prepareConfiguredChat({live.get()},false) {config,_ ->
+            host.prepareConfiguredChat({live.get()},false) {config,_ ->
                 if(config==null) finish(null,TextFailure.UNAVAILABLE) else execute(config)
             }
         }
