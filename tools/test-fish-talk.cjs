@@ -81,6 +81,31 @@ test('input language and permission failures retain fixed useful causes',()=>{
 test('multiple choices or wrong roles never become speech',()=>{
  for(const payload of [{choices:[{finish_reason:'stop',message:{content:'one'}},{finish_reason:'stop',message:{content:'two'}}]},{choices:[{finish_reason:'stop',message:{role:'system',content:'wrong'}}]}]) {const s=world();s.begin();s.say('hi');s.answer('',200,payload);assert.equal(s.audio.length,0);}
 });
+test('approved Wake waits without sending, then question goes straight to AI and Fish',()=>{
+ const s=world(),r=JSON.parse(s.FISH_TALK.describe());assert(s.FISH_TALK.start('a'.repeat(32),r.review,true));
+ assert.equal(s.inputs.length,0);assert.equal(s.posts.length,0);s.advance(61000);
+ s.FISH_TALK.wake('a'.repeat(32),'wake question');assert.equal(s.posts.length,1);assert.equal(s.posts[0].body.messages.at(-1).content,'wake question');
+ s.answer('Fish answer');assert.equal(s.audio.length,1);assert.equal(s.audio[0].body.reference_id,'SAVED_REFERENCE');
+ s.FISH_TALK.audioEvent('a'.repeat(32),1,'done',200);s.advance(600);assert.equal(s.inputs.length,1);
+ s.say('follow up without Maya');assert.equal(s.posts.length,2);
+});
+test('bare Wake captures the following sentence once, not an extra consent loop',()=>{
+ const s=world(),r=JSON.parse(s.FISH_TALK.describe());s.FISH_TALK.start('a'.repeat(32),r.review,true);
+ s.FISH_TALK.wake('a'.repeat(32),'');assert.equal(s.inputs.length,1);assert.equal(s.posts.length,0);
+ s.FISH_TALK.wake('a'.repeat(32),'duplicate');assert.equal(s.inputs.length,1);assert.equal(s.posts.length,0);
+ s.say('my question');assert.equal(s.posts.length,1);
+});
+test('unowned duplicate or cancelled Wake cannot submit an AI question',()=>{
+ const s=world(),r=JSON.parse(s.FISH_TALK.describe());s.FISH_TALK.start('a'.repeat(32),r.review,true);
+ s.FISH_TALK.wake('b'.repeat(32),'wrong');assert.equal(s.posts.length,0);
+ s.FISH_TALK.wake('a'.repeat(32),'first');s.FISH_TALK.wake('a'.repeat(32),'duplicate');assert.equal(s.posts.length,1);
+ s.FISH_TALK.stop('a'.repeat(32));s.FISH_TALK.wake('a'.repeat(32),'late');assert.equal(s.posts.length,1);
+});
+test('Wake waiting remains bounded and a stop command does not call the model',()=>{
+ const s=world(),r=JSON.parse(s.FISH_TALK.describe());s.FISH_TALK.start('a'.repeat(32),r.review,true);s.advance(300001);
+ s.FISH_TALK.wake('a'.repeat(32),'late');assert.equal(s.posts.length,0);assert(!s.FISH_TALK.active());
+ const t=world(),review=JSON.parse(t.FISH_TALK.describe());t.FISH_TALK.start('a'.repeat(32),review.review,true);t.FISH_TALK.wake('a'.repeat(32),'bas karo');assert.equal(t.posts.length,0);assert(!t.FISH_TALK.active());
+});
 assert.equal(source,fs.readFileSync('app/src/main/assets/web/fish-talk.js','utf8'));
 assert(!/handleUserText\(|execTool\(|geminiChat\(|localStorage|sessionStorage|chatHist|saveSettings\(|AWAAZ\.speak|AWAAZ\.device|TextToSpeech|SpeechSynthesis/.test(source));
 console.log(`FISH TALK: ${passed}/${passed} passed. Synthetic transports only; no microphone/provider/Fish calls.`);

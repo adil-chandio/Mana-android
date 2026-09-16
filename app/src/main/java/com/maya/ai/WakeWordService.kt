@@ -84,7 +84,7 @@ class WakeWordService : Service() {
                 updateHealth(State.ERROR, Reason.PERMISSION, 9)
                 return false
             }
-            if(MainActivity.instance?.voiceForeground()!=true) {
+            if(MainActivity.instance?.wakeConversationAllowed()!=true) {
                 updateHealth(State.ERROR, Reason.NOT_FOREGROUND);return false
             }
             requested = true
@@ -190,6 +190,7 @@ class WakeWordService : Service() {
     private var watchdogRuns = 0
     private var lastWakeAt = 0L
     private var errStreak = 0
+    private var silenceStreak = 0
     private var lastErr = 0
     private var foregroundStartedAt = 0L
     private var starts = 0
@@ -202,10 +203,11 @@ class WakeWordService : Service() {
         if (requested == false || (requested == null && !getSharedPreferences("maya", Context.MODE_PRIVATE).getBoolean("wake", false))) {
             stopSelf(); return
         }
-        if(MainActivity.instance?.voiceForeground()!=true) {updateHealth(State.ERROR,Reason.NOT_FOREGROUND);stopSelf();return}
+        if(MainActivity.instance?.wakeConversationAllowed()!=true) {updateHealth(State.ERROR,Reason.NOT_FOREGROUND);stopSelf();return}
         foregroundStartedAt=SystemClock.elapsedRealtime()
         running = true
         attach(this)                              /* P9 — HAAL bridge instance */
+        MainActivity.instance?.bindWakeListener(this)
         pausedByApp = false
         if (!startAsForeground()) { running = false; stopSelf(); return }
         // Wake detects input only; never initialize a substitute output voice.
@@ -221,6 +223,7 @@ class WakeWordService : Service() {
         detach(this)                              /* P9 */
         foreground = false
         health.destroyed(); publishHealth()
+        MainActivity.instance?.wakeListenerStopped(this)
         stopGate()
         try { MicKit.release() } catch (e: Exception) {}
         handler.removeCallbacksAndMessages(null)
@@ -411,6 +414,7 @@ class WakeWordService : Service() {
                     if (!running || session != recognitionGeneration || delivered || ready) return
                     ready = true
                     updateHealth(State.READY)
+                    MainActivity.instance?.wakeListenerReady(this@WakeWordService)
                 }
                 override fun onBeginningOfSpeech() {}
                 override fun onRmsChanged(rmsdB: Float) {}
@@ -433,11 +437,12 @@ class WakeWordService : Service() {
                        aur itni tez restart par Google ka recognizer chup ho jata
                        hai — yehi "mic on hota hai band hota hai" ki wajah thi.
                        Ab har lagatar nakami par intezar barhta jata hai. */
-                    errStreak++
+                    if(com.maya.ai.voice.WakeConversation.silence(error)) {silenceStreak++;errStreak=0}
+                    else {errStreak++;silenceStreak=0}
                     lastErr = error
                     report("err", error.toString() + "|" + errStreak)
                     val back = when (error) {
-                        6, 7 -> 700L + (errStreak.coerceAtMost(8) * 350L)   /* 0.7s -> 3.5s */
+                        6, 7 -> 700L + (silenceStreak.coerceAtMost(8) * 350L)   /* 0.7s -> 3.5s */
                         1, 2 -> 3000L
                         4 -> 1500L
                         8 -> {
@@ -461,7 +466,7 @@ class WakeWordService : Service() {
                     updateHealth(State.RETRY)
                     val all = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?: arrayListOf()
-                    if (all.isNotEmpty()) { handleAll(all, timing.endToFinal() ?: -1L); errStreak = 0 }
+                    if (all.isNotEmpty()) { handleAll(all, timing.endToFinal() ?: -1L); errStreak = 0; silenceStreak=0 }
                     restart(400)
                 }
                 override fun onPartialResults(partialResults: Bundle?) {}
@@ -485,22 +490,13 @@ class WakeWordService : Service() {
 
     private fun handleAll(list: List<String>, recognitionMs: Long) {
         if(!foregroundAllowed()) return
-        val arr = JSONArray()
-        for (i in list.indices) { if (i >= 6) break; arr.put(list[i]) }
-        val payload = arr.toString()
-        if (MainActivity.instance != null) {
-            evalToApp("window.__wakeHeard && window.__wakeHeard('" + jsEsc(payload) + "',$recognitionMs)")
-        } else {
-            /* SAFE MODE: app band ho to KUCH NA KARO — v2.10.0 ka khud-app-kholna
-               engine hi black screen ka mujrim nikla tha. */
-            // No background transcript retention or later replay.
-        }
+        MainActivity.instance?.deliverWakeResults(list,recognitionMs)
     }
 
     private fun foregroundAllowed(): Boolean {
         if(!running) return false
         val reason=when {
-            MainActivity.instance?.voiceForeground()!=true -> Reason.NOT_FOREGROUND
+            MainActivity.instance?.wakeConversationAllowed()!=true -> Reason.NOT_FOREGROUND
             SystemClock.elapsedRealtime()-foregroundStartedAt !in 0 until 300000L -> Reason.DEADLINE
             errStreak>=3 -> Reason.RETRY_LIMIT
             else -> return true

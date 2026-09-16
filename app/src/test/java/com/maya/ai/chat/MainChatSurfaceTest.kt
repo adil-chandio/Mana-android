@@ -667,10 +667,13 @@ class MainChatSurfaceTest {
         assertNull(field<Any?>("talkPlayer"));assertNull(field<String?>("fishTalkId"))
         assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
     }
+    private val talkScripts=mutableListOf<String>()
     private fun withTalkHost(block: ()->Unit) {
+        talkScripts.clear()
         val original=web
         val fake=object : WebView(a) {
             override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {
+                talkScripts.add(script)
                 when {
                     script.contains("FISH_TALK.describe()") -> callback?.onReceiveValue(org.json.JSONObject.quote("{\"code\":\"READY\",\"review\":\"review1\",\"provider\":\"groq\",\"model\":\"saved-model\",\"language\":\"ur-PK\",\"tokens\":400}"))
                     script.startsWith("FISH_TALK.start(") -> callback?.onReceiveValue("true")
@@ -839,6 +842,33 @@ class MainChatSurfaceTest {
         assertNull(shadowOf(a).nextStartedActivity)
         assertFalse(web.settings.allowUniversalAccessFromFileURLs);assertFalse(web.settings.allowFileAccessFromFileURLs)
         assertFalse(web.settings.allowContentAccess);assertFalse(web.settings.javaScriptCanOpenWindowsAutomatically)
+    }
+
+    @Test fun nativeWakeQuestionIsClaimedOnceAndDeliveredIntoTheSameApprovedSession() = withTalkHost {
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
+        button("Talk with Fish").performClick();positive();a.onWindowFocusChanged(true)
+        val id=field<String?>("fishTalkId")!!
+        MainActivity::class.java.getDeclaredField("fishTalkWakeMode").apply {isAccessible=true}.set(a,true)
+        a.MayaBridge().fishTalkEvent(id,"state","wake-waiting");shadowOf(Looper.getMainLooper()).idle()
+        val service=Robolectric.buildService(com.maya.ai.WakeWordService::class.java).get();a.bindWakeListener(service)
+        a.deliverWakeResults(listOf("ambient noise"),20);assertFalse(field<Boolean>("wakeClaimed"))
+        a.deliverWakeResults(listOf("Maya mera sawaal"),20);shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(field<Boolean>("wakeClaimed"));assertEquals(id,field<String?>("fishTalkId"))
+        val wakeScripts=talkScripts.filter {it.contains("FISH_TALK.wake(")}
+        assertEquals(1,wakeScripts.size);assertTrue(wakeScripts.single().contains("mera sawaal"))
+        a.deliverWakeResults(listOf("Maya duplicate"),20);a.wakeListenerStopped(service);shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(1,talkScripts.count {it.contains("FISH_TALK.wake(")});assertEquals(id,field<String?>("fishTalkId"))
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+    }
+    @Test fun anOldWakeServiceCannotCancelANewerApprovedWakeOwner() = withTalkHost {
+        shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
+        button("Talk with Fish").performClick();positive();a.onWindowFocusChanged(true)
+        val id=field<String?>("fishTalkId")!!
+        MainActivity::class.java.getDeclaredField("fishTalkWakeMode").apply {isAccessible=true}.set(a,true)
+        val old=Robolectric.buildService(com.maya.ai.WakeWordService::class.java).get()
+        val current=Robolectric.buildService(com.maya.ai.WakeWordService::class.java).get()
+        a.bindWakeListener(current);a.wakeListenerStopped(old);assertEquals(id,field<String?>("fishTalkId"))
+        a.wakeListenerStopped(current);assertNull(field<String?>("fishTalkId"));assertFalse(local<Boolean>("fishTalkBusy"))
     }
 
 }

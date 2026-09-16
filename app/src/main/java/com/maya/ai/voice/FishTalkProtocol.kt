@@ -7,7 +7,7 @@ import org.json.JSONTokener
 object FishTalkProtocol {
     data class Review(val token: String,val provider: String,val model: String,val language: String,val tokens: Int)
     private val providers=setOf("gemini","groq","cerebras","mistral","openrouter","github","nvidia","zai")
-    val states=setOf("starting","listening","finalizing","thinking","fish-starting","fish-playing","echo")
+    val states=setOf("wake-waiting","starting","listening","finalizing","thinking","fish-starting","fish-playing","echo")
     fun review(raw: String?): Review?=runCatching {
         require(raw!=null && raw.length<=2048)
         val parser=JSONTokener(raw);val decoded=parser.nextValue();require(parser.nextClean()=='\u0000')

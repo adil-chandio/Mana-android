@@ -1186,15 +1186,15 @@ Here's a thinking process:
     is(!/contains\("\\\\u0645/.test(live), '🔑 BUG 3: literal "\\\\u0645" wala jhoota check khatam');
     is(/EXTRA_MAX_RESULTS, 6/.test(live), '🔑 BUG 4: ab 6 andaze aate hain (pehle 1)');
     is(/getString\("wake_lang"/.test(live), '🔑 BUG 5: zubaan ab settings se (pehle "en-IN" hard-code)');
-    is(/errStreak\.coerceAtMost\(8\) \* 350L/.test(live),
+    is(/silenceStreak\.coerceAtMost\(8\) \* 350L/.test(live),
       '🔑 BUG 6: nakami par intezar barhta hai (Android throttle se bachne ko)');
     is(!/6, 7 -> restart\(250\)/.test(live), '   → purana 250ms wala tez restart khatam');
     is(/report\("err"/.test(live) && /report\("start"/.test(live),
       '🔑 BUG 1: Kotlin ab har error aur har start REPORT karta hai');
     is(/handleAll\(list: List<String>, recognitionMs: Long\)/.test(live) && /JSONArray/.test(live),
       'saare andaze JSON bana kar JS ko jate hain');
-    is(/MainActivity\.instance != null/.test(live) && /SAFE MODE/.test(KT),
-      '🔒 app band ho to SAFE MODE bilkul waisa hi (Qanoon 2)');
+    is(/wakeConversationAllowed\(\)/.test(live) && /deliverWakeResults/.test(live),
+      'Wake is delivered only through a foreground approved native conversation');
 
     const src = HTML;
     is(/setPrefString\('wake_lang', settings\.stt/.test(src), 'JS wake ki zubaan service tak bhejta hai');

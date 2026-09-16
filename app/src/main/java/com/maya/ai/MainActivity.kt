@@ -136,6 +136,10 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var fishTalkId: String?=null
     private val fishTalkRequests=java.util.concurrent.ConcurrentHashMap<String,Boolean>()
     private var fishTalkLastSpoken=0
+    private var fishTalkWakeMode=false
+    private var wakeClaimed=false
+    private var wakeReadyObserved=false
+    private var ownedWakeListener: WakeWordService?=null
     private var talkPlayer: com.maya.ai.voice.FishStreamPlayer?=null
     private var fishTalkDeadline: Runnable?=null
     private var fishTalkEvents=com.maya.ai.voice.FishTalkProtocol.Events()
@@ -149,19 +153,25 @@ class MainActivity : AppCompatActivity() {
             if(!answered) {answered=true;hostHandler.removeCallbacks(timeout);done(if(voiceForeground() && presentation==hostPresentationEpoch) raw else null)}
         }} catch(_: Exception) {if(!answered) {answered=true;hostHandler.removeCallbacks(timeout);done(null)}}
     }
-    fun startFishTalk(review: String,done: (Boolean)->Unit) {
+    fun startFishTalk(review: String,wakeMode: Boolean=false,done: (Boolean)->Unit) {
         if(!voiceForeground() || fishTalkId!=null || composerMicLease!=null || recognitionActive || httpRequests.isNotEmpty() || WakeWordService.fishOutputActive || MayaAct.hasPendingActions() || !Regex("review[0-9]{1,12}").matches(review)) {done(false);return}
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) {requestMicPermission();done(false);return}
         val id=java.util.UUID.randomUUID().toString().replace("-","")
-        fishTalkRequests.clear();fishTalkLastSpoken=0;fishTalkId=id;fishTalkEvents=com.maya.ai.voice.FishTalkProtocol.Events()
+        fishTalkRequests.clear();fishTalkLastSpoken=0;fishTalkWakeMode=wakeMode;wakeClaimed=false;wakeReadyObserved=false;ownedWakeListener=null;fishTalkId=id;fishTalkEvents=com.maya.ai.voice.FishTalkProtocol.Events()
         WakeWordService.stop(this) // Runtime pause only; saved Wake/Fish/AI choices are untouched.
         fishTalkDeadline=Runnable {if(fishTalkId==id) {stopFishTalk();nativeChat?.fishTalkEnded("Fish conversation reached its 5-minute limit.")}}.also {hostHandler.postDelayed(it,300000)}
         var answered=false
         val timeout=Runnable {if(!answered) {answered=true;if(fishTalkId==id) stopFishTalk();done(false)}}
         hostHandler.postDelayed(timeout,2000)
-        try {webView.evaluateJavascript("FISH_TALK.start('$id','$review')") {raw ->
+        try {webView.evaluateJavascript("FISH_TALK.start('$id','$review',$wakeMode)") {raw ->
             if(!answered) {answered=true;hostHandler.removeCallbacks(timeout)
-                val ok=voiceForeground() && fishTalkId==id && raw=="true"
+                var ok=voiceForeground() && fishTalkId==id && raw=="true"
+                if(ok && wakeMode) {
+                    ok=WakeWordService.start(this@MainActivity)
+                    if(ok) hostHandler.postDelayed({
+                        if(fishTalkId==id && !wakeClaimed && !wakeReadyObserved) {stopFishTalk();nativeChat?.fishTalkEnded("Wake microphone did not become ready. No AI request sent; retry Wake explicitly.")}
+                    },8000)
+                }
                 if(!ok && fishTalkId==id) stopFishTalk()
                 done(ok)
             }
@@ -169,10 +179,40 @@ class MainActivity : AppCompatActivity() {
     }
     fun stopFishTalk() {
         val id=fishTalkId ?: return
-        fishTalkId=null;fishTalkDeadline?.let {hostHandler.removeCallbacks(it)};fishTalkDeadline=null
+        fishTalkId=null;ownedWakeListener=null
+        if(fishTalkWakeMode) WakeWordService.stop(this)
+        fishTalkWakeMode=false;wakeClaimed=false
+        fishTalkDeadline?.let {hostHandler.removeCallbacks(it)};fishTalkDeadline=null
         stopRecognizer();talkPlayer?.stop();talkPlayer=null
         httpRequests.keys.filter {it.startsWith("ft_${id}_")}.forEach {httpRequests.remove(it)?.cancel()}
         evalAsync("if(window.FISH_TALK) FISH_TALK.stop('$id','STOPPED')")
+    }
+
+    /** Native recognizer callback: one claimed wake, same approved Fish session, no legacy handler. */
+    fun deliverWakeResults(alternatives: List<String>, recognitionMs: Long) {
+        if(!voiceForeground()) return
+        val id=fishTalkId
+        if(id!=null && fishTalkWakeMode && !wakeClaimed && fishTalkEvents.phase=="wake-waiting") {
+            val command=com.maya.ai.voice.WakeConversation.command(alternatives) ?: return
+            wakeClaimed=true
+            WakeWordService.stop(this) // Release the wake recognizer before AI or follow-up capture.
+            val quoted=JSONObject.quote(command).replace("\u2028","\\u2028").replace("\u2029","\\u2029")
+            evalAsync("if(window.FISH_TALK) FISH_TALK.wake('$id',$quoted)")
+        } else if(id==null && com.maya.ai.voice.WakeConversation.command(alternatives)!=null) {
+            WakeWordService.stop(this);nativeChat?.offerWakeConversation()
+        }
+    }
+    fun wakeConversationAllowed()=voiceForeground() && fishTalkId!=null && fishTalkWakeMode && !wakeClaimed
+    fun bindWakeListener(service: WakeWordService) {if(wakeConversationAllowed()) ownedWakeListener=service}
+    fun wakeListenerReady(service: WakeWordService) {
+        if(ownedWakeListener===service && wakeConversationAllowed()) {
+            wakeReadyObserved=true;nativeChat?.wakeConversationReady()
+        }
+    }
+    fun wakeListenerStopped(service: WakeWordService) {
+        if(ownedWakeListener===service && fishTalkId!=null && fishTalkWakeMode && !wakeClaimed) {
+            stopFishTalk();nativeChat?.fishTalkEnded("Wake listener stopped before a question. No AI request sent. Start Wake again explicitly.")
+        }
     }
 
     /* ================= LIFECYCLE ================= */
@@ -962,7 +1002,8 @@ class MainActivity : AppCompatActivity() {
                         return false
                     }
                     prefs().edit().putBoolean("wake", true).apply()
-                    WakeWordService.start(this@MainActivity)
+                    runOnUiThread {if(voiceForeground()) {WakeWordService.stop(this@MainActivity);nativeChat?.offerWakeConversation()}}
+                    true // Opens owner review; microphone starts only after approval.
                 } else {
                     WakeWordService.stop(this@MainActivity)
                     prefs().edit().putBoolean("wake", false).apply()
@@ -1006,7 +1047,7 @@ class MainActivity : AppCompatActivity() {
             val presentation=hostPresentationEpoch
             if(!voiceForeground()) return
             runOnUiThread {
-                if(voiceForeground() && presentation==hostPresentationEpoch) {WakeWordService.stop(this@MainActivity);nativeChat?.offerForegroundVoice()}
+                if(voiceForeground() && presentation==hostPresentationEpoch) {WakeWordService.stop(this@MainActivity);nativeChat?.offerWakeConversation()}
             }
         }
 
@@ -1887,8 +1928,10 @@ class MainActivity : AppCompatActivity() {
        Aur jo chala, uska naam yaad rakha jata hai — DOCTOR usay dikhata hai.
        ═══════════════════════════════════════════════════════════════════ */
     var lastRecognizerKind: String = "-"
+    private var preferredOnDevice=true
 
-    fun makeRecognizer(preferOnDevice: Boolean = true): SpeechRecognizer {
+    fun makeRecognizer(preferOnDevice: Boolean = preferredOnDevice): SpeechRecognizer {
+        preferredOnDevice=preferOnDevice
         if (preferOnDevice && Build.VERSION.SDK_INT >= 31) {
             try {
                 if (SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {

@@ -247,6 +247,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     fun fishTalkEvent(kind: String,value: String) {
         if(!visible || !fishTalkBusy) return
         if(kind=="state") status.text=when(value) {
+            "wake-waiting" -> "Starting Wake listener… No AI request until you say Maya."
             "starting" -> "Starting microphone… Fish will speak the reply."
             "listening" -> "Listening · bolo. STOP ends the conversation."
             "finalizing" -> "Understanding your words…"
@@ -258,7 +259,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         paint()
     }
     fun fishTalkEnded(message: String) {fishTalkBusy=false;fishTalkPreparing=false;if(visible) status.text=message;paint()}
-    private fun confirmFishTalk() {
+    private fun confirmFishTalk(wakeMode: Boolean=false) {
         if(!visible || section!=0 || anyBusy || agentSelected || disclosure?.isShowing==true) return
         if(timeline.count {it is VoiceLine}>10) {status.text="Voice timeline is full. Clear local chat explicitly or start a fresh workspace; nothing sent.";return}
         cancelPendingVoiceStart();voiceSession.end();hideKeyboard();draft.clearFocus()
@@ -277,11 +278,12 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
                     else -> "The local voice host is not ready. Let the app finish loading, then tap Talk again. No request was sent."
                 };paint();return@prepareFishTalk
             }
-            confirm("Talk with your Fish voice?", "Speak naturally; each recognized sentence is sent to ${review.provider} / ${review.model}, using your existing configured account. Replies automatically go to your saved Fish Audio voice. Input uses your installed speech service (${review.language}); audio may be processed remotely. No phone/device TTS replacement.\n\nUp to 5 minutes / 5 turns / ${review.tokens} maximum output tokens per answer, matching the existing voice AI route. Only this new voice conversation is shared, not Direct chat, saved work or memories. No tools, phone actions, paid fallback, retries or automatic saving. Account quotas apply. Start pauses legacy Wake without changing its saved switch. STOP/background ends the session; provider processing may already have occurred. Cloudflare Direct Chat OFF is unchanged.") {
+            status.text=if(wakeMode) "Review Wake conversation once; then say Maya and your question." else "Review the Fish conversation before starting."
+            confirm(if(wakeMode) "Start Wake conversation?" else "Talk with your Fish voice?", (if(wakeMode) "Say Maya plus your question, or Maya then speak when ready. The recognized question goes directly into this approved Fish conversation, without another Talk/Send/Sunao step. Silence while waiting for Maya is not a failed conversation. " else "")+"Speak naturally; each recognized sentence is sent to ${review.provider} / ${review.model}, using your existing configured account. Replies automatically go to your saved Fish Audio voice. Input uses your installed speech service (${review.language}); audio may be processed remotely. No phone/device TTS replacement.\n\nUp to 5 minutes / 5 turns / ${review.tokens} maximum output tokens per answer, matching the existing voice AI route. Only this new voice conversation is shared, not Direct chat, saved work or memories. No tools, phone actions, paid fallback, retries or automatic saving. Account quotas apply. Ordinary Talk pauses a separate Wake listener; Wake mode arms it for the first question, then releases it for conversation. The saved switch is not changed by runtime handoff. STOP/background ends the session; provider processing may already have occurred. Cloudflare Direct Chat OFF is unchanged.") {
                 awaitVoiceFocus(confirmationGeneration) {
                     fishTalkBusy=true;paint()
                     val startGeneration=confirmationGeneration
-                    main.startFishTalk(review.token) {ok ->
+                    main.startFishTalk(review.token,wakeMode) {ok ->
                         if(visible && startGeneration==confirmationGeneration && !ok && fishTalkBusy) fishTalkEnded("Conversation did not start. Allow microphone permission if requested, then tap Talk again. Check existing AI/Fish settings; no automatic retry.")
                     }
                 }
@@ -1154,10 +1156,15 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         discardTranscript.visibility=if(state==NativeDictation.State.IDLE) View.GONE else View.VISIBLE
         microphonePermission.visibility=if(state==NativeDictation.State.PERMISSION_REQUIRED) View.VISIBLE else View.GONE
     }
-    fun offerForegroundVoice() {
-        if(!visible || section!=0 || agentSelected || anyBusy || disclosure?.isShowing==true) return
-        status.text="Wake detected. Start native voice input below; nothing was sent or executed."
-        confirmFishTalk()
+    fun offerForegroundVoice() {offerWakeConversation()}
+    fun offerWakeConversation() {
+        if(!visible || anyBusy || disclosure?.isShowing==true) return
+        if(section!=0) navigateSettings(0)
+        if(agentSelected) selectDirectMode()
+        confirmFishTalk(true)
+    }
+    fun wakeConversationReady() {
+        if(visible && fishTalkBusy) {status.text="Wake ready · say Maya and your question. Fish will speak the answer.";paint()}
     }
     private fun confirmDictation() {
         if(!visible || section!=0 || anyBusy) return

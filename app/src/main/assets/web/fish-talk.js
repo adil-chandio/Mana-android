@@ -109,7 +109,7 @@
     s.inputLimit = setTimeout(function () { if (current(s) && s.input === input.id) stop(s.id, "INPUT"); }, 20000);
     try { w.MayaBridge.listenOwned(s.config.language, input.id); } catch (e) { stop(s.id, "INPUT"); }
   }
-  function start(id, token) {
+  function start(id, token, waitForWake) {
     var r = review; review = null;
     if (active || !/^[a-f0-9]{32}$/.test(id) || !r || r.token !== token || now() - r.at < 0 || now() - r.at >= 60000) return false;
     try {
@@ -118,7 +118,8 @@
       var s = { id: id, started: now(), config: r.config, messages: [], turns: 0, phase: "starting", request: null, input: null };
       active = s;
       s.expiry = setTimeout(function () { if (active === s) stop(id, "LIMIT"); }, 300000);
-      listen(s); return active === s;
+      if(waitForWake===true) phase(s,"wake-waiting"); else listen(s);
+      return active === s;
     } catch (e) { if (active) stop(id, "INPUT"); return false; }
   }
   function request(s, value) {
@@ -188,6 +189,14 @@
       try {var c=aiConfig();c.code="READY";return JSON.stringify(c);} catch(e) {return JSON.stringify({code:"AI"});}
     },
     describe: describe, start: start, stop: stop,
+    wake: function (id, command) {
+      var s=active;
+      if(!s || s.id!==id || !current(s) || s.phase!=="wake-waiting") return;
+      if(command==="") {listen(s);return;}
+      if(!text(command,2000)) {stop(s.id,"INPUT");return;}
+      if(/^\s*(stop|bas|bas karo|ruk jao|end conversation|band karo)\s*[.!]?\s*$/i.test(command)) {stop(s.id,"STOPPED");return;}
+      phase(s,"starting");request(s,command);
+    },
     active: function () { return !!active; },
     owns: owns,
     ready: function (owner) {
