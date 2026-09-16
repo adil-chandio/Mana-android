@@ -4,7 +4,7 @@ package com.maya.ai.agent
 class WhatsAppTypeRun(private val port: Port,private val now: ()->Long,private val schedule: (Long,()->Unit)->(()->Unit),private val changed: ()->Unit) {
     interface Port {fun available(): Boolean;fun open(plan: WhatsAppTypePlan): Boolean;fun type(payload: String): Boolean}
     data class Observation(val packageName: String,val sensitive: Boolean,val typedEvent: Boolean,val eventTime: Long)
-    enum class State { IDLE, OPENING, TYPING, COMPLETE, STOPPED, UNAVAILABLE, SCOPE_CHANGED, UNCERTAIN, EXPIRED }
+    enum class State { IDLE, OPENING, BETWEEN_STEPS, TYPING, COMPLETE, STOPPED, UNAVAILABLE, SCOPE_CHANGED, UNCERTAIN, EXPIRED }
     var state=State.IDLE;private set
     var verified=0;private set
     private var plan: WhatsAppTypePlan?=null

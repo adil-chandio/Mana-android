@@ -17,6 +17,8 @@
         <package android:name="com.android.chrome" />
         <package android:name="com.brave.browser" />
         <package android:name="com.microsoft.emmx" />
+        <!-- Visibility only for the owner-approved WhatsApp type handoff (explicit wa.me intent). -->
+        <package android:name="com.whatsapp" />
     </queries>
 
     <application

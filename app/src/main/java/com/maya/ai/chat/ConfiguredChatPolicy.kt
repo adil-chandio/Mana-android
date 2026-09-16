@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 /** Configuration travels from the trusted local settings document into native memory.
  * Draft/context never travel into JavaScript. No persistence, provider discovery or fallback. */
 object ConfiguredChatPolicy {
-    enum class Purpose { CHAT, RESEARCH_PLAN, SOURCE_SUMMARY, BUILDER_PROPOSAL, BROWSER_NAVIGATION }
+    enum class Purpose { CHAT, RESEARCH_PLAN, SOURCE_SUMMARY, BUILDER_PROPOSAL, BROWSER_NAVIGATION, WHATSAPP_MESSAGE }
     private val paths=mapOf("groq" to "https://api.groq.com/openai/v1/chat/completions",
         "cerebras" to "https://api.cerebras.ai/v1/chat/completions", "mistral" to "https://api.mistral.ai/v1/chat/completions",
         "openrouter" to "https://openrouter.ai/api/v1/chat/completions", "github" to "https://models.github.ai/inference/chat/completions",
