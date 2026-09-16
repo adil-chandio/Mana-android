@@ -723,7 +723,6 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
             voicePage.visibility=if(index==3) View.VISIBLE else View.GONE
             savedScroll.visibility=if(index==5) View.VISIBLE else View.GONE
             if(index==5) library?.enter()
-            if(index==2) updateDirectPermissionStatus()
             val target=if(index==0) body else settingsNotices
             if(notices.parent!==target) {(notices.parent as android.view.ViewGroup).removeView(notices);target.addView(notices,if(index==0) 1 else 0)}
             detailButtons.forEachIndexed {i,button->button.isSelected=i==index}
