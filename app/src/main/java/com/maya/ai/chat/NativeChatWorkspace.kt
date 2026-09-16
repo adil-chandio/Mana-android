@@ -382,6 +382,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private lateinit var voiceOptions: Button
     private lateinit var dictationText: TextView
     private lateinit var useTranscript: Button
+    private lateinit var voiceCommand: Button
     private lateinit var discardTranscript: Button
     private lateinit var microphonePermission: Button
     private lateinit var dictate: Button
@@ -646,6 +647,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         dictationStatus=labelView("",13f).apply {tag="dictation_status";MayaTheme.status(this);accessibilityLiveRegion=View.ACCESSIBILITY_LIVE_REGION_POLITE;dictationPanel.addView(this)}
         dictationText=labelView("",16f).apply {tag="dictation_transcript";setTextIsSelectable(true);maxLines=4;minHeight=dp(48);ellipsize=android.text.TextUtils.TruncateAt.END;setOnClickListener {maxLines=if(maxLines==4) Int.MAX_VALUE else 4};dictationPanel.addView(this)}
         useTranscript=actionButton("Use transcript") {useDictationTranscript()}.also {dictationPanel.addView(it)}
+        voiceCommand=actionButton("⚡ Task banao") {submitVoiceCommand()}.also {dictationPanel.addView(it)}
         voiceOptions=actionButton("Choose voice options") {confirmDictation()}.also {it.tag="dictation_options";dictationPanel.addView(it)}
         discardTranscript=actionButton("Discard voice input") {voiceSession.end();dictation.clear()}.also {dictationPanel.addView(it)}
         microphonePermission=actionButton("Allow microphone") {if(visible && section==0) dictation.requestPermission()}.also {dictationPanel.addView(it)}
@@ -1170,6 +1172,8 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         dictationText.visibility=if(dictation.transcript.isEmpty()) View.GONE else View.VISIBLE
         useTranscript.visibility=if(state==NativeDictation.State.REVIEW) View.VISIBLE else View.GONE
         useTranscript.isEnabled=visible && section==0 && active==null && !speech.busy && !agentBusy
+        voiceCommand.visibility=if(state==NativeDictation.State.REVIEW) View.VISIBLE else View.GONE
+        voiceCommand.isEnabled=visible && section==0 && active==null && !speech.busy && !agentBusy
         discardTranscript.visibility=if(state==NativeDictation.State.IDLE) View.GONE else View.VISIBLE
         microphonePermission.visibility=if(state==NativeDictation.State.PERMISSION_REQUIRED) View.VISIBLE else View.GONE
     }
@@ -1249,6 +1253,20 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         fun put() {if(visible && section==0 && dictation.state==NativeDictation.State.REVIEW && dictation.transcript==text && draft.text.toString()==before) {
             dictation.clear();voiceSession.usedTranscript();draft.setText(text);draft.setSelection(text.length);status.text="Transcript copied locally. Edit/review it, then Send separately with the relevant consent."}}
         if(before.isNotEmpty() && before!=text) confirm("Replace this draft with the transcript?","Only local text is replaced. Cancel keeps both the draft and reviewed transcript. No request or phone action.") {put()} else put()
+    }
+    private fun submitVoiceCommand() {
+        if(!visible || section!=0 || active!=null || speech.busy || agentBusy) return
+        val text=if(dictation.state==NativeDictation.State.REVIEW && dictation.transcript.isNotEmpty()) dictation.transcript else draft.text.toString()
+        if(text.isBlank()) {status.text="Pehle bolo ya likho, phir Task banao dabao.";return}
+        val cmd=com.maya.ai.agent.VoiceCommand.parse(text)
+        if(cmd==null) {status.text="Samajh nahi aaya. Misal: 923001234567 ko whatsapp karo ke kal milte hain";return}
+        if(agentCards.size>=3) {status.text="All three task slots are occupied. Remove a task explicitly first.";return}
+        if(!agentSelected) selectAgentMode()
+        agentCards.forEach {it.stop()}
+        val title=("⚡ "+text).take(300).let {if(it.lastOrNull()?.isHighSurrogate()==true) it.dropLast(1) else it}
+        val card=com.maya.ai.agent.InlineWhatsAppType(host,title,researchServices,{taskAllowed(it)},{paint()},cmd.digits,cmd.message)
+        agentCards.add(card);timeline.add(card);hideKeyboard();renderHistory();revealTurn(card.view)
+        status.text=if(cmd.digits==null) "Voice task ban gaya — number khud bharo, message check karo, phir Review → Run. Kuch nahi bheja." else "Voice task ban gaya — number/message check karo, phir Review → Run. Kuch nahi bheja."
     }
     private fun attachAttempt(job: Job) {
         if(job.kind!="chat" || job.turn==null || job.attempt!=null) return

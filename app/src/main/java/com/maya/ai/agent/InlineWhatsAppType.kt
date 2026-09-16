@@ -13,7 +13,7 @@ import java.util.UUID
 
 /** Native WhatsApp type task. The service receives only an explicitly approved immutable plan. Never SEND. */
 class InlineWhatsAppType(private val host: AppCompatActivity,override val goal: String,
-    private val services: ResearchServices,private val allowed: (WorkspaceTask)->Boolean,private val changed: ()->Unit): WorkspaceTask {
+    private val services: ResearchServices,private val allowed: (WorkspaceTask)->Boolean,private val changed: ()->Unit,prefillDigits: String?=null,prefillMessage: String?=null): WorkspaceTask {
     override val view=LinearLayout(host).apply {orientation=LinearLayout.VERTICAL;tag="whatsapp_type_task";isSaveEnabled=false;setPadding(12,12,12,12);background=MayaTheme.shape(host)}
     private val handler=Handler(Looper.getMainLooper())
     private var alive=true;private var epoch=0L
@@ -27,7 +27,7 @@ class InlineWhatsAppType(private val host: AppCompatActivity,override val goal: 
     private var detached=false
     private val buttons=mutableListOf<Button>()
     private val status=label("WhatsApp open/type once only. Maya never presses SEND — you review the chat and send it yourself.")
-    private val number=EditText(host).apply {hint="923001234567 · digits only, country code + number";isSaveEnabled=false;inputType=InputType.TYPE_CLASS_PHONE;MayaTheme.editor(this,true);filters=arrayOf(InputFilter.LengthFilter(16));view.addView(this)}
+    private val number=EditText(host).apply {tag="whatsapp_number";hint="923001234567 · digits only, country code + number";isSaveEnabled=false;inputType=InputType.TYPE_CLASS_PHONE;MayaTheme.editor(this,true);filters=arrayOf(InputFilter.LengthFilter(16));view.addView(this)}
     private val editor=EditText(host).apply {tag="whatsapp_message";isSaveEnabled=false;minLines=2;maxLines=5;MayaTheme.editor(this,true);filters=arrayOf(InputFilter.LengthFilter(810));view.addView(this)}
     private lateinit var approve: Button
     private lateinit var run: Button
@@ -40,6 +40,7 @@ class InlineWhatsAppType(private val host: AppCompatActivity,override val goal: 
         label(goal)
         val supplied=runCatching {WhatsAppTypePlan.parse(goal)}.getOrNull()
         if(supplied!=null) {number.setText(supplied.digits);editor.setText(supplied.payload)}
+        else if(prefillMessage!=null) {number.setText(prefillDigits ?: "");editor.setText(prefillMessage);label("Voice command se bhara — number/message check karo, phir Review.")}
         else label("Enter the recipient number and the message yourself, or ask AI to draft the message text only. The number is never sent to AI.")
         button("Propose message text · AI review") {propose()}
         button("Accessibility setup · no auto-run") {

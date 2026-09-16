@@ -903,6 +903,25 @@ class MainChatSurfaceTest {
         assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
         assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
+    @Test fun voiceCommandButtonBuildsPrefilledWhatsappTask() {
+        local<EditText>("draft").setText("923001234567 ko whatsapp karo ke kal milte hain")
+        button("⚡ Task banao").performClick();shadowOf(Looper.getMainLooper()).idle()
+        val tasks=local<List<com.maya.ai.agent.WorkspaceTask>>("agentCards")
+        assertEquals(1,tasks.size);assertTrue(tasks[0] is com.maya.ai.agent.InlineWhatsAppType)
+        val card=tasks[0] as com.maya.ai.agent.InlineWhatsAppType
+        assertEquals("923001234567",card.view.findViewWithTag<EditText>("whatsapp_number").text.toString())
+        assertEquals("kal milte hain",card.view.findViewWithTag<EditText>("whatsapp_message").text.toString())
+        assertFalse(tasks[0].approved);assertFalse(tasks[0].busy)
+        assertNull(com.maya.ai.agent.WhatsAppTypeService.instance)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
+    }
+    @Test fun voiceCommandButtonRejectsNonCommandWithoutSlotUse() {
+        local<EditText>("draft").setText("aaj mausam kaisa hai")
+        button("⚡ Task banao").performClick();shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(local<List<com.maya.ai.agent.WorkspaceTask>>("agentCards").isEmpty())
+        assertNull(com.maya.ai.agent.WhatsAppTypeService.instance)
+    }
     @Test fun cloudflareIdentityPanelIsNotShownAndNormalConnectionHasNoEnableRoute() {
         assertTrue(local<Boolean>("useConfiguredChat"));assertFalse(local<Boolean>("cloudflareReviewed"))
         val panel=a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("parked_cloudflare_controls")
