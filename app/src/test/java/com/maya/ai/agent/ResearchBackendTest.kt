@@ -17,7 +17,7 @@ import org.robolectric.annotation.LooperMode
 class ResearchBackendTest {
     private fun approved(prompt: String): AiTaskReview {
         val now=android.os.SystemClock.elapsedRealtime()
-        return AiTaskReview(AiTaskReview.Kind.RESEARCH_PLAN,AiTaskReview.Route.SAVED_AI,"test","test-model","fingerprint",listOf(prompt),now).also {check(it.approve(prompt,now))}
+        return AiTaskReview(AiTaskReview.Kind.RESEARCH_PLAN,"test","test-model","fingerprint",listOf(prompt),now).also {check(it.approve(prompt,now))}
     }
     @Test fun freshLocalGateBlocksModelBeforeSigningAndPreservesSettings() {
         val context=RuntimeEnvironment.getApplication()

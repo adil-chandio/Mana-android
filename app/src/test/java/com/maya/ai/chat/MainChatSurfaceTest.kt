@@ -59,7 +59,7 @@ class MainChatSurfaceTest {
     private inline fun <reified T> local(name: String): T=NativeChatWorkspace::class.java.getDeclaredField(name).apply {isAccessible=true}.get(workspace) as T
     @Test fun startupIsAlreadyThePermanentConversationWithOriginalWebComponent() {
         val initial=workspace;val surface=field<View>("nativeChatView");val parent=web.parent
-        assertNotNull(initial);assertNotNull(parent);assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertNotNull(initial);assertNotNull(parent);assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
         assertNull(a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("tab_chat"))
         assertEquals(1,field<ViewGroup>("mainSurface").childCount)
         for(agent in listOf(true,false,true,false)) {
@@ -73,14 +73,14 @@ class MainChatSurfaceTest {
         val initial=workspace;val surface=field<View>("nativeChatView");local<EditText>("draft").setText("KEEP_DRAFT")
         assertTrue(navigate());assertSame(initial,workspace);assertSame(surface,field<View>("nativeChatView"))
         assertEquals("KEEP_DRAFT",local<EditText>("draft").text.toString());assertNull(shadowOf(a).nextStartedActivity)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun untrustedAndSyntheticNavigationCannotFocusOrReplaceWorkspace() {
         val initial=workspace;local<EditText>("draft").clearFocus()
         navigate(gesture=false);navigate(main=false)
         assertSame(initial,workspace);assertNull(shadowOf(a).nextStartedActivity)
         web.loadUrl("https://example.invalid/");navigate();assertSame(initial,workspace)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun backConfirmsExitInsteadOfReturningToAnotherMayaScreen() {
         local<EditText>("draft").setText("PRIVATE_SYNTHETIC_DRAFT");val initial=workspace
@@ -147,7 +147,7 @@ class MainChatSurfaceTest {
             client.onPageStarted(web,url,null)
             assertEquals(View.INVISIBLE,web.visibility);assertFalse(field<Boolean>("workspaceHostReady"))
         }
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun settingsSurvivesTransientPauseButBackgroundClearsOwnedConversation() {
         local<EditText>("draft").setText("LOCAL_DRAFT");openSettings();button("Original settings · expand here").performClick()
@@ -176,7 +176,7 @@ class MainChatSurfaceTest {
             original.webViewClient!!.onPageStarted(testWeb,testWeb.url,null)
             callbacks[2].onReceiveValue("true");assertEquals(View.INVISIBLE,testWeb.visibility)
         } finally {set("webView",original);testWeb.destroy()}
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
 
     private class DictationPort: NativeDictation.Port {
@@ -210,10 +210,10 @@ class MainChatSurfaceTest {
         positive();assertEquals(0,port.starts);port.ready!!(null);assertEquals(1,port.starts);assertTrue(port.offline)
         port.events!!.partial("partial");assertEquals("EXISTING_DRAFT",local<EditText>("draft").text.toString())
         port.events!!.result("FINAL_TRANSCRIPT");assertEquals(NativeDictation.State.REVIEW,owner.state)
-        assertEquals("EXISTING_DRAFT",local<EditText>("draft").text.toString());assertFalse(local<android.widget.CheckBox>("consent").isChecked)
+        assertEquals("EXISTING_DRAFT",local<EditText>("draft").text.toString())
         button("Use transcript").performClick();positive()
         assertEquals("FINAL_TRANSCRIPT",local<EditText>("draft").text.toString());assertEquals("",owner.transcript)
-        assertFalse(local<NativeChatConversation>("session").busy);assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<NativeChatConversation>("session").busy);assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun cancelVoiceConsentAndStalePositiveCannotStartMicrophone() {
         val (_,port)=fakeDictation();button("Voice input").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
@@ -228,7 +228,7 @@ class MainChatSurfaceTest {
         a.onBackPressed();button("Voice input").performClick();positive();port.ready!!(null)
         port.events!!.partial("PRIVATE_PARTIAL");c.pause().stop();port.events!!.result("LATE_BACKGROUND")
         assertEquals("",owner.transcript);assertEquals("",local<EditText>("draft").text.toString())
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun permissionIsRequestedOnlyByExplicitButtonAndNeverAutoStartsAfterwards() {
         val (_,port)=fakeDictation();button("Voice input").performClick();positive();port.ready!!(NativeDictation.State.PERMISSION_REQUIRED)
@@ -277,7 +277,7 @@ class MainChatSurfaceTest {
         button("Voice input").performClick();positive();port.ready!!(null);port.events!!.result("transcript")
         button("Use transcript").performClick();local<EditText>("draft").setText("new draft");positive()
         assertEquals("new draft",local<EditText>("draft").text.toString());assertEquals(NativeDictation.State.REVIEW,owner.state)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
 
     @Test fun voiceFailureShowsSelectionAndRecoveryReopensConsentWithoutStarting() {
@@ -304,7 +304,7 @@ class MainChatSurfaceTest {
         port.events!!.error(NativeDictation.State.LANGUAGE_UNAVAILABLE)
         button("Choose voice options").performClick()
         assertTrue(box(ShadowAlertDialog.getLatestAlertDialog().findViewById(android.R.id.content))!!.isChecked)
-        assertEquals(1,port.starts);assertFalse(local<android.widget.CheckBox>("consent").isChecked)
+        assertEquals(1,port.starts)
     }
     @Test fun unavailableServiceIsReportedBeforePermissionWithoutLaunchingAnything() {
         shadowOf(RuntimeEnvironment.getApplication()).denyPermissions(android.Manifest.permission.RECORD_AUDIO)
@@ -327,7 +327,7 @@ class MainChatSurfaceTest {
         assertTrue(field<Boolean>("hostFailed"));assertFalse(field<Boolean>("workspaceHostReady"));assertEquals(View.INVISIBLE,web.visibility)
         assertTrue(button("Retry local interface").isShown)
         assertEquals("KEEP_LOCAL",local<EditText>("draft").text.toString())
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
         web.webViewClient!!.onPageFinished(web,web.url)
         web.webViewClient!!.onPageStarted(web,web.url,null)
         assertTrue(field<Boolean>("hostFailed")) // A late load must not defeat the manual retry gate.
@@ -339,11 +339,10 @@ class MainChatSurfaceTest {
         dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
         assertEquals(epoch,field<Long>("hostLoadEpoch"));assertTrue(field<Boolean>("hostFailed"))
     }
-    @Test fun confirmedHostRetryIsBoundedAndPreservesNativeDraftAndConsent() {
+    @Test fun confirmedHostRetryIsBoundedAndPreservesNativeDraft() {
         local<EditText>("draft").setText("KEEP_LOCAL");invokeMain("failWorkspaceHost")
         button("Retry local interface").performClick();positive()
         assertFalse(field<Boolean>("hostFailed"));assertEquals("KEEP_LOCAL",local<EditText>("draft").text.toString())
-        assertFalse(local<android.widget.CheckBox>("consent").isChecked)
         assertEquals(View.INVISIBLE,web.visibility)
         shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(8))
         assertTrue(field<Boolean>("hostFailed"));val epoch=field<Long>("hostLoadEpoch")
@@ -440,12 +439,11 @@ class MainChatSurfaceTest {
         assertEquals(0,local<Int>("section"));assertEquals("KEEP_DRAFT",local<EditText>("draft").text.toString())
         assertNull(shadowOf(a).nextStartedActivity)
     }
-    @Test fun restoredSnapshotHasOneTimelineAdmissionAndNoConsentPreviewOrNetwork() {
+    @Test fun restoredSnapshotHasOneTimelineAdmissionAndNoPreviewOrNetwork() {
         val messages=listOf(NativeChatProtocol.Message("user","saved question"),NativeChatProtocol.Message("assistant","saved reply"))
         val item=SavedWorkspace(java.util.UUID.randomUUID().toString(),"saved",0,messages,"new local draft","<html>saved file</html>")
         // Invoke the post-confirmation restore path without creating an AndroidKeyStore key in this shadow.
         NativeChatWorkspace::class.java.getDeclaredField("section").apply {isAccessible=true}.set(workspace,5)
-        local<android.widget.CheckBox>("consent").isChecked=true
         NativeChatWorkspace::class.java.getDeclaredMethod("openSavedWorkspace",SavedWorkspace::class.java).apply {isAccessible=true}.invoke(workspace,item)
         assertEquals(messages,local<NativeChatConversation>("session").messages())
         val timeline=local<MutableList<Any>>("timeline")
@@ -454,129 +452,25 @@ class MainChatSurfaceTest {
         val builder=local<com.maya.ai.agent.InlineBuildTurn>("buildTask")
         assertEquals(item.code,builder.editor.text.toString());assertFalse(builder.busy);assertFalse(builder.approved)
         assertNull(com.maya.ai.agent.InlineBuildTurn::class.java.getDeclaredField("preview").apply {isAccessible=true}.get(builder))
-        assertFalse(local<android.widget.CheckBox>("consent").isChecked)
         assertEquals(item.draft,local<EditText>("draft").text.toString());assertEquals(0,local<Int>("section"))
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
         c.pause().stop().restart().start().resume()
         assertTrue(local<NativeChatConversation>("session").messages().isEmpty());assertEquals("",local<EditText>("draft").text.toString())
     }
 
-    private class PermissionMemory: DirectSendPermission.Store {
-        var value: String?=null;var writes=0
-        override fun read()=value
-        override fun write(value: String) {this.value=value;writes++}
-    }
-    private fun permissionFixture(): PermissionMemory {
-        val store=PermissionMemory()
-        NativeChatWorkspace::class.java.getDeclaredField("useConfiguredChat").apply {isAccessible=true}.set(workspace,false)
-        NativeChatWorkspace::class.java.getDeclaredField("cloudflareReviewed").apply {isAccessible=true}.set(workspace,true)
-        NativeChatWorkspace::class.java.getDeclaredField("directPermission\$delegate").apply {isAccessible=true}.set(workspace,lazyOf(DirectSendPermission(store)))
-        // Block before signing/network; this changes only the Robolectric fixture preference.
-        a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
-        return store
-    }
-    @Test fun composerHasNoAllowCheckboxAndSendOpensConsentWithoutCreatingAttempt() {
-        val store=permissionFixture();local<EditText>("draft").setText("hi")
-        assertNull(local<android.widget.CheckBox>("consent").parent)
-        assertTrue(local<android.widget.Button>("send").isEnabled)
-        local<android.widget.Button>("send").performClick()
-        val d=ShadowAlertDialog.getLatestAlertDialog()
-        assertFalse(d.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked)
-        assertTrue(d.window!!.decorView.findViewWithTag<android.widget.TextView>("direct_send_review").text.contains("hi"))
-        assertTrue(local<List<Any>>("timeline").isEmpty());assertEquals(0,store.writes)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
-    }
-    @Test fun cancelledOrStaleConsentNeverSendsOrRemembers() {
-        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
-        val old=ShadowAlertDialog.getLatestAlertDialog();old.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true
-        old.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
-        old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
-        assertEquals(0,store.writes);assertFalse(local<android.widget.CheckBox>("consent").isChecked);assertTrue(local<List<Any>>("timeline").isEmpty())
-    }
-    @Test fun editingDraftAfterConsentReviewRejectsBothSendAndRemember() {
-        val store=permissionFixture();local<EditText>("draft").setText("first");local<android.widget.Button>("send").performClick()
-        ShadowAlertDialog.getLatestAlertDialog().window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true
-        local<EditText>("draft").setText("edited");positive()
-        assertEquals(0,store.writes);assertTrue(local<List<Any>>("timeline").isEmpty());assertFalse(local<android.widget.CheckBox>("consent").isChecked)
-    }
-    @Test fun rememberedManualSendingDoesNotBypassWakeOrRepeatConsentAfterBackground() {
-        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
-        val consentDialog=ShadowAlertDialog.getLatestAlertDialog()
-        consentDialog.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true;positive()
-        assertEquals(1,store.writes);assertTrue(button("Open Voice settings").isShown)
-        assertEquals(View.VISIBLE,local<android.widget.TextView>("status").visibility)
-        assertTrue(local<NativeChatConversation>("session").messages().isEmpty());assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
-        c.pause().stop().restart().start().resume();assertFalse(local<android.widget.CheckBox>("consent").isChecked)
-        local<EditText>("draft").setText("new manual message");local<android.widget.Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle()
-        assertSame(consentDialog,ShadowAlertDialog.getLatestAlertDialog());assertTrue(button("Open Voice settings").isShown)
-        assertEquals(1,store.writes);assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
-    }
     @Test fun voiceSettingsShortcutPreservesDraftAndDoesNotTurnWakeOffOrResend() {
-        permissionFixture();local<android.widget.CheckBox>("consent").isChecked=true;local<EditText>("draft").setText("hi")
-        local<android.widget.Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle();val before=local<List<Any>>("timeline").size
+        a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
+        local<EditText>("draft").setText("hi");val before=local<List<Any>>("timeline").size
         button("Open Voice settings").performClick()
         assertEquals(3,local<Int>("section"));assertEquals("hi",local<EditText>("draft").text.toString())
         assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false));assertNull(shadowOf(a).nextStartedActivity)
         a.onBackPressed();a.onBackPressed();assertEquals(0,local<Int>("section"))
-        assertEquals(before,local<List<Any>>("timeline").size);assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
-    }
-    @Test fun rememberRevocationPreservesDraftButNextSendAsksAgain() {
-        val store=permissionFixture();store.value=DirectSendPermission.POLICY
-        local<EditText>("draft").setText("KEEP");openSettings();button("Privacy ▾").performClick();button("Revoke Direct consent").performClick()
-        assertEquals("",store.value);assertEquals("KEEP",local<EditText>("draft").text.toString())
-        a.onBackPressed();a.onBackPressed();local<android.widget.Button>("send").performClick()
-        assertTrue(ShadowAlertDialog.getLatestAlertDialog().isShowing);assertTrue(local<List<Any>>("timeline").isEmpty())
-    }
-    @Test fun restoringSavedWorkRequiresFreshConsentEvenWithRememberedPermission() {
-        val store=permissionFixture();store.value=DirectSendPermission.POLICY
-        val item=SavedWorkspace(java.util.UUID.randomUUID().toString(),"saved",0,
-            listOf(NativeChatProtocol.Message("user","old question"),NativeChatProtocol.Message("assistant","old reply")),"new question",null)
-        NativeChatWorkspace::class.java.getDeclaredField("section").apply {isAccessible=true}.set(workspace,5)
-        NativeChatWorkspace::class.java.getDeclaredMethod("openSavedWorkspace",SavedWorkspace::class.java).apply {isAccessible=true}.invoke(workspace,item)
-        local<android.widget.Button>("send").performClick()
-        assertTrue(ShadowAlertDialog.getLatestAlertDialog().isShowing)
-        assertEquals(2,local<List<Any>>("timeline").size);assertEquals(0,store.writes);assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
-    }
-    @Test fun backgroundRevokesAStillOpenRememberDialog() {
-        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
-        val old=ShadowAlertDialog.getLatestAlertDialog();old.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true
-        c.pause().stop().restart().start().resume();old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
-        assertEquals(0,store.writes);assertEquals("",local<EditText>("draft").text.toString());assertTrue(local<List<Any>>("timeline").isEmpty())
+        assertEquals(before,local<List<Any>>("timeline").size);assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun emptyBackgroundDoesNotLeaveARepeatedClearBanner() {
         c.pause().stop().restart().start().resume()
         assertEquals("",local<android.widget.TextView>("status").text.toString());assertEquals(View.GONE,local<android.widget.TextView>("status").visibility)
     }
-    @Test fun permissionRecordIsNotAStoredConversationOrAutomaticStartupGrant() {
-        val file=java.io.File(a.noBackupFilesDir,"direct-send-permission-v1");file.delete()
-        try {
-            val permission=AndroidDirectSendPermission.create(a)
-            assertFalse(permission.remembered());assertFalse(file.exists());assertTrue(permission.remember())
-            assertEquals(DirectSendPermission.POLICY,file.readText())
-            assertTrue(AndroidDirectSendPermission.create(a).remembered())
-            file.writeText("x".repeat(1024));assertFalse(AndroidDirectSendPermission.create(a).remembered())
-            assertTrue(permission.forget());assertFalse(AndroidDirectSendPermission.create(a).remembered())
-        } finally {file.delete()}
-    }
-
-    @Test fun temporaryGrantCoversOnlyThisConversationWithoutWritingRemember() {
-        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
-        val first=ShadowAlertDialog.getLatestAlertDialog();positive();local<android.widget.Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle()
-        assertSame(first,ShadowAlertDialog.getLatestAlertDialog());assertEquals(0,store.writes);assertTrue(local<List<Any>>("timeline").isEmpty())
-        c.pause().stop().restart().start().resume();local<EditText>("draft").setText("new");local<android.widget.Button>("send").performClick()
-        assertNotSame(first,ShadowAlertDialog.getLatestAlertDialog());assertTrue(local<List<Any>>("timeline").isEmpty())
-    }
-    @Test fun obscuredSendPermissionCannotPersistOrCreateAnAttempt() {
-        val store=permissionFixture();local<EditText>("draft").setText("hi");local<android.widget.Button>("send").performClick()
-        val d=ShadowAlertDialog.getLatestAlertDialog();d.window!!.decorView.findViewWithTag<android.widget.CheckBox>("remember_direct_permission").isChecked=true
-        val prop=android.view.MotionEvent.PointerProperties().apply {id=0;toolType=android.view.MotionEvent.TOOL_TYPE_FINGER}
-        val coords=android.view.MotionEvent.PointerCoords().apply {x=10f;y=10f}
-        val e=android.view.MotionEvent.obtain(0,0,android.view.MotionEvent.ACTION_DOWN,1,arrayOf(prop),arrayOf(coords),0,0,1f,1f,0,0,android.view.InputDevice.SOURCE_TOUCHSCREEN,android.view.MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)
-        try {assertTrue(d.window!!.callback.dispatchTouchEvent(e))} finally {e.recycle()}
-        d.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
-        assertEquals(0,store.writes);assertTrue(local<List<Any>>("timeline").isEmpty());assertFalse(local<android.widget.CheckBox>("consent").isChecked)
-    }
-
     @Test fun foregroundSessionIsAbsentOnStartupAndInputOptInIsUnchecked() {
         val root=a.findViewById<ViewGroup>(android.R.id.content)
         assertEquals(View.GONE,root.findViewWithTag<View>("voice_session_panel").visibility)
@@ -593,7 +487,7 @@ class MainChatSurfaceTest {
         assertEquals(View.VISIBLE,off.visibility);assertFalse(off.isChecked)
         off.isChecked=true;d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
         assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun wakeInvitationOpensOnlyNativeInputReviewNoHiddenDispatch() {
         val surface=field<View>("nativeChatView")
@@ -601,14 +495,14 @@ class MainChatSurfaceTest {
         a.MayaBridge().nativeWakeNotice();shadowOf(Looper.getMainLooper()).idle()
         assertTrue(local<Boolean>("fishTalkPreparing")) // Local preflight only; shadow WebView does not execute it.
         assertSame(surface,field<View>("nativeChatView"));assertTrue(local<NativeChatConversation>("session").messages().isEmpty())
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized());assertEquals("",local<EditText>("draft").text.toString())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized());assertEquals("",local<EditText>("draft").text.toString())
     }
     @Test fun backgroundRejectsWakeInvitationAndKeepsSavedPreferenceButNotCapture() {
         a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
         c.pause();a.MayaBridge().nativeWakeNotice();shadowOf(Looper.getMainLooper()).idle()
         assertFalse(a.voiceForeground());assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
         assertNull(com.maya.ai.WakeWordService.instance)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized());c.resume()
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized());c.resume()
     }
 
     @Test fun confirmedVoiceStartWaitsForForegroundFocusBeforeCheckingEngine() {
@@ -621,14 +515,14 @@ class MainChatSurfaceTest {
         // API28 cannot use on-device-only. The failure is explicit, without opening an engine or network.
         assertEquals(NativeDictation.State.ON_DEVICE_UNAVAILABLE,local<Lazy<NativeDictation>>("dictation\$delegate").value.state)
         assertFalse(local<Lazy<com.maya.ai.voice.ForegroundVoiceSession>>("voiceSession\$delegate").value.armed)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun pendingInputFocusHandoffCannotSurviveBackgroundReturn() {
         button("Mic").performClick();a.onWindowFocusChanged(false)
         ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
         shadowOf(Looper.getMainLooper()).idle();c.pause();c.resume();a.onWindowFocusChanged(true)
         assertEquals(NativeDictation.State.IDLE,local<Lazy<NativeDictation>>("dictation\$delegate").value.state)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
 
     @Test fun realWorkspaceSpeechCompletionRearmsSameReviewedInputSessionWithoutSend() {
@@ -653,7 +547,7 @@ class MainChatSurfaceTest {
         event!!("done",200);assertEquals(1,port.starts)
         shadowOf(Looper.getMainLooper()).idleFor(600,java.util.concurrent.TimeUnit.MILLISECONDS)
         port.ready!!(null);assertEquals(2,port.starts);assertTrue(port.offline)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
         assertTrue(local<NativeChatConversation>("session").messages().isEmpty())
         button("End voice session").performClick();assertFalse(grant.armed);assertFalse(input.busy)
     }
@@ -665,7 +559,7 @@ class MainChatSurfaceTest {
         shadowOf(Looper.getMainLooper()).idle()
         assertEquals(before,local<List<Any>>("timeline").size)
         assertNull(field<Any?>("talkPlayer"));assertNull(field<String?>("fishTalkId"))
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     private val talkScripts=mutableListOf<String>()
     private fun withTalkHost(block: ()->Unit) {
@@ -692,7 +586,7 @@ class MainChatSurfaceTest {
         assertTrue(d.isShowing);assertNull(field<String?>("fishTalkId"))
         d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
         assertFalse(local<Boolean>("fishTalkBusy"));assertNull(field<String?>("fishTalkId"))
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun talkEventsStayInSameTimelineButNeverEnterDirectContext() = withTalkHost {
         shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
@@ -703,7 +597,7 @@ class MainChatSurfaceTest {
         a.MayaBridge().fishTalkEvent(id,"assistant","voice answer")
         shadowOf(Looper.getMainLooper()).idle()
         assertEquals(2,local<List<Any>>("timeline").size);assertTrue(local<NativeChatConversation>("session").messages().isEmpty())
-        assertSame(surface,field<View>("nativeChatView"));assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertSame(surface,field<View>("nativeChatView"));assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
         button("Stop current work").performClick();assertNull(field<String?>("fishTalkId"));assertFalse(local<Boolean>("fishTalkBusy"))
         a.MayaBridge().fishTalkEvent(id,"assistant","late");shadowOf(Looper.getMainLooper()).idle()
         assertEquals(2,local<List<Any>>("timeline").size)
@@ -728,10 +622,8 @@ class MainChatSurfaceTest {
         MainActivity::class.java.getDeclaredField("voiceHostTrusted").apply {isAccessible=true}.set(a,true)
         try {block(fixture)} finally {MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,original);fake.destroy()}
     }
-    @Test fun defaultChatUsesSavedAiAndNeverInheritsCloudflareConsent() = withConfiguredHost {f ->
-        assertTrue(local<Boolean>("useConfiguredChat"));assertFalse(local<Boolean>("cloudflareReviewed"))
+    @Test fun defaultChatUsesSavedAiAndReviewsDraftBeforeSend() = withConfiguredHost {f ->
         a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
-        local<android.widget.CheckBox>("consent").isChecked=true
         local<EditText>("draft").setText("PRIVATE_NATIVE_DRAFT")
         local<Button>("send").performClick()
         val d=ShadowAlertDialog.getLatestAlertDialog();assertTrue(d.isShowing)
@@ -739,7 +631,7 @@ class MainChatSurfaceTest {
         assertFalse(f.scripts.any {it.contains("PRIVATE_NATIVE_DRAFT")})
         assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
         assertTrue(local<List<Any>>("timeline").isEmpty())
-        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized());assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
         d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
         d.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
         assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
@@ -766,17 +658,6 @@ class MainChatSurfaceTest {
         local<EditText>("draft").setText("NEW_PRIVATE");positive()
         assertTrue(local<List<Any>>("timeline").isEmpty());assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
         assertFalse(f.scripts.any {it.contains("PRIVATE")})
-    }
-    @Test fun disabledCloudflareDoesNotCreateAttemptsOrFallBackWithoutReview() {
-        NativeChatWorkspace::class.java.getDeclaredField("useConfiguredChat").apply {isAccessible=true}.set(workspace,false)
-        local<EditText>("draft").setText("Bhai")
-        repeat(10) {local<Button>("send").performClick()}
-        assertTrue(local<List<Any>>("timeline").isEmpty())
-        assertTrue(local<android.widget.TextView>("status").text.contains("Cloudflare Direct is unavailable"))
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized());assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
-        button("AI connection").performClick();assertTrue(ShadowAlertDialog.getLatestAlertDialog().isShowing)
-        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
-        assertFalse(local<Boolean>("useConfiguredChat"));assertEquals("Bhai",local<EditText>("draft").text.toString())
     }
     @Test fun savedWakeSwitchDoesNotEqualAnActiveMicrophoneOwner() = withConfiguredHost { _ ->
         a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
@@ -860,7 +741,7 @@ class MainChatSurfaceTest {
         assertEquals(1,wakeScripts.size);assertTrue(wakeScripts.single().contains("mera sawaal"))
         a.deliverWakeResults(listOf("Maya duplicate"),20);a.wakeListenerStopped(service);shadowOf(Looper.getMainLooper()).idle()
         assertEquals(1,talkScripts.count {it.contains("FISH_TALK.wake(")});assertEquals(id,field<String?>("fishTalkId"))
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun anOldWakeServiceCannotCancelANewerApprovedWakeOwner() = withTalkHost {
         shadowOf(RuntimeEnvironment.getApplication()).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
@@ -885,7 +766,6 @@ class MainChatSurfaceTest {
         assertFalse(button("Run approved browser plan").isEnabled)
         button("Review browser plan").performClick();assertFalse(tasks[0].approved)
         assertNull(shadowOf(a).nextStartedActivity);assertNull(com.maya.ai.agent.BrowserNavigationService.instance)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
         assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun whatsappTaskUsesPermanentWorkspaceAndCannotRunBeforeSetupAndReview() {
@@ -900,7 +780,6 @@ class MainChatSurfaceTest {
         assertFalse(button("Run approved WhatsApp type").isEnabled)
         button("Review WhatsApp message").performClick();assertFalse(tasks[0].approved)
         assertNull(shadowOf(a).nextStartedActivity);assertNull(com.maya.ai.agent.WhatsAppTypeService.instance)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
         assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun voiceCommandButtonBuildsPrefilledWhatsappTask() {
@@ -913,7 +792,6 @@ class MainChatSurfaceTest {
         assertEquals("kal milte hain",card.view.findViewWithTag<EditText>("whatsapp_message").text.toString())
         assertFalse(tasks[0].approved);assertFalse(tasks[0].busy)
         assertNull(com.maya.ai.agent.WhatsAppTypeService.instance)
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
         assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Test fun voiceCommandButtonRejectsNonCommandWithoutSlotUse() {
@@ -922,15 +800,4 @@ class MainChatSurfaceTest {
         assertTrue(local<List<com.maya.ai.agent.WorkspaceTask>>("agentCards").isEmpty())
         assertNull(com.maya.ai.agent.WhatsAppTypeService.instance)
     }
-    @Test fun cloudflareIdentityPanelIsNotShownAndNormalConnectionHasNoEnableRoute() {
-        assertTrue(local<Boolean>("useConfiguredChat"));assertFalse(local<Boolean>("cloudflareReviewed"))
-        val panel=a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("parked_cloudflare_controls")
-        assertNotNull(panel);assertEquals(View.GONE,panel.visibility)
-        button("AI connection").performClick()
-        val message=ShadowAlertDialog.getLatestAlertDialog().findViewById<android.widget.TextView>(android.R.id.message).text.toString()
-        assertTrue(message.contains("parked"));assertFalse(message.contains("Cloudflare setup controls"))
-        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
-        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
-    }
-
 }

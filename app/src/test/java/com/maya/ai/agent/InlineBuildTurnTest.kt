@@ -34,7 +34,7 @@ class InlineBuildTurnTest {
         var reviewCompletion: ((AiTaskReview?,ResearchBackend.TextFailure?)->Unit)?=null
         override fun fetch(item: ResearchPlan.Item,done: (ResearchSource?) -> Unit): () -> Unit=error("Builder cannot research implicitly")
         override fun review(kind: AiTaskReview.Kind,prompts: List<String>,done: (AiTaskReview?,ResearchBackend.TextFailure?)->Unit): ()->Unit {
-            val ticket=AiTaskReview(kind,AiTaskReview.Route.SAVED_AI,"synthetic","test-model","test-fingerprint",prompts,android.os.SystemClock.elapsedRealtime());lastReview=ticket;lastReviewPrompt=prompts.first()
+            val ticket=AiTaskReview(kind,"synthetic","test-model","test-fingerprint",prompts,android.os.SystemClock.elapsedRealtime());lastReview=ticket;lastReviewPrompt=prompts.first()
             if(deferReview) reviewCompletion=done else done(ticket,null)
             return {if(deferReview) cancels++}
         }
@@ -98,9 +98,9 @@ class InlineBuildTurnTest {
         assertTrue(fake.calls.isEmpty());assertEquals(large,card.editor.text.toString())
         assertTrue(root.findViewWithTag<TextView>("builder_status").text.contains("Nothing truncated"))
     }
-    @Test fun offPreservesCodeAndDoesNotApplyOrRetry() {
-        submit(html);submit("Change colour");yes();fake.calls[0].second(null,ResearchBackend.TextFailure.CHAT_OFF)
-        assertEquals(html,card.editor.text.toString());assertTrue(root.findViewWithTag<TextView>("builder_status").text.contains("OFF"));assertEquals(1,fake.calls.size)
+    @Test fun unavailablePreservesCodeAndDoesNotApplyOrRetry() {
+        submit(html);submit("Change colour");yes();fake.calls[0].second(null,ResearchBackend.TextFailure.UNAVAILABLE)
+        assertEquals(html,card.editor.text.toString());assertTrue(root.findViewWithTag<TextView>("builder_status").text.contains("preserved"));assertEquals(1,fake.calls.size)
     }
     @Test fun stopModeChangeAndDuplicateCallbacksCannotOverwriteCode() {
         submit("tiny page");yes();field<Button>("stop").performClick();fake.calls[0].second(html,null)

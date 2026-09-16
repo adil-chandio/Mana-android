@@ -153,7 +153,7 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
                 if(!alive || epoch!=ticket) {review?.revoke();return@review}
                 epoch++;cancelModel=null;reviewingAi=false
                 if(review==null || !allowed(this)) {
-                    review?.revoke();status.text=if(error==ResearchBackend.TextFailure.CHAT_OFF) "Cloudflare route unavailable. Select the saved AI account in AI connection. Local code/preview still work." else "AI connection unavailable or workspace changed. No code sent."
+                    review?.revoke();status.text="AI connection unavailable or workspace changed. No code sent."
                 } else {
                     aiReview=review;status.text="AI connection resolved. Review before sending; no code sent yet."
                     confirm("Send this request and code to AI?",review.description+"\n\nOnly the exact native request/current code below will be sent. No other conversation, source, key or screen. Proposal only; no automatic apply/preview.\n\n$prompt",
@@ -183,8 +183,7 @@ class InlineBuildTurn(private val host: AppCompatActivity, initialGoal: String,
                 else if(reply!=null && isDocument(reply)) {
                     proposed=reply;proposedAgainst=code;diffView.text=BuilderDiff.render(code,reply);proposalView.text="REVIEW · AI proposal (unverified)\n\n$reply"
                     status.text="Proposal ready from ${review.provider}. It has NOT replaced your file or run."
-                } else status.text=if(error==ResearchBackend.TextFailure.CHAT_OFF) "Chat OFF. Local editor and static preview still work. Settings unchanged."
-                    else if(error==ResearchBackend.TextFailure.CONNECTION_CHANGED || error==ResearchBackend.TextFailure.REVIEW_REQUIRED) "AI review expired or connection changed. Existing code kept; review again."
+                } else status.text=if(error==ResearchBackend.TextFailure.CONNECTION_CHANGED || error==ResearchBackend.TextFailure.REVIEW_REQUIRED) "AI review expired or connection changed. Existing code kept; review again."
                     else "AI unavailable or non-document response rejected. Existing code preserved; no retry."
                 refresh();changed()
             }

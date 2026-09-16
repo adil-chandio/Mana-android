@@ -13,7 +13,7 @@ assert(svc.includes('if(!runner.busy || event==null) return'));assert(svc.includ
 assert(svc.includes('candidates.size!=1'));assert(svc.includes('ACTION_SCROLL_FORWARD'));
 assert(!/JavascriptInterface|MayaBridge|httpPost|httpGet|takeScreenshot|performGlobalAction|ACTION_CLICK|ACTION_SET_TEXT|dispatchGesture|root\.text/.test(svc));
 assert(xml.includes('canPerformGestures="false"'));assert(xml.includes('canRetrieveWindowContent="true"'));
-assert(main.includes('private var useConfiguredChat=true'));assert(main.includes('parked_cloudflare_controls'));
-assert(backend.includes('AiTaskReview.Route.SAVED_AI // Cloudflare is parked'));assert(!backend.includes('NativeChatIdentity().sign'));
+assert(!main.includes('useConfiguredChat'));assert(!main.includes('parked_cloudflare_controls'));
+assert(!/Route|signedTransport|NativeChatIdentity|loudflare/.test(backend));assert(backend.includes('configuredTransport().execute('));
 assert(main.includes('it.onHostPause()'));assert(main.includes('InlineBrowserNavigation'));
 console.log('Browser navigation boundary checks PASS: native reviewed open/scroll only; no generic phone/script/data-upload authority. Not physical-device proof.');

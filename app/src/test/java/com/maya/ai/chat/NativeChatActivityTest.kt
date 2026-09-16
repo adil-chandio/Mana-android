@@ -68,15 +68,11 @@ class NativeChatActivityTest {
         return find(content) ?: error("Missing fixed button")
     }
     private fun noTransport() {
-        assertFalse(field<Lazy<*>>("transport\$delegate").isInitialized())
-        assertNull(field<Any?>("publicText"))
+        assertFalse(field<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
     @Before fun open() {
         controller = Robolectric.buildActivity(NativeChatActivity::class.java).setup().visible()
         activity.getSharedPreferences("maya", Context.MODE_PRIVATE).edit().clear().commit()
-        field<NativeAccessDiagnostic>("accessDiagnostic").clear()
-        // These existing tests exercise the explicitly selected Cloudflare path.
-        setField("useConfiguredChat",false);setField("cloudflareReviewed",true)
     }
     @After fun close() {
         controller?.pause()?.stop()?.destroy()
@@ -84,7 +80,6 @@ class NativeChatActivityTest {
     }
     private fun fill() {
         field<EditText>("draft").setText("PRIVATE_SYNTHETIC_DRAFT")
-        field<CheckBox>("consent").isChecked = true
     }
     private fun completedHistory() {
         val session = field<NativeChatConversation>("session")
@@ -116,7 +111,6 @@ class NativeChatActivityTest {
         assertEquals(View.GONE, page("info").visibility)
         assertFalse(field<Button>("send").isEnabled)
         assertFalse(field<Button>("stop").isEnabled)
-        assertTrue(field<Button>("check").isEnabled)
         noTransport()
     }
     @Test fun disabledSendAndIdleStopHaveDistinctVisualStates() {
@@ -141,7 +135,6 @@ class NativeChatActivityTest {
             assertEquals(if(name=="chat") View.VISIBLE else View.GONE,page("chat").visibility)
             assertEquals(if(name=="chat") View.VISIBLE else View.GONE,content.findViewWithTag<View>("shared_composer_area").visibility)
             assertEquals("PRIVATE_SYNTHETIC_DRAFT", field<EditText>("draft").text.toString())
-            assertTrue(field<CheckBox>("consent").isChecked)
             assertEquals(2, field<NativeChatConversation>("session").messages().size)
             assertFalse(field<NativeChatConversation>("session").busy)
         }
@@ -152,14 +145,13 @@ class NativeChatActivityTest {
         val cancel = ShadowAlertDialog.getLatestAlertDialog()
         cancel.getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
         shadowOf(Looper.getMainLooper()).idle()
-        assertFalse(activity.isFinishing); assertTrue(field<CheckBox>("consent").isChecked)
+        assertFalse(activity.isFinishing)
         assertEquals(2, field<NativeChatConversation>("session").messages().size)
         activity.onBackPressed()
         ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick()
         shadowOf(Looper.getMainLooper()).idle()
         assertTrue(activity.isFinishing)
         assertEquals("", field<EditText>("draft").text.toString())
-        assertFalse(field<CheckBox>("consent").isChecked)
         assertTrue(field<NativeChatConversation>("session").messages().isEmpty()); noTransport()
     }
     @Test fun stopOnAnyTabRejectsOldCompletionAndPreservesCompletedHistory() {
@@ -186,7 +178,6 @@ class NativeChatActivityTest {
         completedHistory(); fill(); val job = pending()
         controller!!.pause().stop()
         assertEquals("", field<EditText>("draft").text.toString())
-        assertFalse(field<CheckBox>("consent").isChecked)
         assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
         cancelled(job); complete(job)
         assertTrue(field<TextView>("readinessResult").text.contains("WAKE_ENABLED"))
@@ -202,7 +193,7 @@ class NativeChatActivityTest {
         assertEquals("", field<EditText>("draft").text.toString())
         noTransport(); controller = null
     }
-    @Test fun explicitClearRequiresConfirmationAndNeverDeletesIdentity() {
+    @Test fun explicitClearRequiresConfirmation() {
         completedHistory(); fill(); button("Clear local chat").performClick()
         ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
         shadowOf(Looper.getMainLooper()).idle()
@@ -212,13 +203,7 @@ class NativeChatActivityTest {
         shadowOf(Looper.getMainLooper()).idle()
         assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
         assertEquals("", field<EditText>("draft").text.toString())
-        assertFalse(field<CheckBox>("consent").isChecked); noTransport()
-    }
-    @Test fun publicKeyConfirmationCancelDoesNotCreateOrReadKey() {
-        openPage("checks"); field<Button>("create").performClick()
-        ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
-        shadowOf(Looper.getMainLooper()).idle()
-        assertNull(field<Any?>("active")); noTransport()
+        noTransport()
     }
     @Test fun readinessClipboardContainsFixedMetadataNotDraftOrHistory() {
         completedHistory(); fill(); openPage("checks"); button("Copy readiness report").performClick()
@@ -228,7 +213,7 @@ class NativeChatActivityTest {
         assertFalse(text.contains("PRIVATE_SYNTHETIC")); assertFalse(text.contains("SYNTHETIC_CONTEXT"))
         noTransport()
     }
-    @Test fun recreationAndSavedStateDoNotRestorePrivateDraftOrConsent() {
+    @Test fun recreationAndSavedStateDoNotRestorePrivateDraft() {
         completedHistory(); fill()
         val state = Bundle(); controller!!.saveInstanceState(state)
         val parcel = Parcel.obtain()
@@ -239,7 +224,6 @@ class NativeChatActivityTest {
         controller!!.recreate()
         assertEquals(View.VISIBLE, page("chat").visibility)
         assertEquals("", field<EditText>("draft").text.toString())
-        assertFalse(field<CheckBox>("consent").isChecked)
         assertTrue(field<NativeChatConversation>("session").messages().isEmpty()); noTransport()
     }
     @Test fun obscuredAndPartiallyObscuredTouchesRemainBlockedOnAllTabs() {
@@ -364,7 +348,7 @@ class NativeChatActivityTest {
         var cancels=0
         override fun fetch(item: com.maya.ai.agent.ResearchPlan.Item,done: (com.maya.ai.agent.ResearchSource?) -> Unit): () -> Unit {completion=done;return {cancels++}}
         override fun review(kind: com.maya.ai.agent.AiTaskReview.Kind,prompts: List<String>,done: (com.maya.ai.agent.AiTaskReview?,com.maya.ai.agent.ResearchBackend.TextFailure?)->Unit): ()->Unit {
-            done(com.maya.ai.agent.AiTaskReview(kind,com.maya.ai.agent.AiTaskReview.Route.SAVED_AI,"synthetic","test-model","test-fingerprint",prompts,android.os.SystemClock.elapsedRealtime()),null)
+            done(com.maya.ai.agent.AiTaskReview(kind,"synthetic","test-model","test-fingerprint",prompts,android.os.SystemClock.elapsedRealtime()),null)
             return {}
         }
         override fun text(review: com.maya.ai.agent.AiTaskReview,prompt: String,done: (String?,com.maya.ai.agent.ResearchBackend.TextFailure?) -> Unit): () -> Unit {check(review.claim(prompt,android.os.SystemClock.elapsedRealtime()));prompts.add(prompt);model=done;return {cancels++}}
@@ -378,7 +362,7 @@ class NativeChatActivityTest {
         assertEquals("PRIVATE_SYNTHETIC_DRAFT",draft.text.toString());assertEquals(2,history.childCount-1)
         assertNull(content.findViewWithTag<View>("tab_agent"));assertNull(content.findViewWithTag<View>("research_goal"))
         assertTrue(fake.prompts.isEmpty());assertNull(shadowOf(activity).nextStartedActivity)
-        mode(false);assertTrue(field<CheckBox>("consent").isChecked);noTransport()
+        mode(false);noTransport()
     }
     @Test fun overlongAgentGoalIsNeverTruncatedOrSent() {
         val fake=researchFake();submit("x".repeat(401));assertEquals(401,field<EditText>("draft").text.length)
@@ -429,7 +413,7 @@ class NativeChatActivityTest {
         controller!!.pause().stop().restart().start().resume();fake.model!!("WIKI Cat",null)
         assertTrue(field<List<Any>>("timeline").isEmpty());assertTrue(field<List<Any>>("agentCards").isEmpty());assertEquals("",card.goal)
         assertEquals(0,card.view.childCount);assertTrue(field<NativeChatConversation>("session").messages().isEmpty())
-        assertEquals("",field<EditText>("draft").text.toString());assertFalse(field<CheckBox>("consent").isChecked);noTransport()
+        assertEquals("",field<EditText>("draft").text.toString());noTransport()
     }
     @Test fun inlineExplanationUsesSameExplicitSelectedFishOwnerAndStop() {
         val port=fakeSpeech();val fake=researchFake();submit("WIKI Dog")
@@ -455,16 +439,14 @@ class NativeChatActivityTest {
         noTransport()
     }
 
-    @Test fun quietEntryAndDedicatedPrivacyRevocationKeepConversation() {
+    @Test fun quietEntryAndStopKeepConversation() {
         val menu=content.findViewWithTag<View>("workspace_menu")
         assertEquals(View.GONE,menu.visibility);assertEquals(View.VISIBLE,content.findViewWithTag<View>("empty_state").visibility)
         assertEquals(View.GONE,field<TextView>("status").visibility);assertEquals(View.GONE,field<TextView>("counter").visibility)
         val composer=field<EditText>("draft");fill()
-        assertEquals(View.GONE,field<CheckBox>("consent").visibility)
         content.findViewWithTag<Button>("workspace_menu_toggle").performClick();assertEquals(View.VISIBLE,menu.visibility)
         openPage("info");assertEquals(View.GONE,menu.visibility);assertFalse(composer.isShown)
-        val job=pending();button("Revoke Direct consent").performClick();cancelled(job)
-        assertFalse(field<CheckBox>("consent").isChecked);assertEquals(View.GONE,field<CheckBox>("consent").visibility)
+        val job=pending();field<Button>("stop").performClick();cancelled(job)
         assertFalse(field<Button>("send").isEnabled);assertEquals("PRIVATE_SYNTHETIC_DRAFT",composer.text.toString());noTransport()
     }
     @Test fun errorsAndUncertaintyReappearWithoutAnotherPaint() {
@@ -542,21 +524,20 @@ class NativeChatActivityTest {
         return job
     }
     private fun yesDialog() {ShadowAlertDialog.getLatestAlertDialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()}
-    @Test fun contextReviewShowsOnlyCandidateDirectMessagesWithoutConsentOrTransport() {
+    @Test fun contextReviewShowsOnlyCandidateDirectMessagesWithoutTransport() {
         completedHistory();field<EditText>("draft").setText("CURRENT_DRAFT")
-        assertFalse(field<CheckBox>("consent").isChecked)
         button("Review Direct context").performClick()
         val d=ShadowAlertDialog.getLatestAlertDialog();val text=d.findViewWithTagForTest("direct_context_snapshot")
         assertTrue(text.contains("SYNTHETIC_CONTEXT"));assertTrue(text.contains("SYNTHETIC_REPLY"));assertTrue(text.contains("CURRENT_DRAFT"))
-        assertFalse(field<NativeChatConversation>("session").busy);assertFalse(field<CheckBox>("consent").isChecked)
+        assertFalse(field<NativeChatConversation>("session").busy)
         yesDialog();assertTrue(field<Button>("send").isEnabled);noTransport()
     }
     private fun android.app.AlertDialog.findViewWithTagForTest(tag: String): String = window!!.decorView.findViewWithTag<TextView>(tag).text.toString()
     @Test fun blockedSendHasInlineRecoveryButNeverEntersAiContext() {
-        activity.getSharedPreferences("maya",Context.MODE_PRIVATE).edit().putBoolean("wake",true).commit()
         fill();field<Button>("send").performClick()
         assertNull(content.findViewWithTag<View>("chat_attempt"))
-        assertTrue(field<TextView>("status").text.contains("No model request was sent"))
+        assertTrue(field<TextView>("status").text.contains("local AI configuration could not be verified"))
+        assertEquals(View.VISIBLE,field<Button>("readinessRecovery").visibility)
         val session=field<NativeChatConversation>("session");assertTrue(session.messages().isEmpty())
         assertEquals(listOf("fresh draft"),session.review("fresh draft").map {it.content})
         assertEquals("PRIVATE_SYNTHETIC_DRAFT",field<EditText>("draft").text.toString())
@@ -647,15 +628,6 @@ class NativeChatActivityTest {
         researchFake();submit("WIKI Dog");button("Remove task").performClick();val old=ShadowAlertDialog.getLatestAlertDialog()
         openPage("checks");old.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle()
         assertEquals(1,field<List<Any>>("agentCards").size);noTransport()
-    }
-
-    @Test fun serverChatOffLocksTheLocalRouteUntilExplicitOwnerReview() {
-        val job=pendingWithCard();operation(job).markAttempt()
-        NativeChatWorkspace::class.java.getDeclaredMethod("finish",job.javaClass,Any::class.java,String::class.java).apply {isAccessible=true}
-            .invoke(workspace,job,NativeChatResponse.Result.Error("CHAT_NOT_ENABLED",false),null)
-        assertFalse(field<Boolean>("cloudflareReviewed"));val count=field<List<Any>>("timeline").size
-        field<EditText>("draft").setText("Bhai");repeat(10) {field<Button>("send").performClick()}
-        assertEquals(count,field<List<Any>>("timeline").size);assertTrue(field<TextView>("status").text.contains("unavailable"));noTransport()
     }
 
 }

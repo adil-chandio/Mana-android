@@ -21,11 +21,9 @@ interface ResearchServices {
 /** No automatic startup. Explicit UI requests only; one worker, zero queued work, fixed destinations. */
 class ResearchBackend(private val context: Context,
     private val configuredTransport: ()->ConfiguredChatTransport={ConfiguredChatTransport()},
-    private val signedTransport: ()->NativeChatTransport={NativeChatTransport()},
     private val dispatch: ((()->Unit)->Unit)={task->executor.execute {task()}}
 ) : ResearchServices {
-    enum class TextFailure { STOPPED_OR_TIMEOUT, LOCAL_NOT_READY, UNAVAILABLE, CHAT_OFF, INVALID_PROPOSAL, REVIEW_REQUIRED, CONNECTION_CHANGED, ACCOUNT_LIMIT }
-    private fun route(): AiTaskReview.Route = AiTaskReview.Route.SAVED_AI // Cloudflare is parked without erasing old configuration.
+    enum class TextFailure { STOPPED_OR_TIMEOUT, LOCAL_NOT_READY, UNAVAILABLE, INVALID_PROPOSAL, REVIEW_REQUIRED, CONNECTION_CHANGED, ACCOUNT_LIMIT }
     private val main get()=(context as? MainActivity)?.takeIf {MainActivity.instance===it && it.voiceForeground()}
 
     companion object {
@@ -59,13 +57,11 @@ class ResearchBackend(private val context: Context,
         timeout=Runnable {finish(null,TextFailure.STOPPED_OR_TIMEOUT)};handler.postDelayed(timeout,2000)
         handler.post {
             if(!live.get()) return@post
-            val selected=route();val host=main
-            if(selected==null) {finish(null,TextFailure.CHAT_OFF);return@post}
+            val host=main
             if(host==null) {finish(null,TextFailure.LOCAL_NOT_READY);return@post}
             host.prepareConfiguredChat({live.get()},false) {config,_ ->
-                if(route()!=selected) finish(null,TextFailure.CONNECTION_CHANGED)
-                else if(config==null) finish(null,TextFailure.UNAVAILABLE)
-                else finish(AiTaskReview(kind,selected,config.provider,config.model,config.fingerprint,options,SystemClock.elapsedRealtime()),null)
+                if(config==null) finish(null,TextFailure.UNAVAILABLE)
+                else finish(AiTaskReview(kind,config.provider,config.model,config.fingerprint,options,SystemClock.elapsedRealtime()),null)
             }
         }
         return {live.set(false);handler.removeCallbacks(timeout)}
@@ -80,8 +76,7 @@ class ResearchBackend(private val context: Context,
         handler.postDelayed(timeout,20000)
         fun execute(config: ConfiguredChatPolicy.Config?) {
             if(!live.get()) return
-            if(route()!=review.route) {finish(null,TextFailure.CONNECTION_CHANGED);return}
-            if(review.route==AiTaskReview.Route.SAVED_AI && (config==null || config.fingerprint!=review.connectionFingerprint)) {finish(null,TextFailure.CONNECTION_CHANGED);return}
+            if(config==null || config.fingerprint!=review.connectionFingerprint) {finish(null,TextFailure.CONNECTION_CHANGED);return}
             val host=main
             if(host==null) {finish(null,TextFailure.LOCAL_NOT_READY);return}
             host.nativeConfiguredReady {reason ->
@@ -91,7 +86,6 @@ class ResearchBackend(private val context: Context,
                     var result: String?=null;var failure: TextFailure?=TextFailure.UNAVAILABLE
                     try {
                         op.check()
-                        if(route()!=review.route) throw NativeChatProtocol.Rejected("CONNECTION_CHANGED")
                         val messages=listOf(NativeChatProtocol.Message("user",prompt))
                         val verified=config ?: throw NativeChatProtocol.Rejected("CONNECTION_CHANGED")
                         val response=configuredTransport().execute(verified,messages,op,AiTaskReview.OUTPUT_TOKENS,when(review.kind) {
@@ -104,8 +98,7 @@ class ResearchBackend(private val context: Context,
                         when(response) {
                             is NativeChatResponse.Result.Reply -> {result=response.text;failure=null}
                             is NativeChatResponse.Result.Error -> failure=when(response.code) {
-                                "CHAT_NOT_ENABLED" -> TextFailure.CHAT_OFF
-                                "CONFIGURED_RATE_LIMIT","CONFIGURED_ACCESS_DENIED","REQUEST_LIMIT" -> TextFailure.ACCOUNT_LIMIT
+                                "CONFIGURED_RATE_LIMIT","CONFIGURED_ACCESS_DENIED" -> TextFailure.ACCOUNT_LIMIT
                                 else -> TextFailure.UNAVAILABLE
                             }
                             else -> Unit
@@ -123,7 +116,6 @@ class ResearchBackend(private val context: Context,
         handler.post {
             if(!live.get()) return@post
             if(!review.claim(prompt,SystemClock.elapsedRealtime())) {finish(null,TextFailure.REVIEW_REQUIRED);return@post}
-            if(route()!=review.route) {finish(null,TextFailure.CONNECTION_CHANGED);return@post}
             val host=main
             if(host==null) {finish(null,TextFailure.LOCAL_NOT_READY);return@post}
             host.prepareConfiguredChat({live.get()},false) {config,_ ->

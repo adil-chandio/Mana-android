@@ -34,7 +34,7 @@ class TaskAiRoutingTest {
             return object: Call {
                 override fun request()=request
                 override fun execute()=Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("synthetic")
-                    .header("Content-Type","application/json").body("""{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"WIKI Dog"}}]}""".toResponseBody()).build()
+                    .header("Content-Type","application/json").body(""""{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"WIKI Dog"}}]}"""".toResponseBody()).build()
                 override fun enqueue(responseCallback: Callback) {error("No async fake")}
                 override fun cancel() {}
                 override fun isExecuted()=true
@@ -61,21 +61,21 @@ class TaskAiRoutingTest {
     @After fun close() {
         MainActivity::class.java.getDeclaredField("webView").apply {isAccessible=true}.set(a,original);fakeView.destroy();controller.pause().stop().destroy()
     }
-    private fun backend(calls: Calls)=ResearchBackend(a,{ConfiguredChatTransport(calls)},{error("Cloudflare must not be used for saved-account tasks")},{task->task()})
+    private fun backend(calls: Calls)=ResearchBackend(a,{ConfiguredChatTransport(calls)},{task->task()})
     private fun inspect(backend: ResearchBackend,prompt: String): AiTaskReview {
         var result: AiTaskReview?=null;backend.review(AiTaskReview.Kind.RESEARCH_PLAN,listOf(prompt)) {r,e->assertNull(e);result=r}
         shadowOf(Looper.getMainLooper()).idle();return result!!
     }
-    @Test fun cloudflareOffDoesNotBlockReviewedSavedAccountTasksOrReceiveTheirPrompt() {
+    @Test fun reviewedSavedAccountTasksSendPromptOnlyToTheSavedProvider() {
         val calls=Calls();val backend=backend(calls);val prompt="PRIVATE_TASK_GOAL"
-        val review=inspect(backend,prompt);assertEquals(0,calls.count);assertEquals(AiTaskReview.Route.SAVED_AI,review.route)
+        val review=inspect(backend,prompt);assertEquals(0,calls.count);assertEquals("groq",review.provider)
         assertTrue(scripts.none {it.contains(prompt)})
         assertTrue(review.approve(prompt,android.os.SystemClock.elapsedRealtime()))
         var reply: String?=null;backend.text(review,prompt) {text,error->assertNull(error);reply=text};shadowOf(Looper.getMainLooper()).idle()
         assertEquals("WIKI Dog",reply);assertEquals(1,calls.count);assertEquals("api.groq.com",calls.request!!.url.host)
         val body=JSONObject(calls.body);assertEquals(256,body.getInt("max_tokens"));assertFalse(body.has("tools"))
         assertTrue(body.getJSONArray("messages").getJSONObject(0).getString("content").contains("WIKI / REPO"))
-        assertTrue(scripts.none {it.contains(prompt)});assertFalse(a.getSharedPreferences("maya_connections",0).getBoolean("cloudflare_reviewed",false))
+        assertTrue(scripts.none {it.contains(prompt)})
     }
     @Test fun preparedButUnapprovedTicketCannotDispatch() {
         val calls=Calls();val backend=backend(calls);val review=inspect(backend,"goal");var failure: ResearchBackend.TextFailure?=null
@@ -87,28 +87,24 @@ class TaskAiRoutingTest {
         var failure: ResearchBackend.TextFailure?=null;backend.text(review,"goal") {_,e->failure=e};shadowOf(Looper.getMainLooper()).idle()
         assertEquals(ResearchBackend.TextFailure.CONNECTION_CHANGED,failure);assertEquals(0,calls.count)
     }
-    @Test fun changingRouteOrCancellingBeforeDispatchNeverSends() {
-        val calls=Calls();val backend=backend(calls);val review=inspect(backend,"goal");review.approve("goal",android.os.SystemClock.elapsedRealtime())
-        a.getSharedPreferences("maya_connections",0).edit().putString("text_route","cloudflare").commit()
-        var failure: ResearchBackend.TextFailure?=null;backend.text(review,"goal") {_,e->failure=e};shadowOf(Looper.getMainLooper()).idle()
-        assertNull(failure);assertEquals(1,calls.count) // Old Cloudflare preference is deliberately ignored.
-        a.getSharedPreferences("maya_connections",0).edit().clear().commit();val second=inspect(backend,"second");second.approve("second",android.os.SystemClock.elapsedRealtime())
+    @Test fun cancellingBeforeDispatchNeverSends() {
+        val calls=Calls();val backend=backend(calls)
+        val second=inspect(backend,"second");second.approve("second",android.os.SystemClock.elapsedRealtime())
         var callbacks=0;val cancel=backend.text(second,"second") {_,_->callbacks++};cancel();shadowOf(Looper.getMainLooper()).idle()
-        assertEquals(0,callbacks);assertEquals(1,calls.count)
+        assertEquals(0,callbacks);assertEquals(0,calls.count)
     }
-    @Test fun oldCloudflarePreferenceCannotReactivateTheParkedRoute() {
+    @Test fun staleConnectionPreferencesCannotChangeTheSavedAccountRoute() {
         a.getSharedPreferences("maya_connections",0).edit().putString("text_route","cloudflare").putBoolean("cloudflare_reviewed",true).commit()
         val calls=Calls();var target: AiTaskReview?=null
         backend(calls).review(AiTaskReview.Kind.BUILDER_PROPOSAL,listOf("native code prompt")) {r,e->assertNull(e);target=r}
-        shadowOf(Looper.getMainLooper()).idle();assertEquals(AiTaskReview.Route.SAVED_AI,target!!.route);assertEquals(0,calls.count)
-        assertTrue(a.getSharedPreferences("maya_connections",0).getBoolean("cloudflare_reviewed",false)) // Preserve old data; do not use it.
+        shadowOf(Looper.getMainLooper()).idle();assertEquals("groq",target!!.provider);assertEquals(0,calls.count)
     }
     @Test fun actualWorkspaceBackendUsesItsActivityHostForLocalReview() {
         val workspace=MainActivity::class.java.getDeclaredField("nativeChat").apply {isAccessible=true}.get(a) as NativeChatWorkspace
         val services=NativeChatWorkspace::class.java.getDeclaredField("researchServices\$delegate").apply {isAccessible=true}.get(workspace) as Lazy<*>
         val backend=services.value as ResearchBackend
         val review=inspect(backend,"native workspace goal")
-        assertEquals(AiTaskReview.Route.SAVED_AI,review.route);assertEquals("groq",review.provider)
+        assertEquals("groq",review.provider)
         assertTrue(scripts.none {it.contains("native workspace goal")})
     }
 

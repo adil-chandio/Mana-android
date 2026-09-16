@@ -6,17 +6,12 @@ import okhttp3.Authenticator
 import okhttp3.Call
 import okhttp3.CookieJar
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.MediaType.Companion.toMediaType
-import java.io.ByteArrayOutputStream
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
-/** One bounded fixed-origin POST. No redirects, cookies, authenticator or retries. */
-class NativeChatTransport internal constructor(private val calls: Call.Factory = client) {
+/** Shared bounded HTTP plumbing for the saved-AI transport. One exchange, no retries, cookies or redirects. */
+class NativeChatTransport {
     internal class AttemptGuard {
         private val used = AtomicBoolean(false)
         fun claim() { if (!used.compareAndSet(false, true)) throw IOException("NETWORK_ATTEMPT_LIMIT") }
@@ -54,47 +49,5 @@ class NativeChatTransport internal constructor(private val calls: Call.Factory =
         internal fun detach(value: Call) { call.compareAndSet(value, null) }
         internal fun markAttempt() { check(); attempted = true }
         fun cancel() { cancelled.set(true); runCatching { call.get()?.cancel() } }
-    }
-    fun execute(signed: NativeChatProtocol.SignedRequest, operation: Operation, beforeDispatch: () -> Unit = {}): NativeChatResponse.Result {
-        operation.check()
-        if (signed.path !in listOf(NativeChatProtocol.CHAT_PATH, NativeChatProtocol.CHECK_PATH) ||
-            signed.body.toByteArray(Charsets.UTF_8).size > NativeChatProtocol.MAX_BODY_BYTES ||
-            (signed.path == NativeChatProtocol.CHECK_PATH && signed.body != "{}")) throw NativeChatProtocol.Rejected("INVALID_TARGET")
-        val builder = Request.Builder().tag(AttemptGuard::class.java, AttemptGuard()).url(NativeChatProtocol.ORIGIN + signed.path)
-            .post(signed.body.toByteArray(Charsets.UTF_8).toRequestBody("application/json".toMediaType()))
-            .header("Accept", "application/json").header("Accept-Encoding", "identity").header("Cache-Control", "no-store")
-        signed.headers().forEach { (name, value) -> builder.header(name, value) }
-        val call = calls.newCall(builder.build())
-        call.timeout().timeout(operation.remainingMs(), TimeUnit.MILLISECONDS)
-        operation.attach(call)
-        try {
-            operation.check(); beforeDispatch(); operation.markAttempt()
-            call.execute().use { response ->
-                operation.check()
-                if (response.header("Content-Type")?.substringBefore(';')?.trim()?.lowercase(Locale.ROOT) != "application/json" ||
-                    response.header("Content-Encoding") !in listOf(null, "identity")) throw NativeChatProtocol.Rejected("INVALID_SERVER_RESPONSE")
-                val length = response.header("Content-Length")
-                if (length != null && (!Regex("[0-9]+").matches(length) || length.toLongOrNull() == null ||
-                        length.toLong() > NativeChatProtocol.MAX_RESPONSE_BYTES)) throw NativeChatProtocol.Rejected("INVALID_SERVER_RESPONSE")
-                val body = response.body ?: throw NativeChatProtocol.Rejected("INVALID_SERVER_RESPONSE")
-                val output = ByteArrayOutputStream()
-                body.byteStream().use { stream ->
-                    val buffer = ByteArray(4096)
-                    while (true) {
-                        operation.check(); val size = stream.read(buffer); operation.check()
-                        if (size == -1) break
-                        if (size == 0 || output.size() + size > NativeChatProtocol.MAX_RESPONSE_BYTES)
-                            throw NativeChatProtocol.Rejected("INVALID_SERVER_RESPONSE")
-                        output.write(buffer, 0, size)
-                    }
-                }
-                operation.check()
-                return NativeChatResponse.parse(response.code, output.toByteArray(), signed)
-            }
-        } catch (e: NativeChatProtocol.Rejected) {
-            call.cancel(); throw e
-        } catch (_: Exception) {
-            call.cancel(); operation.check(); throw NativeChatProtocol.Rejected("NETWORK_UNCERTAIN")
-        } finally { operation.detach(call) }
     }
 }

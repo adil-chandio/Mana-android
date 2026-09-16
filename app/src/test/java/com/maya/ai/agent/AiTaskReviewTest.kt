@@ -5,7 +5,7 @@ import org.junit.Test
 
 class AiTaskReviewTest {
     private fun review(options: List<String> = listOf("plain","with selected context"))=AiTaskReview(
-        AiTaskReview.Kind.RESEARCH_PLAN,AiTaskReview.Route.SAVED_AI,"synthetic","test-model","fingerprint",options,1000)
+        AiTaskReview.Kind.RESEARCH_PLAN,"synthetic","test-model","fingerprint",options,1000)
     @Test fun preparingAReviewDoesNotAuthorizeExecution() {
         val r=review();assertFalse(r.claim("plain",1001));assertFalse(r.approve("plain",1002))
     }

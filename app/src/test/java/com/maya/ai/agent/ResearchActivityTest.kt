@@ -32,7 +32,7 @@ class ResearchActivityTest {
         var cancels=0
         override fun fetch(item: ResearchPlan.Item,done: (ResearchSource?) -> Unit): () -> Unit {gets.add(item to done);return {cancels++}}
         override fun review(kind: AiTaskReview.Kind,prompts: List<String>,done: (AiTaskReview?,ResearchBackend.TextFailure?)->Unit): ()->Unit {
-            done(AiTaskReview(kind,AiTaskReview.Route.SAVED_AI,"synthetic","test-model","test-fingerprint",prompts,android.os.SystemClock.elapsedRealtime()),null)
+            done(AiTaskReview(kind,"synthetic","test-model","test-fingerprint",prompts,android.os.SystemClock.elapsedRealtime()),null)
             return {}
         }
         override fun text(review: AiTaskReview,prompt: String,done: (String?,ResearchBackend.TextFailure?) -> Unit): () -> Unit {check(review.claim(prompt,android.os.SystemClock.elapsedRealtime()));texts.add(prompt to done);return {cancels++}}
@@ -137,12 +137,12 @@ class ResearchActivityTest {
             d.getButton(DialogInterface.BUTTON_POSITIVE).performClick();shadowOf(Looper.getMainLooper()).idle();assertTrue(fake.texts.isEmpty())
         }
     }
-    @Test fun newApprovalClearsOldExplanationAndOffNeverChangesManualPlan() {
+    @Test fun newApprovalClearsOldExplanationAndUnavailableNeverChangesManualPlan() {
         completed();find("Explain sources · AI consent").performClick();confirm();fake.texts[0].second("OLD_EXPLANATION",null)
         find("Edit plan").performClick();find("Review & approve plan").performClick();confirm();assertEquals("",turnField<TextView>("summaryView").text.toString())
         turnField<EditText>("plan").setText("WIKI Dog");assertFalse(card.approved)
-        find("Generate / revise AI plan").performClick();confirm();fake.texts[1].second(null,ResearchBackend.TextFailure.CHAT_OFF)
-        assertTrue(turnField<TextView>("state").text.contains("OFF"));assertEquals("WIKI Dog",turnField<EditText>("plan").text.toString())
+        find("Generate / revise AI plan").performClick();confirm();fake.texts[1].second(null,ResearchBackend.TextFailure.UNAVAILABLE)
+        assertTrue(turnField<TextView>("state").text.contains("AI unavailable"));assertEquals("WIKI Dog",turnField<EditText>("plan").text.toString())
     }
     @Test fun sourceTransferRequiresConsentAndDoesNotSendOrSilentlyReplaceDraft() {
         completed();field<EditText>("draft").setText("KEEP_DRAFT")

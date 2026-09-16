@@ -34,7 +34,7 @@ class ConfiguredChatTest {
         assertEquals("Bhai",body.getJSONArray("messages").getJSONObject(1).getString("content"))
         assertFalse(body.toString().contains("SYNTHETIC_KEY"))
     }
-    @Test fun geminiShapeAndModelBudgetStaySeparateFromCloudflareContract() {
+    @Test fun geminiShapeAndModelBudgetUseTheConfiguredContract() {
         val c=ConfiguredChatPolicy.decode(packet("gemini","gemini-2.5-flash",tokens=280).toString())!!
         val body=JSONObject(ConfiguredChatPolicy.body(c,messages()))
         assertEquals(280,body.getJSONObject("generationConfig").getInt("maxOutputTokens"))
@@ -69,7 +69,7 @@ class ConfiguredChatTest {
             }
         }
     }
-    @Test fun configuredTransportSendsOneNativeRequestNotACloudflareOrFishRequest() {
+    @Test fun configuredTransportSendsOneNativeRequestNotAFishRequest() {
         val f=Fake(good);var dispatches=0
         val result=ConfiguredChatTransport(f).execute(config(),messages(),NativeChatTransport.Operation {0L}) {dispatches++} as NativeChatResponse.Result.Reply
         assertEquals("Ji bhai",result.text);assertEquals(1,dispatches);assertEquals(1,f.executions)

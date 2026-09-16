@@ -4,31 +4,27 @@ const read = p => fs.readFileSync(p, 'utf8');
 const a = read('app/src/main/java/com/maya/ai/chat/NativeChatWorkspace.kt');
 assert(!/WebView\(|JavascriptInterface|intent\.(data|extras)|getStringExtra|startService\(|requestPermissions\(|loadUrl\(/.test(a));
 assert(!/MayaBridge|TextToSpeech|SpeechRecognizer|performAction|enqueue\(/.test(a));
-assert(a.includes('SynchronousQueue()')); assert(a.includes('session.clear()')); assert(a.includes('consent.isChecked = false'));
+assert(a.includes('SynchronousQueue()')); assert(a.includes('session.clear()'));
 assert(a.includes('send.isEnabled = !busy && section==0 && draft.text.toString().isNotBlank()'));
-assert(a.includes('session.begin(draft.text.toString(),allowed)'));
-assert(!a.includes('composer.addView(consent)'));
-assert(!a.includes('send.isEnabled = !busy && publicText')); assert(a.includes('isSaveEnabled = false'));
-const create = a.slice(a.indexOf('fun createView'), a.indexOf('private fun confirm', a.indexOf('fun createView')));
-assert(!create.includes('identity.publicJwk()')); // no startup identity inspection
+assert(a.includes('session.begin(text,true)'));
+assert(a.includes('isSaveEnabled = false'));
+for (const f of ['NativeChatIdentity.kt','NativeAccessDiagnostic.kt','DirectSendPermission.kt','AndroidDirectSendPermission.kt']) assert(!fs.existsSync('app/src/main/java/com/maya/ai/chat/'+f));
+for (const f of ['NativeAccessDiagnosticTest.kt','DirectSendPermissionTest.kt']) assert(!fs.existsSync('app/src/test/java/com/maya/ai/chat/'+f));
+const cf=['NativeChatWorkspace.kt','NativeChatProtocol.kt','NativeChatTransport.kt','NativeChatResponse.kt'].map(f=>read('app/src/main/java/com/maya/ai/chat/'+f)).join('\n')+read('app/src/main/java/com/maya/ai/agent/ResearchBackend.kt')+read('app/src/main/java/com/maya/ai/agent/AiTaskReview.kt');
+assert(!/cloudflare|workers\.dev|SignedRequest|NativeChatIdentity|NativeAccessDiagnostic|DirectSendPermission|maya_connections|text_route|useConfiguredChat|CHAT_NOT_ENABLED/i.test(cf));
 const m = read('app/src/main/java/com/maya/ai/MainActivity.kt');
 assert(m.includes('request.isForMainFrame && request.hasGesture()'));
 assert(m.includes('webView.url in listOf('));
 assert.equal(read('public/index.html'), read('app/src/main/assets/web/index.html'));
-assert.equal(JSON.parse(read('release/version.json')).versionCode, 115);
+assert.equal(JSON.parse(read('release/version.json')).versionCode, 116);
 assert(read('app/build.gradle').includes("implementation 'com.squareup.okhttp3:okhttp:4.12.0'"));
 console.log('Native static integration boundaries PASS (not a device/UI execution test).');
 
-assert(a.includes('check.isEnabled = !busy'));
-assert(!a.includes('check.isEnabled = !busy && publicText'));
-assert(a.includes('Copy check report')); assert(a.includes('NativeAccessDiagnostic.State.LEFT_SCREEN'));
 assert(a.includes('FLAG_WINDOW_IS_OBSCURED')); assert(a.includes('FLAG_WINDOW_IS_PARTIALLY_OBSCURED'));
 assert(a.includes('if (obscured)')); assert(a.includes('return true // Keep protection'));
-assert(a.indexOf('check = button(') < a.indexOf('create = button('));
-assert(!a.includes('putString("last_check", status.text')); // no free text is persisted
 
-assert(a.includes('if (kind == "chat" || kind == "readiness") inspectReadiness(job)'));
-assert(a.includes('else if (reason == Reason.READY) launch(true)'));
+assert(a.includes('if(kind=="chat") {'));assert(a.includes('else main.nativeConfiguredReady'));assert(a.includes('} else if (kind == "readiness") inspectReadiness(job) { reason ->'));
+assert(a.includes('if(reason==Reason.READY) launch(true)'));
 assert(a.includes('No model request was sent.'));
 assert(a.includes('Copy readiness report'));
 assert(a.includes('getString("reason", null)'));
@@ -109,13 +105,6 @@ assert(library.includes('Search saved names'));assert(library.includes('Rename s
 assert(read('app/src/main/java/com/maya/ai/chat/WorkspaceVault.kt').includes('fun rename(id: String,title: String,expectedRevision: String)'));
 console.log('Task controls, checkpoints and saved-work organization boundaries PASS; no live execution.');
 
-assert(a.includes('remember_direct_permission'));assert(a.includes('restoredConsentRequired=true'));
-assert(a.includes('session.review(text)==candidate'));assert(a.includes('directPermission.forget()'));
+assert(a.includes('session.review(text)==candidate'));
 assert(a.includes('Open Voice settings'));assert(a.includes('repeatedReadiness'));
-assert(a.includes('consent.visibility=View.GONE'));
-const permission=read('app/src/main/java/com/maya/ai/chat/DirectSendPermission.kt');
-const permissionFile=read('app/src/main/java/com/maya/ai/chat/AndroidDirectSendPermission.kt');
-assert(permissionFile.includes('noBackupFilesDir'));assert(permissionFile.includes('repeat(513)'));
-assert(!/Http|MayaBridge|SpeechRecognizer|identity\.sign|session\.begin/.test(permission+permissionFile));
-assert(permission.includes('store.read()==POLICY'));assert(permission.includes('locallyRevoked=true'));
-console.log('Manual Direct permission and actionable readiness boundaries PASS; no live provider proof.');
+console.log('Saved-AI-only send boundaries PASS; no Cloudflare route, remembered grant or key identity. Not physical-device proof.');
