@@ -73,8 +73,51 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var webView: WebView
+    private lateinit var mainSurface: android.widget.FrameLayout
+    private var nativeChat: com.maya.ai.chat.NativeChatWorkspace? = null
+    private var nativeChatView: android.view.View? = null
+    @Volatile private var mainResumed = false
+    @Volatile private var voiceHostTrusted = false
     private lateinit var assetLoader: WebViewAssetLoader
     @Volatile private var webViewAlive = false
+    @Volatile private var workspaceSettingsOpen=false
+    private var workspaceHostReady=false
+    private var hostLoadEpoch=0L
+    @Volatile private var hostPresentationEpoch=0L
+    private var hostMountEpoch=0L
+    private val hostHandler=android.os.Handler(Looper.getMainLooper())
+    private var hostDeadline: Runnable?=null
+    private var hostFailed=false
+    private var hostFallbackUsed=false
+    private fun cancelHostDeadline() {hostDeadline?.let {hostHandler.removeCallbacks(it)};hostDeadline=null}
+    private fun failWorkspaceHost() {
+        voiceHostTrusted=false
+        cancelHostDeadline();hostLoadEpoch++;hostPresentationEpoch++;hostMountEpoch++;hostFailed=true;workspaceHostReady=false
+        webView.visibility=android.view.View.INVISIBLE
+        nativeChat?.hostPresentationState(false,true)
+    }
+    private fun armHostDeadline() {
+        cancelHostDeadline()
+        val load=hostLoadEpoch;val presentation=hostPresentationEpoch
+        hostDeadline=Runnable {if(!isFinishing && !isDestroyed && load==hostLoadEpoch && presentation==hostPresentationEpoch) failWorkspaceHost()}
+            .also {hostHandler.postDelayed(it,8000)}
+    }
+    private fun beginWorkspaceHostLoad() {
+        voiceHostTrusted=false
+        hostLoadEpoch++;hostPresentationEpoch++;hostMountEpoch++;workspaceHostReady=false;hostFailed=false
+        webView.visibility=android.view.View.INVISIBLE
+        nativeChat?.hostPresentationState(true,false);armHostDeadline()
+    }
+    /** Explicit confirmed native retry only; no bridge method, data wipe, navigation or automatic loop. */
+    fun retryWorkspaceHost(): Boolean {
+        if(!hostFailed || !mainResumed || isFinishing || isDestroyed || composerMicLease!=null || recognitionActive ||
+            httpRequests.isNotEmpty() || tts?.isSpeaking==true ||
+            com.maya.ai.chat.NativeChatReadiness.runtime(getSharedPreferences("maya",0).getBoolean("wake",false),
+                WakeWordService.instance!=null,WakeWordService.fishOutputActive,WakeWordService.haal,MayaAct.hasPendingActions())!=com.maya.ai.chat.NativeChatReadiness.Reason.READY) return false
+        hostFallbackUsed=false;beginWorkspaceHostLoad()
+        try {webView.stopLoading();webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")} catch(_: Exception) {failWorkspaceHost()}
+        return true
+    }
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     @Volatile private var ttsBooting = false
@@ -82,6 +125,95 @@ class MainActivity : AppCompatActivity() {
        engine "shak wale" haal mein maana jata hai; koi bhi bol de to clear. */
     @Volatile private var ttsEverSpoke = false
     private var recognizer: SpeechRecognizer? = null
+    // Object allocation is not proof of an active recognition session.
+    private var recognitionActive = false
+    private var composerMicLease: Any?=null
+    private var speechGeneration = 0L
+    @Volatile private var httpClosed = false
+    private val httpDeadlines = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+    private val httpRequests = java.util.concurrent.ConcurrentHashMap<String, com.maya.ai.net.CancelableRequest>()
+    private var fishPlayer: com.maya.ai.voice.FishStreamPlayer? = null
+    @Volatile private var fishTalkId: String?=null
+    private val fishTalkRequests=java.util.concurrent.ConcurrentHashMap<String,Boolean>()
+    private var fishTalkLastSpoken=0
+    private var fishTalkWakeMode=false
+    private var wakeClaimed=false
+    private var wakeReadyObserved=false
+    private var ownedWakeListener: WakeWordService?=null
+    private var talkPlayer: com.maya.ai.voice.FishStreamPlayer?=null
+    private var fishTalkDeadline: Runnable?=null
+    private var fishTalkEvents=com.maya.ai.voice.FishTalkProtocol.Events()
+    fun prepareFishTalk(done: (String?)->Unit) {
+        if(!voiceForeground() || composerMicLease!=null || recognitionActive || httpRequests.isNotEmpty() || WakeWordService.fishOutputActive || MayaAct.hasPendingActions()) {done(null);return}
+        val presentation=hostPresentationEpoch
+        var answered=false
+        val timeout=Runnable {if(!answered) {answered=true;done(null)}}
+        hostHandler.postDelayed(timeout,1500)
+        try {webView.evaluateJavascript("window.FISH_TALK ? FISH_TALK.describe() : null") {raw ->
+            if(!answered) {answered=true;hostHandler.removeCallbacks(timeout);done(if(voiceForeground() && presentation==hostPresentationEpoch) raw else null)}
+        }} catch(_: Exception) {if(!answered) {answered=true;hostHandler.removeCallbacks(timeout);done(null)}}
+    }
+    fun startFishTalk(review: String,wakeMode: Boolean=false,done: (Boolean)->Unit) {
+        if(!voiceForeground() || fishTalkId!=null || composerMicLease!=null || recognitionActive || httpRequests.isNotEmpty() || WakeWordService.fishOutputActive || MayaAct.hasPendingActions() || !Regex("review[0-9]{1,12}").matches(review)) {done(false);return}
+        if(ContextCompat.checkSelfPermission(this,Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) {requestMicPermission();done(false);return}
+        val id=java.util.UUID.randomUUID().toString().replace("-","")
+        fishTalkRequests.clear();fishTalkLastSpoken=0;fishTalkWakeMode=wakeMode;wakeClaimed=false;wakeReadyObserved=false;ownedWakeListener=null;fishTalkId=id;fishTalkEvents=com.maya.ai.voice.FishTalkProtocol.Events()
+        WakeWordService.stop(this) // Runtime pause only; saved Wake/Fish/AI choices are untouched.
+        fishTalkDeadline=Runnable {if(fishTalkId==id) {stopFishTalk();nativeChat?.fishTalkEnded("Fish conversation reached its 5-minute limit.")}}.also {hostHandler.postDelayed(it,300000)}
+        var answered=false
+        val timeout=Runnable {if(!answered) {answered=true;if(fishTalkId==id) stopFishTalk();done(false)}}
+        hostHandler.postDelayed(timeout,2000)
+        try {webView.evaluateJavascript("FISH_TALK.start('$id','$review',$wakeMode)") {raw ->
+            if(!answered) {answered=true;hostHandler.removeCallbacks(timeout)
+                var ok=voiceForeground() && fishTalkId==id && raw=="true"
+                if(ok && wakeMode) {
+                    ok=WakeWordService.start(this@MainActivity)
+                    if(ok) hostHandler.postDelayed({
+                        if(fishTalkId==id && !wakeClaimed && !wakeReadyObserved) {stopFishTalk();nativeChat?.fishTalkEnded("Wake microphone did not become ready. No AI request sent; retry Wake explicitly.")}
+                    },8000)
+                }
+                if(!ok && fishTalkId==id) stopFishTalk()
+                done(ok)
+            }
+        }} catch(_: Exception) {if(!answered) {answered=true;hostHandler.removeCallbacks(timeout);stopFishTalk();done(false)}}
+    }
+    fun stopFishTalk() {
+        val id=fishTalkId ?: return
+        fishTalkId=null;ownedWakeListener=null
+        if(fishTalkWakeMode) WakeWordService.stop(this)
+        fishTalkWakeMode=false;wakeClaimed=false
+        fishTalkDeadline?.let {hostHandler.removeCallbacks(it)};fishTalkDeadline=null
+        stopRecognizer();talkPlayer?.stop();talkPlayer=null
+        httpRequests.keys.filter {it.startsWith("ft_${id}_")}.forEach {httpRequests.remove(it)?.cancel()}
+        evalAsync("if(window.FISH_TALK) FISH_TALK.stop('$id','STOPPED')")
+    }
+
+    /** Native recognizer callback: one claimed wake, same approved Fish session, no legacy handler. */
+    fun deliverWakeResults(alternatives: List<String>, recognitionMs: Long) {
+        if(!voiceForeground()) return
+        val id=fishTalkId
+        if(id!=null && fishTalkWakeMode && !wakeClaimed && fishTalkEvents.phase=="wake-waiting") {
+            val command=com.maya.ai.voice.WakeConversation.command(alternatives) ?: return
+            wakeClaimed=true
+            WakeWordService.stop(this) // Release the wake recognizer before AI or follow-up capture.
+            val quoted=JSONObject.quote(command).replace("\u2028","\\u2028").replace("\u2029","\\u2029")
+            evalAsync("if(window.FISH_TALK) FISH_TALK.wake('$id',$quoted)")
+        } else if(id==null && com.maya.ai.voice.WakeConversation.command(alternatives)!=null) {
+            WakeWordService.stop(this);nativeChat?.offerWakeConversation()
+        }
+    }
+    fun wakeConversationAllowed()=voiceForeground() && fishTalkId!=null && fishTalkWakeMode && !wakeClaimed
+    fun bindWakeListener(service: WakeWordService) {if(wakeConversationAllowed()) ownedWakeListener=service}
+    fun wakeListenerReady(service: WakeWordService) {
+        if(ownedWakeListener===service && wakeConversationAllowed()) {
+            wakeReadyObserved=true;nativeChat?.wakeConversationReady()
+        }
+    }
+    fun wakeListenerStopped(service: WakeWordService) {
+        if(ownedWakeListener===service && fishTalkId!=null && fishTalkWakeMode && !wakeClaimed) {
+            stopFishTalk();nativeChat?.fishTalkEnded("Wake listener stopped before a question. No AI request sent. Start Wake again explicitly.")
+        }
+    }
 
     /* ================= LIFECYCLE ================= */
 
@@ -99,12 +231,12 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             mediaPlaybackRequiresUserGesture = false
-            allowUniversalAccessFromFileURLs = true
-            allowFileAccessFromFileURLs = true
+            allowUniversalAccessFromFileURLs = false
+            allowFileAccessFromFileURLs = false
             /* v4.0.1 WebView compat: file:// fallback + old-engine safety */
-            allowFileAccess = true
-            allowContentAccess = true
-            javaScriptCanOpenWindowsAutomatically = true
+            allowFileAccess = false // android_asset remains available for the exact packaged fallback.
+            allowContentAccess = false
+            javaScriptCanOpenWindowsAutomatically = false
             loadWithOverviewMode = true
             useWideViewPort = true
             setSupportZoom(false)
@@ -124,16 +256,23 @@ class MainActivity : AppCompatActivity() {
             }
         }
         webView.webViewClient = MayaWebViewClient()
-        setContentView(webView)
+        // One permanent Maya surface from startup. The original trusted WebView is
+        // an embedded orb/settings component, never a second conversation or destination.
+        webView.setBackgroundColor(com.maya.ai.chat.MayaTheme.background)
+        webView.visibility = android.view.View.INVISIBLE
+        mainSurface = android.widget.FrameLayout(this)
+        val workspace = com.maya.ai.chat.NativeChatWorkspace(this) { finish() }
+        nativeChat = workspace
+        nativeChatView = workspace.createView(webView) { expanded ->
+            workspaceSettingsOpen=expanded
+            applyWorkspacePresentation()
+        }
+        mainSurface.addView(nativeChatView, android.widget.FrameLayout.LayoutParams(-1, -1))
+        setContentView(mainSurface)
+        beginWorkspaceHostLoad()
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.9.5 • silent-TTS fix (init-retry + watchdog + media stream)", Toast.LENGTH_LONG).show()
-        // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
+        Toast.makeText(this, "MAYA " + BuildConfig.VERSION_NAME + " • Main workspace", Toast.LENGTH_LONG).show()
         webViewAlive = false
-        android.os.Handler(Looper.getMainLooper()).postDelayed({
-            if (!webViewAlive) {
-                Toast.makeText(this, "WebView load NAHI hua (blank ka wajah) — developer ko batayen", Toast.LENGTH_LONG).show()
-            }
-        }, 8000)
         // v4.0.1: PURANA Android System WebView detect — layout (inset/color-mix) kharab ho sakta hai
         val wvVer = try { WebViewCompat.getCurrentWebViewPackage(this)?.versionName ?: "" } catch (e: Exception) { "" }
         val wvMajor = wvVer.split(".").firstOrNull()?.toIntOrNull() ?: 0
@@ -143,64 +282,24 @@ class MainActivity : AppCompatActivity() {
             }
         }, 12000)
 
-        initTts()
+        // Fish-only native output: no legacy device-TTS engine starts with the app.
         createNotificationChannel()
-        requestNeededPermissions()
-        ensureWakeAlive()      /* Issue 1: listener never dies */
+        // Permissions are requested by explicit feature actions, not by opening text Chat.
+        // Saved Wake is a preference, not authority to start capture on app launch.
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode != Activity.RESULT_OK) return
-        try {
-            var bytes: ByteArray? = null
-            if (requestCode == 5001) {
-                val f = java.io.File(cacheDir, "maya_photo.jpg")
-                if (f.exists()) bytes = f.readBytes()
-            } else if (requestCode == 5002 && data?.data != null) {
-                contentResolver.openInputStream(data.data!!)?.use { it.readBytes() }?.let { bytes = it }
-            }
-            /* Issue 5: full-resolution upload (up to 4MB -> ~5.3MB base64)
-               par vision call mobile data par 5-30s leti thi. Ab Kotlin khud
-               downscale karta hai (max 1280px JPEG q=80) — Gemini ke liye
-               quality kaafi hoti hai, upload ~10x chhota. */
-            if (bytes != null) {
-                var b64: String? = null
-                try {
-                    val bmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes!!.size)
-                    if (bmp != null) {
-                        val maxSide = 1280
-                        val scale = minOf(1f, maxSide / maxOf(bmp.width.toFloat(), bmp.height.toFloat()))
-                        val out = android.graphics.Bitmap.createBitmap(
-                            (bmp.width * scale).toInt().coerceAtLeast(1),
-                            (bmp.height * scale).toInt().coerceAtLeast(1),
-                            android.graphics.Bitmap.Config.ARGB_8888
-                        )
-                        val canvas = android.graphics.Canvas(out)
-                        canvas.drawBitmap(bmp, null, android.graphics.RectF(0f, 0f, out.width.toFloat(), out.height.toFloat()), null)
-                        val bos = java.io.ByteArrayOutputStream()
-                        out.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, bos)
-                        b64 = android.util.Base64.encodeToString(bos.toByteArray(), android.util.Base64.NO_WRAP)
-                        bmp.recycle(); out.recycle()
-                    }
-                } catch (e: Exception) {}
-                if (b64 == null) {
-                    /* decode fail? chhoti tasveer (<=400KB) seedha bhejo */
-                    if (bytes!!.size <= 400_000) {
-                        b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-                    }
-                }
-                /* Issue 5: nakaam par bhi JS ko KHABAR do — UI 'dekh rahi hoon'
-                   par hang nahi rahega. */
-                evalAsync(
-                    if (b64 != null) "window.__photoTaken && window.__photoTaken('" + b64 + "')"
-                    else "window.__photoTaken && window.__photoTaken(null)"
-                )
-            }
-        } catch (e: Exception) {}
+        if(requestCode in setOf(5001,5002)) toast("Legacy media analysis is retired. No image was read or uploaded.")
     }
 
     override fun onDestroy() {
+        cancelHostDeadline();hostLoadEpoch++;hostPresentationEpoch++
+        nativeChat?.dispose(); nativeChat = null; nativeChatView = null
+        httpClosed = true
+        httpDeadlines.shutdownNow()
+        httpRequests.values.forEach { it.cancel() }; httpRequests.clear()
+        fishPlayer?.stop(); fishPlayer = null
         instance = null
         stopRecognizer()
         try { tts?.stop(); tts?.shutdown() } catch (e: Exception) {}
@@ -209,12 +308,156 @@ class MainActivity : AppCompatActivity() {
 
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
+        nativeChat?.let { it.requestClose(); return }
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+    }
+
+    /** Compatibility URI now focuses the EXISTING composer only. No root replacement/navigation. */
+    private fun openMainChat() {
+        if (mainResumed && !isFinishing && !isDestroyed) nativeChat?.focusComposer()
+    }
+    override fun onResume() { super.onResume(); mainResumed = true; nativeChat?.resume() }
+    override fun onPause() { mainResumed = false;
+        stopFishTalk();WakeWordService.stop(this);stopRecognizer()
+        evalAsync("if(typeof KAAN!=='undefined')KAAN.DARWAZA.close();if(typeof stopListening==='function')stopListening();if(typeof AWAAZ!=='undefined')AWAAZ.stop();")
+        hostPresentationEpoch++;cancelHostDeadline();webView.visibility=android.view.View.INVISIBLE; nativeChat?.pause(); super.onPause() }
+    override fun onStop() { nativeChat?.leaveScreen(); super.onStop() }
+    override fun onWindowFocusChanged(hasFocus: Boolean) { super.onWindowFocusChanged(hasFocus); nativeChat?.focusChanged(hasFocus) }
+    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+        if (nativeChat?.consumeTouch(event) == true) return true
+        return super.dispatchTouchEvent(event)
+    }
+
+    fun voiceForeground(): Boolean = mainResumed && voiceHostTrusted && !isFinishing && !isDestroyed
+
+    /** Only called by the native, owner-confirmed input dialog; no JS bridge export. */
+    fun turnOffLegacyWakeForNativeVoice(done: (Boolean)->Unit) {
+        if(!voiceForeground()) {done(false);return}
+        try {
+            WakeWordService.stop(this)
+            if(!prefs().edit().putBoolean("wake",false).commit()) {done(false);return}
+            webView.evaluateJavascript("(function(){try{if(typeof settings!=='object'||typeof saveSettings!=='function')return false;settings.wakeWord=false;saveSettings();var sw=document.getElementById('sWake');if(sw)sw.checked=false;if(typeof KAAN!=='undefined')KAAN.DARWAZA.close();return settings.wakeWord===false;}catch(e){return false;}})()") {value ->
+                android.os.Handler(Looper.getMainLooper()).postDelayed({
+                    done(voiceForeground() && value=="true" && !prefs().getBoolean("wake",true) && WakeWordService.instance==null)
+                },300)
+            }
+        } catch(_: Exception) {done(false)}
+    }
+
+    /** Native-only microphone lease. Never exported through MayaBridge or persisted. */
+    fun acquireComposerMicrophone(token: Any): Boolean {
+        if(composerMicLease!=null || !mainResumed || isFinishing || isDestroyed || recognitionActive ||
+            httpRequests.isNotEmpty() || tts?.isSpeaking==true || webView.url !in listOf("https://$VIRTUAL_HOST/assets/web/index.html","file:///android_asset/web/index.html")) return false
+        composerMicLease=token;return true
+    }
+    fun composerMicrophoneCurrent(token: Any)=composerMicLease===token && mainResumed && !isFinishing && !isDestroyed &&
+        !recognitionActive && httpRequests.isEmpty() && tts?.isSpeaking!=true
+    fun releaseComposerMicrophone(token: Any) {if(composerMicLease===token) composerMicLease=null}
+
+    /** Read-only local readiness; no preference writes, service starts or remote page evaluation. */
+    fun nativeChatReady(result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) = nativeReady(false,result)
+    fun nativeConfiguredReady(result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) {
+        val policy=com.maya.ai.chat.NativeChatReadiness
+        val runtime=policy.runtime(false,WakeWordService.instance!=null,WakeWordService.fishOutputActive,WakeWordService.haal,MayaAct.hasPendingActions())
+        if(runtime!=com.maya.ai.chat.NativeChatReadiness.Reason.READY) {result(runtime);return}
+        nativeReady(true,result)
+    }
+    private fun nativeReady(idleOnly: Boolean,result: (com.maya.ai.chat.NativeChatReadiness.Reason) -> Unit) {
+        val policy = com.maya.ai.chat.NativeChatReadiness
+        try {
+            val state = policy.main(!mainResumed || isFinishing || isDestroyed, httpRequests.isNotEmpty(), recognitionActive || composerMicLease!=null,
+                tts?.isSpeaking == true, webView.url in listOf(
+                    "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html"))
+            if (state != com.maya.ai.chat.NativeChatReadiness.Reason.READY) { result(state); return }
+            webView.evaluateJavascript(if(idleOnly) policy.IDLE_SCRIPT else policy.LOCAL_SCRIPT) { result(policy.fromJavascript(it)) }
+        } catch (_: Exception) { result(com.maya.ai.chat.NativeChatReadiness.Reason.UNKNOWN) }
+    }
+
+    fun prepareConfiguredChat(wanted: ()->Boolean, pauseWake: Boolean, done: (com.maya.ai.chat.ConfiguredChatPolicy.Config?,String)->Unit) {
+        if(!wanted()) return
+        val presentation=hostPresentationEpoch
+        var answered=false
+        lateinit var timeout: Runnable
+        fun finish(config: com.maya.ai.chat.ConfiguredChatPolicy.Config?,code: String) {
+            if(answered) return
+            answered=true;hostHandler.removeCallbacks(timeout)
+            if(wanted()) {
+                if(presentation==hostPresentationEpoch) done(config,code) else done(null,"MAIN_TRANSITION")
+            }
+        }
+        timeout=Runnable {finish(null,"LOCAL_CONFIG_TIMEOUT")};hostHandler.postDelayed(timeout,1800)
+        fun read() {
+            if(!wanted() || !voiceForeground() || presentation!=hostPresentationEpoch) {finish(null,"MAIN_TRANSITION");return}
+            try {webView.evaluateJavascript("window.FISH_TALK ? FISH_TALK.chatConfig() : null") {raw ->
+                val config=com.maya.ai.chat.ConfiguredChatPolicy.decode(raw)
+                finish(config,if(config==null) "CONFIGURED_AI_UNAVAILABLE" else "READY")
+            }} catch(_: Exception) {finish(null,"LOCAL_CONFIG_UNAVAILABLE")}
+        }
+        if(pauseWake) {
+            WakeWordService.stop(this) // Explicit manual-Send permission pauses runtime wake, not its saved preference.
+            hostHandler.postDelayed({
+                if(!wanted() || answered) return@postDelayed
+                nativeConfiguredReady {reason ->
+                    if(reason==com.maya.ai.chat.NativeChatReadiness.Reason.READY) read() else finish(null,"READINESS_"+reason.name)
+                }
+            },300)
+        } else read()
+    }
+
+    /** Explicit native Sunao/setup only. No JS bridge method, key export UI or preference writes. */
+    fun prepareNativeFish(text: String?, wanted: () -> Boolean, result: (com.maya.ai.chat.NativeFishPolicy.Result) -> Unit) {
+        val policy = com.maya.ai.chat.NativeFishPolicy
+        fun unavailable() = result(com.maya.ai.chat.NativeFishPolicy.Result.Error(com.maya.ai.chat.NativeFishPolicy.Code.UNAVAILABLE))
+        if (!wanted()) return
+        nativeConfiguredReady { ready ->
+            if (!wanted()) return@nativeConfiguredReady
+            if (ready != com.maya.ai.chat.NativeChatReadiness.Reason.READY) {
+                result(com.maya.ai.chat.NativeFishPolicy.Result.Error(com.maya.ai.chat.NativeFishPolicy.Code.ASSISTANT_BUSY))
+            } else try {
+                if (isFinishing || isDestroyed || webView.url !in listOf(
+                        "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                    unavailable(); return@nativeConfiguredReady
+                }
+                webView.evaluateJavascript(policy.script(text,true)) { raw ->
+                    if (!wanted()) return@evaluateJavascript
+                    try {
+                        if (instance !== this || isFinishing || isDestroyed || httpRequests.isNotEmpty() || recognitionActive ||
+                            tts?.isSpeaking == true || webView.url !in listOf(
+                                "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) unavailable()
+                        else result(policy.decode(raw, text != null))
+                    } catch (_: Exception) { unavailable() }
+                }
+            } catch (_: Exception) { unavailable() }
+        }
+    }
+
+    /** Presentation handshake only; no conversation/code/settings credentials enter JS. */
+    private fun applyWorkspacePresentation() {
+        if(!mainResumed || hostFailed) return
+        if(!workspaceHostReady) {nativeChat?.hostPresentationState(true,false);armHostDeadline();return}
+        val url=webView.url
+        if(url !in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {failWorkspaceHost();return}
+        val ticket=hostLoadEpoch;val presentationTicket=++hostPresentationEpoch;val expanded=workspaceSettingsOpen
+        webView.visibility=android.view.View.INVISIBLE
+        nativeChat?.hostPresentationState(true,false);armHostDeadline()
+        var answered=false
+        try {webView.evaluateJavascript("window.__mayaWorkspaceSettings ? window.__mayaWorkspaceSettings($expanded) : false;") {applied ->
+            if(!isFinishing && !isDestroyed && mainResumed && ticket==hostLoadEpoch && workspaceHostReady &&
+                presentationTicket==hostPresentationEpoch && !answered && expanded==workspaceSettingsOpen && webView.url==url) {
+                answered=true
+                if(applied=="true") {cancelHostDeadline();webView.visibility=android.view.View.VISIBLE;nativeChat?.hostPresentationState(false,false)}
+                else failWorkspaceHost()
+            }
+        }} catch(_: Exception) {failWorkspaceHost()}
     }
 
     /* ================= WEBVIEW CLIENT ================= */
 
     inner class MayaWebViewClient : WebViewClientCompat() {
+        override fun onPageStarted(view: WebView,url: String?,favicon: android.graphics.Bitmap?) {
+            if(view===webView) {if(hostFailed) {view.stopLoading();view.visibility=android.view.View.INVISIBLE} else beginWorkspaceHostLoad()}
+            super.onPageStarted(view,url,favicon)
+        }
         override fun shouldInterceptRequest(
             view: WebView,
             request: WebResourceRequest
@@ -223,8 +466,19 @@ class MainActivity : AppCompatActivity() {
         /* v4.0.1: JS ke markAlive() + ye dono ab webViewAlive true karte hain —
            pehle false-alarm toast har launch par aata tha */
         override fun onPageFinished(view: WebView, url: String?) {
+            if(view===webView) voiceHostTrusted=!hostFailed && view.url==url && url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")
             if (url != null && (url.startsWith("https://$VIRTUAL_HOST") || url.startsWith("file:///android_asset"))) {
                 webViewAlive = true
+            }
+            if (!hostFailed && view===webView && view.url==url && url in listOf("https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                val ticket=hostLoadEpoch;val mountTicket=++hostMountEpoch
+                var answered=false
+                try {view.evaluateJavascript("window.__mayaWorkspaceMount ? window.__mayaWorkspaceMount() : false;") { mounted ->
+                    if (!isFinishing && !isDestroyed && ticket==hostLoadEpoch && mountTicket==hostMountEpoch && !answered && view === webView && view.url == url && !hostFailed) {
+                        answered=true
+                        if(mounted=="true") {workspaceHostReady=true;applyWorkspacePresentation()} else failWorkspaceHost()
+                    }
+                }} catch(_: Exception) {failWorkspaceHost()}
             }
             super.onPageFinished(view, url)
         }
@@ -236,10 +490,18 @@ class MainActivity : AppCompatActivity() {
             request: WebResourceRequest,
             error: WebResourceErrorCompat
         ) {
-            if (request.isForMainFrame && request.url.host == VIRTUAL_HOST) {
-                view.loadUrl("file:///android_asset/web/index.html")
+            if (view===webView && request.isForMainFrame && request.url.toString()==view.url && !hostFailed) {
+                if(request.url.toString()=="https://$VIRTUAL_HOST/assets/web/index.html" && !hostFallbackUsed) {
+                    hostFallbackUsed=true;beginWorkspaceHostLoad()
+                    try {view.loadUrl("file:///android_asset/web/index.html")} catch(_: Exception) {failWorkspaceHost()}
+                } else failWorkspaceHost()
             }
             super.onReceivedError(view, request, error)
+        }
+
+        override fun onReceivedHttpError(view: WebView,request: WebResourceRequest,response: WebResourceResponse) {
+            if(view===webView && request.isForMainFrame && request.url.toString()==view.url && response.statusCode>=400) failWorkspaceHost()
+            super.onReceivedHttpError(view,request,response)
         }
 
         override fun shouldOverrideUrlLoading(
@@ -247,8 +509,17 @@ class MainActivity : AppCompatActivity() {
             request: WebResourceRequest
         ): Boolean {
             val url = request.url
+            if (url.toString() == com.maya.ai.chat.NativeChatActivity.OPEN_LINK) {
+                if (request.isForMainFrame && request.hasGesture() && view.url in listOf(
+                        "https://$VIRTUAL_HOST/assets/web/index.html", "file:///android_asset/web/index.html")) {
+                    openMainChat()
+                }
+                return true
+            }
             // apni app — andar khule (v4.0.1: file:// fallback bhi WebView ke andar)
-            if (url.host == VIRTUAL_HOST || url.scheme == "file") return false
+            val document=url.buildUpon().fragment(null).build().toString()
+            if(request.isForMainFrame && LegacyCapabilities.trustedDocument(document)) return false
+            if(!request.isForMainFrame || !request.hasGesture() || !LegacyCapabilities.trustedDocument(view.url) || url.host==VIRTUAL_HOST || url.scheme!="https") return true
             return try {
                 startActivity(Intent(Intent.ACTION_VIEW, url))  // bahar ke links/apps
                 true
@@ -350,7 +621,9 @@ class MainActivity : AppCompatActivity() {
     /* ================= STT ================= */
 
     private fun stopRecognizer() {
-        try { recognizer?.destroy(); recognizer = null } catch (e: Exception) {}
+        recognitionActive = false
+        speechGeneration++
+        try { recognizer?.destroy(); recognizer = null } catch (e: Exception) { recognitionActive = recognizer != null }
     }
 
     /* ================= JS BRIDGE ================= */
@@ -358,13 +631,26 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.9.5-native"
+        fun appVersion(): String = BuildConfig.VERSION_NAME + "-native"
+
+        @JavascriptInterface
+        fun legacyRestricted(): Boolean = true
+
+        /** Navigation only. JS cannot provide an APK URL or trigger installation. */
+        @JavascriptInterface
+        fun openUpdates() {
+            runOnUiThread {
+                if(!voiceForeground()) return@runOnUiThread
+                startActivity(Intent(this@MainActivity, com.maya.ai.update.UpdateActivity::class.java))
+            }
+        }
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
            ko poochhti hai. Isi se awaaz-katna + mic-larai dono khatam hain. */
         @JavascriptInterface
         fun setHaal(h: String) {
+            if(h !in setOf("KHALI","BOL_RAHI","APP_SUN") || (h!="KHALI" && fishTalkId==null)) return
             try { WakeWordService.applyHaal(h) } catch (e: Exception) {}
         }
 
@@ -379,7 +665,7 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) { "" }
 
         /** Native TTS v2 — voice picker + pitch (crispy awaaz) */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun speak(text: String, lang: String, rate: Double, pitch: Double, voiceName: String) {
             runOnUiThread {
                 if (!ttsReady) {
@@ -420,7 +706,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** Phone ki saari TTS voices ki list (JS ke liye JSON) */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun ttsVoices(): String {
             return try {
                 val arr = JSONArray()
@@ -441,20 +727,45 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { try { tts?.stop() } catch (e: Exception) {} }
         }
 
-        /** Native STT — Google voice recognition (Urdu ur-PK supported) */
-        @JavascriptInterface
-        fun listen(lang: String) {
+        /** Fixed Fish streaming output; no alternate voice or arbitrary network destination. */
+        // Not exposed to WebView: legacy capability is quarantined.
+        fun fishStreamSpeak(body: String, headers: String, id: String) {
             runOnUiThread {
+                if (fishPlayer == null) fishPlayer = com.maya.ai.voice.FishStreamPlayer(this@MainActivity) { request, event, status ->
+                    evalAsync("window.__fishStreamEvent && window.__fishStreamEvent('$request','$event',$status)")
+                }
+                fishPlayer?.speak(body, headers, id)
+            }
+        }
+
+        // Not exposed to WebView: legacy capability is quarantined.
+        fun fishStreamStop() { runOnUiThread { fishPlayer?.stop() } }
+
+        /** Native STT — Google voice recognition (Urdu ur-PK supported) */
+        // Not exposed to WebView: legacy capability is quarantined.
+        fun listen(lang: String) { listenSession(lang, "") }
+
+        @JavascriptInterface
+        fun listenOwned(lang: String, owner: String) {
+            if(fishTalkId==null || !voiceForeground() || lang !in com.maya.ai.chat.NativeDictation.LANGUAGES) return
+            if (!Regex("mi[a-z0-9]{1,20}_[0-9]{1,12}").matches(owner)) return
+            listenSession(lang, owner)
+        }
+
+        private fun listenSession(lang: String, owner: String) {
+            runOnUiThread {
+                if(!voiceForeground() || fishTalkId==null) {evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(8,'$owner')");return@runOnUiThread}
+                if(composerMicLease!=null) {evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(8,'$owner')");return@runOnUiThread}
                 if (ContextCompat.checkSelfPermission(
                         this@MainActivity, Manifest.permission.RECORD_AUDIO
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                     requestMicPermission()
-                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(7)")
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(9,'$owner')")
                     return@runOnUiThread
                 }
                 if (!SpeechRecognizer.isRecognitionAvailable(this@MainActivity)) {
-                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5)")
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5,'$owner')")
                     return@runOnUiThread
                 }
                 stopRecognizer()
@@ -480,21 +791,49 @@ class MainActivity : AppCompatActivity() {
                        bhi response tez rehta hai. */
                     putExtra("android.speech.extra.SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS", 1200)
                 }
+                val session = speechGeneration
+                var delivered = false
+                android.os.Handler(Looper.getMainLooper()).postDelayed({
+                    if (session == speechGeneration && !delivered) {
+                        delivered = true
+                        stopRecognizer()
+                        WakeWordService.resumeFromApp()
+                        evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(1,'$owner')")
+                    }
+                }, 30000)
+                val timing = com.maya.ai.voice.RecognitionTiming { android.os.SystemClock.elapsedRealtime() }
+                try {
+                recognitionActive = true
                 recognizer = makeRecognizer().apply {
                     setRecognitionListener(object : RecognitionListener {
-                        override fun onReadyForSpeech(params: Bundle?) {}
-                        override fun onBeginningOfSpeech() {}
+                        override fun onReadyForSpeech(params: Bundle?) {
+                            if (session == speechGeneration && !delivered) evalAsync("window.__inputReady && window.__inputReady('$owner')")
+                        }
+                        override fun onBeginningOfSpeech() {
+                            if (session == speechGeneration && !delivered) evalAsync("window.__inputBegan && window.__inputBegan('$owner')")
+                        }
                         private var rmsTick = 0
                         override fun onRmsChanged(rmsdB: Float) {
                             rmsTick++
-                            if (rmsTick % 4 == 0) evalAsync("window.__nativeRms && window.__nativeRms(" + rmsdB + ")")
+                            if (session == speechGeneration && !delivered && rmsTick % 4 == 0) evalAsync("window.__nativeRms && window.__nativeRms(" + rmsdB + ",'$owner')")
                         }
                         override fun onBufferReceived(buffer: ByteArray?) {}
-                        override fun onEndOfSpeech() { evalAsync("window.__nativePartial && window.__nativePartial('')") }
+                        override fun onEndOfSpeech() {
+                            if (session != speechGeneration || delivered) return
+                            timing.end()
+                            evalAsync("window.__inputEnded && window.__inputEnded('$owner')")
+                        }
                         override fun onError(error: Int) {
-                            evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error)")
+                            if (session != speechGeneration || delivered) return
+                            recognitionActive = false
+                            delivered = true
+                            evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr($error,'$owner')")
                         }
                         override fun onResults(results: Bundle?) {
+                            if (session != speechGeneration || delivered) return
+                            recognitionActive = false
+                            delivered = true
+                            val recognitionMs = timing.endToFinal() ?: -1L
                             /* 🎙️ Android 3-5 andaze deta hai. Pehle sirf pehla liya jata tha
                                aur baqi phenk diye jate the — isi liye "Monarch" -> "منار" ban
                                jata tha. Ab SAARE andaze JS ko jate hain; SUNO un mein se wo
@@ -511,22 +850,28 @@ class MainActivity : AppCompatActivity() {
                                    parha hi nahi jata tha — ab SUNO isay bhi dekhta hai. */
                                 val o = JSONObject()
                                 o.put("t", all[i])
-                                if (conf != null && i < conf.size) o.put("c", conf[i].toDouble())
+                                if (conf != null && i < conf.size && conf[i].isFinite() && conf[i] in 0f..1f) o.put("c", conf[i].toDouble())
                                 arr.put(o)
                             }
                             evalAsync(
                                 "window.__nativeSpeech && window.__nativeSpeech('" + jsEscape(text) +
-                                "','" + jsEscape(arr.toString()) + "')"
+                                "','" + jsEscape(arr.toString()) + "','$owner',$recognitionMs)"
                             )
                         }
                         override fun onPartialResults(partialResults: Bundle?) {
+                            if (session != speechGeneration || delivered) return
                             val pt = partialResults
                                 ?.getStringArrayList("android.speech.extra.RESULTS")?.firstOrNull() ?: ""
-                            if (pt.isNotBlank()) evalAsync("window.__nativePartial && window.__nativePartial('" + jsEscape(pt) + "')")
+                            if (pt.isNotBlank()) evalAsync("window.__nativePartial && window.__nativePartial('" + jsEscape(pt) + "','$owner')")
                         }
                         override fun onEvent(eventType: Int, params: Bundle?) {}
                     })
                     startListening(intent)
+                }
+                } catch (_: Exception) {
+                    stopRecognizer()
+                    WakeWordService.resumeFromApp()
+                    evalAsync("window.__nativeSpeechErr && window.__nativeSpeechErr(5,'$owner')")
                 }
             }
         }
@@ -537,7 +882,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** REAL alarm v2 — 3-layer: silent set > prefilled UI > fail */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun setAlarm(hour: Int, minute: Int, message: String): Int {
             val msg = message.ifEmpty { "MAYA Alarm" }
             try {
@@ -563,7 +908,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** REAL system timer — screen band ho to bhi bajta hai */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun setTimer(seconds: Int, message: String): Boolean {
             return try {
                 val i = Intent(AlarmClock.ACTION_SET_TIMER).apply {
@@ -596,7 +941,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { "{}" }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun vibrate(ms: Long) {
             try {
                 val vib: Vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -613,7 +958,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {}
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun notify(title: String, text: String) {
             runOnUiThread {
                 try {
@@ -646,16 +991,19 @@ class MainActivity : AppCompatActivity() {
         /** Wake word service — background mein 'Maya'/'Boss' sunti hai */
         @JavascriptInterface
         fun wakeService(start: Boolean): Boolean {
+            if(!voiceForeground() || !workspaceSettingsOpen) return false
             return try {
                 if (start) {
+                    if(!voiceForeground() || !workspaceSettingsOpen || fishTalkId!=null || composerMicLease!=null || recognitionActive) return false
                     if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO)
                         != PackageManager.PERMISSION_GRANTED) {
+                        WakeWordService.updateHealth(com.maya.ai.voice.WakeStatus.State.ERROR, com.maya.ai.voice.WakeStatus.Reason.PERMISSION, 9)
                         requestMicPermission()
                         return false
                     }
-                    WakeWordService.start(this@MainActivity)
                     prefs().edit().putBoolean("wake", true).apply()
-                    true
+                    runOnUiThread {if(voiceForeground()) {WakeWordService.stop(this@MainActivity);nativeChat?.offerWakeConversation()}}
+                    true // Opens owner review; microphone starts only after approval.
                 } else {
                     WakeWordService.stop(this@MainActivity)
                     prefs().edit().putBoolean("wake", false).apply()
@@ -664,8 +1012,51 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        /** YouTube v2 — innertube JSON + consent cookie fallback (pakka videoId) */
+        /** Explicit local read, fixed fields only. No transcript/keys/raw exception messages. */
         @JavascriptInterface
+        fun fishTalkSpeak(id: String,turn: Int,body: String,headers: String) {
+            if(body.length>16000 || headers.length>4096) return
+            runOnUiThread {
+                if(fishTalkId!=id || !voiceForeground() || turn !in 1..5 || turn!=fishTalkLastSpoken+1 || talkPlayer!=null || !fishTalkEvents.readyForSpeech(turn)) return@runOnUiThread
+                fishTalkLastSpoken=turn
+                lateinit var player: com.maya.ai.voice.FishStreamPlayer
+                player=com.maya.ai.voice.FishStreamPlayer(this@MainActivity,strictNetwork=true) {_,event,status ->
+                    if(event!="playing" && talkPlayer===player) talkPlayer=null
+                    if(fishTalkId==id && voiceForeground()) evalAsync("if(window.FISH_TALK) FISH_TALK.audioEvent('$id',$turn,'$event',$status)")
+                }
+                talkPlayer=player
+                if(!player.speakExclusive(body,headers,"talk_${id}_$turn") {
+                    if(fishTalkId==id) evalAsync("if(window.FISH_TALK) FISH_TALK.audioEvent('$id',$turn,'interrupted',0)")
+                }) evalAsync("if(window.FISH_TALK) FISH_TALK.audioEvent('$id',$turn,'error',0)")
+            }
+        }
+
+        @JavascriptInterface
+        fun fishTalkEvent(id: String,kind: String,value: String) {
+            if(id.length!=32 || value.length>2000 || kind.length>12) return
+            runOnUiThread {
+                if(fishTalkId!=id || !voiceForeground()) return@runOnUiThread
+                if(!fishTalkEvents.accept(kind,value)) {stopFishTalk();nativeChat?.fishTalkEnded("Invalid voice event rejected. Nothing executed.");return@runOnUiThread}
+                if(kind=="end") {stopFishTalk();nativeChat?.fishTalkEnded(value)}
+                else nativeChat?.fishTalkEvent(kind,value)
+            }
+        }
+
+        @JavascriptInterface
+        fun nativeWakeNotice() {
+            val presentation=hostPresentationEpoch
+            if(!voiceForeground()) return
+            runOnUiThread {
+                if(voiceForeground() && presentation==hostPresentationEpoch) {WakeWordService.stop(this@MainActivity);nativeChat?.offerWakeConversation()}
+            }
+        }
+
+        @JavascriptInterface
+        fun wakeStatus(): String = WakeWordService.statusJson().put("micPermission",
+            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED).toString()
+
+        /** YouTube v2 — innertube JSON + consent cookie fallback (pakka videoId) */
+        // Not exposed to WebView: legacy capability is quarantined.
         fun ytSearch(query: String): String {
             // 1) Innertube ANDROID client — JSON, reliable
             try {
@@ -704,7 +1095,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** CONTACTS ENGINE (Phase 5) */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun contactsSearch(query: String): String {
             return try {
                 if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.READ_CONTACTS)
@@ -765,7 +1156,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** Naam se seedha CALL (bina tap — ACTION_CALL) */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun autoCall(number: String): Boolean {
             return try {
                 if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CALL_PHONE)
@@ -779,7 +1170,7 @@ class MainActivity : AppCompatActivity() {
             }
 
         /** WhatsApp: number + message draft (PK normalization + auto-send flag) */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun openWhatsAppDraft(number: String, text: String, autoSend: Boolean): Boolean {
             return try {
                 var n = number.replace(Regex("[^\\d]"), "")
@@ -793,7 +1184,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** SMS draft (number + text) */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun smsDraft(number: String, text: String): Boolean {
             return try {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(
@@ -804,7 +1195,7 @@ class MainActivity : AppCompatActivity() {
 
         /** Battery shield — unrestricted (background mic kill se bachao) */
         @SuppressLint("BatteryLife")
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun requestBatteryUnrestricted(): Boolean {
             return try {
                 val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
@@ -815,7 +1206,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun batteryUnrestricted(): Boolean {
             return try {
                 val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
@@ -824,7 +1215,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** AutoSend accessibility status + settings kholna */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun accessibilityEnabled(): Boolean {
             return try {
                 val s = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
@@ -836,7 +1227,7 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun deviceBrand(): String = Build.MANUFACTURER ?: "unknown"
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun openAppDetails(): Boolean {
             return try {
                 startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
@@ -845,7 +1236,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun openAccessibilitySettings(): Boolean {
             return try {
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -854,7 +1245,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** FILE MANAGER (Phase 8) — list/open/share */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun listFiles(folder: String): String {
             return try {
                 val f = folder.lowercase().trim()
@@ -894,7 +1285,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { JSONObject().put("error", e.message ?: "x").toString() }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun openFile(uriStr: String, mime: String): Boolean {
             return try {
                 val i = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr)).apply {
@@ -906,7 +1297,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun shareFile(uriStr: String, mime: String): Boolean {
             return try {
                 val i = Intent(Intent.ACTION_SEND).apply {
@@ -919,7 +1310,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun requestFilesPerms(): Boolean {
             return try {
                 val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
@@ -931,7 +1322,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /* ===== QUICK CONTROLS (Phase 9) ===== */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun torch(on: Boolean): Boolean {
             return try {
                 val cm = getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -944,7 +1335,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun volume(pct: Int): Int {
             return try {
                 val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -955,7 +1346,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { -1 }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun brightness(pct: Int): Int {
             return try {
                 if (!Settings.System.canWrite(this@MainActivity)) {
@@ -970,7 +1361,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { -1 }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun lockScreen(): Boolean {
             return try {
                 val svc = com.maya.ai.AutoSendService.instance
@@ -978,22 +1369,22 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun scheduleTask(id: String, delayMs: Long): Boolean =
             try { com.maya.ai.ScheduledReceiver.schedule(this@MainActivity, id, delayMs) } catch (e: Exception) { false }
 
         /* ===== WHATSAPP READER ===== */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun notifHistory(): String =
             try { com.maya.ai.MayaNotifService.historyJson() } catch (e: Exception) { "[]" }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun notifClear() { try { com.maya.ai.MayaNotifService.clear() } catch (e: Exception) {} }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun notifSpeak(on: Boolean) { com.maya.ai.MayaNotifService.speakOn = on }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun notifEnabled(): Boolean {
             return try {
                 val s = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: return false
@@ -1001,14 +1392,14 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun openNotifAccess(): Boolean {
             return try { startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")); true }
             catch (e: Exception) { false }
         }
 
         /* ===== REPLY via notification action (asli auto-reply) ===== */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun notifReply(fromName: String, text: String): Int {
             return try {
                 val nb = com.maya.ai.MayaNotifService.buffer
@@ -1057,7 +1448,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /* ===== CAMERA / VISION ===== */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun takePhoto(): Boolean {
             return try {
                 val dir = cacheDir
@@ -1073,7 +1464,7 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun pickImage(): Boolean {
             return try {
                 val i = Intent(Intent.ACTION_GET_CONTENT)
@@ -1084,7 +1475,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** Universal HTTP (CORS-proof) — backup brains ke liye */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun httpPost(url: String, authHeader: String, body: String): String {
             return try {
                 val conn = URL(url).openConnection() as HttpURLConnection
@@ -1113,34 +1504,77 @@ class MainActivity : AppCompatActivity() {
          * base64 is liye ke jawab mein quotes/newlines JS string ko na toren.
          */
         @JavascriptInterface
-        fun httpPostAsync(url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) {
+        fun httpPostAsync(url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) =
+            httpAsync("POST", url, authHeader, body, reqId, timeoutMs)
+
+        // Not exposed to WebView: legacy capability is quarantined.
+        fun httpGetAsync(url: String, authHeader: String, reqId: String, timeoutMs: Int) =
+            httpAsync("GET", url, authHeader, "", reqId, timeoutMs)
+
+        private fun httpAsync(method: String, url: String, authHeader: String, body: String, reqId: String, timeoutMs: Int) {
+            if (httpClosed) return
+            val talk=reqId.startsWith("ft_")
+            if(!talk) return // No generic JavaScript HTTP proxy; native typed Chat has its own transport.
+            val talkOwner=fishTalkId
+            fun currentTalk()=!talk || (talkOwner!=null && talkOwner==fishTalkId && voiceForeground())
+            if(talk && (!currentTalk() || method!="POST" || !Regex("ft_${talkOwner}_[1-5]").matches(reqId) ||
+                body.toByteArray(Charsets.UTF_8).size>16384 || !com.maya.ai.voice.FishTalkProtocol.allowedUrl(url) || fishTalkRequests.putIfAbsent(reqId,true)!=null)) return
+            val job = com.maya.ai.net.CancelableRequest()
+            if (httpRequests.putIfAbsent(reqId, job) != null) return
+            if (httpClosed || !currentTalk()) { httpRequests.remove(reqId, job); job.cancel(); return }
+            // A suspended WebView must not leave a slow/dripping socket alive indefinitely.
+            val deadline = try {
+                httpDeadlines.schedule(Runnable { job.cancel() }, timeoutMs.coerceIn(1, 25000).toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            } catch (_: java.util.concurrent.RejectedExecutionException) {
+                httpRequests.remove(reqId, job); job.cancel(); return
+            }
             Thread {
                 var code = 0
                 var txt = ""
                 try {
+                    if(!currentTalk()) {job.cancel();return@Thread}
                     val conn = URL(url).openConnection() as HttpURLConnection
-                    conn.requestMethod = "POST"
-                    conn.doOutput = true
-                    conn.connectTimeout = if (timeoutMs > 0) timeoutMs else 12000
-                    conn.readTimeout = if (timeoutMs > 0) timeoutMs else 25000
-                    conn.setRequestProperty("Content-Type", "application/json")
-                    conn.setRequestProperty("Accept", "application/json")
+                    if(talk) conn.setFixedLengthStreamingMode(body.toByteArray(Charsets.UTF_8).size)
+                    if (!job.attach(conn)) return@Thread
+                    conn.requestMethod = method
+                    conn.instanceFollowRedirects = false
+                    conn.doOutput = method == "POST"
+                    conn.connectTimeout = timeoutMs.coerceIn(1, 25000)
+                    conn.readTimeout = timeoutMs.coerceIn(1, 25000)
+                    if (method == "POST") conn.setRequestProperty("Content-Type", "application/json")
+                    conn.setRequestProperty("Accept", if (method == "POST") "application/json" else "*/*")
                     if (authHeader.isNotEmpty()) conn.setRequestProperty("Authorization", authHeader)
-                    conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                    if (job.cancelled) return@Thread
+                    if (method == "POST") conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                     code = conn.responseCode
-                    txt = (if (code in 200..399) conn.inputStream else conn.errorStream)
-                        ?.bufferedReader()?.use { it.readText() } ?: ""
-                    conn.disconnect()
-                } catch (e: Exception) {
-                    code = 0
-                    txt = e.message ?: "network error"
+                    val stream = if (code in 200..399) conn.inputStream else conn.errorStream
+                    txt = stream?.bufferedReader()?.use { reader ->
+                        val out = StringBuilder()
+                        val buffer = CharArray(8192)
+                        while (!job.cancelled) {
+                            val n = reader.read(buffer)
+                            if (n < 0) break
+                            if (out.length + n > (if(reqId.startsWith("ft_")) 65536 else 8_000_000)) throw java.io.IOException("Response too large")
+                            out.append(buffer, 0, n)
+                        }
+                        out.toString()
+                    } ?: ""
+                } catch (_: Exception) {
+                    code = 0; txt = "network error" // Do not return URLs, auth or raw exception text.
+                } finally {
+                    deadline.cancel(false); job.close(); httpRequests.remove(reqId, job)
                 }
-                val b64 = Base64.encodeToString(txt.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-                evalAsync("window.__httpDone && window.__httpDone('" + jsEscape(reqId) + "'," + code + ",'" + b64 + "')")
+                if (!job.cancelled) {
+                    val b64 = Base64.encodeToString(txt.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+                    evalAsync("window.__httpDone && window.__httpDone('" + jsEscape(reqId) + "'," + code + ",'" + b64 + "')")
+                }
             }.start()
         }
 
         @JavascriptInterface
+        fun cancelHttpPost(reqId: String) {if(reqId.startsWith("ft_")) httpRequests.remove(reqId)?.cancel()}
+
+        // Not exposed to WebView: legacy capability is quarantined.
         fun httpGet(url: String, authHeader: String): String {
             return try {
                 val conn = URL(url).openConnection() as HttpURLConnection
@@ -1173,7 +1607,7 @@ class MainActivity : AppCompatActivity() {
          *
          *   window.__binDone(reqId, status, base64Body, contentType, errText)
          */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun httpBytes(method: String, url: String, headersJson: String, body: String, reqId: String, timeoutMs: Int) {
             Thread {
                 var code = 0
@@ -1240,7 +1674,7 @@ class MainActivity : AppCompatActivity() {
          * JS bas SSML banata hai; hum MP3 bytes base64 kar ke wapas dete hain:
          *     window.__edgeDone(reqId, ok, base64Mp3OrError)
          */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun edgeTts(ssml: String, reqId: String, timeoutMs: Int) {
             Thread {
                 var ok = false
@@ -1260,7 +1694,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** Edge TTS ki poori awaaz list (JSON) — key ki zaroorat nahi. */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun edgeVoices(): String = try {
             val u = "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list" +
                 "?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F4"
@@ -1284,7 +1718,7 @@ class MainActivity : AppCompatActivity() {
          * SIRF PARHTA HAI. Kuch chhuta nahi, kuch dabata nahi.
          * Accessibility service band ho to saaf keh deta hai — jhoot nahi.
          */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun uiDump(max: Int): String {
             return try {
                 val svc = com.maya.ai.AutoSendService.instance
@@ -1304,7 +1738,7 @@ class MainActivity : AppCompatActivity() {
            saare guards MayaAct mein hain (blocked apps, sensitive fields,
            rate/attempts/timeout, touch-abort, kill-switch). */
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun mayaAct(json: String): String {
             return try {
                 MayaAct.enqueue(this@MainActivity, JSONObject(json))
@@ -1316,23 +1750,23 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun mayaStop() {
             try { MayaAct.killAll(this@MainActivity) } catch (e: Exception) {}
         }
 
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun mayaStatus(): String = try { MayaAct.status() } catch (e: Exception) { "{}" }
 
         /** Persistent prefs (boot autostart wake) */
         @JavascriptInterface
-        fun setPref(k: String, v: Boolean) { try { prefs().edit().putBoolean(k, v).apply() } catch (e: Exception) {} }
+        fun setPref(k: String, v: Boolean) { if(!voiceForeground() || !workspaceSettingsOpen || !LegacyCapabilities.booleanSetting(k)) return; try { prefs().edit().putBoolean(k, v).apply() } catch (e: Exception) {} }
 
         @JavascriptInterface
-        fun getPref(k: String): Boolean = try { prefs().getBoolean(k, false) } catch (e: Exception) { false }
+        fun getPref(k: String): Boolean = try { if(k=="wake" || LegacyCapabilities.booleanSetting(k)) prefs().getBoolean(k, false) else false } catch (e: Exception) { false }
 
         @JavascriptInterface
-        fun getPrefString(k: String): String = try { prefs().getString(k, "") ?: "" } catch (e: Exception) { "" }
+        fun getPrefString(k: String): String = try { if(k in setOf("wake_lang","mic_zoom")) prefs().getString(k, "") ?: "" else "" } catch (e: Exception) { "" }
 
         /**
          * 🩺 KAAN DOCTOR (P8b) — kaan ka poora haal, andaza nahi.
@@ -1384,7 +1818,7 @@ class MainActivity : AppCompatActivity() {
          * 🧪 MIC TEST (P8c) — kamre ka shor, aap ki awaaz, farq (SNR),
          * aur kaunsa effect is device par SACH MEIN chala.
          */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun micTest(ms: Int, zoom: Double): String {
             if (ContextCompat.checkSelfPermission(
                     this@MainActivity, Manifest.permission.RECORD_AUDIO
@@ -1399,6 +1833,7 @@ class MainActivity : AppCompatActivity() {
         /** Zaroori settings ke seedhe darwaze (menu mein bhatakna khatam) */
         @JavascriptInterface
         fun openSetting(which: String): Boolean {
+            if(!voiceForeground() || !workspaceSettingsOpen || which !in setOf("ondevice","voice","input")) return false
             /* v5.9.4 — ON-DEVICE zubaan ka asli darwaza. Doctor ka text "[ON-DEVICE]
                dabao" kehta tha magar aisa button kahin THA HI NAHI (sirf likha tha) —
                user dhoondhta reh jata. Ab ASLI button ye chain kholta hai:
@@ -1441,14 +1876,15 @@ class MainActivity : AppCompatActivity() {
         /** v5.7.0 — wake word ki zubaan JS se service tak pohanchane ke liye */
         @JavascriptInterface
         fun setPrefString(k: String, v: String) {
+            if(!voiceForeground() || !workspaceSettingsOpen || !LegacyCapabilities.stringSetting(k,v)) return
             try { prefs().edit().putString(k, v).apply() } catch (e: Exception) {}
         }
 
         @JavascriptInterface
-        fun clearPref(k: String) { try { prefs().edit().remove(k).apply() } catch (e: Exception) {} }
+        fun clearPref(k: String) { if(!voiceForeground() || !workspaceSettingsOpen || k !in setOf("sukoon","mic_near","wake_lang","mic_zoom")) return; try { prefs().edit().remove(k).apply() } catch (e: Exception) {} }
 
         /** Auto-listen mode — screen jagti rahe */
-        @JavascriptInterface
+        // Not exposed to WebView: legacy capability is quarantined.
         fun keepScreenOn(on: Boolean) {
             runOnUiThread {
                 if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -1463,40 +1899,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun prefs() = getSharedPreferences("maya", Context.MODE_PRIVATE)
 
-    /* ═══ Issue 1: LISTENER NEVER DIES ═══
-       Tecno/HiOS background mic services ko maar deta hai. Pehle wake service
-       sirf tab start hoti thi jab user switch dabata tha. Ab: har app-open par,
-       agar saved pref kehti hai wake ON tha, to service dobara start + battery
-       whitelist ka nudge (ek dialog, sirf jab exemption abhi nahi mili). */
+    /** Recheck the saved switch at execution time; never move the Activity away
+     * from the foreground to show battery settings while acquiring its mic. */
     private fun ensureWakeAlive() {
-        try {
-            if (!prefs().getBoolean("wake", false)) return
-            /* wake-regression: 1.5s par JS apna boot-start khud karta hai
-               (index.html INIT -> setWakeService(true)). 2.5s par start karte
-               hain taake WebView ke pehle mic session (greeting/HAAL) se
-               double-start ka shor na ho. */
-            android.os.Handler(Looper.getMainLooper()).postDelayed({
-                try {
-                    if (WakeWordService.instance == null) WakeWordService.start(this@MainActivity)
-                    /* wake-regression: battery dialog har app-open par Nahi —
-                       sirf PEHLI dafa (pref flag). Har khulne par system dialog
-                       foreground mic session ko disturb karta tha. */
-                    val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                    if (!pm.isIgnoringBatteryOptimizations(packageName) &&
-                        !prefs().getBoolean("bat_asked", false)
-                    ) {
-                        prefs().edit().putBoolean("bat_asked", true).apply()
-                        try {
-                            Toast.makeText(this@MainActivity,
-                                "Listener hamesha zinda rakhne ke liye battery optimization OFF karo \uD83D\uDD0B",
-                                Toast.LENGTH_LONG).show()
-                            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                Uri.parse("package:" + packageName)))
-                        } catch (e: Exception) {}
-                    }
-                } catch (e: Exception) {}
-            }, 2500)
-        } catch (e: Exception) {}
+        if (!prefs().getBoolean("wake", false)) return
+        android.os.Handler(Looper.getMainLooper()).postDelayed({
+            if (!prefs().getBoolean("wake", false) || isFinishing || isDestroyed) return@postDelayed
+            if (WakeWordService.instance == null) WakeWordService.start(this@MainActivity)
+        }, 2500)
     }
 
     private fun evalAsync(js: String) {
@@ -1518,9 +1928,11 @@ class MainActivity : AppCompatActivity() {
        Aur jo chala, uska naam yaad rakha jata hai — DOCTOR usay dikhata hai.
        ═══════════════════════════════════════════════════════════════════ */
     var lastRecognizerKind: String = "-"
+    private var preferredOnDevice=true
 
-    fun makeRecognizer(): SpeechRecognizer {
-        if (Build.VERSION.SDK_INT >= 31) {
+    fun makeRecognizer(preferOnDevice: Boolean = preferredOnDevice): SpeechRecognizer {
+        preferredOnDevice=preferOnDevice
+        if (preferOnDevice && Build.VERSION.SDK_INT >= 31) {
             try {
                 if (SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {
                     lastRecognizerKind = "on-device"
@@ -1567,21 +1979,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestNeededPermissions() {
-        val wanted = mutableListOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_CONTACTS, Manifest.permission.CALL_PHONE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-            wanted.add(Manifest.permission.POST_NOTIFICATIONS)
-        val need = wanted.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-        if (need.isNotEmpty())
-            ActivityCompat.requestPermissions(this, need.toTypedArray(), REQ_PERMS)
-    }
-
     private fun requestMicPermission() {
-        ActivityCompat.requestPermissions(
-            this, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_PERMS
-        )
+        runOnUiThread {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_PERMS)
+        }
     }
 
     private fun requestNotificationPermission() {

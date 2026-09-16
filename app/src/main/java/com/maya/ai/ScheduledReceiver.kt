@@ -9,6 +9,7 @@ import android.content.Intent
 /** MAYA Scheduler (Phase 9) — time par khud kaam */
 class ScheduledReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if(!LegacyCapabilities.scheduledActions) return
         val id = intent.getStringExtra("id") ?: return
         try {
             val act = MainActivity.instance
@@ -42,6 +43,7 @@ class ScheduledReceiver : BroadcastReceiver() {
 
     companion object {
         fun schedule(ctx: Context, id: String, delayMs: Long): Boolean {
+            if(!LegacyCapabilities.scheduledActions) return false
             return try {
                 val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
                 val pi = PendingIntent.getBroadcast(

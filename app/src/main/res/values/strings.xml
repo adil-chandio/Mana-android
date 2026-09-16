@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">MAYA</string>
     <string name="autosend_desc">MAYA AutoSend: jab Maya WhatsApp message draft kare to khud send dabati hai. Sirf WhatsApp ke send button tak limited.</string>
+    <string name="browser_navigation_description">Maya reviewed browser navigation: only explicitly approved public-page OPEN and SCROLL plans in a selected supported browser. No idle screen collection, page-text upload, taps, typing, messages, installs or payments. Persistent STOP notification required.</string>
+    <string name="browser_navigation_label">Maya reviewed browser navigation</string>
 </resources>

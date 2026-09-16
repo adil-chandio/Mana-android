@@ -24,6 +24,7 @@ class MayaNotifService : NotificationListenerService() {
         val buffer = Collections.synchronizedList(mutableListOf<JSONObject>())
 
         fun historyJson(): String {
+            if(!LegacyCapabilities.notifications) return "[]"
             return try {
                 val arr = JSONArray()
                 synchronized(buffer) {
@@ -48,9 +49,7 @@ class MayaNotifService : NotificationListenerService() {
 
     override fun onCreate() {
         super.onCreate()
-        try {
-            tts = TextToSpeech(this) { st -> ttsReady = st == TextToSpeech.SUCCESS }
-        } catch (e: Exception) {}
+        clear();speakOn=false // Retired listener must not collect text or initialize device TTS.
     }
 
     override fun onDestroy() {
@@ -59,6 +58,7 @@ class MayaNotifService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        if(!LegacyCapabilities.notifications) return
         if (sbn == null) return
         val pkg = sbn.packageName ?: return
         if (pkg != "com.whatsapp" && pkg != "com.whatsapp.w4b" && pkg != "com.telegram.messenger") return

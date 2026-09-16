@@ -9,3 +9,13 @@ captures/
 .externalNativeBuild/
 .cxx/
 node_modules/
+
+# Generated installers and private signing material
+*.apk
+*.aab
+*.jks
+*.p12
+*.pem
+*.key
+*.keystore
+!app/maya.keystore

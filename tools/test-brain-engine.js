@@ -357,20 +357,20 @@ const errBody = (status, message, extra = {}) => ({ error: Object.assign({ code:
     is(/baj rahe hain/.test(state.replies[0] || ''), 'sab brain fail hone par bhi kaam ka jawab mila', (state.replies[0] || '').slice(0, 40));
   }
 
-  /* ─── AUTO-RETRY ─── */
-  head('11. AUTO-RETRY — sirf waqti masle par');
+  /* ─── EXPLICIT RETRY ONLY ─── */
+  head('11. EXPLICIT RETRY — failures are notices, never scheduled actions');
   {
     const { w, state } = makeWorld({ settings: { apikey: 'K' }, plan: () => ({ status: 401, body: errBody(401, 'API key not valid') }) });
     w.askAI._retried = false;
     await w.askAI(false);
     is(state.toasts.filter(t => /dobara try/.test(t)).length === 0, 'key kharab hai to bekaar 45s intezaar nahi karati');
-    is(state.replies.length === 1, 'foran sach bata deti hai');
+    is(state.replies.length === 0 && state.toasts.some(t => /no automatic retry/.test(t)), 'failure shown separately from model answers');
   }
   {
     const { w, state } = makeWorld({ settings: { apikey: 'K' }, plan: () => ({ status: 503, body: errBody(503, 'overloaded') }) });
     w.askAI._retried = false;
     await w.askAI(false);
-    is(state.toasts.some(t => /dobara try/.test(t)), 'server down par khud dobara koshish schedule hoti hai', state.toasts[0]);
+    is(state.toasts.some(t => /no automatic retry/.test(t)) && !state.toasts.some(t => /KHUD dobara/.test(t)), 'server failure asks for explicit retry, no background action', state.toasts[0]);
   }
   {
     /* asal masla "Groq key nahi hai" jaisi mamooli baat mein dab na jaye */

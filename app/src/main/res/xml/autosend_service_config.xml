@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
+<!-- Current policy: retired and disabled; do not re-enable this legacy service.
+
   MAYA — Accessibility service ka config
 
   v5.6.0 (P7a) mein teen cheezein badli gayin:
@@ -21,8 +22,8 @@
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeTouchInteractionStart"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault|flagReportViewIds"
+    android:accessibilityFlags="flagDefault"
     android:notificationTimeout="120"
-    android:canRetrieveWindowContent="true"
-    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="false"
+    android:canPerformGestures="false"
     android:description="@string/autosend_desc" />
