@@ -19,13 +19,16 @@ class ResearchBackendTest {
         val context=RuntimeEnvironment.getApplication()
         val prefs=context.getSharedPreferences("maya",Context.MODE_PRIVATE)
         prefs.edit().putBoolean("wake",true).commit()
+        // A saved flag is not a live owner. Supply an actual service-present fixture without starting capture.
+        val previous=com.maya.ai.WakeWordService.instance
+        com.maya.ai.WakeWordService.instance=org.robolectric.Robolectric.buildService(com.maya.ai.WakeWordService::class.java).get()
         try {
             var result: ResearchBackend.TextFailure?=null
             ResearchBackend(context).text("SYNTHETIC_GOAL") {text,error -> assertNull(text);result=error}
             shadowOf(Looper.getMainLooper()).idle()
             assertEquals(ResearchBackend.TextFailure.LOCAL_NOT_READY,result)
             assertTrue(prefs.getBoolean("wake",false))
-        } finally {prefs.edit().clear().commit()}
+        } finally {com.maya.ai.WakeWordService.instance=previous;prefs.edit().clear().commit()}
     }
     @Test fun cancelBeforeDeferredReadinessNeverDeliversOrSigns() {
         var calls=0

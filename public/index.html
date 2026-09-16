@@ -1421,8 +1421,8 @@ window.__mayaWorkspaceSettings = function (expanded) {
     ["readerBtn","fishLib","fishPyari","fishTest","fishDoctor","edgeTest","testVoice","awaazDoctor","testKeys","diagBtn","batShield","asStep1","asStep2","asStep3","autoSendBtn","labMicTest","setBatt","labNazarTest","labHarvest","labDiag"].forEach(function(id){
       var control=document.getElementById(id);if(control){control.disabled=true;control.style.display="none";control.setAttribute("aria-hidden","true");}
     });
-    ["sAuto","sProactive","sNotifSpeak","sVoiceEngine","sEdgeTTS"].forEach(function(id){
-      var el=document.getElementById(id); if(el){el.disabled=true;var row=el.closest && el.closest(".ui-row");if(row)row.style.display="none";}
+    ["sAuto","sProactive","sNotifSpeak","sVoiceEngine","sEdgeTTS","sGVoice","sEdgeVoice","sVoice","sPitch","sTtsKey"].forEach(function(id){
+      var el=document.getElementById(id); if(el){el.disabled=true;var row=el.closest && el.closest(".ui-row, .ui-field");if(row)row.style.display="none";}
     });
   }
   if (!window.__mayaWorkspaceMount()) return false;

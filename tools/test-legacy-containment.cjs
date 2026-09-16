@@ -12,6 +12,16 @@ function context(code,s={}){s.window=s;vm.createContext(s);vm.runInContext(code,
    assert(!c.includes('unsafe-eval'));assert(w.nativeLegacyRestricted());
   } finally {d.window.close();}
  });
+ await test('native settings hides retired controls without rewriting selected values',()=>{
+  const d=new JSDOM(html,{runScripts:'outside-only',url:'https://appassets.androidplatform.net/assets/web/index.html'});
+  try {const w=d.window;w.MayaBridge={legacyRestricted:()=>true};w.scrollTo=()=>{};w.nativeLegacyRestricted=()=>true;
+   const before=[...w.document.querySelectorAll('input,select')].map(el=>[el,el.value,el.checked]);
+   w.eval(html.match(/\/\* PERMANENT_WORKSPACE_START[\s\S]*?\*\/([\s\S]*?)\/\* PERMANENT_WORKSPACE_END \*\//)[1]);
+   assert(w.__mayaWorkspaceSettings(true));
+   for(const id of ['sVoiceEngine','sGVoice','sEdgeVoice','sVoice','autoSendBtn','readerBtn','fishTest']) assert(w.document.getElementById(id).disabled,id);
+   for(const [el,value,checked] of before){assert.equal(el.value,value);assert.equal(el.checked,checked);}
+  } finally {d.window.close();}
+ });
  await test('zero numeric settings survive the actual collector',()=>{
   const a=html.indexOf('  collect: function () {'),b=html.indexOf('  /* ---------- galat khane',a);
   const s=context('var SETFORM={'+html.slice(a,b)+'};',{settings:{},SET_FIELDS:[{id:'door',key:'wakeDoor',t:'num',def:15},{id:'zoom',key:'micZoom',t:'num',def:.8}],document:{getElementById:()=>({value:'0'})}});

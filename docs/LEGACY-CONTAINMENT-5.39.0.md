@@ -47,7 +47,7 @@ FISH.native recognizes the dedicated Talk interface even though the old generic 
 
 ## Verification scope
 
-Added9 native containment/policy/service tests parameterized for API28 and34, plus4 Main surface/lifecycle/URI/resource tests. Added10 controlled JS containment tests and5 Talk parser/onset/error cases. Existing legacy helper tests are explicitly historical/mock semantics, not current native capability or physical-safety proof; two obsolete Vision assertions now verify no upload.
+Added9 native containment/policy/service tests parameterized for API28 and34, plus4 Main surface/lifecycle/URI/resource tests. Added11 controlled JS containment tests and5 Talk parser/onset/error cases. Existing legacy helper tests are explicitly historical/mock semantics, not current native capability or physical-safety proof; two obsolete Vision assertions now verify no upload.
 
 Tests cover exact annotated exports, disabled components, retired permissions, no revived timestamp-based autosend, denied queue/screen/gesture calls, no notification text/TTS collection, no scheduled actions, cache-provider narrowing, exact trusted documents, host-epoch callback/timeout settlement, unowned HTTP/mic denial, native CSP configuration, secret-free export retirement, no Vision POSTs, no unsafe fallback code execution, zero roundtrips and Fish-only active paths.
 
