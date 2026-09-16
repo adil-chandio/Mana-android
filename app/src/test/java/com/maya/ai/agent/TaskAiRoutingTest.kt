@@ -34,7 +34,7 @@ class TaskAiRoutingTest {
             return object: Call {
                 override fun request()=request
                 override fun execute()=Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("synthetic")
-                    .header("Content-Type","application/json").body(""""{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"WIKI Dog"}}]}"""".toResponseBody()).build()
+                    .header("Content-Type","application/json").body("""{"choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"WIKI Dog"}}]}""".toResponseBody()).build()
                 override fun enqueue(responseCallback: Callback) {error("No async fake")}
                 override fun cancel() {}
                 override fun isExecuted()=true
