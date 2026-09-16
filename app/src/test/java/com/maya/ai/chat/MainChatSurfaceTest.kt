@@ -672,6 +672,8 @@ class MainChatSurfaceTest {
         talkScripts.clear()
         val original=web
         val fake=object : WebView(a) {
+            // This replacement is not attached to a Window; model the real host's UI queue explicitly.
+            override fun post(action: Runnable): Boolean=android.os.Handler(Looper.getMainLooper()).post(action)
             override fun evaluateJavascript(script: String,callback: android.webkit.ValueCallback<String>?) {
                 talkScripts.add(script)
                 when {
