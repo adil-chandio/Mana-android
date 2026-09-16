@@ -12,13 +12,13 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.maya.ai.MainActivity
 
-/** Explicit native plan only. No JS interface, AI/network, screenshots, node-text dump or persistent grant. */
-class BrowserNavigationService: AccessibilityService() {
+/** Explicit native plan only: OPEN one wa.me chat, TYPE reviewed text once. No SEND, click, gesture or chat read. */
+class WhatsAppTypeService: AccessibilityService() {
     companion object {
-        @Volatile var instance: BrowserNavigationService?=null;private set
-        @Volatile var lastReport="No browser navigation run recorded in this process.";private set
-        private const val CHANNEL="maya_reviewed_navigation"
-        private const val NOTIFICATION=4201
+        @Volatile var instance: WhatsAppTypeService?=null;private set
+        @Volatile var lastReport="No WhatsApp type run recorded in this process.";private set
+        private const val CHANNEL="maya_reviewed_whatsapp"
+        private const val NOTIFICATION=4202
         fun notificationsReady(context: Context): Boolean {
             if(!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
             val channel=context.getSystemService(NotificationManager::class.java).getNotificationChannel(CHANNEL)
@@ -27,28 +27,30 @@ class BrowserNavigationService: AccessibilityService() {
     }
     private val handler=Handler(Looper.getMainLooper())
     private var runId: String?=null
-    private var currentPlan: BrowserNavigationPlan?=null
+    private var currentPlan: WhatsAppTypePlan?=null
     private var beganElapsed=0L
     private var beganUptime=0L
     private var lastContentEvent=0L
     private val screenOff=object: BroadcastReceiver() {override fun onReceive(context: Context,intent: Intent) {runner.stop()}}
-    private val runner: BrowserNavigationRun by lazy {BrowserNavigationRun(object: BrowserNavigationRun.Port {
-        override fun available()=instance===this@BrowserNavigationService && notificationsReady(this@BrowserNavigationService) &&
+    private val runner: WhatsAppTypeRun by lazy {WhatsAppTypeRun(object: WhatsAppTypeRun.Port {
+        override fun available()=instance===this@WhatsAppTypeService && notificationsReady(this@WhatsAppTypeService) &&
             !(getSystemService(KEYGUARD_SERVICE) as KeyguardManager).isKeyguardLocked && (getSystemService(POWER_SERVICE) as PowerManager).isInteractive &&
             (runId==null || SystemClock.elapsedRealtime()-beganElapsed in 0 until 60000)
-        override fun open(plan: BrowserNavigationPlan): Boolean=try {
-            startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(plan.url)).setPackage(plan.browser.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));true
+        override fun open(plan: WhatsAppTypePlan): Boolean=try {
+            startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(plan.url)).setPackage(WhatsAppTypePlan.PACKAGE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));true
         } catch(_: Exception) {false}
-        override fun scroll(down: Boolean): Boolean {
-            val plan=currentPlan ?: return false
+        override fun type(payload: String): Boolean {
+            currentPlan ?: return false
             val root=rootInActiveWindow ?: return false
             return try {
                 val observation=observeRoot(root,false,SystemClock.uptimeMillis())
-                if(observation.packageName!=plan.browser.packageName || observation.sensitive || !plan.acceptsAddress(observation.address)) return false
-                val candidates=mutableListOf<AccessibilityNodeInfo>();var visited=0
+                if(observation.packageName!=WhatsAppTypePlan.PACKAGE || observation.sensitive) return false
+                val candidates=mutableListOf<AccessibilityNodeInfo>();var visited=0;var passwordSeen=false
                 fun walk(node: AccessibilityNodeInfo,depth: Int) {
-                    if(++visited>128 || depth>20 || node.isPassword) return
-                    if(node.isVisibleToUser && node.isScrollable) candidates.add(AccessibilityNodeInfo.obtain(node))
+                    if(++visited>128 || depth>20) return
+                    if(node.isPassword) {passwordSeen=true;return}
+                    if(node.isVisibleToUser && node.isEditable && node.className?.toString()?.endsWith("EditText")==true)
+                        candidates.add(AccessibilityNodeInfo.obtain(node))
                     if(node.childCount>128-visited) {visited=129;return}
                     for(i in 0 until node.childCount) {
                         if(visited>128) break
@@ -57,8 +59,15 @@ class BrowserNavigationService: AccessibilityService() {
                 }
                 try {
                     walk(root,0)
-                    if(visited>128 || candidates.size!=1) false
-                    else candidates.single().performAction(if(down) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+                    if(passwordSeen || visited>128 || candidates.size!=1) false
+                    else {
+                        val target=candidates.single()
+                        // Never overwrite an existing user draft. Emptiness is checked transiently:
+                        // the content is never stored, logged, returned or uploaded.
+                        if(!target.text.isNullOrEmpty()) false
+                        else target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT,
+                            Bundle().apply {putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,payload)})
+                    }
                 } finally {candidates.forEach {it.recycle()}}
             } catch(_: Exception) {false} finally {root.recycle()}
         }
@@ -66,9 +75,8 @@ class BrowserNavigationService: AccessibilityService() {
     override fun onServiceConnected() {super.onServiceConnected();instance=this}
     override fun onCreate() {
         super.onCreate()
-        // Robolectric does not shadow the 5-arg framework registerReceiver below API 33
-        // (ContextCompat takes that path on API 26+), so register by platform level:
-        // the explicit NOT_EXPORTED flag where the platform requires it, plain below.
+        // Same platform-level registration as the browser service: Robolectric does not
+        // shadow the 5-arg framework call below API 33, and the flag is required above.
         val filter=IntentFilter(Intent.ACTION_SCREEN_OFF)
         if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU)
             ContextCompat.registerReceiver(this,screenOff,filter,ContextCompat.RECEIVER_NOT_EXPORTED)
@@ -80,11 +88,11 @@ class BrowserNavigationService: AccessibilityService() {
     }
     override fun onInterrupt() {runner.stop()}
     fun owned(id: String)=runId==id && runner.busy
-    fun start(id: String,plan: BrowserNavigationPlan,grant: BrowserNavigationGrant): Boolean {
+    fun start(id: String,plan: WhatsAppTypePlan,grant: WhatsAppTypeGrant): Boolean {
         check(Looper.myLooper()==Looper.getMainLooper())
         if(runner.busy || !Regex("[a-f0-9]{32}").matches(id)) {grant.revoke();return false}
         val nm=getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL,"Maya reviewed browser tasks",NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL,"Maya reviewed WhatsApp tasks",NotificationManager.IMPORTANCE_LOW))
         if(!notificationsReady(this)) {grant.revoke();return false}
         runId=id;currentPlan=plan;beganElapsed=SystemClock.elapsedRealtime();beganUptime=SystemClock.uptimeMillis()
         return runner.start(plan,grant)
@@ -94,11 +102,11 @@ class BrowserNavigationService: AccessibilityService() {
         if(instance!==this) return
         lastReport=runner.report();val id=runId ?: return
         val open=PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val stop=PendingIntent.getBroadcast(this,0,Intent(this,BrowserNavigationStopReceiver::class.java)
-            .setData(Uri.parse("maya-navigation://stop/$id")).putExtra("id",id),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val stop=PendingIntent.getBroadcast(this,0,Intent(this,WhatsAppTypeStopReceiver::class.java)
+            .setData(Uri.parse("maya-whatsapp://stop/$id")).putExtra("id",id),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification=NotificationCompat.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.ic_menu_compass)
-            .setContentTitle(if(runner.busy) "Maya browser task · STOP available" else "Maya browser task · ${runner.state.name}")
-            .setContentText("${runner.verified} steps verified · open/scroll only").setContentIntent(open)
+            .setContentTitle(if(runner.busy) "Maya WhatsApp task · STOP available" else "Maya WhatsApp task · ${runner.state.name}")
+            .setContentText("open/type once · you press SEND").setContentIntent(open)
             .setOngoing(runner.busy).setAutoCancel(!runner.busy).setOnlyAlertOnce(true)
         if(runner.busy) notification.addAction(0,"STOP",stop)
         runCatching {getSystemService(NotificationManager::class.java).notify(NOTIFICATION,notification.build())}
@@ -113,14 +121,13 @@ class BrowserNavigationService: AccessibilityService() {
         }
         val root=runCatching {rootInActiveWindow}.getOrNull() ?: return
         try {
-            val observation=observeRoot(root,event.eventType==AccessibilityEvent.TYPE_VIEW_SCROLLED,event.eventTime)
+            val observation=observeRoot(root,event.eventType==AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,event.eventTime)
             runner.observe(observation)
         } catch(_: Exception) {runner.stop()} finally {root.recycle()}
     }
-    private fun observeRoot(root: AccessibilityNodeInfo,scrolled: Boolean,time: Long): BrowserNavigationRun.Observation {
+    private fun observeRoot(root: AccessibilityNodeInfo,typed: Boolean,time: Long): WhatsAppTypeRun.Observation {
         val pkg=root.packageName?.toString() ?: ""
-        val plan=currentPlan
-        if(plan==null || pkg!=plan.browser.packageName) return BrowserNavigationRun.Observation(pkg,null,false,false,time)
+        if(pkg!=WhatsAppTypePlan.PACKAGE) return WhatsAppTypeRun.Observation(pkg,false,false,time)
         var sensitive=false;var visited=0
         fun scan(node: AccessibilityNodeInfo,depth: Int) {
             if(sensitive || ++visited>128 || depth>20) {sensitive=true;return}
@@ -131,19 +138,14 @@ class BrowserNavigationService: AccessibilityService() {
             }
         }
         runCatching {scan(root,0)}.onFailure {sensitive=true}
-        if(sensitive) return BrowserNavigationRun.Observation(pkg,null,true,false,time)
-        val address=runCatching {
-            val bars=root.findAccessibilityNodeInfosByViewId("$pkg:id/url_bar")
-            try {if(bars.size!=1 || bars[0].isPassword) null else bars[0].text?.toString()?.takeIf {it.length<=1024}} finally {bars.forEach {it.recycle()}}
-        }.getOrNull()
-        // Only address-bar routing metadata is read. No document text, input values or screenshots.
-        return BrowserNavigationRun.Observation(pkg,address,false,scrolled,time)
+        // Only package routing and structural flags are observed. No chat text, contact names or screenshots.
+        return WhatsAppTypeRun.Observation(pkg,sensitive,typed && !sensitive,time)
     }
 }
 
-class BrowserNavigationStopReceiver: BroadcastReceiver() {
+class WhatsAppTypeStopReceiver: BroadcastReceiver() {
     override fun onReceive(context: Context,intent: Intent) {
         val id=intent.getStringExtra("id") ?: return
-        if(Regex("[a-f0-9]{32}").matches(id)) BrowserNavigationService.instance?.stop(id)
+        if(Regex("[a-f0-9]{32}").matches(id)) WhatsAppTypeService.instance?.stop(id)
     }
 }

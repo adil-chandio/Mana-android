@@ -4,4 +4,6 @@
     <string name="autosend_desc">MAYA AutoSend: jab Maya WhatsApp message draft kare to khud send dabati hai. Sirf WhatsApp ke send button tak limited.</string>
     <string name="browser_navigation_description">Maya reviewed browser navigation: only explicitly approved public-page OPEN and SCROLL plans in a selected supported browser. No idle screen collection, page-text upload, taps, typing, messages, installs or payments. Persistent STOP notification required.</string>
     <string name="browser_navigation_label">Maya reviewed browser navigation</string>
+    <string name="whatsapp_type_description">Maya reviewed WhatsApp type: only an explicitly approved chat OPEN plus one TYPE of your exact reviewed text. Never presses SEND — you check the chat and send it yourself. Never overwrites an existing draft. No idle screen collection, chat reading, taps, other apps or payments. Persistent STOP notification required.</string>
+    <string name="whatsapp_type_label">Maya reviewed WhatsApp type</string>
 </resources>

@@ -888,6 +888,21 @@ class MainChatSurfaceTest {
         assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
         assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
     }
+    @Test fun whatsappTaskUsesPermanentWorkspaceAndCannotRunBeforeSetupAndReview() {
+        val surface=field<View>("nativeChatView")
+        local<android.widget.Spinner>("modePicker").setSelection(1);shadowOf(Looper.getMainLooper()).idle()
+        local<android.widget.Spinner>("agentKind").setSelection(3);shadowOf(Looper.getMainLooper()).idle()
+        local<EditText>("draft").setText("OPEN https://wa.me/923001234567\nTYPE Salam")
+        local<Button>("send").performClick();shadowOf(Looper.getMainLooper()).idle()
+        val tasks=local<List<com.maya.ai.agent.WorkspaceTask>>("agentCards")
+        assertEquals(1,tasks.size);assertTrue(tasks[0] is com.maya.ai.agent.InlineWhatsAppType)
+        assertSame(surface,field<View>("nativeChatView"));assertFalse(tasks[0].approved);assertFalse(tasks[0].busy)
+        assertFalse(button("Run approved WhatsApp type").isEnabled)
+        button("Review WhatsApp message").performClick();assertFalse(tasks[0].approved)
+        assertNull(shadowOf(a).nextStartedActivity);assertNull(com.maya.ai.agent.WhatsAppTypeService.instance)
+        assertFalse(local<Lazy<*>>("transport\$delegate").isInitialized())
+        assertFalse(local<Lazy<*>>("configuredTransport\$delegate").isInitialized())
+    }
     @Test fun cloudflareIdentityPanelIsNotShownAndNormalConnectionHasNoEnableRoute() {
         assertTrue(local<Boolean>("useConfiguredChat"));assertFalse(local<Boolean>("cloudflareReviewed"))
         val panel=a.findViewById<ViewGroup>(android.R.id.content).findViewWithTag<View>("parked_cloudflare_controls")

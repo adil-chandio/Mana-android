@@ -473,7 +473,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun removeTask(task: com.maya.ai.agent.WorkspaceTask) {
         if(!visible || section!=0 || anyBusy || task !in agentCards) return
         task.dismissReview();val revision=task.reviewRevision
-        confirm("Remove this ${if(task is com.maya.ai.agent.InlineBuildTurn) "Builder" else if(task is com.maya.ai.agent.InlineBrowserNavigation) "Browser navigation" else "Research"} task?",
+        confirm("Remove this ${if(task is com.maya.ai.agent.InlineBuildTurn) "Builder" else if(task is com.maya.ai.agent.InlineBrowserNavigation) "Browser navigation" else if(task is com.maya.ai.agent.InlineWhatsAppType) "WhatsApp type" else "Research"} task?",
             "Discard this task's local code/checkpoints, results, proposal, preview and approval, and free one task slot. Other tasks, Direct messages, draft and saved snapshots stay. Save current Builder code first if needed. This does not delete provider records or guarantee remote cancellation.") {
             if(visible && section==0 && !anyBusy && task in agentCards && task.reviewRevision==revision) {
                 // Keep its capacity occupied until disposal really returns; a failure does not admit a replacement.
@@ -669,7 +669,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         controls.addView(modePicker,LinearLayout.LayoutParams(0,dp(48),1f))
         agentKind=Spinner(this).apply {
             tag="agent_kind";isSaveEnabled=false;setPadding(0,0,0,0)
-            adapter=choiceAdapter(listOf("Research", "Build page", "Browser navigation"));contentDescription="Agent task: public research or static page Builder"
+            adapter=choiceAdapter(listOf("Research", "Build page", "Browser navigation", "WhatsApp type"));contentDescription="Agent task: public research or static page Builder"
             filterTouchesWhenObscured=true;background=MayaTheme.shape(this@NativeChatWorkspace,MayaTheme.surface,10,false)
             controls.addView(this,LinearLayout.LayoutParams(0,dp(48),1f))
             onItemSelectedListener=object : AdapterView.OnItemSelectedListener {
@@ -834,6 +834,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         val oldVoice=menuPanel.getChildAt(menuPanel.childCount-1).takeIf {voiceSurface!=null}
         if(oldVoice!=null) {menuPanel.removeView(oldVoice);settingsHome.addView(oldVoice)}
         settingsHome.addView(actionButton("Latest browser task report") {confirm("Browser navigation report",com.maya.ai.agent.BrowserNavigationService.lastReport) {}})
+        settingsHome.addView(actionButton("Latest WhatsApp task report") {confirm("WhatsApp type report",com.maya.ai.agent.WhatsAppTypeService.lastReport) {}})
         settingsHome.addView(actionButton("Saved work & backups") {navigateSettings(5)}.apply {tag="open_saved_work"})
         val detailButtons=mutableListOf<Button>()
         listOf("Close details", "Checks ▾", "Privacy ▾").forEachIndexed {i,title ->
@@ -920,6 +921,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     private fun submitAgent() {
         if(agentKind.selectedItemPosition==1) {submitBuild();return}
         if(agentKind.selectedItemPosition==2) {submitBrowserNavigation();return}
+        if(agentKind.selectedItemPosition==3) {submitWhatsAppType();return}
         val value=draft.text.toString()
         val manual=try {com.maya.ai.agent.ResearchPlan.parse(value)} catch (_: Exception) {null}
         if(value.isBlank() || !NativeChatProtocol.validReply(value) || (manual==null && value.length>400)) {
@@ -950,6 +952,15 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         val card=com.maya.ai.agent.InlineBrowserNavigation(host,value,researchServices,{taskAllowed(it)},{paint()})
         agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
         status.text="Browser navigation task added. Setup/review/Run are explicit. No phone action has started."
+    }
+    private fun submitWhatsAppType() {
+        val value=draft.text.toString()
+        if(value.isBlank() || !NativeChatProtocol.validReply(value) || value.length>1200 || (!value.startsWith("OPEN https://wa.me/") && value.length>400)) {status.text="WhatsApp goal needs up to400 characters or a supported OPEN/TYPE plan up to1200. Nothing sent.";return}
+        if(agentCards.size>=3) {status.text="All three task slots are occupied. Remove a task explicitly first.";return}
+        agentCards.forEach {it.stop()}
+        val card=com.maya.ai.agent.InlineWhatsAppType(host,value,researchServices,{taskAllowed(it)},{paint()})
+        agentCards.add(card);timeline.add(card);draft.setText("");hideKeyboard();renderHistory();revealTurn(card.view)
+        status.text="WhatsApp type task added. Setup/review/Run are explicit. Maya never presses SEND."
     }
     private fun submitBuild() {
         val value=draft.text.toString()
@@ -1381,12 +1392,12 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
         agentKind.visibility=if(agentSelected) View.VISIBLE else View.GONE
         agentKind.isEnabled=!busy
         consent.visibility=View.GONE
-        draft.hint=if(agentSelected) (when(kindSelection) {1->"Build or revise this page…";2->"Public browser goal or OPEN/SCROLL plan…";else->"What should I research?"}) else "Message Maya…"
+        draft.hint=if(agentSelected) (when(kindSelection) {1->"Build or revise this page…";2->"Public browser goal or OPEN/SCROLL plan…";3->"WhatsApp goal or OPEN/TYPE plan…";else->"What should I research?"}) else "Message Maya…"
         agentCards.forEach {task ->
             task.refresh()
             taskControls[task]?.let {ui ->
                 task.view.visibility=if(ui.folded) View.GONE else View.VISIBLE
-                val kind=when(task) {is com.maya.ai.agent.InlineBuildTurn->"Builder";is com.maya.ai.agent.InlineBrowserNavigation->"Browser navigation";else->"Research"}
+                val kind=when(task) {is com.maya.ai.agent.InlineBuildTurn->"Builder";is com.maya.ai.agent.InlineBrowserNavigation->"Browser navigation";is com.maya.ai.agent.InlineWhatsAppType->"WhatsApp type";else->"Research"}
                 val state=when {task.executing->"running";task.busy->"waiting";task.approved->"approved · expiry still applies";task.stoppable->"local preview active";else->"idle"}
                 val label=if(task is com.maya.ai.agent.InlineBuildTurn) "index.html" else task.goal.take(80).let {if(it.lastOrNull()?.isHighSurrogate()==true) it.dropLast(1) else it}
                 ui.summary.text="$kind · $label\n$state · ${agentCards.size}/3 slots used"+if(ui.folded) " · folded (not stopped)" else ""
@@ -1538,6 +1549,7 @@ class NativeChatWorkspace(private val host: AppCompatActivity, private val close
     }
     fun requestClose() {
         if(agentCards.any {it is com.maya.ai.agent.InlineBrowserNavigation && it.executing}) {agentCards.forEach {it.stop()};status.text="Browser task stopped locally.";paint();return}
+        if(agentCards.any {it is com.maya.ai.agent.InlineWhatsAppType && it.executing}) {agentCards.forEach {it.stop()};status.text="WhatsApp task stopped locally.";paint();return}
         if(library?.cancelDialog()==true) return
         if(dictation.busy) {voiceSession.end();dictation.stop();return}
         if(disclosure?.isShowing==true) {confirmationGeneration++;disclosure?.dismiss();disclosure=null;return}

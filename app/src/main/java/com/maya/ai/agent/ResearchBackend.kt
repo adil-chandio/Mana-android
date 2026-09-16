@@ -99,6 +99,7 @@ class ResearchBackend(private val context: Context,
                             AiTaskReview.Kind.SOURCE_SUMMARY -> ConfiguredChatPolicy.Purpose.SOURCE_SUMMARY
                             AiTaskReview.Kind.BUILDER_PROPOSAL -> ConfiguredChatPolicy.Purpose.BUILDER_PROPOSAL
                             AiTaskReview.Kind.BROWSER_NAVIGATION -> ConfiguredChatPolicy.Purpose.BROWSER_NAVIGATION
+                            AiTaskReview.Kind.WHATSAPP_MESSAGE -> ConfiguredChatPolicy.Purpose.WHATSAPP_MESSAGE
                         }) {op.check()}
                         when(response) {
                             is NativeChatResponse.Result.Reply -> {result=response.text;failure=null}

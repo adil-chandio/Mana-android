@@ -74,6 +74,12 @@
         </service>
         <receiver android:name=".agent.BrowserNavigationStopReceiver" android:exported="false" />
 
+        <service android:name=".agent.WhatsAppTypeService" android:label="@string/whatsapp_type_label" android:exported="true" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/whatsapp_type_service" />
+        </service>
+        <receiver android:name=".agent.WhatsAppTypeStopReceiver" android:exported="false" />
+
         <service
             android:name=".AutoSendService" android:enabled="false"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
