@@ -820,7 +820,11 @@ class MainChatSurfaceTest {
         assertNull(field<Any?>("tts"));assertTrue(bridge.legacyRestricted())
     }
     @Test fun sensitivePreferencesCannotBeWrittenThroughTheNarrowBridge() {
-        val bridge=a.MayaBridge();bridge.setPref("trustMode",true);bridge.setPrefString("autosend_at","9999")
+        val bridge=a.MayaBridge()
+        a.getSharedPreferences("maya",0).edit().putBoolean("wake",true).commit()
+        assertFalse(bridge.wakeService(false))
+        assertTrue(a.getSharedPreferences("maya",0).getBoolean("wake",false))
+        bridge.setPref("trustMode",true);bridge.setPrefString("autosend_at","9999")
         bridge.setPrefString("key","private");bridge.clearPref("wake")
         val prefs=a.getSharedPreferences("maya",0)
         assertFalse(prefs.contains("trustMode"));assertFalse(prefs.contains("autosend_at"));assertFalse(prefs.contains("key"))

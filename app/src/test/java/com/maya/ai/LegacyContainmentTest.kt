@@ -64,7 +64,7 @@ class LegacyContainmentTest {
         try {
             MayaNotifService.speakOn=true
             val notification=Notification.Builder(app).setContentTitle("Synthetic sender").setContentText("PRIVATE_SYNTHETIC_MESSAGE").build()
-            service.onNotificationPosted(StatusBarNotification("com.whatsapp","com.whatsapp",1,null,1000,1,notification,android.os.Process.myUserHandle(),null,0))
+            service.onNotificationPosted(StatusBarNotification("com.whatsapp","com.whatsapp",1,null,1000,1,0,notification,android.os.Process.myUserHandle(),0))
             assertEquals("[]",MayaNotifService.historyJson());assertTrue(MayaNotifService.buffer.isEmpty())
             assertNull(MayaNotifService::class.java.getDeclaredField("tts").apply {isAccessible=true}.get(service))
         } finally {MayaNotifService.speakOn=false;c.destroy()}

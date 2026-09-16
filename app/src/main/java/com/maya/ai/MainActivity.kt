@@ -951,6 +951,7 @@ class MainActivity : AppCompatActivity() {
         /** Wake word service — background mein 'Maya'/'Boss' sunti hai */
         @JavascriptInterface
         fun wakeService(start: Boolean): Boolean {
+            if(!voiceForeground() || !workspaceSettingsOpen) return false
             return try {
                 if (start) {
                     if(!voiceForeground() || !workspaceSettingsOpen || fishTalkId!=null || composerMicLease!=null || recognitionActive) return false
