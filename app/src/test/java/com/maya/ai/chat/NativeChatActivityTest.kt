@@ -567,7 +567,7 @@ class NativeChatActivityTest {
         // Retain six genuinely attempted/uncertain jobs; local Wake blocks no longer make cards.
         repeat(6) {val job=pendingWithCard();operation(job).markAttempt();field<Button>("stop").performClick()}
         assertEquals(6,field<LinearLayout>("history").childCount)
-        fill();field<Button>("send").performClick();assertTrue(field<TextView>("status").text.contains("Six local attempt cards"))
+        fill();field<Button>("send").performClick();assertTrue(field<TextView>("status").text.contains("Six uncertain/failed attempts"))
         assertEquals(6,field<LinearLayout>("history").childCount)
         controller!!.pause().stop();assertEquals(0,field<LinearLayout>("history").childCount);assertTrue(field<List<Any>>("timeline").isEmpty());noTransport()
     }
