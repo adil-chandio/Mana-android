@@ -46,17 +46,28 @@ jobs:
           path: ~/.android/debug.keystore
           key: maya-debug-keystore-v1
 
-      - name: 4.6 DEBUG KEYSTORE ensure (cache khali ho to khud banao)
+      - name: 4.6 DEBUG KEYSTORE ensure (cache khali/kharaab ho to khud banao)
         run: |
           mkdir -p "$HOME/.android"
-          if [ ! -f "$HOME/.android/debug.keystore" ]; then
-            keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" \
+          KS="$HOME/.android/debug.keystore"
+          VALID=0
+          if [ -f "$KS" ] && keytool -list -keystore "$KS" -storepass android -alias androiddebugkey >/dev/null 2>&1; then
+            VALID=1
+          fi
+          if [ "$VALID" = "1" ]; then
+            echo "::notice::Debug keystore cache se mila + VALID — signature stable."
+          else
+            if [ -f "$KS" ]; then
+              echo "::warning::Cache se keystore mila MAGAR KHARAAB tha — regenerate kar raha hoon."
+              rm -f "$KS"
+            else
+              echo "::notice::Cache khali thi — naya debug keystore bana raha hoon."
+            fi
+            keytool -genkeypair -v -keystore "$KS" \
               -storepass android -alias androiddebugkey -keypass android \
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Android Debug, O=Android, C=US" >/dev/null 2>&1
-            echo "::notice::Naya debug keystore bana (cache khali thi) — is run ka signature pin hoga."
-          else
-            echo "::notice::Debug keystore cache se mila — signature stable."
+            echo "::notice::Naya debug keystore tayyar — is run ka signature gate batayega."
           fi
 
       - name: 5. Signing keystore (Secrets se — docs/SECURITY.md)

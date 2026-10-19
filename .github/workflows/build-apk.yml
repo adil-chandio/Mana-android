@@ -56,19 +56,33 @@ jobs:
           path: ~/.android/debug.keystore
           key: maya-debug-keystore-v1
 
-      - name: 3.55 DEBUG KEYSTORE ensure (cache khali ho to khud banao)
+      - name: 3.55 DEBUG KEYSTORE ensure (cache khali/kharaab ho to khud banao)
         # AGP ke bharose nahi — keytool se seedha standard jagah par banao,
         # phir AGP use hi karega. Cache POST ise bacha lega agli runs ke liye.
+        # v5.10.2 hotfix: cache se file AAYE magar KHARAAB ho (service incident)
+        # to AGP chup-chaap dusri key bana deta tha — ab VALIDATE kar ke
+        # regenerate karo + loud notice. Gate (6.5) pin se match karayega.
         run: |
           mkdir -p "$HOME/.android"
-          if [ ! -f "$HOME/.android/debug.keystore" ]; then
-            keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" \
+          KS="$HOME/.android/debug.keystore"
+          VALID=0
+          if [ -f "$KS" ] && keytool -list -keystore "$KS" -storepass android -alias androiddebugkey >/dev/null 2>&1; then
+            VALID=1
+          fi
+          if [ "$VALID" = "1" ]; then
+            echo "::notice::Debug keystore cache se mila + VALID — signature stable."
+          else
+            if [ -f "$KS" ]; then
+              echo "::warning::Cache se keystore mila MAGAR KHARAAB tha — regenerate kar raha hoon (SIGNATURE LOCK gate pin se match karayega)."
+              rm -f "$KS"
+            else
+              echo "::notice::Cache khali thi — naya debug keystore bana raha hoon."
+            fi
+            keytool -genkeypair -v -keystore "$KS" \
               -storepass android -alias androiddebugkey -keypass android \
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Android Debug, O=Android, C=US" >/dev/null 2>&1
-            echo "::notice::Naya debug keystore bana (cache khali thi) — is run ka signature pin hoga."
-          else
-            echo "::notice::Debug keystore cache se mila — signature stable."
+            echo "::notice::Naya debug keystore tayyar — is run ka signature gate batayega."
           fi
 
       - name: 4. Signing keystore (Secrets se — docs/SECURITY.md)
