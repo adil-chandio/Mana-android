@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#050508">
+<meta name="description" content="MAYA v4 — personal AI assistant. Voice + Gemini brain + phone commands + personas.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.svg">
+<title>MAYA — Personal AI v4</title>
+<style>
+/* ================= MAYA v4.1.0 — DESIGN SYSTEM (video-matched + old-WebView compat) =================
+   Midnight Obsidian default • orange accent • theme engine • radius/font sliders */
+:root{
+  /* new tokens */
+  --bg:#050508; --bg1:#0E0E16; --bg2:#171722;
+  --accent:#FF7A1A; --accent2:#FFB347;
+  --text0:#F5F5FA; --text1:#A2A2B5;
+  --ok:#3DD68C; --warn:#FFC24B; --danger:#FF5C5C;
+  --radius:18px; --fs:1;
+  /* legacy aliases (core JS inline styles in kaam use karte hain) */
+  --panel:#0E0E16; --panel2:#0A0A10;
+  --line:#3a2a10; --glass:#171722;
+  --cyan:#22d3ee; --cyan2:#67e8f9; --purple:#a78bfa; --pink:#f472b6;
+  --amber:#fbbf24; --red:#f87171; --green:#34d399;
+  --text:#F5F5FA; --dim:#A2A2B5; --user:#7c3aed;
+}
+html.t-cyber{ --bg:#050b14; --bg1:#0d1a2a; --bg2:#12233a; --accent:#22d3ee; --accent2:#67e8f9;
+  --line:#1a3a5a; --panel:#0d1a2a; --panel2:#091421; --text0:#dbeafe; --text1:#7c9cb8; --text:var(--text0); --dim:var(--text1);}
+html.t-aurora{ --bg:#0a0614; --bg1:#161027; --bg2:#1e1635; --accent:#a78bfa; --accent2:#c4b5fd;
+  --line:#3a2a5a; --panel:#161027; --panel2:#0f0a1c; --text0:#ece9fb; --text1:#9d94c4; --text:var(--text0); --dim:var(--text1);}
+html.t-rose{ --bg:#12060b; --bg1:#231019; --bg2:#2c1622; --accent:#fb7185; --accent2:#fda4af;
+  --line:#5a2a3a; --panel:#231019; --panel2:#180a11; --text0:#ffe9ee; --text1:#c49aa6; --text:var(--text0); --dim:var(--text1);}
+html.t-forest{ --bg:#04100a; --bg1:#0b2015; --bg2:#102b1d; --accent:#34d399; --accent2:#6ee7b7;
+  --line:#1a4a2a; --panel:#0b2015; --panel2:#071710; --text0:#e3fff0; --text1:#8fc4a7; --text:var(--text0); --dim:var(--text1);}
+html.t-day{ --bg:#f2f3f7; --bg1:#ffffff; --bg2:#eceef4; --accent:#e05e00; --accent2:#ff8a3d;
+  --line:#d0d0d8; --panel:#ffffff; --panel2:#fafafa; --text0:#171722; --text1:#5a5a6e; --text:var(--text0); --dim:var(--text1);}
+html.t-paper{ --bg:#f7f3ea; --bg1:#fffdf6; --bg2:#efe9db; --accent:#b45309; --accent2:#d97706;
+  --line:#c8b89a; --panel:#fffdf6; --panel2:#faf8f0; --text0:#2b2115; --text1:#77664d; --text:var(--text0); --dim:var(--text1);}
+
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html{font-size:calc(16px * var(--fs))}
+html,body{height:100%}
+body{
+  margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background-color:var(--bg); /* v4.1.0: old WebView — color-mix fail ho to bhi dark bg (blank-screen fix) */
+  background:
+    radial-gradient(900px 420px at 50% -8%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 62%),
+    var(--bg);
+  color:var(--text0); display:flex; flex-direction:column; overflow:hidden;
+}
+button{font-family:inherit}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:#8a4a10;border-radius:4px}
+@supports(background:color-mix(in srgb,red 50%,blue)){::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--accent) 35%,transparent)}}
+
+/* ============ EDGE GLOW (video wala — 4 taraf gradient ring) ============ */
+#edgeGlow{position:fixed;inset:0;z-index:29;pointer-events:none;opacity:0;transition:opacity .8s}
+#edgeGlow.on{opacity:1}
+#edgeGlow::before{content:"";position:absolute;inset:-35vmax;
+  background:conic-gradient(from 0deg, transparent 0 8%, var(--accent) 12%, transparent 16% 33%, var(--accent2) 37%, transparent 41% 58%, var(--accent) 62%, transparent 66% 83%, var(--accent2) 87%, transparent 91%);
+  animation:egspin 9s linear infinite;filter:blur(2px);opacity:.55}
+#edgeGlow::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 26px 6px #7a3a0d}
+@supports(box-shadow:inset 0 0 0 0 color-mix(in srgb,red 50%,blue)){#edgeGlow::after{box-shadow:inset 0 0 26px 6px color-mix(in srgb,var(--accent) 30%,transparent)}}
+@keyframes egspin{to{transform:rotate(360deg)}}
+
+/* ============ SPLASH ============ */
+#splash{
+  position:fixed; inset:0; z-index:60;
+  background-color:var(--bg); /* v4.1.0: old WebView fallback — color-mix fail ho to dark splash */
+  background:
+    radial-gradient(700px 400px at 50% 35%, color-mix(in srgb,var(--accent) 14%,transparent), transparent 70%),
+    var(--bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+  transition:opacity .6s; text-align:center; padding:20px;
+}
+#splash.gone{opacity:0;pointer-events:none}
+#splash h1{margin:0;font-size:44px;letter-spacing:14px;font-weight:900;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+#splash .sub{font-size:11px;letter-spacing:5px;color:var(--text1)}
+#splash .ver{font-size:10px;color:var(--text1);opacity:.8;font-family:ui-monospace,monospace}
+#bootBtn{
+  margin-top:8px;padding:14px 42px;font-size:15px;font-weight:800;letter-spacing:2px;border:none;cursor:pointer;
+  border-radius:999px;color:#0b0b10;background:linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow:0 6px 30px #a85512;
+}
+@supports(box-shadow:0 0 0 0 color-mix(in srgb,red 50%,blue)){#bootBtn{box-shadow:0 6px 30px color-mix(in srgb,var(--accent) 45%,transparent)}}
+#bootBtn{margin-top:8px;padding:14px 42px;font-size:15px;font-weight:800;letter-spacing:2px;border:none;cursor:pointer;border-radius:999px;color:#0b0b10;background:linear-gradient(135deg,var(--accent),var(--accent2))
+}
+.sring{position:relative;width:120px;height:120px;display:grid;place-items:center}
+.sring span{font-size:34px;font-weight:900;color:var(--accent)}
+.sring div{position:absolute;inset:0;border-radius:50%;border:2px solid #994d11}
+@supports(border:2px solid color-mix(in srgb,red 50%,blue)){.sring div{border:2px solid color-mix(in srgb,var(--accent) 40%,transparent)}}
+.sring .r1{animation:rr 2.2s linear infinite;border-top-color:var(--accent)}
+.sring .r2{inset:14px;animation:rr 1.6s linear infinite reverse;border-bottom-color:var(--accent2)}
+.sring .r3{inset:28px;animation:rr 3s linear infinite;border-left-color:var(--accent)}
+@keyframes rr{to{transform:rotate(360deg)}}
+.bootline{min-height:16px;font-size:10.5px;color:var(--text1);font-family:ui-monospace,monospace}
+
+/* ============ APP SHELL ============ */
+#app{display:flex;flex-direction:column;height:100%;opacity:0;transition:opacity .5s}
+#app.on{opacity:1}
+header{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid var(--line);background:var(--panel2);backdrop-filter:blur(14px);z-index:10;
+}
+#drawerBtn{background:none;border:1px solid #3a2a10;color:#F5F5FA;border-radius:10px;
+  width:38px;height:38px;font-size:17px;cursor:pointer;flex:none}
+.logo{display:flex;flex-direction:column;line-height:1.1;flex:1;min-width:0}
+.logo b{font-size:19px;letter-spacing:6px;font-weight:900;
+  background:linear-gradient(135deg,#FF7A1A,#FFB347);-webkit-background-clip:text;background-clip:text;color:transparent}
+.logo small{font-size:8.5px;letter-spacing:2.5px;color:var(--text1)}
+#statusPill{font-size:9.5px;letter-spacing:1px;padding:6px 10px;border-radius:999px;
+  border:1px solid #3a2a10;color:#A2A2B5;background:#171722;flex:none}
+#statusPill.ok{color:#3DD68C;border-color:#4db87a}
+@supports(border-color:color-mix(in srgb,red 50%,blue)){#statusPill.ok{border-color:color-mix(in srgb,var(--ok) 40%,transparent)}}
+
+/* v4.1.0: `min-height:0` poori flex-chain par zaroori hai (#app > main > .tab).
+   Iske baghair purane WebView mein main apne content jitna lamba ho jata hai,
+   body ka overflow:hidden neeche ka sab kuch kaat deta hai aur .tab kabhi scroll
+   nahi karta — Settings ke neeche waale sections (AWAAZ, THEME) pahunch se bahar. */
+main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;min-height:0;height:auto}
+.tab{display:none;flex-direction:column;overflow-y:auto;overflow-x:hidden;flex:1 1 auto;min-height:0;max-height:100%;
+  padding:14px 14px 92px;scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+.tab.active{display:flex}
+
+/* ============ HOME — ORB ============ */
+#tab-home{align-items:center;text-align:center;gap:10px;padding-top:26px}
+#orb{
+  position:relative;width:190px;height:190px;border-radius:50%;cursor:pointer;flex:none;
+  display:grid;place-items:center;user-select:none;
+}
+#orb::before{content:"";position:absolute;inset:-8px;border-radius:50%;
+  background:conic-gradient(from 0deg,var(--accent),transparent 30%,var(--accent2) 50%,transparent 78%,var(--accent));
+  animation:orbspin 6s linear infinite;opacity:.75;filter:blur(1px)}
+#orb::after{content:"";position:absolute;inset:-2px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--bg2), var(--bg1) 70%);
+  border:1px solid var(--line)}
+@keyframes orbspin{to{transform:rotate(360deg)}}
+.orbCore{
+  position:relative;z-index:2;width:62%;height:62%;border-radius:50%;display:grid;place-items:center;
+  font-size:40px;font-weight:900;color:#0b0b10;
+  background:radial-gradient(circle at 32% 28%,var(--accent2),var(--accent));
+  box-shadow:0 0 34px #c76615;
+}
+@supports(box-shadow:0 0 0 0 color-mix(in srgb,red 50%,blue)){.orbCore{box-shadow:0 0 34px color-mix(in srgb,var(--accent) 55%,transparent)}}
+.orbCore{position:relative;z-index:2;width:62%;height:62%;border-radius:50%;display:grid;place-items:center;font-size:40px;font-weight:900;color:#0b0b10;background:radial-gradient(circle at 32% 28%,var(--accent2),var(--accent));
+  -webkit-transition:transform .25s;transition:transform .25s;
+}
+#orb[data-state="listening"] .orbCore{background:radial-gradient(circle at 32% 28%,#6ff0b0,#3DD68C);box-shadow:0 0 44px #5ec68c;animation:pulse 1.4s ease-in-out infinite}
+@supports(box-shadow:0 0 0 0 color-mix(in srgb,red 50%,blue)){#orb[data-state="listening"] .orbCore{box-shadow:0 0 44px color-mix(in srgb,var(--ok) 60%,transparent)}}
+#orb[data-state="thinking"] .orbCore{background:radial-gradient(circle at 32% 28%,#ffd98a,#FFC24B);box-shadow:0 0 40px #d4a83f;animation:pulse 1s ease-in-out infinite}
+@supports(box-shadow:0 0 0 0 color-mix(in srgb,red 50%,blue)){#orb[data-state="thinking"] .orbCore{box-shadow:0 0 40px color-mix(in srgb,var(--warn) 55%,transparent)}}
+#orb[data-state="speaking"] .orbCore{background:radial-gradient(circle at 32% 28%,#b9a7ff,#a78bfa);box-shadow:0 0 44px #a98be0;animation:pulse .8s ease-in-out infinite}
+@supports(box-shadow:0 0 0 0 color-mix(in srgb,red 50%,blue)){#orb[data-state="speaking"] .orbCore{box-shadow:0 0 44px color-mix(in srgb,var(--purple) 60%,transparent)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.orbTag{position:absolute;bottom:8px;z-index:3;font-size:8px;letter-spacing:2px;color:#0b0b10;font-weight:800}
+#statusText{font-size:12px;letter-spacing:3px;color:var(--text1);font-weight:700}
+#interim{min-height:20px;font-size:13px;color:var(--accent2);font-style:italic;max-width:340px}
+#homeLast{
+  max-width:400px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:12px 14px;font-size:13.5px;line-height:1.55;color:var(--text0);
+  display:none;white-space:pre-wrap;
+}
+#homeLast.show{display:block}
+#homeLast .hl-who{display:block;font-size:8.5px;letter-spacing:2px;color:var(--accent);font-weight:800;margin-bottom:4px}
+.homebar{display:flex;gap:8px;max-width:400px;width:100%}
+.homebar input{flex:1;background:var(--bg1);border:1px solid var(--line);border-radius:999px;
+  padding:12px 16px;color:var(--text0);font-size:13px;outline:none;min-width:0}
+.homebar input:focus{border-color:var(--accent)}
+#micHome{width:48px;height:48px;border-radius:50%;border:none;cursor:pointer;flex:none;font-size:19px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0b0b10;font-weight:800}
+#micHome.listening{background:radial-gradient(circle at 30% 30%,#6ff0b0,var(--ok));animation:pulse 1.2s infinite}
+.pchips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.pchip{background:var(--bg1);border:1px solid var(--line);color:var(--text1);border-radius:999px;
+  padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.5px}
+.pchip.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0b0b10;border-color:transparent}
+.qactions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;max-width:400px}
+.qactions button{background:var(--panel);border:1px solid var(--line);color:var(--text0);
+  border-radius:14px;padding:10px 6px;font-size:11px;cursor:pointer}
+.qactions button:active{background:#5a2a08}
+@supports(background:color-mix(in srgb,red 50%,blue)){.qactions button:active{background:color-mix(in srgb,var(--accent) 18%,var(--bg1))}}
+.micbar{height:100%;background:var(--cyan);transition:width .12s;border-radius:3px}
+
+/* ============ CHAT ============ */
+.chatHead{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:1.5px;
+  color:var(--text1);padding:4px 2px 10px;flex:none;font-weight:700}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
+.dot.listening{background:var(--ok);animation:pulse 1.2s infinite}
+.dot.thinking{background:var(--warn);animation:pulse .8s infinite}
+.dot .t{color:var(--text0)}
+#log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px;min-height:120px}
+.row{display:flex;flex-direction:column;max-width:86%}
+.row.me{align-self:flex-end;align-items:flex-end}
+.row.ai{align-self:flex-start;align-items:flex-start}
+.bubble{border-radius:var(--radius);padding:10px 13px;font-size:13.5px;line-height:1.55;
+  background:var(--panel);border:1px solid var(--line);color:var(--text0);word-break:break-word;white-space:pre-wrap}
+.row.me .bubble{background:#522507;border-color:#8a4a10}
+@supports(background:color-mix(in srgb,red 50%,blue)){.row.me .bubble{background:color-mix(in srgb,var(--accent) 16%,var(--bg1));border-color:color-mix(in srgb,var(--accent) 35%,transparent)}}
+.bubble .who{display:block;font-size:8px;letter-spacing:2px;font-weight:800;color:var(--accent);margin-bottom:4px}
+.bubble a{color:var(--accent2)}
+/* v4.2.0: har MAYA jawab par "dobara suno" */
+.say-btn{display:block;margin:7px 0 0;padding:3px 9px;font-size:11px;line-height:1.4;
+  background-color:var(--bg2,#171722);color:var(--accent2,#FFB347);
+  border:1px solid var(--line,#3a2a10);border-radius:999px;cursor:pointer;
+  -webkit-box-sizing:border-box;box-sizing:border-box}
+.say-btn[data-on="1"]{color:var(--accent,#FF7A1A);border-color:var(--accent,#FF7A1A)}
+.quickrow{display:flex;gap:8px;padding:8px 0;flex:none}
+.quick{background:var(--bg1);border:1px solid var(--line);color:var(--text1);border-radius:999px;
+  padding:8px 13px;font-size:10.5px;font-weight:700;cursor:pointer;letter-spacing:.5px}
+.quick.on{background:#5a2a08;color:#FFB347;border-color:#994d11}
+@supports(background:color-mix(in srgb,red 50%,blue)){.quick.on{background:color-mix(in srgb,var(--accent) 18%,var(--bg1));border-color:color-mix(in srgb,var(--accent) 40%,transparent)}}
+.chatbar{display:flex;gap:8px;padding:8px 0 4px;flex:none}
+#micBtn{width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;flex:none;font-size:17px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0b0b10;font-weight:800}
+#micBtn.listening{background:radial-gradient(circle at 30% 30%,#6ff0b0,var(--ok));animation:pulse 1.2s infinite}
+#txt{flex:1;background:var(--bg1);border:1px solid var(--line);border-radius:999px;padding:12px 16px;
+  color:var(--text0);font-size:13px;outline:none;min-width:0}
+#txt:focus{border-color:var(--accent)}
+#send,#saveSettings{border:none;cursor:pointer;font-weight:800;letter-spacing:1px;color:#0b0b10;
+  background-color:var(--accent,#FF7A1A);
+  background-image:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:999px;padding:12px 18px;font-size:12px;flex:none}
+
+/* ============ CARDS / SETTINGS TREE ============ */
+.card{background:#0E0E16;border:1px solid #3a2a10;border-radius:18px;
+  padding:14px;margin-bottom:12px;backdrop-filter:blur(8px)}
+.card h3{margin:0 0 10px;font-size:12.5px;letter-spacing:1.5px;color:var(--accent);font-weight:800}
+.setgrp{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.setgrp-head{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;user-select:none;
+  font-size:12.5px;font-weight:800;letter-spacing:1px;color:var(--text0)}
+.setgrp-head .gic{font-size:16px}
+.setgrp-head .chev{margin-left:auto;color:var(--text1);transition:transform .25s;font-size:11px}
+.setgrp.open .chev{transform:rotate(180deg)}
+.setgrp-body{display:none;padding:2px 14px 14px;border-top:1px solid #3a2a10}
+.setgrp.open .setgrp-body{display:block}
+.f{display:block;width:100%;margin:8px 0 2px;padding:11px 13px;font-size:13px;color:#F5F5FA;
+  background:#0E0E16;border:1px solid #3a2a10;border-radius:12px;outline:none;font-family:inherit}
+.f:focus{border-color:var(--accent)}
+label.f{background:#0E0E16;border:1px solid #3a2a10;padding:10px 13px;margin:10px 0 2px;color:#A2A2B5;font-size:11px;letter-spacing:1px;border-radius:12px;display:block}
+.save,.danger{width:100%;margin-top:10px;padding:12px;font-size:12.5px;font-weight:800;letter-spacing:1px;
+  border:none;border-radius:12px;cursor:pointer}
+.save{background:linear-gradient(135deg,#FF7A1A,#FFB347);color:#0b0b10}
+.danger{background:#662626;color:#FF5C5C;border:1px solid #993939}
+@supports(background:color-mix(in srgb,red 50%,blue)){.danger{background:color-mix(in srgb,var(--danger) 16%,transparent);border:1px solid color-mix(in srgb,var(--danger) 40%,transparent)}}
+.note{font-size:10.5px;color:var(--text1);line-height:1.6;margin-top:8px}
+.switchrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 13px;
+  border-bottom:1px dashed #3a2a10;font-size:12.5px;background:#0E0E16;border-radius:10px;margin-bottom:6px}
+.switchrow:last-child{border-bottom:none}
+.switch{position:relative;display:inline-block;width:48px;height:26px;flex:none}
+.switch input{opacity:0;width:0;height:0;position:absolute}
+.switch i{position:absolute;inset:0;background:#171722;border:1px solid #3a2a10;border-radius:999px;transition:.25s}
+.switch i::before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;border-radius:50%;
+  background:#A2A2B5;transition:.25s}
+.switch input:checked + i{background:#a85512;border-color:#FF7A1A}
+@supports(background:color-mix(in srgb,red 50%,blue)){.switch input:checked + i{background:color-mix(in srgb,var(--accent) 45%,var(--bg2))}}
+.switch input:checked + i::before{transform:translateX(22px);background:#FFB347}
+input[type=range]{width:100%;margin:8px 0;height:32px;-webkit-appearance:none;appearance:none;background:transparent;outline:none}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:#3a2a10}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#FF7A1A;border:2px solid #FFB347;margin-top:-8px;cursor:pointer;box-shadow:0 0 8px #FF7A1A}
+input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:#3a2a10;border:none}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#FF7A1A;border:2px solid #FFB347;cursor:pointer;box-shadow:0 0 8px #FF7A1A}
+select.f{-webkit-appearance:none;appearance:none;background:#0E0E16 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23FF7A1A' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center;background-size:12px;padding-right:32px}
+option.f{background:#0E0E16;color:#F5F5FA}
+
+/* theme grid / accents */
+#themeGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.tsw{border:1px solid var(--line);background:var(--bg1);border-radius:12px;padding:8px 4px;cursor:pointer;text-align:center}
+.tsw .swp{height:26px;border-radius:8px;margin-bottom:5px;border:1px solid var(--line)}
+.tsw span{font-size:9px;color:var(--text1);letter-spacing:.4px}
+.tsw.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.tsw.active span{color:var(--accent2)}
+#accentRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.acc{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer}
+.acc.active{border-color:var(--text0);transform:scale(1.15)}
+
+/* ============ HUD ============ */
+.maya-char{position:relative;width:170px;margin:0 auto;flex:none}
+.char-glow{position:absolute;inset:-16px;border-radius:50%;background:radial-gradient(circle,#6a3209,transparent 70%);animation:pulse 3s infinite}
+@supports(background:radial-gradient(circle,color-mix(in srgb,red 50%,blue),transparent)){.char-glow{background:radial-gradient(circle,color-mix(in srgb,var(--accent) 22%,transparent),transparent 70%)}}
+.char-name{text-align:center;font-size:10px;letter-spacing:6px;color:var(--accent);font-weight:800;margin-top:2px}
+.char-status{text-align:center;font-size:9.5px;letter-spacing:2px;color:var(--text1);margin-top:3px}
+.char-eyes{animation:pulse 4s infinite}
+.char-mouth{}
+.char-sparkle{animation:pulse 2.4s infinite}
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.chip .k{font-size:8.5px;letter-spacing:1.5px;color:var(--text1)}
+.chip .v{font-size:15px;font-weight:800;color:var(--text0);margin-top:2px}
+.chip .v.big{font-size:21px}
+#sysWrap{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:12px}
+#sysWrap .k{font-size:9px;letter-spacing:2px;color:var(--text1);margin-bottom:8px}
+#syslog{list-style:none;margin:0;padding:0;font-family:ui-monospace,monospace;font-size:10px;color:var(--text1);max-height:180px;overflow-y:auto}
+#syslog li{padding:3px 0;border-bottom:1px dashed var(--line)}
+#installBtn{display:none;width:100%;margin-top:10px;padding:13px;border:none;border-radius:14px;cursor:pointer;
+  font-size:12.5px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0b0b10}
+#installBtn.show{display:block}
+
+/* ============ COMMANDS ============ */
+.searchWrap{flex:none;padding-bottom:10px}
+#cmdFilter{width:100%;padding:12px 16px;border-radius:999px;border:1px solid var(--line);
+  background:var(--bg1);color:var(--text0);font-size:13px;outline:none}
+#cmdFilter:focus{border-color:var(--accent)}
+#cmdList .grp{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px}
+#cmdList .grp h3{margin:0 0 8px;font-size:11px;letter-spacing:1.5px;color:var(--accent)}
+#cmdList .cmd{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12px}
+#cmdList .cmd:last-child{border-bottom:none}
+#cmdList .cmd code{flex:1;background:var(--bg1);border:1px solid var(--line);border-radius:8px;padding:6px 9px;
+  font-size:11px;color:var(--accent2);font-family:ui-monospace,monospace;word-break:break-word}
+#cmdList .cmd button{border:none;border-radius:8px;padding:6px 11px;font-size:10px;font-weight:800;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0b0b10}
+
+/* ============ MEMORIES / SKILLS ============ */
+.memrow{display:flex;gap:8px;margin-bottom:10px}
+.memrow input{flex:1;min-width:0}
+#factList{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+#factList li{display:flex;align-items:center;gap:8px;background:var(--bg1);border:1px solid var(--line);
+  border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--text0);line-height:1.5}
+#factList li .fx{margin-left:auto;display:flex;gap:6px;flex:none}
+#factList li .fx button{background:none;border:1px solid var(--line);color:var(--text1);border-radius:8px;
+  width:28px;height:28px;cursor:pointer;font-size:12px}
+.skillgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.skillgrid div{background:var(--bg1);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:11px;color:var(--text1);line-height:1.5}
+.skillgrid b{display:block;color:var(--accent2);font-size:11.5px;margin-bottom:3px}
+.vtag{text-align:center;font-size:9px;letter-spacing:2px;color:var(--text1);padding:14px 0}
+.phase{display:flex;gap:8px;padding:5px 0;font-size:11px;color:var(--text1);line-height:1.5}
+.phase .st{flex:none}
+
+/* ============ DRAWER + DOCK ============ */
+#drawer{position:fixed;inset:0 auto 0 0;width:min(78vw,300px);z-index:45;background:#0A0A10;
+  border-right:1px solid var(--line);transform:translateX(-102%);transition:transform .3s;
+  display:flex;flex-direction:column;padding:18px 14px;backdrop-filter:blur(18px)}
+#drawer.open{transform:none}
+#drawer .dhead{font-size:16px;font-weight:900;letter-spacing:6px;padding:6px 8px 16px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+#drawer button.dbtn{display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;
+  color:#F5F5FA;font-size:13.5px;font-weight:700;padding:13px 10px;border-radius:12px;cursor:pointer;text-align:left}
+#drawer button.dbtn:active,#drawer button.dbtn.active{background:#4d2006;color:#FFB347}
+@supports(background:color-mix(in srgb,red 50%,blue)){#drawer button.dbtn:active,#drawer button.dbtn.active{background:color-mix(in srgb,var(--accent) 15%,transparent)}}
+#drawer .dsep{height:1px;background:#3a2a10;margin:10px 6px}
+#drawer .dfoot{margin-top:auto;font-size:9px;color:#A2A2B5;letter-spacing:1.5px;padding:8px;text-align:center}
+#drawerScrim{position:fixed;inset:0;z-index:44;background:#404040;opacity:0;pointer-events:none;transition:opacity .3s}
+#drawerScrim.open{opacity:1;pointer-events:auto}
+
+nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;gap:4px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  background:#0A0A10;border-top:1px solid #3a2a10}
+nav button{flex:1;background:none;border:none;color:#A2A2B5;font-size:9px;font-weight:800;letter-spacing:1px;
+  padding:7px 2px;border-radius:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav button .ic{font-size:17px}
+nav button.active{color:#FFB347;background:#441c05}
+@supports(background:color-mix(in srgb,red 50%,blue)){nav button.active{background:color-mix(in srgb,var(--accent) 13%,transparent)}}
+
+#toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%) translateY(20px);z-index:70;
+  background:var(--panel2);border:1px solid var(--line);color:var(--text0);border-radius:999px;
+  padding:10px 18px;font-size:12px;opacity:0;pointer-events:none;transition:.3s;max-width:86vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ================= v4.1.0 — OLD-WEBVIEW COMPAT (Chrome < 87) =================
+   `inset` property purane Android System WebView par ignore hoti hai -> splash
+   screen cover nahi karta, tabs ka size zero, drawer ghalat -> "blank app".
+   Neeche explicit top/right/bottom/left equivalents (modern WebView par bhi
+   same value, is liye harmless). */
+#edgeGlow{top:0;left:0;right:0;bottom:0}
+#edgeGlow::before{top:-35vmax;right:-35vmax;bottom:-35vmax;left:-35vmax}
+#edgeGlow::after{top:0;left:0;right:0;bottom:0}
+#splash{top:0;left:0;right:0;bottom:0;width:100%;height:100%}
+.sring div{top:0;left:0;right:0;bottom:0}
+.sring .r2{top:14px;right:14px;bottom:14px;left:14px}
+.sring .r3{top:28px;right:28px;bottom:28px;left:28px}
+/* v4.1.0: `.tab` ab position:absolute NAHI hai (flex child hai) — is liye yahan
+   top/right/bottom/left dena zaroori nahi. Purana `.tab{top:0;...}` hata diya
+   gaya taake koi ghalti se dobara absolute na samjhe. */
+#orb::before{top:-8px;right:-8px;bottom:-8px;left:-8px}
+#orb::after{top:-2px;right:-2px;bottom:-2px;left:-2px}
+.switch i{top:0;left:0;right:0;bottom:0}
+.char-glow{top:-16px;right:-16px;bottom:-16px;left:-16px}
+#drawer{top:0;bottom:0;left:0;right:auto;width:78vw;max-width:300px}
+#drawerScrim{top:0;left:0;right:0;bottom:0}
+
+/* ============================================================================
+   MAYA UI KIT v5 — "IRONCLAD"  (v4.1.0)
+   ----------------------------------------------------------------------------
+   Contract: docs/SETTINGS-UI-ARCHITECTURE.md
+   Sirf ye allowed hai: block/inline-block/table layout, absolute + explicit
+   top/right/bottom/left, px sizes, var(--x,#hex) colors, border, radius.
+   BANNED: color-mix(), accent-color, inset:, gap:, env(), min()/max()/clamp(),
+   display:grid, :is()/:where(), aur layout ke liye flexbox.
+   Ye layer stylesheet ke aakhir mein hai — purane WebView par yahi jeetta hai.
+   ========================================================================= */
+
+/* ---------- 0) SHELL: deterministic box (height JS naapta hai) ---------- */
+#app{position:absolute;top:0;left:0;right:0;bottom:0;height:auto}
+main{position:relative;min-height:0}
+.tab{-webkit-overflow-scrolling:touch}
+#tab-set{display:none;padding:12px 12px 96px}
+#tab-set.active{display:block}          /* settings = pure block layout, koi flex nahi */
+
+/* ---------- 1) GROUP (collapsible card) ---------- */
+.ui-group{display:block;margin:0 0 10px;padding:0;overflow:hidden;
+  background-color:var(--panel,#0E0E16);border:1px solid var(--line,#3a2a10);border-radius:14px}
+.ui-head{display:table;width:100%;padding:13px 14px;cursor:pointer;
+  -webkit-box-sizing:border-box;box-sizing:border-box;-webkit-user-select:none;user-select:none}
+.ui-head > span{display:table-cell;vertical-align:middle}
+.ui-ic{width:28px;font-size:16px}
+.ui-ttl{font-size:12.5px;font-weight:800;letter-spacing:1px;color:var(--text0,#F5F5FA)}
+.ui-chev{width:22px;text-align:right;font-size:11px;color:var(--text1,#A2A2B5)}
+.ui-group.is-open .ui-chev{color:var(--accent,#FF7A1A)}
+.ui-body{display:none;padding:12px 12px 14px;border-top:1px solid var(--line,#3a2a10)}
+.ui-group.is-open .ui-body{display:block}
+
+/* ---------- 2) FIELD: label + input ---------- */
+.ui-field{display:block;margin:0 0 14px}
+.ui-label{display:block;min-height:34px;margin:0 0 6px;padding:9px 12px;
+  font-size:11px;line-height:1.45;letter-spacing:.8px;color:var(--text1,#A2A2B5);
+  background-color:var(--bg2,#171722);border:1px solid var(--line,#3a2a10);border-radius:9px;
+  -webkit-box-sizing:border-box;box-sizing:border-box}
+.ui-label b{color:var(--accent2,#FFB347);font-size:12.5px;font-weight:800}
+.ui-hint{display:block;margin:-8px 0 12px;padding:7px 11px;
+  font-size:10.5px;line-height:1.55;letter-spacing:.3px;color:var(--text1,#A2A2B5);
+  background-color:var(--bg2,#171722);border:1px solid var(--line,#3a2a10);border-radius:8px;
+  -webkit-box-sizing:border-box;box-sizing:border-box}
+.ui-hint b{color:var(--accent2,#FFB347);font-weight:800}
+.ui-hint.ok{color:var(--ok,#39D98A)}
+.ui-hint.warn{color:var(--accent2,#FFB347)}
+.ui-label small{color:var(--text1,#A2A2B5);letter-spacing:0}
+.ui-input{display:block;width:100%;min-height:46px;margin:0;padding:12px 13px;
+  font-family:inherit;font-size:13.5px;line-height:1.3;color:var(--text0,#F5F5FA);
+  background-color:var(--bg1,#0E0E16);border:1px solid var(--line,#3a2a10);border-radius:11px;
+  outline:none;-webkit-box-sizing:border-box;box-sizing:border-box;-webkit-appearance:none}
+.ui-input:focus{border-color:var(--accent,#FF7A1A)}
+.ui-select{padding-right:34px;background-color:var(--bg1,#0E0E16);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23FF7A1A' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;background-size:12px 12px}
+.ui-input option{background-color:var(--bg1,#0E0E16);color:var(--text0,#F5F5FA)}
+
+/* ---------- 3) SLIDER (custom — native range chhupa hua state holder hai) ---------- */
+.ui-native{position:absolute;left:-9999px;top:0;width:100px;height:20px;opacity:0}
+.ui-slider{position:relative;display:block;height:48px;margin:0;padding:0;
+  background-color:var(--bg1,#0E0E16);border:1px solid var(--line,#3a2a10);border-radius:12px;
+  -webkit-box-sizing:border-box;box-sizing:border-box}
+.ui-step{display:block;position:absolute;top:5px;width:40px;height:36px;padding:0;margin:0;
+  font-family:inherit;font-size:19px;font-weight:800;line-height:34px;text-align:center;cursor:pointer;
+  color:var(--accent2,#FFB347);background-color:var(--bg2,#171722);
+  border:1px solid var(--line,#3a2a10);border-radius:9px;
+  -webkit-box-sizing:border-box;box-sizing:border-box;-webkit-appearance:none}
+.ui-step-minus{left:6px}
+.ui-step-plus{right:6px}
+.ui-track{display:block;position:absolute;top:19px;left:56px;right:56px;height:8px;
+  background-color:var(--line,#3a2a10);border-radius:4px}
+.ui-fill{display:block;position:absolute;top:0;left:0;width:0;height:8px;
+  background-color:var(--accent,#FF7A1A);border-radius:4px}
+.ui-thumb{display:block;position:absolute;top:-10px;left:0;margin-left:-14px;width:28px;height:28px;
+  background-color:var(--accent,#FF7A1A);border:3px solid var(--accent2,#FFB347);border-radius:14px;
+  -webkit-box-sizing:border-box;box-sizing:border-box}
+
+/* ---------- 4) SWITCH ROW ---------- */
+.ui-row{display:table;width:100%;margin:0 0 8px;padding:10px 12px;
+  background-color:var(--bg1,#0E0E16);border:1px solid var(--line,#3a2a10);border-radius:12px;
+  -webkit-box-sizing:border-box;box-sizing:border-box}
+.ui-row-txt{display:table-cell;vertical-align:middle;padding-right:10px;
+  font-size:12.5px;line-height:1.45;color:var(--text0,#F5F5FA)}
+.ui-row-txt small{color:var(--text1,#A2A2B5)}
+.ui-row-ctl{display:table-cell;vertical-align:middle;width:60px;text-align:right}
+.ui-sw{position:relative;display:inline-block;width:54px;height:30px;margin:0;
+  vertical-align:middle;cursor:pointer}
+.ui-sw input{display:block;position:absolute;top:0;left:0;width:54px;height:30px;margin:0;padding:0;
+  opacity:0;z-index:3;cursor:pointer;-webkit-appearance:none}
+.ui-sw-t{display:block;position:absolute;top:0;left:0;width:54px;height:30px;z-index:1;
+  background-color:var(--bg2,#171722);border:1px solid var(--line,#3a2a10);border-radius:15px;
+  -webkit-box-sizing:border-box;box-sizing:border-box}
+.ui-sw-k{display:block;position:absolute;top:3px;left:3px;width:24px;height:24px;z-index:2;
+  background-color:var(--text1,#A2A2B5);border-radius:12px;
+  -webkit-transition:left .18s;transition:left .18s}
+.ui-sw input:checked ~ .ui-sw-t{background-color:var(--accent,#FF7A1A);border-color:var(--accent2,#FFB347)}
+.ui-sw input:checked ~ .ui-sw-k{left:27px;background-color:#0B0B10}
+.ui-sw.is-on .ui-sw-t{background-color:var(--accent,#FF7A1A);border-color:var(--accent2,#FFB347)}
+.ui-sw.is-on .ui-sw-k{left:27px;background-color:#0B0B10}
+
+/* ---------- 5) BUTTONS ---------- */
+.ui-btn{display:block;width:100%;min-height:48px;margin:0 0 10px;padding:13px 14px;
+  font-family:inherit;font-size:12.5px;font-weight:800;letter-spacing:1px;text-align:center;
+  cursor:pointer;border-radius:12px;color:#0B0B10;
+  background-color:var(--accent,#FF7A1A);border:1px solid var(--accent,#FF7A1A);
+  background-image:linear-gradient(135deg,var(--accent,#FF7A1A),var(--accent2,#FFB347));
+  -webkit-box-sizing:border-box;box-sizing:border-box;-webkit-appearance:none}
+.ui-btn-ghost{color:var(--accent2,#FFB347);background-color:var(--bg2,#171722);
+  background-image:none;border:1px solid var(--line,#3a2a10)}
+.ui-btn-danger{color:#FF5C5C;background-color:#4a1c1c;background-image:none;border:1px solid #993939}
+.ui-btn-save{min-height:54px;font-size:13.5px;margin-top:6px}
+.ui-note{display:block;margin:0 0 10px;font-size:10.5px;line-height:1.6;color:var(--text1,#A2A2B5)}
+.ui-pre{display:none;margin:0 0 10px;padding:10px;font-size:11.5px;line-height:1.6;
+  font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accent2,#FFB347);
+  background-color:var(--bg1,#0E0E16);border:1px solid var(--line,#3a2a10);border-radius:10px;
+  white-space:pre-wrap;word-break:break-all;-webkit-box-sizing:border-box;box-sizing:border-box}
+.ui-pre.show{display:block}
+.ui-card{display:block;margin:0 0 12px;padding:14px;
+  background-color:var(--panel,#0E0E16);border:1px solid var(--line,#3a2a10);border-radius:14px}
+.ui-card-h{margin:0 0 10px;font-size:12.5px;font-weight:800;letter-spacing:1.5px;color:var(--accent,#FF7A1A)}
+
+/* ---------- 6) THEME SWATCHES / ACCENT DOTS / ARTIST CHIPS (inline-block, koi grid nahi) ---------- */
+#themeGrid{display:block;margin:0;padding:0;font-size:0}
+#themeGrid .tsw{display:inline-block;width:32%;margin:0 2% 8px 0;padding:8px 4px;
+  text-align:center;cursor:pointer;vertical-align:top;
+  background-color:var(--bg1,#0E0E16);border:1px solid var(--line,#3a2a10);border-radius:12px;
+  -webkit-box-sizing:border-box;box-sizing:border-box}
+#themeGrid .tsw:nth-child(3n){margin-right:0}
+#themeGrid .tsw .swp{display:block;height:26px;margin:0 0 5px;border-radius:8px;
+  border:1px solid var(--line,#3a2a10)}
+#themeGrid .tsw span{display:block;font-size:9px;letter-spacing:.4px;color:var(--text1,#A2A2B5)}
+#themeGrid .tsw.active{border-color:var(--accent,#FF7A1A)}
+#themeGrid .tsw.active span{color:var(--accent2,#FFB347)}
+#accentRow{display:block;margin:0;padding:0;font-size:0}
+#accentRow .acc{display:inline-block;width:34px;height:34px;margin:0 10px 10px 0;padding:0;
+  border:2px solid transparent;border-radius:17px;cursor:pointer;vertical-align:middle;
+  -webkit-box-sizing:border-box;box-sizing:border-box;-webkit-appearance:none}
+#accentRow .acc.active{border-color:var(--text0,#F5F5FA)}
+.ui-chipgrid{display:block;margin:0 0 12px;font-size:0}
+.ui-chipgrid > *{display:inline-block;width:49%;min-height:40px;margin:0 2% 6px 0;vertical-align:top;font-size:11px;
+  -webkit-box-sizing:border-box;box-sizing:border-box}
+.ui-chipgrid > *:nth-child(2n){margin-right:0}
+
+/* ---------- 7) misc ---------- */
+#tab-set .phase{display:block;margin:0 0 4px;font-size:11px;line-height:1.55;color:var(--text1,#A2A2B5)}
+#tab-set .phase .st{display:inline-block;width:20px}
+#tab-set .vtag{display:block;text-align:center;font-size:9px;letter-spacing:2px;
+  color:var(--text1,#A2A2B5);padding:14px 0 6px}
+nav{padding:8px 10px 10px}
+@supports(padding-bottom:env(safe-area-inset-bottom)){nav{padding-bottom:calc(10px + env(safe-area-inset-bottom))}}
+
+</style>
+</head>
+<body>
+
+<!-- ================= SPLASH ================= -->
+<div id="splash">
+  <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
+  <h1>MAYA</h1>
+  <div class="sub">PERSONAL AI SYSTEM</div>
+  <div class="ver">v5.10.0 — 🕯️ SMART-PRO · 📡 AUTO-UPDATE · ✋ SCROLL — team build, poora mazboot</div>
+  <button id="bootBtn">⚡ INITIALIZE</button>
+  <div class="bootline" id="bootLine"></div>
+  <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
+    <div style="font-size:11px; letter-spacing:2px; color:#f87171; margin-bottom:6px;">⚠ SYSTEM ERROR DETECTED</div>
+    <div id="errText" style="font-size:12px; color:#fecaca; word-break:break-all; font-family:monospace;">—</div>
+    <button onclick="__mayaForceEnter()" style="margin-top:10px; width:100%; background:#f87171; border:none; color:#2a0505; font-weight:800; padding:10px; border-radius:10px; cursor:pointer;">FORCE ENTER →</button>
+  </div>
+</div>
+
+<!-- ================= EDGE GLOW (video style — Customize mein toggle) ================= -->
+<div id="edgeGlow"></div>
+
+<!-- ================= DRAWER ================= -->
+<div id="drawerScrim"></div>
+<aside id="drawer">
+  <div class="dhead">MAYA</div>
+  <button class="dbtn" data-tab="tab-home">🏠 Home</button>
+  <button class="dbtn" data-tab="tab-chat">💬 Chat</button>
+  <button class="dbtn" data-tab="tab-mem">🧠 Memories</button>
+  <button class="dbtn" data-tab="tab-skills">🧩 Skills</button>
+  <button class="dbtn" data-tab="tab-hud">🎯 HUD</button>
+  <div class="dsep"></div>
+  <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
+  <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
+  <div class="dfoot">MAYA v5.10.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+</aside>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <header>
+    <button id="drawerBtn">☰</button>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.10.0 ✨</small></div>
+    <div id="statusPill">OFFLINE MODE</div>
+  </header>
+
+  <main>
+    <!-- ============ HOME (orb — video jaisa) ============ -->
+    <section class="tab active" id="tab-home">
+      <div id="orb" data-state="idle" aria-label="MAYA — tap to speak">
+        <div class="orbCore">M<span class="orbTag" id="orbPersona">MAYA</span></div>
+      </div>
+      <div id="statusText">TAP TO SPEAK</div>
+      <div id="interim"></div>
+      <div class="pchips" id="personaChips"></div>
+      <div id="homeLast"></div>
+      <div class="homebar">
+        <input id="homeTxt" placeholder="Maya se bolo... (voice reply)" autocomplete="off">
+        <button id="micHome" title="Bolo">🎤</button>
+      </div>
+      <div class="qactions">
+        <button data-cmd="waqt kya hua hai">⏰ TIME</button>
+        <button data-cmd="battery kitni hai">🔋 BATTERY</button>
+        <button data-cmd="search karo latest tech news">🔍 SEARCH</button>
+        <button data-cmd="1 minute ka timer lagao">⏱️ TIMER</button>
+        <button data-cmd="open whatsapp">💬 WHATSAPP</button>
+        <button data-cmd="open youtube">▶️ YOUTUBE</button>
+      </div>
+      <div class="note" style="max-width:380px">🎤 Mic / orb dabao aur bolo • persona chip se Maya / Friday / Venom badlo • ☰ mein sab kuch hai</div>
+    </section>
+
+    <!-- ============ CHAT (text replies) ============ -->
+    <section class="tab" id="tab-chat">
+      <div class="chatHead">
+        <span class="dot" id="dot"></span>
+        <span class="t" id="chatState">MAYA READY</span>
+        <div style="width:80px;height:4px;background:#4d2006;border-radius:3px;overflow:hidden;margin-left:8px"><div class="micbar" style="height:100%;width:4%"></div></div>
+        <span style="margin-left:auto; font-size:11px; color:var(--dim)" id="greetMini"></span>
+      </div>
+      <div id="log"></div>
+      <div class="quickrow">
+        <button class="quick" id="qAuto">🔁 AUTO: OFF</button>
+        <button class="quick" id="qMute">🔊 AWAAZ: ON</button>
+        <button class="quick" id="qStop">⏹️ STOP</button>
+      </div>
+      <div class="chatbar">
+        <button id="camBtn" title="Ye dekho" style="width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--cyan2);font-size:17px;cursor:pointer;flex:none">📸</button>
+        <button id="micBtn" title="Bolo">🎤</button>
+        <input id="txt" placeholder="Type karo (text reply)..." autocomplete="off">
+        <button id="send">BHEJO</button>
+      </div>
+    </section>
+
+    <!-- ============ MEMORIES ============ -->
+    <section class="tab" id="tab-mem">
+      <div class="card">
+        <h3>🧠 MEMORY BANK</h3>
+        <div class="note">Maya ki yaad rasheeda cheezein. Khud bhi add kar sakte ho — "yaad rakhna ki..." bol kar bhi hota hai.</div>
+        <div class="memrow">
+          <input class="f" id="newFact" placeholder="Nayi yaad likho... (jaise: kal doctor appointment)" style="margin:10px 0 0">
+          <button class="save" id="addFactBtn" style="width:auto;margin:10px 0 0;padding:11px 16px">➕ ADD</button>
+        </div>
+        <ul id="factList"></ul>
+        <button class="danger" id="clearFacts">🗑️ SARI MEMORY MITAO</button>
+      </div>
+      <div class="card">
+        <h3>💾 BACKUP</h3>
+        <div class="note">Memories + settings ka backup file — naye phone par wapas la sakte ho.</div>
+        <button class="save" id="expBtn" style="background:var(--bg2);color:var(--accent2);border:1px solid var(--line)">⬇️ BACKUP DOWNLOAD</button>
+      </div>
+    </section>
+
+    <!-- ============ SKILLS ============ -->
+    <section class="tab" id="tab-skills">
+      <div class="card">
+        <h3>🧩 SKILLS</h3>
+        <div class="skillgrid">
+          <div><b>🎯 Daily Routine</b>subah ka brief, alarm routine</div>
+          <div><b>📚 Study Mode</b>concept samjhana, quiz</div>
+          <div><b>💼 Office Helper</b>email drafts, reports</div>
+          <div><b>🍳 Kitchen Helper</b>recipes aur khayal</div>
+          <div><b>💰 Money Tracker</b>kharcha yaad rakhna</div>
+          <div><b>🎧 Music DJ</b>gaana mood ke hisab se</div>
+          <div><b>🧘 Calm Mode</b>stress kam karna</div>
+          <div><b>🛠️ Tech Support</b>phone ki madad</div>
+        </div>
+        <div class="note" style="margin-top:10px">Custom skills: "seekh lo: jab main kaahun subah jaga dena" — Maya khud seekh leti hai.</div>
+        <div class="note" id="skillList" style="color:var(--accent2)">—</div>
+        <button class="danger" id="clearSkills">🗑️ CUSTOM SKILLS MITAO</button>
+      </div>
+    </section>
+
+    <!-- ============ HUD ============ -->
+    <section class="tab" id="tab-hud">
+      <div class="maya-char" id="mayaChar" data-state="idle" aria-label="MAYA — tap to speak">
+<svg viewBox="0 0 220 260" xmlns="http://www.w3.org/2000/svg">
+          <!-- Hair back layer -->
+          <g class="char-hair-flow">
+            <path d="M30,80 Q25,30 70,15 Q90,10 110,12 Q130,10 150,15 Q195,30 190,80 L188,130 Q185,155 170,165 L50,165 Q35,155 32,130 Z" fill="#0e7490" opacity="0.9" class="char-hair"/>
+            <!-- Hair side strands -->
+            <path d="M28,85 Q22,120 30,170 Q35,180 40,175 Q32,130 35,90 Z" fill="#22d3ee" opacity="0.6" class="char-hair"/>
+            <path d="M192,85 Q198,120 190,170 Q185,180 180,175 Q188,130 185,90 Z" fill="#22d3ee" opacity="0.6" class="char-hair"/>
+          </g>
+          <!-- Hair front layer -->
+          <path d="M35,75 Q40,35 80,22 Q95,18 110,20 Q125,18 140,22 Q180,35 185,75 Q175,60 150,50 Q130,45 110,48 Q90,45 70,50 Q45,60 35,75 Z" fill="#22d3ee" opacity="0.85" class="char-hair"/>
+          <path d="M50,55 Q60,28 85,20 Q75,35 65,60 Z" fill="#67e8f9" opacity="0.7" class="char-hair"/>
+          <path d="M170,55 Q160,28 135,20 Q145,35 155,60 Z" fill="#67e8f9" opacity="0.7" class="char-hair"/>
+          <!-- Hair ribbon -->
+          <circle cx="175" cy="40" r="10" fill="#f472b6" opacity="0.85" class="char-hair-ribbon"/>
+          <circle cx="175" cy="40" r="5" fill="#fda4af" opacity="0.7" class="char-hair-ribbon"/>
+          <!-- Face -->
+          <ellipse cx="110" cy="108" rx="52" ry="58" fill="#fef3c7"/>
+          <!-- Blush -->
+          <ellipse cx="75" cy="118" rx="12" ry="6" fill="#fda4af" opacity="0.45"/>
+          <ellipse cx="145" cy="118" rx="12" ry="6" fill="#fda4af" opacity="0.45"/>
+          <!-- Eyes -->
+          <g class="char-eyes">
+            <ellipse cx="85" cy="108" rx="12" ry="7" fill="#0f172a"/>
+            <ellipse cx="135" cy="108" rx="12" ry="7" fill="#0f172a"/>
+            <g class="char-pupils">
+              <circle cx="87" cy="106" r="4" fill="#fff" opacity="0.9"/>
+              <circle cx="137" cy="106" r="4" fill="#fff" opacity="0.9"/>
+              <circle cx="83" cy="109" r="2" fill="#fff" opacity="0.5"/>
+              <circle cx="133" cy="109" r="2" fill="#fff" opacity="0.5"/>
+            </g>
+          </g>
+          <!-- Eyebrows -->
+          <path d="M72,96 Q85,90 98,96" stroke="#1e293b" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M122,96 Q135,90 148,96" stroke="#1e293b" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <!-- Nose -->
+          <ellipse cx="110" cy="116" rx="2" ry="1.5" fill="#e2b68a" opacity="0.5"/>
+          <!-- Mouth -->
+          <ellipse class="char-mouth" cx="110" cy="126" rx="7" ry="3.5" fill="#f87171" opacity="0.65"/>
+          <!-- Dress top -->
+          <path d="M55,162 Q55,180 65,195 Q80,205 110,208 Q140,205 155,195 Q165,180 165,162 Q150,172 110,175 Q70,172 55,162 Z" fill="#0e7490"/>
+          <!-- Dress accent line -->
+          <path d="M75,170 Q110,182 145,170" stroke="#22d3ee" stroke-width="2" fill="none" opacity="0.8"/>
+          <!-- Collar detail -->
+          <path d="M90,162 L110,170 L130,162" stroke="#67e8f9" stroke-width="1.5" fill="none" opacity="0.6"/>
+          <!-- Sparkles -->
+          <g class="char-sparkle" style="animation-delay:0s"><path d="M35,50 l3,-8 3,8 -8,-3 8,0 Z" fill="#22d3ee" opacity="0.7"/></g>
+          <g class="char-sparkle" style="animation-delay:.7s"><path d="M185,35 l2.5,-7 2.5,7 -7,-2.5 7,0 Z" fill="#67e8f9" opacity="0.6"/></g>
+          <g class="char-sparkle" style="animation-delay:1.4s"><path d="M195,110 l2,-5 2,5 -5,-2 5,0 Z" fill="#22d3ee" opacity="0.5"/></g>
+          <g class="char-sparkle" style="animation-delay:2s"><path d="M20,100 l2,-5 2,5 -5,-2 5,0 Z" fill="#f472b6" opacity="0.4"/></g>
+        </svg>
+        <div class="char-name">M A Y A</div>
+        <div class="char-status" id="charStatus">TAP TO SPEAK</div>
+      </div>
+      <div id="statusText2" style="text-align:center;font-size:11px;letter-spacing:3px;color:var(--text1);font-weight:700;margin-top:6px">TAP TO SPEAK</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+        <button onclick="testMayaVoice()" style="background:var(--panel);border:1px solid var(--line);color:var(--accent2);border-radius:999px;padding:7px 15px;font-size:11px;cursor:pointer;letter-spacing:1px">🎧 AWAAZ SUNO</button>
+        <button onclick="startListening()" style="background:var(--panel);border:1px solid var(--line);color:var(--accent2);border-radius:999px;padding:7px 15px;font-size:11px;cursor:pointer;letter-spacing:1px">🎤 BAIKHO</button>
+      </div>
+      <div style="display:flex;justify-content:center"><div style="width:180px;height:5px;background:#4d2006;border-radius:3px;overflow:hidden"><div class="micbar" style="height:100%;width:4%;border-radius:3px;box-shadow:0 0 8px var(--cyan)"></div></div></div>
+      <div class="chips" style="margin-top:14px">
+        <div class="chip"><div class="k">◈ SYSTEM TIME</div><div class="v big" id="hudClock">--:--</div><div class="k" id="hudDate" style="margin-top:2px">—</div></div>
+        <div class="chip"><div class="k">◈ POWER CELL</div><div class="v big" id="hudBat">—</div><div class="k" id="hudCharge" style="margin-top:2px">&nbsp;</div></div>
+        <div class="chip"><div class="k">◈ NEURAL LINK</div><div class="v" id="hudAI">NO KEY</div></div>
+        <div class="chip"><div class="k">◈ MEMORY BANK</div><div class="v" id="hudMem">0</div></div>
+        <div class="chip"><div class="k">◈ ACTIVE TIMERS</div><div class="v" id="hudTimers">0</div></div>
+        <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
+        <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
+        <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.10.0</div></div>
+      </div>
+      <div class="qactions" style="margin-top:12px">
+        <button data-cmd="waqt kya hua hai">⏰ TIME</button>
+        <button data-cmd="battery kitni hai">🔋 BATTERY</button>
+        <button data-cmd="search karo latest tech news">🔍 SEARCH</button>
+      </div>
+      <button id="installBtn">📲 MAYA INSTALL KARO (APP BAN JAYEGA)</button>
+      <div id="sysWrap">
+        <div class="k">◈ SYSTEM LOG</div>
+        <ul id="syslog"></ul>
+      </div>
+    </section>
+
+    <!-- ============ COMMANDS ============ -->
+    <section class="tab" id="tab-cmds">
+      <div class="searchWrap"><input id="cmdFilter" placeholder="🔎 Command dhoondo... (jaise: timer, open, yaad)"></div>
+      <div id="cmdList"></div>
+    </section>
+
+    <!-- ============ SETTINGS (video jaisa tree) ============ -->
+    <section class="tab" id="tab-set">
+
+      <!-- ================= v4.1.0 IRONCLAD — UI KIT v5 markup =================
+           Har control ka contract docs/SETTINGS-UI-ARCHITECTURE.md mein hai.
+           State native form element mein (purana JS bilkul waise hi chalta hai),
+           dikhawa sirf div/span se — koi color-mix / gap / grid / accent-color. -->
+
+      <div class="ui-group is-open" id="grp-personal">
+        <div class="ui-head"><span class="ui-ic">👤</span><span class="ui-ttl">PERSONAL SETTINGS</span><span class="ui-chev">▼</span></div>
+        <div class="ui-body">
+          <div class="ui-field">
+            <div class="ui-label">AAP KA NAAM</div>
+            <input class="ui-input" id="sName" type="text" placeholder="Sir">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">GENDER</div>
+            <select class="ui-input ui-select" id="sGender"><option value="male">Male</option><option value="female">Female</option></select>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">PHONE NUMBER (call/SMS ke liye)</div>
+            <input class="ui-input" id="sPhone" type="tel" placeholder="03xx-xxxxxxx" inputmode="tel">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">SHEHER (mausam)</div>
+            <input class="ui-input" id="sCity" type="text" placeholder="Hyderabad">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">MUSIC APP</div>
+            <select class="ui-input ui-select" id="sMusicApp"><option value="youtube">YouTube</option><option value="spotify">Spotify</option><option value="ytmusic">YouTube Music</option></select>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">FAVORITE SONG (Maya yaad rakhegi)</div>
+            <input class="ui-input" id="sFavSong" type="text" placeholder="gaana / artist">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">YOUTUBE CHANNEL ID (UC... se shuru)</div>
+            <input class="ui-input" id="sYtChannel" type="text" placeholder="UCxxxxxxxx">
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-group" id="grp-persona">
+        <div class="ui-head"><span class="ui-ic">🗣️</span><span class="ui-ttl">MAYA &amp; PERSONAS</span><span class="ui-chev">▼</span></div>
+        <div class="ui-body">
+          <div class="ui-field">
+            <div class="ui-label">ASSISTANT KA NAAM (UI par Maya hi rahega)</div>
+            <input class="ui-input" id="sAssistName" type="text" placeholder="Maya">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">PERSONA (default)</div>
+            <select class="ui-input ui-select" id="sPersona">
+              <option value="maya">💜 Maya — warm, witty best friend</option>
+              <option value="friday">🤖 Friday — professional assistant</option>
+              <option value="venom">🐍 Venom — alien, funny, dark</option>
+            </select>
+          </div>
+
+          <div class="ui-row">
+            <div class="ui-row-txt">💖 Girlfriend Mode <small>(Male profile par)</small></div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sGf"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">🧠 “Maya Remembers” — khud yaad rakhe</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sRemember"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">💬 Conversation Mode <small>(emotional awaaz — thora delay)</small></div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sConvo"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+
+          <div class="ui-field">
+            <div class="ui-label">LANGUAGE</div>
+            <select class="ui-input ui-select" id="sLang">
+              <option value="roman-ur">Roman Urdu (default)</option>
+              <option value="urdu">اردو Urdu script</option>
+              <option value="hi-en">Hindi + English mix</option>
+              <option value="hindi">हिंदी Hindi</option>
+              <option value="english">English</option>
+              <option value="pa">ਪੰਜਾਬੀ Punjabi</option>
+              <option value="bn">বাংলা Bangla</option>
+              <option value="ta">தமிழ் Tamil</option>
+              <option value="te">తెలుగు Telugu</option>
+              <option value="mr">मराठी Marathi</option>
+              <option value="gu">ગુજરાતી Gujarati</option>
+              <option value="kn">ಕನ್ನಡ Kannada</option>
+              <option value="ml">മലയാളം Malayalam</option>
+            </select>
+          </div>
+
+          <div class="ui-row">
+            <div class="ui-row-txt">✨ Proactive Maya — khud ba khud baat kare</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sProactive"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">🔁 Auto Listen (screen on lock)</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sAuto"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">👂 Wake Word — “Maya” / “Boss” (APK)</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sWake"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">🔊 Voice Replies</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sVoiceOn"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">📬 WhatsApp Reader — “naye messages sunao”</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sNotifOn"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-note">Reader ke liye notification access chahiye. ON karne par Maya aaye hue messages khud bhi bolti hai.</div>
+          <button type="button" class="ui-btn ui-btn-ghost" id="readerBtn">📬 READER PERMISSION ENABLE KARO</button>
+          <div class="ui-note" id="notifStatus">Status: checking...</div>
+          <div class="ui-row">
+            <div class="ui-row-txt">🔋 Battery-full alert (“charger nikal do!”)</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sBatAlert"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-group" id="grp-voice">
+        <div class="ui-head"><span class="ui-ic">🎧</span><span class="ui-ttl">AWAAZ — VOICE STUDIO</span><span class="ui-chev">▼</span></div>
+        <div class="ui-body">
+          <div class="ui-field">
+            <div class="ui-label">🎙️ AWAAZ ENGINE</div>
+            <select class="ui-input ui-select" id="sVoiceEngine">
+              <option value="auto">🪄 Auto — neural, warna phone (behtareen)</option>
+              <option value="neural">🎭 Sirf Neural — Gemini studio awaaz</option>
+              <option value="fish">🐟 Sirf Fish Audio — BE-HISAAB + ANDAAZ</option>
+              <option value="edge">🌊 Sirf Edge TTS — MUFT aur BE-HISAAB</option>
+              <option value="device">📱 Sirf Phone — 0 data, foran</option>
+              <option value="off">🔇 Band — Maya khamosh</option>
+            </select>
+            <div class="ui-hint" id="awaazStatus">—</div>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🎭 NEURAL AWAAZ (30 mein se chuno)</div>
+            <select class="ui-input ui-select" id="sGVoice"></select>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🎨 ANDAAZ / MOOD</div>
+            <select class="ui-input ui-select" id="sVoiceMood"></select>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">📶 Neural sirf WiFi par</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sNeuralWifi"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">🐟 Fish Audio S2.1 Pro <small>(be-hisaab + MOOD zinda — sab se pehle yehi bolti hai)</small></div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFishOn"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">⚡ Fast short replies <small>(small answers skip Fish Audio and speak instantly via Edge/phone — default OFF)</small></div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sFastShort"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🐟 FISH API KEY <small>(fish.audio/app/api-keys — muft, card nahi lagta)</small></div>
+            <input class="ui-input" id="sFishKey" type="password" placeholder="Fish key yahan paste karo">
+            <div class="ui-hint">Sirf yehi engine aap ke 9 MOOD (🤗 Warm, 🤫 Whisper, 🎭 Funny) samajhti hai — Edge par wo bekaar ho jate hain. ⚠️ Aap ke jumle Fish ke server par model behtar banane ke liye rakhe ja sakte hain.</div>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🐟 FISH AWAAZ <small>(khaali = default)</small></div>
+            <select class="ui-input ui-select" id="sFishVoice"></select>
+            <div class="ui-row" style="margin-top:8px">
+              <button type="button" class="ui-btn ui-btn-ghost" id="fishLib">📚 AWAAZ LIBRARY LAO</button>
+              <button type="button" class="ui-btn ui-btn-ghost" id="fishPyari">🎀 PYARI ZANANA AWAAZEIN DHOONDO</button>
+              <button type="button" class="ui-btn ui-btn-ghost" id="fishTest">🐟 FISH AWAAZ SUNO</button>
+            </div>
+            <div class="ui-hint" id="fishHint">—</div>
+            <div class="ui-field" style="margin-top:8px">
+              <div class="ui-label">🎯 LEHJA KITNA STHIR? <small>(kam = har dafa wohi awaaz · zyada = jazbaati magar badalta hua)</small></div>
+              <input class="ui-input" id="sFishTemp" type="number" min="0.1" max="0.9" step="0.05" value="0.35">
+              <div class="ui-hint">0.35 = sthir (mashwara) · 0.7 = jazbaati. Pehle 0.7 tha — isi liye har turn ka lehja badal jata tha.</div>
+            </div>
+            <div class="ui-hint">⚠️ Fish ke paas <b>pitch</b> ka option hai hi nahi — Settings ka pitch slider Fish par asar nahi karta (Edge aur phone par karta hai). Awaaz patli/pyari chahiye to <b>awaaz badlo</b>, pitch nahi.</div>
+          </div>
+          <button type="button" class="ui-btn ui-btn-ghost" id="fishDoctor">🩺 FISH CHECK KARO — muft daur zinda hai ya nahi</button>
+          <div class="ui-hint">Fish se KHUD poochh kar batata hai: 200 = zinda, 402 = muft window band, 401 = key ghalat. Andaza nahi — Fish ka apna jawab.</div>
+          <pre class="ui-pre" id="fishDocOut">—</pre>
+          <div class="ui-row">
+            <div class="ui-row-txt">🌊 Edge TTS (muft, be-hisaab — Gemini khatam ho to yehi bolti hai)</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sEdgeTts"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🌊 EDGE AWAAZ (asli Urdu — koi key nahi)</div>
+            <select class="ui-input ui-select" id="sEdgeVoice"></select>
+            <div class="ui-hint" id="edgeHint">—</div>
+            <button class="ui-btn" id="edgeTest" type="button">🌊 EDGE AWAAZ SUNO</button>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">SUNNE KI ZUBAAN (STT)</div>
+            <select class="ui-input ui-select" id="sStt">
+              <option value="ur-PK">اردو Urdu (Pakistan)</option>
+              <option value="hi-IN">हिंदी Hindi (India)</option>
+              <option value="en-IN">English (India)</option>
+              <option value="en-US">English (US)</option>
+            </select>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">BOLNE KI ZUBAAN (TTS)</div>
+            <select class="ui-input ui-select" id="sTts">
+              <option value="ur-PK">اردو Urdu (Pakistan)</option>
+              <option value="hi-IN">हिंदी Hindi (India)</option>
+              <option value="en-IN">English (India)</option>
+              <option value="en-US">English (US)</option>
+            </select>
+          </div>
+          <div id="artistGrid" class="ui-chipgrid"></div>
+          <div class="ui-field">
+            <div class="ui-label">TTS VOICE (system engine)</div>
+            <select class="ui-input ui-select" id="sVoice"><option value="">Auto (engine default)</option></select>
+          </div>
+          <button type="button" class="ui-btn ui-btn-ghost" id="testVoice">🎧 TEST AWAAZ SUNO</button>
+          <div class="ui-hint" id="awaazWhy">Test karo — niche likha aayega ke kis engine ne bola.</div>
+
+          <div class="ui-field">
+            <div class="ui-label">🎵 AWAAZ KI PITCH: <b id="pitchVal">1.05</b></div>
+            <input type="range" id="sPitch" min="0.7" max="1.4" step="0.05" value="1.05">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🏃 AWAAZ KI RAFTAR: <b id="rateVal">1.00</b>x</div>
+            <input type="range" id="sRate" min="0.7" max="1.4" step="0.05" value="1">
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-group" id="grp-theme">
+        <div class="ui-head"><span class="ui-ic">🎨</span><span class="ui-ttl">CUSTOMIZE — THEME &amp; LOOK</span><span class="ui-chev">▼</span></div>
+        <div class="ui-body">
+          <div class="ui-field">
+            <div class="ui-label">THEME</div>
+            <div id="themeGrid"></div>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">ACCENT COLOR</div>
+            <div id="accentRow"></div>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">CORNER STYLE: <b id="radiusVal">18</b>px <small>(4 = sharp, 24 = soft)</small></div>
+            <input type="range" id="sRadius" min="4" max="24" step="1" value="18">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">TEXT SIZE: <b id="fontVal">1.00</b>x</div>
+            <input type="range" id="sFont" min="0.85" max="1.25" step="0.05" value="1">
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">🌈 Edge Glow — screen ke kinare roshni <small>(battery zyada khaata hai)</small></div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sEdgeGlow"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-group" id="grp-keys">
+        <div class="ui-head"><span class="ui-ic">🔑</span><span class="ui-ttl">API KEYS — BRAINS</span><span class="ui-chev">▼</span></div>
+        <div class="ui-body">
+          <div class="ui-field">
+            <div class="ui-label">GEMINI API KEY (FREE — aistudio.google.com)</div>
+            <input class="ui-input" id="sKey" type="password" placeholder="AIza... se shuru hoti hai">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">GEMINI MODEL</div>
+            <select class="ui-input ui-select" id="sModel">
+              <option value="auto">Auto — best available</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+            </select>
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🐙 GITHUB TOKEN — coding + models <small>(github.com/settings/tokens)</small></div>
+            <input class="ui-input" id="sGhKey" type="password" placeholder="github_pat_...">
+          </div>
+          <div class="ui-hint" id="poolHint">🧠 BRAIN POOL — <b id="poolLive">0</b> dimaag zinda. Har khane mein <b>kai keys</b> comma se daal sakte ho — quota dugna, tigna, jitna chaho.</div>
+          <div class="ui-field">
+            <div class="ui-label">⚡ GROQ KEY — sab se tez <small>(console.groq.com)</small></div>
+            <input class="ui-input" id="sGqKey" type="password" placeholder="gsk_... (kai keys comma se)">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🚀 CEREBRAS KEY — roz 10 lakh token <small>(cloud.cerebras.ai)</small></div>
+            <input class="ui-input" id="sCerebras" type="password" placeholder="csk-... (kai keys comma se)">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🇪🇺 MISTRAL KEY — mahina 1 arab token <small>(console.mistral.ai)</small></div>
+            <input class="ui-input" id="sMistral" type="password" placeholder="kai keys comma se">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🔀 OPENROUTER KEY — 20+ free models <small>(openrouter.ai)</small></div>
+            <input class="ui-input" id="sOpenRouter" type="password" placeholder="sk-or-v1-...">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🟩 NVIDIA NIM KEY — 120+ models <small>(build.nvidia.com)</small></div>
+            <input class="ui-input" id="sNvidia" type="password" placeholder="nvapi-...">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🇨🇳 Z.AI GLM KEY <small>(z.ai)</small></div>
+            <input class="ui-input" id="sZai" type="password" placeholder="optional">
+          </div>
+          <div class="ui-field">
+            <div class="ui-label">🆓 LLM7 TOKEN — bina key bhi chalta hai <small>(token.llm7.io)</small></div>
+            <input class="ui-input" id="sLlm7" type="password" placeholder="khaali chhoro to bhi chalega">
+          </div>
+          <button type="button" class="ui-btn ui-btn-ghost" id="poolCheck">🧠 BRAIN POOL DEKHO</button>
+          <pre class="ui-pre" id="poolOut">—</pre>
+          <pre class="ui-pre show" id="voicePool" style="display:block">—</pre>
+          <button type="button" class="ui-btn ui-btn-ghost" id="awaazDoctor">🩺 GEMINI VOICE KEYS CHECK KARO</button>
+          <div class="ui-hint">Har key ko Google se KHUD poochh kar batata hai ke wo kyun nahi chal rahi — andaza nahi, Google ka apna jawab.</div>
+          <pre class="ui-pre" id="awaazDocOut">—</pre>
+          <div class="ui-field">
+            <div class="ui-label">🎙️ AWAAZ KE LIYE GEMINI KEYS <small>(comma se kai — magar HAR EK ALAG GOOGLE ACCOUNT SE)</small></div>
+            <input class="ui-input" id="sTtsKey" type="password" placeholder="Khaali = upar wali key use hogi">
+            <div class="ui-hint">Alag key = alag quota. Neural awaaz baat-cheet ka quota nahi khaati.</div>
+          </div>
+          <div class="ui-row">
+            <div class="ui-row-txt">⚡ TURBO MODE (fast responses)</div>
+            <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sTurbo"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+          </div>
+          <button type="button" class="ui-btn ui-btn-ghost" id="testKeys">🧪 SAB KEYS TEST KARO</button>
+          <pre class="ui-pre" id="keyTestOut">—</pre>
+        </div>
+      </div>
+
+      <div class="ui-group" id="grp-data">
+        <div class="ui-head"><span class="ui-ic">🧰</span><span class="ui-ttl">DATA &amp; MAINTENANCE</span><span class="ui-chev">▼</span></div>
+        <div class="ui-body">
+          <button type="button" class="ui-btn ui-btn-danger" id="clearChat">🗑️ CHAT HISTORY CLEAR</button>
+          <button type="button" class="ui-btn ui-btn-ghost" id="diagBtn">🔍 DOCTOR — TEST CHALAO</button>
+          <pre class="ui-pre" id="diagOut"></pre>
+          <button type="button" class="ui-btn ui-btn-ghost" id="uiCheckBtn">🧪 UI CHECK — har control naapo</button>
+          <pre class="ui-pre" id="uiCheckOut"></pre>
+          <div class="ui-note">UI CHECK har slider, switch, label aur button ko naap kar batata hai ke wo asal mein screen par dikh raha hai ya nahi.</div>
+        </div>
+      </div>
+
+      <div class="ui-group" id="grp-adv">
+        <div class="ui-head"><span class="ui-ic">🔧</span><span class="ui-ttl">ADVANCED — PERMISSIONS</span><span class="ui-chev">▼</span></div>
+        <div class="ui-body">
+          <button type="button" class="ui-btn ui-btn-ghost" id="batShield">🔋 BATTERY SHIELD (zaroori — 1 dafa)</button>
+          <div class="ui-note" id="batStatus">Status: checking...</div>
+          <button type="button" class="ui-btn ui-btn-ghost" id="asStep1">1️⃣ APP SETTINGS KHOLO (⋮ → Allow restricted settings)</button>
+          <button type="button" class="ui-btn ui-btn-ghost" id="asStep2">2️⃣ ACCESSIBILITY KHOLO (MAYA AutoSend ON)</button>
+          <button type="button" class="ui-btn ui-btn-ghost" id="asStep3">3️⃣ STATUS CHECK KARO</button>
+          <div class="ui-note" id="asWizardStatus">—</div>
+          <button type="button" class="ui-btn" id="autoSendBtn">☠️ WHATSAPP AUTO-SEND ENABLE KARO (purana rasta)</button>
+          <div class="ui-note" id="asStatus">Status: checking...</div>
+        </div>
+      </div>
+
+      <div class="ui-card">
+        <div class="ui-card-h">🧪 MAYA LAB — naye hisse (switch se chalu karo)</div>
+        <div class="ui-note">Har naya hissa yahan se ON/OFF hota hai. Kuch bura lage to OFF kar do — Maya foran purane tareeqe par aa jayegi. Nayi APK ka intezar nahi.</div>
+
+        <div class="ui-row">
+          <div class="ui-row-txt">📊 NAAP — har turn ka waqt naapo <small>(rawaiya nahi badalta)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labNaap"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">🧹 SAAF ZUBAAN — andar ki soch (&lt;think&gt;) chhupao <small>(dikhe bhi na, boli bhi na jaye)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labSaaf"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">👑 MALIK — Maya ko apne banane wale ka pata ho</div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labMalik"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">👁️ NAZAR — <b>screen parh sako</b> <small>(Maya dekh sakegi screen par kya hai — CHHUEGI KUCH NAHI. Iske liye Accessibility ON honi chahiye)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labNazar"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">⚡ BIJLI — <b>50ms mein kaam</b> <small>(torch/brightness/volume/timer — dimaag se PEHLE, aur internet ke bina bhi)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labBijli"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">🛡️ IJAZAT — <b>lagaam</b> <small>(🔴 call/SMS/WhatsApp par pehle poochho · 📜 roznamcha · ⟲ wapas karo)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labIjazat"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">🗣️ BOLI — <b>hamare lehje mein bolo</b> <small>(screen par Roman, bolne ke liye Devanagari/Urdu — Fish matn se zubaan pehchanta hai)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labBoli"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">🤝 SACH — <b>jhoot band</b> <small>("bhej diya" tab hi jab SACH MEIN bheja ho + kai-qadam wale hukm)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labSach"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">🎙️ SUNO — <b>awaaz Roman Urdu mein likho</b> <small>(aur pise hue naam theek karo — Monarch, Instagram)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labSuno"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">⚡ AMAL — <b>tools har dimaag ko</b> <small>(pehle sirf Gemini ko milte the — isi liye brightness/YouTube nahi chalte the)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labPool"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">🎚️ SUKOON — <b>awaaz kabhi nahi kategi</b> <small>(default ON — bugfix: mic aur awaaz ki ladai khatam · "Maya online" poora sunai dega · wake switch kabhi khud nahi mitega. Sirf masla ho to OFF karo)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labSukoon"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">🔄 APP UPDATE — <b>naya version aaya?</b> <small id="updHint">GitHub Releases se muft check · koi key nahi</small></div>
+          <div class="ui-row-ctl"><button class="ui-btn ui-btn-ghost" id="btnUpdCheck" type="button" style="min-height:40px;width:auto;padding:8px 14px;margin:0;font-size:12px;">CHECK</button></div>
+        </div>
+        <div class="ui-hint" id="labHint">—</div>
+
+        <div class="ui-row">
+          <div class="ui-row-txt">⚡ TRUST MODE — <b>bina poochhe sab karo</b> <small>(🔴 surkh kaam bhi — call/SMS bhi bina ijazat. Sirf tab jab poora bharosa ho)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sTrustMode"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-field">
+          <div class="ui-label">🚪 "MAYA" KEHNE KE BAAD DARWAZA KITNI DER KHULA <small>(0 = har baar "Maya" kehna paregi · 60 = lambi baat-cheet)</small></div>
+          <input class="ui-input" id="sWakeDoor" type="number" min="0" max="60" step="5" value="15">
+          <div class="ui-hint">Us waqt ke andar bina "Maya" kahe baat chalti rahegi. Har jawab par waqt dobara shuru. "bas" ya "theek hai" kaho to foran band.</div>
+        </div>
+        <div class="ui-field">
+          <div class="ui-label">🎤 MIC KA ZOOM <small>(-1 = poora kamra · +1 = sirf qareeb ki awaaz, background rad)</small></div>
+          <input class="ui-input" id="sMicZoom" type="number" min="-1" max="1" step="0.1" value="0.8">
+        </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">📏 QAREEB KI AWAAZ — <b>door ki awaaz ignore karo</b> <small>(khamoshi mein mic band rakho — battery aur "on/off" dono theek)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sMicNear"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labKaanDoc">🩺 KAAN DOCTOR — kyun nahi jaag rahi?</button>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labMicTest">🧪 MIC TEST — 5 second boliye</button>
+        <div class="ui-row" style="gap:6px">
+          <button type="button" class="ui-btn ui-btn-ghost" id="setVoice" style="margin:0">🎙️ VOICE INPUT</button>
+          <button type="button" class="ui-btn ui-btn-ghost" id="setBatt" style="margin:0">🔋 BATTERY</button>
+        </div>
+        <div class="ui-row" style="gap:6px">
+          <button type="button" class="ui-btn ui-btn-ghost" id="labOnDevice" style="margin:0">🗣️ ON-DEVICE LANGUAGE — wake ki zubaan download karo</button>
+        </div>
+        <div class="ui-hint">Yeh "Maya" sun-ne wale ka offline dimaag hai — khule Gboard → <b>Voice typing</b> mein <b>اردو + English (India)</b> download karyn (Wi-Fi par, ~80MB har ik). Iske baghair online Google "Maya" ko "ہے" jaisa ghalat parh leta hai.</div>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labKaan">👂 WAKE WORD KA HAAL — Maya ne kya suna?</button>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labNazarTest">👁️ SCREEN ABHI PARHO — dekho Maya kya dekh rahi hai</button>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labLedger">📜 AAJ KYA KYA KIYA — poora roznamcha</button>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labBaseline">📊 BASELINE DEKHO — aaj ke asli number</button>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labHarvest">🗃️ MERI BAATON SE TEST SET (naam/number chhupa kar)</button>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labDiag">📋 DIAGNOSTIC COPY KARO — sab kuch clipboard par</button>
+        <div class="ui-hint">Diagnostic mein saari API keys, phone number aur email <b>khud-ba-khud chhup</b> jate hain. Bug ho to bas ye copy kar ke bhej dena.</div>
+        <pre class="ui-pre" id="labOut">—</pre>
+        <button type="button" class="ui-btn danger" id="labClear">🗑️ NAAP KA DATA MITAO</button>
+      </div>
+
+      <div class="ui-card">
+        <div class="ui-card-h">🚀 MAYA v4.1 — KYA NAYA HAI</div>
+        <div class="phase"><span class="st">✅</span><span><b>IRONCLAD Settings UI</b> — custom sliders/switches, har purane WebView par visible</span></div>
+        <div class="phase"><span class="st">✅</span><span><b>Measured layout</b> — scroll ab JS se naapi gayi height par (kabhi clip nahi hota)</span></div>
+        <div class="phase"><span class="st">✅</span><span><b>UI CHECK</b> — khud test kar ke batata hai kaunsa control dikh raha hai</span></div>
+        <div class="phase"><span class="st">✅</span><span><b>Personas</b> — Maya / Friday / Venom + voice command switch</span></div>
+        <div class="phase"><span class="st">✅</span><span><b>Theme Engine</b> — 7 themes, accent colors, corner/text sliders, edge glow</span></div>
+        <div class="phase"><span class="st">🔮</span><span><b>Phase 2 (agla)</b> — Voice Guardian, Touch Guard, SOS, screen lock</span></div>
+      </div>
+
+      <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
+      <div class="vtag">MAYA v5.10.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div style="height:10px"></div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-tab="tab-home" class="active"><span class="ic">🏠</span>HOME</button>
+    <button data-tab="tab-chat"><span class="ic">💬</span>CHAT</button>
+    <button data-tab="tab-mem"><span class="ic">🧠</span>MEM</button>
+    <button data-tab="tab-cmds"><span class="ic">⚡</span>CMDS</button>
+    <button data-tab="tab-set"><span class="ic">⚙️</span>SET</button>
+  </nav>
+</div>
+
+<div id="toast"></div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.10.0 · OK</div>
+

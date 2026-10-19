@@ -1,10 +1,31 @@
 name: Build MAYA APK
 
-# Har push par automatically APK ban jayegi — ya manually "Run workflow" se
+# Har push par: PEHLE test, phir APK — toota hua code kabhi APK nahi banta
 on: [push, workflow_dispatch]
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Code checkout
+        uses: actions/checkout@v4
+
+      - name: 2. Node setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 3. Deps install
+        run: npm install --no-audit --no-fund
+
+      - name: 4. TESTS (1000+ — ek bhi fail = build band)
+        run: npm test
+
+      - name: 5. BUILD SYNC CHECK (web/ se index.html fresh?)
+        run: node build.js --check
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: 1. Code checkout
@@ -21,10 +42,28 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: 4. APK BUILD (3-6 minute)
+      - name: 4. Signing keystore (Secrets se — docs/SECURITY.md)
+        env:
+          MAYA_KEYSTORE_BASE64: ${{ secrets.MAYA_KEYSTORE_BASE64 }}
+          MAYA_KEYSTORE_PASSWORD: ${{ secrets.MAYA_KEYSTORE_PASSWORD }}
+          MAYA_KEY_ALIAS: ${{ secrets.MAYA_KEY_ALIAS }}
+          MAYA_KEY_PASSWORD: ${{ secrets.MAYA_KEY_PASSWORD }}
+        run: |
+          if [ -n "$MAYA_KEYSTORE_BASE64" ]; then
+            echo "$MAYA_KEYSTORE_BASE64" | base64 -d > app/maya.keystore
+            echo "MAYA_KEYSTORE_FILE=app/maya.keystore" >> $GITHUB_ENV
+            echo "MAYA_KEYSTORE_PASSWORD=$MAYA_KEYSTORE_PASSWORD" >> $GITHUB_ENV
+            echo "MAYA_KEY_ALIAS=$MAYA_KEY_ALIAS" >> $GITHUB_ENV
+            echo "MAYA_KEY_PASSWORD=$MAYA_KEY_PASSWORD" >> $GITHUB_ENV
+            echo "✅ Keystore ready (may signing)"
+          else
+            echo "⚠️ MAYA_KEYSTORE_BASE64 secret nahi — debug signing se build hoga (docs/SECURITY.md)"
+          fi
+
+      - name: 5. APK BUILD (3-6 minute)
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: 5. APK upload (download ke liye)
+      - name: 6. APK upload (download ke liye)
         uses: actions/upload-artifact@v4
         with:
           name: MAYA-APK

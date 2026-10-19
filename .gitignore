@@ -9,3 +9,8 @@ captures/
 .externalNativeBuild/
 .cxx/
 node_modules/
+
+# ── SECURITY: signing secrets kabhi git mein nahi (docs/SECURITY.md) ──
+keystore.properties
+*.keystore
+*.jks

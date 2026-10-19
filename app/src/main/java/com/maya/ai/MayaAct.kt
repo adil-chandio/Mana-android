@@ -90,9 +90,9 @@ object MayaAct {
                 return out.toString()
             }
             val action = json.optString("action", "")
-            if (action != "tap" && action != "type" && action != "swipe" && action != "back") {
+            if (action != "tap" && action != "type" && action != "swipe" && action != "scroll" && action != "back") {
                 out.put("ok", false)
-                out.put("why", "namaloom action '" + action + "' — sirf tap/type/swipe/back")
+                out.put("why", "namaloom action '" + action + "' — sirf tap/type/swipe/scroll/back")
                 return out.toString()
             }
             /* vague command refusal: tap/type NEED a find label (no blind taps) */
@@ -241,6 +241,36 @@ object MayaAct {
                     svc.swipe(x1, y1, x2, y2, ms) { ok ->
                         h.removeCallbacks(timedOut)
                         finishAction(appCtx, next, chain, ok, ok, "swipe")
+                    }
+                }
+                "scroll" -> {
+                    /* P7 HAATH: direction-wala scroll — andha coords user se
+                       nahi maangte. dir=down (neeche dekhna → ungli UPAR),
+                       up (→ ungli NEECHE), left/right (→ usi taraf ungli).
+                       Same guardrails: timeout + bounded attempts + rate. */
+                    val dm = svc.resources.displayMetrics
+                    val w = dm.widthPixels.toFloat()
+                    val hh = dm.heightPixels.toFloat()
+                    val cx = w / 2f
+                    val cy = hh / 2f
+                    val dist = hh * 0.35f
+                    val dir = next.optString("dir", "down")
+                    val pts = when (dir) {
+                        "down"  -> floatArrayOf(cx, cy + dist, cx, cy - dist)   /* ungli upar   */
+                        "up"    -> floatArrayOf(cx, cy - dist, cx, cy + dist)   /* ungli neeche */
+                        "left"  -> floatArrayOf(cx + dist, cy, cx - dist, cy)   /* ungli bayen  */
+                        "right" -> floatArrayOf(cx - dist, cy, cx + dist, cy)   /* ungli dayen  */
+                        else -> null
+                    }
+                    if (pts == null) {
+                        h.removeCallbacks(timedOut)
+                        report(appCtx, killJson("REFUSED — dir '" + dir + "' ghalat (down/up/left/right)"))
+                        return
+                    }
+                    val ms = next.optLong("ms", 320L).coerceIn(120L, 900L)
+                    svc.swipe(pts[0].toDouble(), pts[1].toDouble(), pts[2].toDouble(), pts[3].toDouble(), ms) { ok ->
+                        h.removeCallbacks(timedOut)
+                        finishAction(appCtx, next, chain, ok, ok, "scroll:" + dir)
                     }
                 }
                 "tap" -> {

@@ -3,6 +3,27 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   SIGNING — credentials CODE mein nahi hain (docs/SECURITY.md)
+
+   Tartib:
+     1. keystore.properties  (local, gitignored)
+     2. CI env vars          (GitHub Secrets — build workflows set karte hain)
+     3. Fallback: default debug signing — build KABHI fail nahi hota
+   ═══════════════════════════════════════════════════════════════════ */
+def signingProps = new Properties()
+def signingFile = rootProject.file('keystore.properties')
+if (signingFile.exists()) {
+    signingFile.withInputStream { signingProps.load(it) }
+}
+def ksFile   = signingProps.getProperty('storeFile')     ?: System.getenv('MAYA_KEYSTORE_FILE')
+def ksPass   = signingProps.getProperty('storePassword') ?: System.getenv('MAYA_KEYSTORE_PASSWORD')
+def ksAlias  = signingProps.getProperty('keyAlias')      ?: System.getenv('MAYA_KEY_ALIAS')
+def ksKeyPass = signingProps.getProperty('keyPassword')  ?: System.getenv('MAYA_KEY_PASSWORD')
+def ksFileResolved = ksFile ? rootProject.file(ksFile) : null
+def hasMayaSigning = ksFileResolved != null && ksFileResolved.exists() &&
+        ksPass != null && ksAlias != null && ksKeyPass != null
+
 android {
     namespace 'com.maya.ai'
     compileSdk 34
@@ -11,26 +32,28 @@ android {
         applicationId "com.maya.ai"
         minSdk 26          // Android 8.0+ — vector icon + modern APIs
         targetSdk 34
-        versionCode 74
-        versionName "5.9.5"
+        versionCode 75
+        versionName "5.10.0"
     }
 
     signingConfigs {
         maya {
-            storeFile file("maya.keystore")
-            storePassword "maya2026adil"
-            keyAlias "maya"
-            keyPassword "maya2026adil"
+            if (hasMayaSigning) {
+                storeFile ksFileResolved
+                storePassword ksPass
+                keyAlias ksAlias
+                keyPassword ksKeyPass
+            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig signingConfigs.maya
+            if (hasMayaSigning) signingConfig signingConfigs.maya
         }
         release {
             minifyEnabled false
-            signingConfig signingConfigs.maya
+            if (hasMayaSigning) signingConfig signingConfigs.maya
         }
     }
     compileOptions {
@@ -40,6 +63,10 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
+}
+
+if (!hasMayaSigning) {
+    logger.lifecycle('⚠️ MAYA keystore nahi mila (keystore.properties / CI secrets) — default debug signing se build hoga. Hal: docs/SECURITY.md')
 }
 
 dependencies {

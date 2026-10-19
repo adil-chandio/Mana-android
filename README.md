@@ -1,9 +1,14 @@
 # 🤖 MAYA — Personal AI Assistant
 
-**Version 5.9.0 "SUKOON" — 0-Budget Build • Android APK + Web PWA**
+**Version 5.10.0 — 0-Budget Build • Android APK + Web PWA**
 
 MAYA = aap ka apna JARVIS — voice controlled AI assistant (Gemini brain),
 ab **asli Android app** (APK) ki soorat mein, native superpowers ke saath:
+
+> 📦 **Ab se TEAM dhancha:** source `web/` mein hai (parts), `node build.js` se
+> `index.html` banta hai. Naqsha: [`docs/TEAM-MASTER-PLAN.md`](docs/TEAM-MASTER-PLAN.md) ·
+> Release qanoon: [`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) ·
+> Secrets: [`docs/SECURITY.md`](docs/SECURITY.md) · Tests: `npm test` (1000+)
 
 ## 🎚️ v5.9.0 — SUKOON: awaaz kabhi nahi kategi · mic-larai khatam *(P9 · v5.9.1 mein 🗣️ ON-DEVICE LANGUAGE ka asli button bhi)*
 
@@ -637,6 +642,10 @@ MAYA ka web version bhi hai — phone ke browser mein chalta hai!
 
 - ✅ Phase 1 — PWA Pro (web app)
 - ✅ Phase 2 — Native APK (ye!)
-- ⏳ Phase 3 — Smart Brain (AI function calling, routines)
-- ⏳ Phase 4 — Boss Level (wake word, offline AI)
+- ✅ Phase 4 (hissa) — Wake word (v5.7-5.9 KAAN/SUKOON), offline BIJLI commands (v5.4)
+- 🔄 Phase 3 — Smart Brain (routines, P6 KHUD-MUKHTAR smart-proactive)
+- ⏳ Phase 5 — P7 HAATH (full gestures) · auto-APK updates · cloud brain · `/memory/`
+- ⏳ Duniya ke liye (Manzil 2) — Play Store, onboarding, MONARCH branding
+
+> Poori team roadmap: [`docs/TEAM-MASTER-PLAN.md`](docs/TEAM-MASTER-PLAN.md) — 5 WAQT, har step ka QA.
 

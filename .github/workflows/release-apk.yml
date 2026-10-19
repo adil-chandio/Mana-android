@@ -1,14 +1,14 @@
-# YE FILE COPY KARO — GitHub par .github/workflows/release-apk.yml banana ke liye
-# (bot token workflow push nahi kar sakta, is liye 1 dafa manually banana parega)
+# Release workflow — tag input se GitHub Release banata hai + APK attach karta hai
+# (pehli dafa manually banana para tha — bot token workflow push nahi kar sakta)
 name: Release MAYA APK
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (jaise v4.0.0)'
+        description: 'Release tag (jaise v5.9.5)'
         required: true
-        default: 'v4.0.0'
+        default: 'v5.9.5'
 
 permissions:
   contents: write
@@ -20,29 +20,52 @@ jobs:
       - name: 1. Code checkout
         uses: actions/checkout@v4
 
-      - name: 2. Java 17 setup
+      - name: 2. TESTS — release se pehle lazmi
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+
+      - name: 3. Java 17 setup
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: 3. Gradle 8.7 setup
+      - name: 4. Gradle 8.7 setup
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.7'
 
-      - name: 4. APK BUILD
+      - name: 5. Signing keystore (Secrets se — docs/SECURITY.md)
+        env:
+          MAYA_KEYSTORE_BASE64: ${{ secrets.MAYA_KEYSTORE_BASE64 }}
+          MAYA_KEYSTORE_PASSWORD: ${{ secrets.MAYA_KEYSTORE_PASSWORD }}
+          MAYA_KEY_ALIAS: ${{ secrets.MAYA_KEY_ALIAS }}
+          MAYA_KEY_PASSWORD: ${{ secrets.MAYA_KEY_PASSWORD }}
+        run: |
+          if [ -n "$MAYA_KEYSTORE_BASE64" ]; then
+            echo "$MAYA_KEYSTORE_BASE64" | base64 -d > app/maya.keystore
+            echo "MAYA_KEYSTORE_FILE=app/maya.keystore" >> $GITHUB_ENV
+            echo "MAYA_KEYSTORE_PASSWORD=$MAYA_KEYSTORE_PASSWORD" >> $GITHUB_ENV
+            echo "MAYA_KEY_ALIAS=$MAYA_KEY_ALIAS" >> $GITHUB_ENV
+            echo "MAYA_KEY_PASSWORD=$MAYA_KEY_PASSWORD" >> $GITHUB_ENV
+            echo "✅ Keystore ready (may signing)"
+          else
+            echo "⚠️ MAYA_KEYSTORE_BASE64 secret nahi — debug signing se release hogi"
+          fi
+
+      - name: 6. APK BUILD
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: 5. Release banayo + APK upload
+      - name: 7. Release banayo + APK upload
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.inputs.tag }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk MAYA-${TAG}.apk
-          gh release view "$TAG" 2>/dev/null || gh release create "$TAG" \
-            --target "$GITHUB_SHA" \
-            --title "MAYA ${TAG} — Obsidian" \
-            --notes "MAYA ${TAG} — Obsidian design, personas (Maya/Friday/Venom), themes, GF mode, memories. Install: APK kholo > Install anyway. (Play Protect warning aaye to Install anyway — apna hi code hai)"
-          gh release upload "$TAG" "MAYA-${TAG}.apk" --clobber
-          echo "DONE: https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/MAYA-${TAG}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "MAYA-$TAG.apk"
+          gh release create "$TAG" "MAYA-$TAG.apk" \
+            --title "MAYA $TAG" \
+            --notes "Auto-release — npm test green hone ke baad bani APK. Install: phone par APK kholo → Install anyway."
+          echo "✅ Release $TAG live"

@@ -536,7 +536,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver">v5.9.5 — 🎚️ SUKOON — awaaz kabhi nahi kategi · mic-larai khatam · wake word sach mein zinda</div>
+  <div class="ver">v5.10.0 — 🕯️ SMART-PRO · 📡 AUTO-UPDATE · ✋ SCROLL — team build, poora mazboot</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,14 +561,14 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.9.5 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.10.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.9.5 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.10.0 ✨</small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -729,7 +729,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.9.5</div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.10.0</div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -1144,6 +1144,10 @@ nav{padding:8px 10px 10px}
           <div class="ui-row-txt">🎚️ SUKOON — <b>awaaz kabhi nahi kategi</b> <small>(default ON — bugfix: mic aur awaaz ki ladai khatam · "Maya online" poora sunai dega · wake switch kabhi khud nahi mitega. Sirf masla ho to OFF karo)</small></div>
           <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="labSukoon"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
         </div>
+        <div class="ui-row">
+          <div class="ui-row-txt">🔄 APP UPDATE — <b>naya version aaya?</b> <small id="updHint">GitHub Releases se muft check · koi key nahi</small></div>
+          <div class="ui-row-ctl"><button class="ui-btn ui-btn-ghost" id="btnUpdCheck" type="button" style="min-height:40px;width:auto;padding:8px 14px;margin:0;font-size:12px;">CHECK</button></div>
+        </div>
         <div class="ui-hint" id="labHint">—</div>
 
         <div class="ui-row">
@@ -1195,7 +1199,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.9.5 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.10.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1210,7 +1214,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.9.5 · OK</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.10.0 · OK</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1278,7 +1282,7 @@ setTimeout(function(){
 "use strict";
 /* ================= MAYA v2.1.1 — Doctor Build ================= */
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.9.5 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v5.10.0 OK \u2713"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
 /* ---------- SETTINGS (v1 migration ke saath) ---------- */
@@ -1367,7 +1371,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.9.5 — SYSTEMS ONLINE  (SUKOON: audio referee)");
+    pushLog("MAYA v5.10.0 — SYSTEMS ONLINE  (SMART-PRO: wajah se baat)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -5085,8 +5089,8 @@ var TOOL_DECLS = [
     parameters: { type: "OBJECT", properties: { question: { type: "STRING", description: "User ka asal sawal" } }, required: ["question"] } },
   { name: "notify", description: "Turant notification bhejta hai screen par.",
     parameters: { type: "OBJECT", properties: { title: { type: "STRING" }, message: { type: "STRING" } }, required: ["title", "message"] } },
-  { name: "maya_act", description: "AMAL: kisi doosri app ke screen element par TAP karo, text field mein TYPE karo, swipe, ya back. find mein wahi matn do jo SCREEN par likha hai (Maya pehle use dhoondh kar verify karti hai — andha tap kabhi nahi). Sirf user ke saaf hukm par; banking/finance apps aur password/OTP fields hamesha refused hain. action=stop se foran band.",
-    parameters: { type: "OBJECT", properties: { action: { type: "STRING", description: "tap | type | swipe | back | stop" }, find: { type: "STRING", description: "screen par wahi matn — button/field ka label" }, text: { type: "STRING", description: "sirf action=type ke liye" }, index: { type: "INTEGER", description: "same naam ke multiple elements mein kaunsa (0=default)" }, x1: { type: "INTEGER" }, y1: { type: "INTEGER" }, x2: { type: "INTEGER" }, y2: { type: "INTEGER" }, ms: { type: "INTEGER" } }, required: ["action"] } }
+  { name: "maya_act", description: "AMAL: kisi doosri app ke screen element par TAP karo, text field mein TYPE karo, swipe, SCROLL (neeche/upar/side), ya back. find mein wahi matn do jo SCREEN par likha hai (Maya pehle use dhoondh kar verify karti hai — andha tap kabhi nahi). Sirf user ke saaf hukm par; banking/finance apps aur password/OTP fields hamesha refused hain. action=stop se foran band.",
+    parameters: { type: "OBJECT", properties: { action: { type: "STRING", description: "tap | type | swipe | scroll | back | stop" }, find: { type: "STRING", description: "screen par wahi matn — button/field ka label (tap/type ke liye)" }, text: { type: "STRING", description: "sirf action=type ke liye" }, dir: { type: "STRING", description: "sirf action=scroll: down (neeche dekhna) | up (upar) | left | right" }, index: { type: "INTEGER", description: "same naam ke multiple elements mein kaunsa (0=default)" }, x1: { type: "INTEGER" }, y1: { type: "INTEGER" }, x2: { type: "INTEGER" }, y2: { type: "INTEGER" }, ms: { type: "INTEGER" } }, required: ["action"] } }
 ];
 async function execTool(name, args){
   args = args || {};
@@ -6529,7 +6533,7 @@ var RAILS = {
 /* ───────────────── 📜 LEDGER — har amal ka roznamcha + ⟲ undo ───────────── */
 var LEDGER = {
   KEY: "maya_ledger",
-  MAX: 60,
+  MAX: 1000,   /* P6: aadat mining ke liye kai din ka data — 60 se barhaya */
   list: null,
   /* jo halat hum ne KHUD set ki — undo isi se hota hai */
   known: {},
@@ -9082,6 +9086,286 @@ if (!chatHist.length) {
   addBubble("ai", "MAYA online, " + settings.name + "! 🎉 Main aap ki personal AI hoon — mic 🎤 dabao aur bolo, ya type karo. " +
     (settings.apikey ? "Neural link tayyar hai — kuch bhi poocho!" : "Smart banane ke liye ⚙️ Settings → API Keys se FREE Gemini key lo. Aur yaad rakhna kaam bhi karta hoon — kaho: 'yaad rakhna ki ...'"));
 }
+/* ═══════════════════════════════════════════════════════════════════════════
+   🕯️ SMART-PRO — KHUD-MUKHTAR v2 (P6): wajah se baat, shor se nahi
+   ---------------------------------------------------------------------------
+   P6 doc ka faisla: purana proactive "har 6 min RANDOM jumla" = bay-maqsaad
+   shor. Ab sirf WAJAH hoti hai to hi bolti hai:
+
+     1. ⏰ WAQT   — scheduled task agle ghante mein due (schedTasks.at)
+     2. 📊 AADAT  — LEDGER se: koi kaam 3 din ek hi ghante mein karta ho
+     3. 🌅 SUBAH  — roz 1 dafa morning brief (mausam + battery) 8-11 baje
+     4. 💬 YAAD   — facts se gentle follow-up (roz max 1)
+
+   SAKHT HADEIN (CLAUDE.md "Idle = zero actions"):
+     • roz MAX 3 proactive (state maya_pro mein hisaab)
+     • raat 11 se subah 8: CHUP (quiet hours)
+     • kam az kam 10 min ki khamoshi (lastInteract) + na bol rahi + na soch rahi
+     • koi wajah na mile → BILKUL CHUP (random line kabhi nahi)
+
+   Start: startProactive() — 03-obsidian.js isi ko bulata hai (purana naam zinda).
+   ═══════════════════════════════════════════════════════════════════════════ */
+var SMART_PRO = {
+  KEY: "maya_pro",
+  MAX_PER_DAY: 3,
+  QUIET_START: 23,      /* raat 11 baje se... */
+  QUIET_END: 8,         /* ...subah 8 baje tak chup */
+  IDLE_MIN_MS: 600000,  /* 10 min khamoshi */
+  timer: null,
+  state: null,
+
+  load: function () {
+    if (SMART_PRO.state) return SMART_PRO.state;
+    var s = { day: "", count: 0, lastMs: 0, morningDone: "", factDone: "" };
+    try { s = JSON.parse(localStorage.getItem(SMART_PRO.KEY)) || s; } catch (e) {}
+    SMART_PRO.state = s;
+    return s;
+  },
+  save: function () {
+    try { localStorage.setItem(SMART_PRO.KEY, JSON.stringify(SMART_PRO.state)); } catch (e) {}
+  },
+  today: function () {
+    var d = new Date();
+    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+  },
+  /* roz ka hisaab — naya din = counter wapas */
+  budget: function () {
+    var s = SMART_PRO.load();
+    if (s.day !== SMART_PRO.today()) { s.day = SMART_PRO.today(); s.count = 0; SMART_PRO.save(); }
+    return SMART_PRO.MAX_PER_DAY - s.count;
+  },
+  quiet: function () {
+    var h = (new Date()).getHours();
+    return h >= SMART_PRO.QUIET_START || h < SMART_PRO.QUIET_END;
+  },
+
+  /* ── WAJAH #1: scheduled task qareeb ── */
+  reasonSchedule: function () {
+    try {
+      if (typeof schedTasks === "undefined") return null;
+      var now = Date.now(), best = null, k;
+      for (k in schedTasks) {
+        if (!Object.prototype.hasOwnProperty.call(schedTasks, k)) continue;
+        var t = schedTasks[k];
+        if (!t || !t.at) continue;
+        var mins = Math.round((t.at - now) / 60000);
+        if (mins > 0 && mins <= 60 && (!best || t.at < best.at)) best = t;
+      }
+      if (!best) return null;
+      var mm = Math.round((best.at - now) / 60000);
+      if (best.kind === "message")
+        return { id: "sched", msg: settings.name + ", " + mm + " minute baad " + (best.name || "kisi") + " ko message bhejna hai — yaad dilana tha." };
+      return { id: "sched", msg: settings.name + ", " + mm + " minute baad ek scheduled kaam due hai." };
+    } catch (e) { return null; }
+  },
+
+  /* ── WAJAH #2: aadat — LEDGER se (roz 3+ din, ek hi ghante ke halqe mein) ── */
+  reasonHabit: function () {
+    try {
+      if (typeof LEDGER === "undefined") return null;
+      LEDGER.load();
+      var byHour = {}, i, e, key, h;
+      for (i = 0; i < LEDGER.list.length; i++) {
+        e = LEDGER.list[i];
+        if (!e || !e.t || !e.n) continue;
+        var day = new Date(e.t).getDate();
+        h = new Date(e.t).getHours();
+        key = e.n + "@" + h;
+        if (!byHour[key]) byHour[key] = { tool: e.n, hour: h, days: {} };
+        byHour[key].days[day] = true;
+      }
+      var nowH = (new Date()).getHours(), k, best = null;
+      for (k in byHour) {
+        if (!Object.prototype.hasOwnProperty.call(byHour, k)) continue;
+        var b = byHour[k], nd = 0, d;
+        for (d in b.days) { if (Object.prototype.hasOwnProperty.call(b.days, d)) nd++; }
+        /* abhi ke ghante ke ±1 mein, aur 3 alag dinon ka record */
+        if (nd >= 3 && Math.abs(b.hour - nowH) <= 1 && (!best || nd > best.nd)) best = { tool: b.tool, nd: nd };
+      }
+      if (!best) return null;
+      var pretty = String(best.tool).replace(/_/g, " ");
+      return { id: "habit", msg: "Waise " + settings.name + ", aap aksar is waqt " + pretty + " karte ho — abhi karna hai?" };
+    } catch (e) { return null; }
+  },
+
+  /* ── WAJAH #3: subah ka brief — roz 1 dafa, 8-11 baje ── */
+  reasonMorning: function () {
+    try {
+      var h = (new Date()).getHours();
+      if (h < 8 || h > 11) return null;
+      var s = SMART_PRO.load();
+      if (s.morningDone === SMART_PRO.today()) return null;
+      var bat = "";
+      try { if (NATIVE && window.MayaBridge && window.MayaBridge.battery) { var b = JSON.parse(window.MayaBridge.battery()); if (b && b.level !== undefined) bat = " · battery " + b.level + "%"; } } catch (e) {}
+      var w = "";
+      try { if (typeof lastWeather !== "undefined" && lastWeather) w = " · mausam " + lastWeather; } catch (e) {}
+      s.morningDone = SMART_PRO.today(); SMART_PRO.save();
+      return { id: "morning", msg: "Subah bakhair " + settings.name + "! Aaj ka din mubarak ho" + w + bat + "." };
+    } catch (e) { return null; }
+  },
+
+  /* ── WAJAH #4: facts se follow-up — roz max 1 ── */
+  reasonFact: function () {
+    try {
+      if (!facts || !facts.length) return null;
+      var s = SMART_PRO.load();
+      if (s.factDone === SMART_PRO.today()) return null;
+      s.factDone = SMART_PRO.today(); SMART_PRO.save();
+      return { id: "fact", msg: "Waise yaad hai aap ne bataya tha — " + facts[Math.floor(Math.random() * facts.length)] + " — uska kya bana?" };
+    } catch (e) { return null; }
+  },
+
+  /* ── TICK: gates → wajah dhoondo → bol ── */
+  tick: function () {
+    try {
+      if (!settings.proactive) return;
+      if (SMART_PRO.quiet()) return;
+      if (SMART_PRO.budget() <= 0) return;
+      if (typeof speaking !== "undefined" && speaking) return;
+      if (typeof thinking !== "undefined" && thinking) return;
+      var st = "idle"; try { st = document.getElementById("orb").dataset.state || "idle"; } catch (e) {}
+      if (st === "listening") return;
+      if (typeof MAYA_V4 !== "undefined" && Date.now() - MAYA_V4.lastInteract < SMART_PRO.IDLE_MIN_MS) return;
+      if (SMART_PRO.load().lastMs && Date.now() - SMART_PRO.load().lastMs < SMART_PRO.IDLE_MIN_MS) return;
+
+      var r = SMART_PRO.reasonSchedule() || SMART_PRO.reasonHabit() || SMART_PRO.reasonMorning() || SMART_PRO.reasonFact();
+      if (!r) return;   /* koi wajah nahi → CHUP (random kabhi nahi) */
+
+      var s = SMART_PRO.load();
+      s.count++; s.lastMs = Date.now(); SMART_PRO.save();
+      try { if (typeof MAYA_V4 !== "undefined") MAYA_V4.lastInteract = Date.now(); } catch (e) {}
+      try { pushLog("PROACTIVE [" + r.id + "]: " + r.msg); } catch (e) {}
+      try { reply(r.msg, true); } catch (e) {}
+    } catch (e) {}
+  },
+
+  start: function () {
+    if (SMART_PRO.timer) { clearInterval(SMART_PRO.timer); SMART_PRO.timer = null; }
+    if (!settings.proactive) return;
+    SMART_PRO.timer = setInterval(SMART_PRO.tick, 300000);  /* har 5 min check */
+  }
+};
+/* ═══════════════════════════════════════════════════════════════════════════
+   📡 UPDATE-CHECK — naya APK aaya? (Roadmap Phase 5 · auto-updates ka pehla qadam)
+   ---------------------------------------------------------------------------
+   GitHub Releases se `releases/latest` uthata hai (public API — koi key nahi,
+   koi paisa nahi). Tag (v5.10.0) ko apni version se milata hai:
+     • naya ho → 🔄 card + HUD log + (APK mein) notification + seedha download link
+     • sab theek → kuch nahi (silent — shor bilkul nahi)
+   Auto-check: boot ke 12s baad, roz max 1 dafa. Button: LAB → 🔄 APP UPDATE.
+
+   VERSION YAHAN EK JAGAH: UPDATE_CHECK.VER — baqi sab (build.gradle,
+   package.json, sw.js, hudBuild) is se match karne hain (test-invariants).
+   ═══════════════════════════════════════════════════════════════════════════ */
+var UPDATE_CHECK = {
+  VER: "5.10.0",
+  REPO: "adil-chandio/Mana-android",
+  KEY: "maya_update",
+  COOLDOWN_MS: 21600000,   /* auto-check: 6 ghante */
+  state: null,
+
+  load: function () {
+    if (UPDATE_CHECK.state) return UPDATE_CHECK.state;
+    var s = { checkedAt: 0, latest: "", notified: "" };
+    try { s = JSON.parse(localStorage.getItem(UPDATE_CHECK.KEY)) || s; } catch (e) {}
+    UPDATE_CHECK.state = s;
+    return s;
+  },
+  save: function () {
+    try { localStorage.setItem(UPDATE_CHECK.KEY, JSON.stringify(UPDATE_CHECK.state)); } catch (e) {}
+  },
+
+  /* "v5.10.1" → [5,10,1] */
+  parse: function (tag) {
+    var m = String(tag || "").match(/(\d+)\.(\d+)\.(\d+)/);
+    return m ? [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)] : null;
+  },
+  newer: function (latestTag, curVer) {
+    var a = UPDATE_CHECK.parse(latestTag), b = UPDATE_CHECK.parse(curVer);
+    if (!a || !b) return false;
+    for (var i = 0; i < 3; i++) {
+      if (a[i] > b[i]) return true;
+      if (a[i] < b[i]) return false;
+    }
+    return false;
+  },
+
+  /* JSON body lo — APK mein native bridge (CORS-free), web mein fetch */
+  fetchLatest: function () {
+    var url = "https://api.github.com/repos/" + UPDATE_CHECK.REPO + "/releases/latest";
+    if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge.httpGet) {
+      return Promise.resolve(window.MayaBridge.httpGet(url, ""));
+    }
+    return fetch(url).then(function (r) { return r.text(); });
+  },
+
+  setHint: function (txt) {
+    try {
+      var el = document.getElementById("updHint");
+      if (el) el.textContent = txt;
+    } catch (e) {}
+  },
+
+  check: function (silent) {
+    var s = UPDATE_CHECK.load();
+    if (!silent && s.checkedAt && Date.now() - s.checkedAt < 30000) {
+      /* button spam guard: 30 sec */
+      return Promise.resolve(null);
+    }
+    UPDATE_CHECK.setHint("check ho raha hai...");
+    return UPDATE_CHECK.fetchLatest().then(function (body) {
+      var j = JSON.parse(body || "{}");
+      var tag = j.tag_name || "";
+      s.checkedAt = Date.now();
+      s.latest = tag;
+      UPDATE_CHECK.save();
+      if (tag && UPDATE_CHECK.newer(tag, UPDATE_CHECK.VER)) {
+        var link = j.html_url || ("https://github.com/" + UPDATE_CHECK.REPO + "/releases");
+        UPDATE_CHECK.setHint("🔄 NAYA VERSION: " + tag + " (aap ke paas " + UPDATE_CHECK.VER + ") — click: download");
+        try { pushLog("UPDATE: naya version " + tag + " available — " + link); } catch (e) {}
+        try {
+          var bh = document.getElementById("updHint");
+          if (bh) bh.onclick = function () { try { openURL(link); } catch (e) { try { window.open(link, "_blank"); } catch (e2) {} } };
+        } catch (e) {}
+        /* APK mein notification — roz sirf 1 dafa per version */
+        if (s.notified !== tag) {
+          try {
+            if (NATIVE && window.MayaBridge && window.MayaBridge.notify) {
+              window.MayaBridge.notify("🔄 MAYA UPDATE", "Version " + tag + " aaya hai — Settings → LAB → 🔄 APP UPDATE");
+            }
+          } catch (e) {}
+          s.notified = tag;
+          UPDATE_CHECK.save();
+        }
+        return { update: true, tag: tag, link: link };
+      }
+      UPDATE_CHECK.setHint("✅ Aap ke paas sab se naya version hai (" + UPDATE_CHECK.VER + ")");
+      if (!silent) { try { pushLog("UPDATE: sab se naya version (" + UPDATE_CHECK.VER + ")"); } catch (e) {} }
+      return { update: false, tag: tag };
+    }).catch(function (e) {
+      UPDATE_CHECK.setHint("⚠️ Check nahi ho saka (internet?) — baad mein dobara");
+      if (!silent) { try { pushLog("UPDATE: check nakaam — " + (e && e.message || e)); } catch (e2) {} }
+      return null;
+    });
+  },
+
+  boot: function () {
+    try {
+      setTimeout(function () {
+        var s = UPDATE_CHECK.load();
+        if (Date.now() - s.checkedAt < UPDATE_CHECK.COOLDOWN_MS) return;
+        UPDATE_CHECK.check(true);
+      }, 12000);
+    } catch (e) {}
+  }
+};
+
+/* button wiring (LAB → 🔄 APP UPDATE) */
+try {
+  var _updBtn = document.getElementById("btnUpdCheck");
+  if (_updBtn) _updBtn.onclick = function () { UPDATE_CHECK.check(false); };
+} catch (e) {}
+try { UPDATE_CHECK.boot(); } catch (e) {}
 </script>
 
 <script>
@@ -9390,42 +9674,17 @@ renderFacts = function(){
   try { hudRefresh(); } catch(e){}
 };
 
-/* ---------- PROACTIVE MODE (video jaisa — khud ba khud baat) ---------- */
-var PRO_LINES = [
-  "{n}, soch rahi thi... aaj ka din kaisa ja raha hai?",
-  "Bore ho rahi hoon {n} — koi quiz karein ya interesting fact sunaun?",
-  "{n}, ek kaam karo — paani pi lo. Main dekh rahi hoon. 💧",
-  "Kuch kaam tha ya bas aise hi bulaya? Main yahin hoon.",
-  "Mausam check karun? ya battery? bas bol do.",
-  "Waise {n}, mujhe tumhari baatein yaad rehti hain — kaafi memory bank bhar gaya hai."
-];
-function startProactive(){
-  if (MAYA_V4.proactiveTimer) { clearInterval(MAYA_V4.proactiveTimer); MAYA_V4.proactiveTimer = null; }
-  if (!settings.proactive) return;
-  MAYA_V4.proactiveTimer = setInterval(function(){
-    try {
-      if (!settings.proactive) return;
-      if (speaking || thinking) return;
-      var st = "idle"; try { st = $("#orb").dataset.state || "idle"; } catch(e){}
-      if (st === "listening") return;
-      if (Date.now() - MAYA_V4.lastInteract < 300000) return;   /* 5 min aaram */
-      var msg;
-      if (facts.length && Math.random() < 0.5) {
-        msg = "Waise yaad hai tumne bataya tha ki " + facts[Math.floor(Math.random() * facts.length)] + " — uska kya bana?";
-      } else {
-        msg = PRO_LINES[Math.floor(Math.random() * PRO_LINES.length)].replace("{n}", settings.name);
-      }
-      MAYA_V4.lastInteract = Date.now();
-      reply(msg, true);
-      pushLog("PROACTIVE: khud baat ki");
-    } catch(e){}
-  }, 360000);  /* har 6 minute check */
-}
+/* ---------- PROACTIVE MODE (P6 KHUD-MUKHTAR v2) ----------
+   Purana tarika (har 6 min RANDOM jumla) P6 doc ke mutabiq "bay-maqsaad shor"
+   tha — ab SMART_PRO (web/02-main/30-smart-pro.js) sirf WAJAH se bolti hai:
+   scheduled task · aadat (LEDGER) · morning brief · fact follow-up.
+   Hadain: roz max 3 · raat 11-8 chup · 10 min idle · koi wajah na to CHUP. */
+function startProactive(){ if (typeof SMART_PRO !== "undefined") SMART_PRO.start(); }
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.9.5"; } catch(e){}
-try { pushLog("MAYA v5.9.5 — DIMAAG v2 + AWAAZ v6 ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.10.0"; } catch(e){}
+try { pushLog("MAYA v5.10.0 — SMART-PRO + AUTO-UPDATE ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
