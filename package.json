@@ -1,6 +1,6 @@
 {
   "name": "maya-ai-assistant",
-  "version": "5.10.0",
+  "version": "5.10.1",
   "description": "MAYA — 0-budget personal AI assistant. Voice + Gemini brain + anime character.",
   "private": true,
   "scripts": {

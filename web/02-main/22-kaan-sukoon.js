@@ -127,7 +127,7 @@ var KAAN = {
 
   /* wake word SHURU mein hona chahiye — beech ya aakhir mein nahi.
      "Maya yeh karo" ✅   ·   "chalo Maya yeh karo" ❌   ·   "yeh karo" ❌ */
-  FILLER: /^(hey|hay|hi|hello|o|arey|are|oye|acha|suno|sun)$/i,
+  FILLER: /^(hey|hay|hi|hello|o|arey|arre|are|oye|acha|accha|achha|suno|sun|ji|jii|haan|han|ok|okay|namaste|pranam|hello ji|suniye)$/i,
   atStart: function (t) {
     var q = String(t || "").trim().toLowerCase();
     q = q.replace(/^[\s,."'\u060C\u061F!?-]+/, "");
@@ -244,6 +244,7 @@ var KAAN = {
     L.push("  " + (d.battOk ? "\u2705" : "\u26A0\uFE0F") + " Battery optimization : " + (d.battOk ? "MAYA azad hai" : "MAYA par lagi hai \u2014 service mar sakti hai"));
     if (!d.battOk) bad.push("batt");
     L.push("  " + (d.wakeOn ? "\u2705" : "\u26A0\uFE0F") + " Wake service         : " + (d.wakeOn ? "chal rahi hai" : "band hai"));
+    try { L.push("  \uD83C\uDF10 Wake zubaan          : " + ((typeof settings !== "undefined" && settings && settings.stt) ? settings.stt : "en-IN")); } catch (e) {}
     L.push("");
     L.push("  \uD83D\uDCCA suna " + KAAN.heard + " \u00B7 JAAGI " + KAAN.woke + " \u00B7 nakami " + KAAN.errs + " \u00B7 mic " + KAAN.starts);
     L.push("");
@@ -307,7 +308,7 @@ var WAKE_DOT = {
     if (WAKE_DOT.el || !NATIVE) return WAKE_DOT.el;
     try {
       var st = document.createElement("style");
-      st.textContent = "#wakeDot{position:fixed;right:6px;top:26px;z-index:998;display:none;align-items:center;gap:5px;padding:2px 7px;border-radius:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);font:9px/1.4 monospace;cursor:default}#wakeDot i{width:6px;height:6px;border-radius:50%;background:#39D98A;display:inline-block;animation:wakePulse 1.4s ease-in-out infinite}@keyframes wakePulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.25)}}#wakeDot.dim i{background:#8a8a96;animation:none}#wakeDot.loud i{background:#FFD166;animation-duration:.5s}";
+      st.textContent = "#wakeDot{position:fixed;right:6px;top:58px;z-index:998;display:none;align-items:center;gap:5px;padding:2px 7px;border-radius:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);font:9px/1.4 monospace;cursor:default}#wakeDot i{width:6px;height:6px;border-radius:50%;background:#39D98A;display:inline-block;animation:wakePulse 1.4s ease-in-out infinite}@keyframes wakePulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.25)}}#wakeDot.dim i{background:#8a8a96;animation:none}#wakeDot.loud i{background:#FFD166;animation-duration:.5s}";
       document.head.appendChild(st);
       var d = document.createElement("div");
       d.id = "wakeDot"; d.innerHTML = "<i></i><span>MAYA SUN RAHI</span>";

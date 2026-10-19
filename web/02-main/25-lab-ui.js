@@ -26,7 +26,7 @@ function labPaint(){
     if (f.bijli) on.push("⚡ bijli");
     if (f.nazar) on.push("👁️ nazar");
     h.className = "ui-hint" + (on.length ? " ok" : "");
-    h.textContent = on.length ? ("Chalu: " + on.join(" · ") + "   •   " + NAAP.hist.length + " turn naape ja chuke")
+    h.textContent = on.length ? ("Chalu: " + on.join(" · ") + "   •   " + NAAP.hist.length + " turn (is session mein naape)")
                               : "Sab band — Maya bilkul purane tareeqe par chal rahi hai.";
   }
 }
@@ -135,6 +135,16 @@ function labPaint(){
     var ms = (new Date()).getTime() - t0;
     show(NAZAR.forEye(r) + "\n\n  \u23F1\uFE0F " + ms + "ms   \u00B7   dimaag ko ~" + NAZAR.tokens(r) + " token jayenge");
     pushLog("NAZAR: " + (r.ok ? (r.app + " \u2014 " + r.items.length + " cheezein " + ms + "ms") : ("nakaam \u2014 " + r.why)));
+    /* v5.10.1 — accessibility OFF ka seedha ilaaj: ek tap mein settings khol do
+       (video review: user khud Digital Assistant settings dhoondh raha tha) */
+    if (!r.ok && /accessibility/i.test(String(r.why || ""))) {
+      try {
+        if (window.confirm("MAYA AutoSend accessibility OFF hai.\n\nAccessibility settings abhi kholun?")) {
+          window.MayaBridge.openSetting("accessibility");
+          toast("\u2699\uFE0F Accessibility settings khul gayi \u2014 MAYA AutoSend ON karo");
+        }
+      } catch (e) {}
+    }
   });
 
   var lb = $("#labLedger");

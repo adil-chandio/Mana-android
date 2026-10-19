@@ -4,6 +4,11 @@ window.__errLog = [];
 window.__consoleErr = function(m){
   try {
     var t = String(m);
+    /* v5.10.1 — Chrome ka apna be-noor shor badge par NAHI aana chahiye.
+       "Ignored attempt to cancel a touchstart/touchmove event with
+       cancelable=false" WebView ka internal warning hai, Maya ka bug nahi.
+       Ye badge ko ⚠1 kar ke ghalat khauf dikhata tha (video review, 2026-10-19). */
+    if (/Ignored attempt to cancel a (touchstart|touchmove|touchend|mousewheel|wheel) event with cancelable\s*=\s*false/i.test(t)) return;
     window.__errLog.push(t.slice(0, 300));
     if (window.__errLog.length > 30) window.__errLog.shift();
     /* v4.2.0: poora raw error user ke munh par nahi maarte — sirf chhota nishan.

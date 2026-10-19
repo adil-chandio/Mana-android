@@ -138,6 +138,10 @@ class WakeWordService : Service() {
     private var lastWakeAt = 0L
     private var errStreak = 0
     private var lastErr = 0
+    /* v5.10.1 — zubaan fallback: configured zubaan (misal ur-PK) is device par
+       support na ho to chup na baitho. Ek step asaan zubaan par chalo:
+       settings zubaan -> hi-IN -> en-IN. Text milte hi wapas asal par. */
+    private var langIdx = 0
     private var starts = 0
     @Volatile private var pendingGen = 0L        /* L6 RACE TOKEN — pending restart ka duct-ticket */
 
@@ -354,6 +358,13 @@ class WakeWordService : Service() {
                         6, 7 -> 700L + (errStreak.coerceAtMost(8) * 350L)   /* 0.7s -> 3.5s */
                         1, 2 -> 3000L
                         4 -> 1500L
+                        11, 12 -> {
+                            /* v5.10.1 — is device par ye zubaan nahi: agle start
+                               par fallback zubaan try karo (warna hamesha 11/12). */
+                            if (langIdx < 2) langIdx++
+                            report("lang", "zubaan nahi (err " + error + ") \u2014 fallback " + langIdx)
+                            1500L
+                        }
                         8 -> {
                             /* 🕊️ L5 ERR-8 MERCY — RECOGNIZER_BUSY ka matlab: mic kisi
                                aur ke paas hai (app ka tap-to-speak ya seester ka bhoot).
@@ -373,7 +384,7 @@ class WakeWordService : Service() {
                 override fun onResults(results: Bundle?) {
                     val all = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         ?: arrayListOf()
-                    if (all.isNotEmpty()) { handleAll(all); errStreak = 0 }
+                    if (all.isNotEmpty()) { handleAll(all); errStreak = 0; langIdx = 0 }
                     restart(400)
                 }
                 override fun onPartialResults(partialResults: Bundle?) {}
@@ -441,10 +452,15 @@ class WakeWordService : Service() {
                   teesre andaze mein hota hai. Wake word par ye aur zyada ahem hai.
                2. Zubaan ab settings se aati hai (pehle "en-IN" hard-code thi,
                   jabke user Urdu bolta hai). */
-            val lang = try {
+            val baseLang = try {
                 getSharedPreferences("maya", Context.MODE_PRIVATE)
                     .getString("wake_lang", "en-IN") ?: "en-IN"
             } catch (e: Exception) { "en-IN" }
+            val lang = when (langIdx) {
+                0 -> baseLang
+                1 -> if (baseLang == "hi-IN") "en-IN" else "hi-IN"
+                else -> "en-IN"
+            }
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)

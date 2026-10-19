@@ -115,7 +115,14 @@ var NAZAR = {
   forEye: function (r) {
     r = r || NAZAR.last;
     if (!r) return "\uD83D\uDC41\uFE0F Abhi screen nahi parhi.";
-    if (!r.ok) return "\uD83D\uDC41\uFE0F Screen nahi parh saki\n\n\u26A0\uFE0F " + (r.why || "wajah maloom nahi");
+    if (!r.ok) {
+      var msg = "\uD83D\uDC41\uFE0F Screen nahi parh saki\n\n\u26A0\uFE0F " + (r.why || "wajah maloom nahi");
+      if (/accessibility/i.test(String(r.why || ""))) {
+        msg += "\n\n\u2699\uFE0F Android Settings \u2192 Accessibility \u2192 \u201CMAYA AutoSend\u201D \u2192 ON karo." +
+               "\nAgar pehle se ON tha to ek dafa OFF \u2192 dobara ON (service refresh).";
+      }
+      return msg;
+    }
     var L = ["\uD83D\uDC41\uFE0F SCREEN PAR ABHI \u2014 " + r.app, ""], i, it;
     if (!r.items.length) { L.push("  (kuch nazar nahi aa raha)"); return L.join("\n"); }
     for (i = 0; i < r.items.length; i++) {

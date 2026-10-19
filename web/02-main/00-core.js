@@ -2,7 +2,7 @@
 "use strict";
 /* ================= MAYA v2.1.1 — Doctor Build ================= */
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.10.0 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v5.10.1 OK \u2713"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
 /* ---------- SETTINGS (v1 migration ke saath) ---------- */
@@ -13,7 +13,18 @@ try {
   var s0 = JSON.parse(localStorage.getItem("jarvisSettings") || "null"); // v1 se upgrade
   [s0, s1].forEach(function(src){ if (src) Object.keys(src).forEach(function(k){ settings[k] = src[k]; }); });
 } catch(e){}
-function saveSettings(){ localStorage.setItem("maya_settings", JSON.stringify(settings)); }
+function saveSettings(){
+  localStorage.setItem("maya_settings", JSON.stringify(settings));
+  /* v5.10.1 — wake service ko hamesha wahi zubaan do jo UI dikha raha hai.
+     Video review (2026-10-19): wake_lang "hi-IN" atka tha jabke settings
+     "ur-PK" dikha raha thi. Service har start par ye pref padhti hai —
+     sirf sync rakhna zaroori hai. */
+  try {
+    if (typeof NATIVE !== "undefined" && NATIVE && window.MayaBridge && window.MayaBridge.setPrefString) {
+      window.MayaBridge.setPrefString("wake_lang", settings.stt || "en-IN");
+    }
+  } catch (e) {}
+}
 
 /* ---------- MEMORY ---------- */
 var facts = [];

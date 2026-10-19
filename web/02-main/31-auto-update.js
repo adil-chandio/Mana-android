@@ -2,7 +2,7 @@
    📡 UPDATE-CHECK — naya APK aaya? (Roadmap Phase 5 · auto-updates ka pehla qadam)
    ---------------------------------------------------------------------------
    GitHub Releases se `releases/latest` uthata hai (public API — koi key nahi,
-   koi paisa nahi). Tag (v5.10.0) ko apni version se milata hai:
+   koi paisa nahi). Tag (v5.10.1) ko apni version se milata hai:
      • naya ho → 🔄 card + HUD log + (APK mein) notification + seedha download link
      • sab theek → kuch nahi (silent — shor bilkul nahi)
    Auto-check: boot ke 12s baad, roz max 1 dafa. Button: LAB → 🔄 APP UPDATE.
@@ -11,7 +11,7 @@
    package.json, sw.js, hudBuild) is se match karne hain (test-invariants).
    ═══════════════════════════════════════════════════════════════════════════ */
 var UPDATE_CHECK = {
-  VER: "5.10.0",
+  VER: "5.10.1",
   REPO: "adil-chandio/Mana-android",
   KEY: "maya_update",
   COOLDOWN_MS: 21600000,   /* auto-check: 6 ghante */
