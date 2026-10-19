@@ -1008,6 +1008,8 @@ class MainActivity : AppCompatActivity() {
            pin key) — system ko dialog ki zaroorat nahi, seedha update.
            Na chale (OEM/Old Android) → purana "install update?" dialog —
            kabhi pehle se behatar, kam nahi. */
+        @Volatile private var apkDlBusy = false
+
         @JavascriptInterface
         fun installApk(path: String): Boolean {
             return try {
