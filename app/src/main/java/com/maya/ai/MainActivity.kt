@@ -975,6 +975,75 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        /* ===== ONE-TAP UPDATE (v5.10.2) — download + install prompt =====
+           Ab update card sirf link nahi kholti — APK khud download kar ke
+           Android ka "install update?" prompt khola jata hai. Signature
+           stable hai to yeh UPDATE hota hai — settings safe. */
+        @Volatile private var apkDlBusy = false
+
+        @JavascriptInterface
+        fun downloadApk(url: String): String {
+            synchronized(this) {
+                if (apkDlBusy) return JSONObject().put("ok", false).put("why", "download pehle se chal rahi hai").toString()
+                apkDlBusy = true
+            }
+            return try {
+                val dir = java.io.File(cacheDir, "updates"); dir.mkdirs()
+                val f = java.io.File(dir, "maya-update.apk")
+                Thread {
+                    var ok = false
+                    var why = ""
+                    try {
+                        val conn = java.net.URL(url).openConnection() as javax.net.ssl.HttpsURLConnection
+                        conn.connectTimeout = 20000
+                        conn.readTimeout = 120000
+                        conn.instanceFollowRedirects = true
+                        if (conn.responseCode == 200) {
+                            conn.inputStream.use { input ->
+                                java.io.FileOutputStream(f).use { out ->
+                                    val buf = ByteArray(65536)
+                                    var n: Int
+                                    while (input.read(buf).also { n = it } > 0) out.write(buf, 0, n)
+                                }
+                            }
+                            ok = f.length() > 1000000L    /* 3.5MB APK — 1MB se chhoti = toota download */
+                            if (!ok) why = "file adhoori (" + f.length() + "B)"
+                        } else {
+                            why = "HTTP " + conn.responseCode
+                        }
+                    } catch (e: Exception) {
+                        why = e.message ?: "x"
+                    }
+                    synchronized(this) { apkDlBusy = false }
+                    val payload = JSONObject()
+                        .put("ok", ok).put("path", f.absolutePath)
+                        .put("size", f.length()).put("why", why).toString()
+                    evalAsync("window.__apkDone && window.__apkDone(" + JSONObject.quote(payload) + ")")
+                }.start()
+                JSONObject().put("ok", true).put("started", true).put("path", f.absolutePath).toString()
+            } catch (e: Exception) {
+                synchronized(this) { apkDlBusy = false }
+                JSONObject().put("ok", false).put("why", e.message ?: "x").toString()
+            }
+        }
+
+        @JavascriptInterface
+        fun installApk(path: String): Boolean {
+            return try {
+                val f = java.io.File(path)
+                if (!f.exists() || f.length() < 1000000L) return false
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    this@MainActivity, packageName + ".fileprovider", f
+                )
+                val i = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(i)
+                true
+            } catch (e: Exception) { false }
+        }
+
         /* ===== QUICK CONTROLS (Phase 9) ===== */
         @JavascriptInterface
         fun torch(on: Boolean): Boolean {

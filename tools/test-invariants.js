@@ -80,6 +80,14 @@ is(/labBackup/.test(read('web/00-head.html')) && /saveTextToDownloads/.test(read
    'SETTINGS BACKUP/RESTORE zinda (LAB buttons + Kotlin file I/O)');
 is(/settingsBackup|labBackup/.test(read('web/02-main/25-lab-ui.js')) && /maya-settings/i.test(read('web/02-main/25-lab-ui.js')),
    'BACKUP/RESTORE handlers wired (maya-settings*.json)');
+is(/downloadApk/.test(read('app/src/main/java/com/maya/ai/MainActivity.kt')) && /installApk/.test(read('app/src/main/java/com/maya/ai/MainActivity.kt')),
+   'ONE-TAP UPDATE: downloadApk + installApk bridge zinda');
+is(/REQUEST_INSTALL_PACKAGES/.test(read('app/src/main/AndroidManifest.xml')),
+   'manifest: REQUEST_INSTALL_PACKAGES (install prompt)');
+is(/verOf/.test(read('web/02-main/31-auto-update.js')) && /version:\\s\*/.test(read('web/02-main/31-auto-update.js')),
+   'UPDATE detect: floating "latest" tag — notes se version (fallback chain)');
+is(/version: \$VER/.test(wf),
+   'release notes mein version line (app update check padhta hai)');
 is(/SIGNATURE LOCK/.test(wf) && /SIGNATURE LOCK/.test(wfRel) && /apksigner/.test(wf),
    'SIGNATURE LOCK gate — APK ke asle cert se pin check (dono workflows)');
 is(/[0-9a-f]{64}/.test(read('docs/signing-cert-sha256.txt')),

@@ -9369,6 +9369,35 @@ var UPDATE_CHECK = {
     var m = String(tag || "").match(/(\d+)\.(\d+)\.(\d+)/);
     return m ? [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)] : null;
   },
+  /* v5.10.2 — floating tag "latest" se version nahi milta (parse null).
+     Ab release NOTES mein "version: X.Y.Z" hota hai (workflow likhta hai),
+     phir release NAME, phir tag — as a fallback chain. */
+  verOf: function (j) {
+    j = j || {};
+    var m = String(j.body || "").match(/version:\s*(\d+\.\d+\.\d+)/i);
+    if (m) return m[1];
+    m = String(j.name || "").match(/(\d+\.\d+\.\d+)/);
+    if (m) return m[1];
+    var t = UPDATE_CHECK.parse(j.tag_name);
+    return t ? t.join(".") : "";
+  },
+  apkUrl: function () {
+    return "https://github.com/" + UPDATE_CHECK.REPO + "/releases/download/latest/MAYA-latest.apk";
+  },
+  /* ONE-TAP: download → Android install prompt (UPDATE = settings safe) */
+  installNow: function (link) {
+    try {
+      UPDATE_CHECK.setHint("⏬ Update download ho raha hai... (settings safe rahengi)");
+      var r = JSON.parse(window.MayaBridge.downloadApk(UPDATE_CHECK.apkUrl()));
+      if (!r || !r.ok) {
+        UPDATE_CHECK.setHint("⚠️ Download shuru nahi hui — " + ((r && r.why) || "?") + " — click: browser se");
+        var bh = document.getElementById("updHint");
+        if (bh) bh.onclick = function () { try { openURL(link); } catch (e) {} };
+      }
+    } catch (e) {
+      UPDATE_CHECK.setHint("⚠️ Download error — click: browser se download");
+    }
+  },
   newer: function (latestTag, curVer) {
     var a = UPDATE_CHECK.parse(latestTag), b = UPDATE_CHECK.parse(curVer);
     if (!a || !b) return false;
@@ -9405,16 +9434,25 @@ var UPDATE_CHECK = {
     return UPDATE_CHECK.fetchLatest().then(function (body) {
       var j = JSON.parse(body || "{}");
       var tag = j.tag_name || "";
+      var latest = UPDATE_CHECK.verOf(j);
       s.checkedAt = Date.now();
-      s.latest = tag;
+      s.latest = latest || tag;
       UPDATE_CHECK.save();
-      if (tag && UPDATE_CHECK.newer(tag, UPDATE_CHECK.VER)) {
+      if (latest && UPDATE_CHECK.newer(latest, UPDATE_CHECK.VER)) {
         var link = j.html_url || ("https://github.com/" + UPDATE_CHECK.REPO + "/releases");
-        UPDATE_CHECK.setHint("🔄 NAYA VERSION: " + tag + " (aap ke paas " + UPDATE_CHECK.VER + ") — click: download. ⚙️ Settings safe rahengi — update hai, uninstall nahi.");
-        try { pushLog("UPDATE: naya version " + tag + " available — " + link); } catch (e) {}
+        UPDATE_CHECK.setHint("🔄 NAYA VERSION: v" + latest + " (aap ke paas " + UPDATE_CHECK.VER + ") — click: abhi UPDATE install karo. ⚙️ Settings safe rahengi!");
+        try { pushLog("UPDATE: naya version v" + latest + " available — " + link); } catch (e) {}
         try {
           var bh = document.getElementById("updHint");
-          if (bh) bh.onclick = function () { try { openURL(link); } catch (e) { try { window.open(link, "_blank"); } catch (e2) {} } };
+          if (bh) bh.onclick = function () {
+            /* v5.10.2 — APK mein ONE-TAP: download + install prompt (settings safe).
+               Browser/PWA mein seedha release page. */
+            if (NATIVE && window.MayaBridge && window.MayaBridge.downloadApk && window.MayaBridge.installApk) {
+              UPDATE_CHECK.installNow(link);
+            } else {
+              try { openURL(link); } catch (e) { try { window.open(link, "_blank"); } catch (e2) {} }
+            }
+          };
         } catch (e) {}
         /* APK mein notification — roz sirf 1 dafa per version */
         if (s.notified !== tag) {
@@ -9454,6 +9492,26 @@ try {
   var _updBtn = document.getElementById("btnUpdCheck");
   if (_updBtn) _updBtn.onclick = function () { UPDATE_CHECK.check(false); };
 } catch (e) {}
+
+/* ONE-TAP UPDATE: Kotlin download ke baad yahan aata hai → install prompt */
+window.__apkDone = function (payload) {
+  try {
+    var r = JSON.parse(payload || "{}");
+    if (r && r.ok) {
+      UPDATE_CHECK.setHint("⏬ Download ho gaya — INSTALL prompt khul raha hai (INSTALL dabao — settings safe!)");
+      try { pushLog("UPDATE: APK download (" + r.size + "B) — install prompt"); } catch (e) {}
+      if (!window.MayaBridge.installApk(r.path)) {
+        UPDATE_CHECK.setHint("⚠️ Install prompt nahi khul saki — click: browser se install karo");
+        var bh = document.getElementById("updHint");
+        if (bh) bh.onclick = function () { try { openURL("https://github.com/" + UPDATE_CHECK.REPO + "/releases/latest"); } catch (e) {} };
+      }
+    } else {
+      UPDATE_CHECK.setHint("⚠️ Download fail: " + ((r && r.why) || "?") + " — click: browser se download");
+      var bh2 = document.getElementById("updHint");
+      if (bh2) bh2.onclick = function () { try { openURL("https://github.com/" + UPDATE_CHECK.REPO + "/releases/latest"); } catch (e) {} };
+    }
+  } catch (e) {}
+};
 try { UPDATE_CHECK.boot(); } catch (e) {}
 </script>
 
