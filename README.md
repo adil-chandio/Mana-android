@@ -644,9 +644,9 @@ MAYA ka web version bhi hai — phone ke browser mein chalta hai!
 - ✅ Phase 1 — PWA Pro (web app)
 - ✅ Phase 2 — Native APK (ye!)
 - ✅ Phase 4 (hissa) — Wake word (v5.7-5.9 KAAN/SUKOON), offline BIJLI commands (v5.4)
-- 🔄 Phase 3 — Smart Brain (routines, P6 KHUD-MUKHTAR smart-proactive)
-- ⏳ Phase 5 — P7 HAATH (full gestures) · auto-APK updates · cloud brain · `/memory/`
-- ⏳ Duniya ke liye (Manzil 2) — Play Store, onboarding, MONARCH branding
+- ✅ Phase 3 — Smart Brain (v5.10 SMART-PRO — wajah-based proactive)
+- ✅ Phase 5 — P7 HAATH (tap/type/swipe/scroll/back) · auto-APK updates (one-tap install) · `/memory/` encrypted backup · ntfy alerts · signature-locked updates
+- 🔄 Duniya ke liye (Manzil 2) — onboarding wizard ✅ · MEGA DOCTOR ✅ · privacy docs ✅ · Play Store (AAB) ⏳
 
 > Poori team roadmap: [`docs/TEAM-MASTER-PLAN.md`](docs/TEAM-MASTER-PLAN.md) — 5 WAQT, har step ka QA.
 
