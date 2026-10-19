@@ -80,6 +80,10 @@ is(/labBackup/.test(read('web/00-head.html')) && /saveTextToDownloads/.test(read
    'SETTINGS BACKUP/RESTORE zinda (LAB buttons + Kotlin file I/O)');
 is(/settingsBackup|labBackup/.test(read('web/02-main/25-lab-ui.js')) && /maya-settings/i.test(read('web/02-main/25-lab-ui.js')),
    'BACKUP/RESTORE handlers wired (maya-settings*.json)');
+is(/SIGNATURE LOCK/.test(wf) && /SIGNATURE LOCK/.test(wfRel) && /apksigner/.test(wf),
+   'SIGNATURE LOCK gate — APK ke asle cert se pin check (dono workflows)');
+is(/[0-9a-f]{64}/.test(read('docs/signing-cert-sha256.txt')),
+   'SIGNATURE PIN maujood — 64-hex fingerprint locked');
 
 console.log('');
 if (fail) {
