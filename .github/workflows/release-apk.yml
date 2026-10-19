@@ -44,7 +44,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.android/debug.keystore
-          key: maya-debug-keystore-v1
+          key: maya-debug-keystore-v2
 
       - name: 4.6 DEBUG KEYSTORE ensure (cache khali/kharaab ho to khud banao)
         run: |
