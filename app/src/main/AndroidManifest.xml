@@ -25,6 +25,7 @@
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Maya"
+        android:enableOnBackInvokedCallback="false"
         android:allowBackup="true">
 
         <activity

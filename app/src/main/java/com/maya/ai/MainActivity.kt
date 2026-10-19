@@ -125,8 +125,20 @@ class MainActivity : AppCompatActivity() {
         }
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
+        /* v5.13.0 — targetSdk 35+ par edge-to-edge lazmi: content status/nav
+           bar ke neeche chala jata hai. Insets padding se layout waisa hi
+           rahe jaisa pehle tha (bar area = window background) + keyboard (IME)
+           ke liye bottom padding — chat box kabhi keyboard ke neeche nahi. */
+        try {
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(webView) { v, insets ->
+                val sys = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
+                v.setPadding(sys.left, sys.top, sys.right, maxOf(sys.bottom, ime.bottom))
+                insets
+            }
+        } catch (e: Exception) {}
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.12.0 • SMART-PRO + scroll + auto-update (team build)", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.13.0 • Play-ready (targetSdk 36) + AAB (team build)", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -358,7 +370,7 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.12.0-native"
+        fun appVersion(): String = "5.13.0-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi

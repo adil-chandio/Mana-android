@@ -313,8 +313,8 @@ function startProactive(){ if (typeof SMART_PRO !== "undefined") SMART_PRO.start
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.12.0"; } catch(e){}
-try { pushLog("MAYA v5.12.0 — SMART-PRO + AUTO-UPDATE ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.13.0"; } catch(e){}
+try { pushLog("MAYA v5.13.0 — SMART-PRO + AUTO-UPDATE ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
@@ -573,7 +573,7 @@ var MayaUI = (function () {
     for (i = 0; i < reopen.length; i++) delCls(reopen[i], "is-open");
 
     var out = [];
-    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v" + ((typeof UPDATE_CHECK !== "undefined" && UPDATE_CHECK.VER) ? UPDATE_CHECK.VER : ((typeof APP_VER !== "undefined" && APP_VER) ? APP_VER : "5.12.0")));
+    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v" + ((typeof UPDATE_CHECK !== "undefined" && UPDATE_CHECK.VER) ? UPDATE_CHECK.VER : ((typeof APP_VER !== "undefined" && APP_VER) ? APP_VER : "5.13.0")));
     out.push("WEBVIEW: Chrome " + (window.__webviewMajor || "?") + (window.__oldWebview ? " (PURANA)" : ""));
     out.push("");
     out.push("VISIBLE: " + okc + "   INVISIBLE: " + bad + (bad ? "  \u274C" : "  \u2705"));

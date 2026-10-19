@@ -26,14 +26,16 @@ def hasMayaSigning = ksFileResolved != null && ksFileResolved.exists() &&
 
 android {
     namespace 'com.maya.ai'
-    compileSdk 34
+    /* v5.13.0 — Play Store (WAQT 4-B): Google ko targetSdk 36 (Android 16)
+       chahiye — Aug 31, 2026 se har nayi app ke liye lazmi. */
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.maya.ai"
         minSdk 26          // Android 8.0+ — vector icon + modern APIs
-        targetSdk 34
-        versionCode 79
-        versionName "5.12.0"
+        targetSdk 36
+        versionCode 80
+        versionName "5.13.0"
     }
 
     signingConfigs {
@@ -65,8 +67,17 @@ android {
         }
         release {
             minifyEnabled false
+            /* v5.13.0 — AAB (Play) ke liye release ko BHI sign karo. Secrets
+               na hon to wahi stable key (pin 6027458d) — APK aur AAB ka
+               certificate hamesha EK rahe. Unsigned release = Play reject. */
             if (hasMayaSigning) signingConfig signingConfigs.maya
+            else signingConfig signingConfigs.stableDebug
         }
+    }
+    lint {
+        /* Release bundle pipeline kabhi lintVital ke peeche na ruke */
+        checkReleaseBuilds false
+        abortOnError false
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

@@ -152,24 +152,47 @@ jobs:
             fi
           fi
 
+      - name: 6.6 AAB BUILD (Play Store) + same-signature check
+        # v5.13.0 (WAQT 4-B): Play Console ko AAB chahiye. Upload key = wahi
+        # pin key (6027458d) — APK aur AAB ka certificate EK hona lazmi hai,
+        # warna Play "different signature" reject karta hai.
+        run: |
+          gradle bundleRelease --no-daemon --stacktrace
+          AAB=$(ls app/build/outputs/bundle/release/*.aab | head -1)
+          PIN="docs/signing-cert-sha256.txt"
+          AFP=$(keytool -printcert -jarfile "$AAB" 2>&1 | grep -oE 'SHA-?256:.*' | head -1 | sed -E 's/SHA-?256://;s/ //g' | tr -d ':' | tr 'A-F' 'a-f')
+          if [ -z "$AFP" ]; then
+            RSA=$(unzip -Z1 "$AAB" | grep -E '^META-INF/.*\.(RSA|DSA|EC)$' | head -1)
+            unzip -p "$AAB" "$RSA" > /tmp/aab.rsa
+            AFP=$(keytool -printcert -file /tmp/aab.rsa 2>&1 | grep -oE 'SHA-?256:.*' | head -1 | sed -E 's/SHA-?256://;s/ //g' | tr -d ':' | tr 'A-F' 'a-f')
+          fi
+          echo "::notice::AAB-DIAG aab_size=$(wc -c < "$AAB" 2>/dev/null || echo 0) fp=${AFP:-NONE}"
+          PIN_FP=$(tr -d ' \n\r:' < "$PIN" | tr 'A-F' 'a-f')
+          if [ -z "$AFP" ] || [ "$AFP" != "$PIN_FP" ]; then
+            echo "::error::AAB ka signature APK/pin se alag hai (${AFP:-none} vs $PIN_FP) — Play upload key mismatch!"
+            exit 1
+          fi
+          echo "✅ AAB signed with PIN key — Play upload ke liye ready"
+
       - name: 7. 🌐 LATEST RELEASE — hamesha taaza download link
-        # Hamesha ek hi URL: /releases/download/latest/MAYA-latest.apk
-        # Har push par asset replace — phone se seedha download & install
+        # APK: /releases/download/latest/MAYA-latest.apk (phone updates)
+        # AAB: /releases/download/latest/MAYA-latest.aab (Play Console upload)
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/arena/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk MAYA-latest.apk
+          cp app/build/outputs/bundle/release/*.aab MAYA-latest.aab
           VER=$(node -p "require('./package.json').version")
-          NOTES="version: $VER · Auto-build ${GITHUB_SHA::7} · $(date -u +'%Y-%m-%d %H:%M UTC') · Tests green · Download: MAYA-latest.apk"
+          NOTES="version: $VER · Auto-build ${GITHUB_SHA::7} · $(date -u +'%Y-%m-%d %H:%M UTC') · Tests green · Download: MAYA-latest.apk (phone) / MAYA-latest.aab (Play Console)"
           if gh release view latest >/dev/null 2>&1; then
-            gh release upload latest MAYA-latest.apk --clobber
+            gh release upload latest MAYA-latest.apk MAYA-latest.aab --clobber
             gh release edit latest --notes "$NOTES" --title "MAYA v$VER"
-            echo "✅ 'latest' release asset replace — /releases/download/latest/MAYA-latest.apk"
+            echo "✅ 'latest' release asset replace — APK + AAB"
           else
-            gh release create latest MAYA-latest.apk \
+            gh release create latest MAYA-latest.apk MAYA-latest.aab \
               --prerelease \
               --title "MAYA — Latest Build (auto)" \
               --notes "$NOTES"
-            echo "✅ 'latest' release bana — /releases/download/latest/MAYA-latest.apk"
+            echo "✅ 'latest' release bana — APK + AAB"
           fi

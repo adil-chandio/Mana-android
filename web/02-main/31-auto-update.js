@@ -11,7 +11,7 @@
    package.json, sw.js, hudBuild) is se match karne hain (test-invariants).
    ═══════════════════════════════════════════════════════════════════════════ */
 var UPDATE_CHECK = {
-  VER: "5.12.0",
+  VER: "5.13.0",
   REPO: "adil-chandio/Mana-android",
   KEY: "maya_update",
   COOLDOWN_MS: 21600000,   /* auto-check: 6 ghante */

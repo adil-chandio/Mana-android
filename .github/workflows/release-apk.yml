@@ -128,13 +128,34 @@ jobs:
             fi
           fi
 
-      - name: 7. Release banayo + APK upload
+      - name: 6.6 AAB BUILD (Play Store) + same-signature check
+        # v5.13.0 (WAQT 4-B): tagged release ke sath AAB bhi — Play Console upload.
+        run: |
+          gradle bundleRelease --no-daemon --stacktrace
+          AAB=$(ls app/build/outputs/bundle/release/*.aab | head -1)
+          PIN="docs/signing-cert-sha256.txt"
+          AFP=$(keytool -printcert -jarfile "$AAB" 2>&1 | grep -oE 'SHA-?256:.*' | head -1 | sed -E 's/SHA-?256://;s/ //g' | tr -d ':' | tr 'A-F' 'a-f')
+          if [ -z "$AFP" ]; then
+            RSA=$(unzip -Z1 "$AAB" | grep -E '^META-INF/.*\.(RSA|DSA|EC)$' | head -1)
+            unzip -p "$AAB" "$RSA" > /tmp/aab.rsa
+            AFP=$(keytool -printcert -file /tmp/aab.rsa 2>&1 | grep -oE 'SHA-?256:.*' | head -1 | sed -E 's/SHA-?256://;s/ //g' | tr -d ':' | tr 'A-F' 'a-f')
+          fi
+          echo "::notice::AAB-DIAG aab_size=$(wc -c < "$AAB" 2>/dev/null || echo 0) fp=${AFP:-NONE}"
+          PIN_FP=$(tr -d ' \n\r:' < "$PIN" | tr 'A-F' 'a-f')
+          if [ -z "$AFP" ] || [ "$AFP" != "$PIN_FP" ]; then
+            echo "::error::AAB ka signature APK/pin se alag hai (${AFP:-none} vs $PIN_FP) — Play upload key mismatch!"
+            exit 1
+          fi
+          echo "✅ AAB signed with PIN key — Play upload ke liye ready"
+
+      - name: 7. Release banayo + APK + AAB upload
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.inputs.tag }}
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk "MAYA-$TAG.apk"
-          gh release create "$TAG" "MAYA-$TAG.apk" \
+          cp app/build/outputs/bundle/release/*.aab "MAYA-$TAG.aab"
+          gh release create "$TAG" "MAYA-$TAG.apk" "MAYA-$TAG.aab" \
             --title "MAYA $TAG" \
-            --notes "Auto-release — npm test green hone ke baad bani APK. Install: phone par APK kholo → Install anyway."
-          echo "✅ Release $TAG live"
+            --notes "Auto-release — npm test green hone ke baad bani APK + AAB. Phone: APK kholo → Install anyway. Play Console: AAB upload karo."
+          echo "✅ Release $TAG live (APK + AAB)"
