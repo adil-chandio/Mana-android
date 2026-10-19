@@ -114,7 +114,18 @@ jobs:
             fi
             echo "✅ Signature LOCKED — pinned ke sath match"
           else
-            echo "::notice::BOOTSTRAP — signature capture: ${FP:-EMPTY} — docs/signing-cert-sha256.txt mein pin karo."
+            if echo "$FP" | grep -qE '^[0-9a-f]{64}$'; then
+              echo "$FP" > "$PIN"
+              git config user.name "maya-ci"
+              git config user.email "maya-ci@users.noreply.github.com"
+              git add "$PIN"
+              git commit -m "chore: signature pin bootstrap ${FP:0:12} [skip ci]"
+              git push origin "HEAD:${GITHUB_REF_NAME}"
+              echo "::notice::BOOTSTRAP — pin khud commit ho gaya: $FP"
+            else
+              echo "::error::Fingerprint hi nahi mila (fp=${FP:-empty})"
+              exit 1
+            fi
           fi
 
       - name: 7. Release banayo + APK upload

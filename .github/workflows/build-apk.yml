@@ -136,7 +136,20 @@ jobs:
             fi
             echo "✅ Signature LOCKED — pinned ke sath match"
           else
-            echo "::notice::BOOTSTRAP — pehli dafa signature capture: ${FP:-EMPTY} — isse docs/signing-cert-sha256.txt mein pin karo."
+            # BOOTSTRAP: pin nahi — is run ke signature ko khud commit karo
+            # (GITHUB_TOKEN push recursion nahi banata + [skip ci] double-lock).
+            if echo "$FP" | grep -qE '^[0-9a-f]{64}$'; then
+              echo "$FP" > "$PIN"
+              git config user.name "maya-ci"
+              git config user.email "maya-ci@users.noreply.github.com"
+              git add "$PIN"
+              git commit -m "chore: signature pin bootstrap ${FP:0:12} [skip ci]"
+              git push origin "HEAD:${GITHUB_REF_NAME}"
+              echo "::notice::BOOTSTRAP — pin khud commit ho gaya: $FP (is run ka APK wahi key hai)"
+            else
+              echo "::error::Fingerprint hi nahi mila (fp=${FP:-empty}) — pin nahi lag sakta"
+              exit 1
+            fi
           fi
 
       - name: 7. 🌐 LATEST RELEASE — hamesha taaza download link

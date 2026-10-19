@@ -90,8 +90,15 @@ is(/version: \$VER/.test(wf),
    'release notes mein version line (app update check padhta hai)');
 is(/SIGNATURE LOCK/.test(wf) && /SIGNATURE LOCK/.test(wfRel) && /apksigner/.test(wf),
    'SIGNATURE LOCK gate — APK ke asle cert se pin check (dono workflows)');
-is(/[0-9a-f]{64}/.test(read('docs/signing-cert-sha256.txt')),
-   'SIGNATURE PIN maujood — 64-hex fingerprint locked');
+let pinState = 'missing';
+try {
+  const pinTxt = read('docs/signing-cert-sha256.txt');
+  pinState = /[0-9a-f]{64}/.test(pinTxt) ? 'locked' : 'garbage';
+} catch (e) { pinState = 'missing'; }
+is(pinState === 'locked' || pinState === 'missing',
+   'SIGNATURE PIN — ya 64-hex locked, ya bootstrap mode (missing); garbage kabhi nahi');
+is(/pin bootstrap/.test(wf) && /pin bootstrap/.test(wfRel),
+   'auto-pin bootstrap — CI khud pin commit karta hai ([skip ci])');
 
 console.log('');
 if (fail) {
