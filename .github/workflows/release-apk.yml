@@ -38,6 +38,14 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: 4.5 STABLE DEBUG KEYSTORE (update-safe signature)
+        # build-apk.yml ke sath match — dono workflows EK hi cached debug
+        # keystore share karte hain → signature kabhi nahi badalta (settings safe).
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: maya-debug-keystore-v1
+
       - name: 5. Signing keystore (Secrets se — docs/SECURITY.md)
         env:
           MAYA_KEYSTORE_BASE64: ${{ secrets.MAYA_KEYSTORE_BASE64 }}

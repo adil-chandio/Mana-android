@@ -158,6 +158,59 @@ function labPaint(){
   b = $("#labHarvest");
   if (b) b.addEventListener("click", function(){ show(HARVEST.report()); });
 
+  /* ===== SETTINGS BACKUP / RESTORE (v5.10.2) =====
+     Uninstall se pehle backup, naye install mein ek tap restore.
+     Sab localStorage keys (settings + keys + ledger + chat) ek JSON mein. */
+  b = $("#labBackup");
+  if (b) b.addEventListener("click", function(){
+    if (!NATIVE || !window.MayaBridge.saveTextToDownloads) { toast("Backup sirf APK mein hai"); return; }
+    try {
+      var dump = {}, i, k;
+      for (i = 0; i < localStorage.length; i++) {
+        k = localStorage.key(i);
+        dump[k] = localStorage.getItem(k);
+      }
+      dump.__mayaBackup = { ver: (typeof UPDATE_CHECK !== "undefined" ? UPDATE_CHECK.VER : "?"), at: (new Date()).toISOString(), keys: localStorage.length };
+      var name = "maya-settings-" + (new Date()).toISOString().slice(0, 10) + ".json";
+      var r = JSON.parse(window.MayaBridge.saveTextToDownloads(name, JSON.stringify(dump)));
+      if (r && r.ok) {
+        show("\uD83D\uDCE6 SETTINGS BACKUP — tayyar!\n\n  File: " + (r.name || name) + "\n  Jagah: Download folder\n  Cheezein: " + localStorage.length + " (settings, keys, ledger, sab)\n\n" +
+             "\uD83D\uDCA1 Yaad rakhein: file khud Download folder mein hai — chahein to WhatsApp/Drive par bhi rakh lein.\n" +
+             "\uD83D\uDD04 Jab app dobara install karein: \uD83D\uDCE5 SETTINGS RESTORE dabao — sab wapas.");
+        pushLog("BACKUP: " + name + " save ho gayi (" + localStorage.length + " keys)");
+      } else {
+        show("\u274C Backup nahi ban saki: " + ((r && r.why) || "wajah maloom nahi") + "\n\nStorage permission check karo ya dobara koshish karo.");
+      }
+    } catch (e) { show("\u274C Backup error: " + e.message); }
+  });
+
+  b = $("#labRestore");
+  if (b) b.addEventListener("click", function(){
+    if (!NATIVE || !window.MayaBridge.readText) { toast("Restore sirf APK mein hai"); return; }
+    try {
+      var list = JSON.parse(window.MayaBridge.listFiles("downloads"));
+      var files = (list && list.files) || [], i, pick = null;
+      for (i = 0; i < files.length; i++) {
+        if (/maya-settings/i.test(files[i].name || "") && /\.json$/i.test(files[i].name || "")) { pick = files[i]; break; }
+      }
+      if (!pick) {
+        show("\uD83D\uDCE5 Koi backup file nahi mili.\n\n  Download folder mein 'maya-settings-....json' honi chahiye.\n  Pehle \uD83D\uDCE6 SETTINGS BACKUP se banai thi?");
+        return;
+      }
+      var raw = JSON.parse(window.MayaBridge.readText(pick.uri));
+      if (!raw || !raw.ok) { show("\u274C File parh nahi saki: " + ((raw && raw.why) || "?")); return; }
+      var dump = JSON.parse(raw.text || "{}");
+      var n = 0, k;
+      for (k in dump) {
+        if (k === "__mayaBackup") continue;
+        localStorage.setItem(k, dump[k]); n++;
+      }
+      show("\u2705 RESTORE ho gaya! (" + n + " cheezein wapas)\n\n  File: " + (pick.name || "") + "\n  Backup: " + ((dump.__mayaBackup && dump.__mayaBackup.at) || "?") + "\n\n  App dobara khul rahi hai — settings lag jayengi...");
+      pushLog("RESTORE: " + (pick.name || "?") + " se " + n + " cheezein wapas");
+      setTimeout(function(){ try { location.reload(); } catch (e) {} }, 1200);
+    } catch (e) { show("\u274C Restore error: " + e.message); }
+  });
+
   b = $("#labDiag");
   if (b) b.addEventListener("click", function(){
     var txt = DIAG.build();

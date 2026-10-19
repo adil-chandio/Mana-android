@@ -3,7 +3,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.10.1 — SYSTEMS ONLINE  (SMART-PRO: wajah se baat)");
+    pushLog("MAYA v5.10.2 — SYSTEMS ONLINE  (SMART-PRO: wajah se baat)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");

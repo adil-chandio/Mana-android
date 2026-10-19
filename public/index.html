@@ -536,7 +536,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver">v5.10.1 — 🕯️ SMART-PRO · 📡 AUTO-UPDATE · ✋ SCROLL — team build, poora mazboot</div>
+  <div class="ver">v5.10.2 — 🕯️ SMART-PRO · 📡 AUTO-UPDATE · ✋ SCROLL — team build, poora mazboot</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,14 +561,14 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.10.1 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.10.2 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.10.1 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.10.2 ✨</small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -729,7 +729,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.10.1</div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.10.2</div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -1182,6 +1182,8 @@ nav{padding:8px 10px 10px}
         <button type="button" class="ui-btn ui-btn-ghost" id="labLedger">📜 AAJ KYA KYA KIYA — poora roznamcha</button>
         <button type="button" class="ui-btn ui-btn-ghost" id="labBaseline">📊 BASELINE DEKHO — aaj ke asli number</button>
         <button type="button" class="ui-btn ui-btn-ghost" id="labHarvest">🗃️ MERI BAATON SE TEST SET (naam/number chhupa kar)</button>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labBackup">📦 SETTINGS BACKUP — Download folder mein mehfooz</button>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labRestore">📥 SETTINGS RESTORE — backup file se wapas</button>
         <button type="button" class="ui-btn ui-btn-ghost" id="labDiag">📋 DIAGNOSTIC COPY KARO — sab kuch clipboard par</button>
         <div class="ui-hint">Diagnostic mein saari API keys, phone number aur email <b>khud-ba-khud chhup</b> jate hain. Bug ho to bas ye copy kar ke bhej dena.</div>
         <pre class="ui-pre" id="labOut">—</pre>
@@ -1199,7 +1201,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.10.1 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.10.2 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1214,7 +1216,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.10.1 · OK</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.10.2 · OK</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1287,7 +1289,7 @@ setTimeout(function(){
 "use strict";
 /* ================= MAYA v2.1.1 — Doctor Build ================= */
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.10.1 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v5.10.2 OK \u2713"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
 /* ---------- SETTINGS (v1 migration ke saath) ---------- */
@@ -1300,7 +1302,7 @@ try {
 } catch(e){}
 function saveSettings(){
   localStorage.setItem("maya_settings", JSON.stringify(settings));
-  /* v5.10.1 — wake service ko hamesha wahi zubaan do jo UI dikha raha hai.
+  /* v5.10.2 — wake service ko hamesha wahi zubaan do jo UI dikha raha hai.
      Video review (2026-10-19): wake_lang "hi-IN" atka tha jabke settings
      "ur-PK" dikha raha thi. Service har start par ye pref padhti hai —
      sirf sync rakhna zaroori hai. */
@@ -1387,7 +1389,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.10.1 — SYSTEMS ONLINE  (SMART-PRO: wajah se baat)");
+    pushLog("MAYA v5.10.2 — SYSTEMS ONLINE  (SMART-PRO: wajah se baat)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -8430,6 +8432,59 @@ function labPaint(){
   b = $("#labHarvest");
   if (b) b.addEventListener("click", function(){ show(HARVEST.report()); });
 
+  /* ===== SETTINGS BACKUP / RESTORE (v5.10.2) =====
+     Uninstall se pehle backup, naye install mein ek tap restore.
+     Sab localStorage keys (settings + keys + ledger + chat) ek JSON mein. */
+  b = $("#labBackup");
+  if (b) b.addEventListener("click", function(){
+    if (!NATIVE || !window.MayaBridge.saveTextToDownloads) { toast("Backup sirf APK mein hai"); return; }
+    try {
+      var dump = {}, i, k;
+      for (i = 0; i < localStorage.length; i++) {
+        k = localStorage.key(i);
+        dump[k] = localStorage.getItem(k);
+      }
+      dump.__mayaBackup = { ver: (typeof UPDATE_CHECK !== "undefined" ? UPDATE_CHECK.VER : "?"), at: (new Date()).toISOString(), keys: localStorage.length };
+      var name = "maya-settings-" + (new Date()).toISOString().slice(0, 10) + ".json";
+      var r = JSON.parse(window.MayaBridge.saveTextToDownloads(name, JSON.stringify(dump)));
+      if (r && r.ok) {
+        show("\uD83D\uDCE6 SETTINGS BACKUP — tayyar!\n\n  File: " + (r.name || name) + "\n  Jagah: Download folder\n  Cheezein: " + localStorage.length + " (settings, keys, ledger, sab)\n\n" +
+             "\uD83D\uDCA1 Yaad rakhein: file khud Download folder mein hai — chahein to WhatsApp/Drive par bhi rakh lein.\n" +
+             "\uD83D\uDD04 Jab app dobara install karein: \uD83D\uDCE5 SETTINGS RESTORE dabao — sab wapas.");
+        pushLog("BACKUP: " + name + " save ho gayi (" + localStorage.length + " keys)");
+      } else {
+        show("\u274C Backup nahi ban saki: " + ((r && r.why) || "wajah maloom nahi") + "\n\nStorage permission check karo ya dobara koshish karo.");
+      }
+    } catch (e) { show("\u274C Backup error: " + e.message); }
+  });
+
+  b = $("#labRestore");
+  if (b) b.addEventListener("click", function(){
+    if (!NATIVE || !window.MayaBridge.readText) { toast("Restore sirf APK mein hai"); return; }
+    try {
+      var list = JSON.parse(window.MayaBridge.listFiles("downloads"));
+      var files = (list && list.files) || [], i, pick = null;
+      for (i = 0; i < files.length; i++) {
+        if (/maya-settings/i.test(files[i].name || "") && /\.json$/i.test(files[i].name || "")) { pick = files[i]; break; }
+      }
+      if (!pick) {
+        show("\uD83D\uDCE5 Koi backup file nahi mili.\n\n  Download folder mein 'maya-settings-....json' honi chahiye.\n  Pehle \uD83D\uDCE6 SETTINGS BACKUP se banai thi?");
+        return;
+      }
+      var raw = JSON.parse(window.MayaBridge.readText(pick.uri));
+      if (!raw || !raw.ok) { show("\u274C File parh nahi saki: " + ((raw && raw.why) || "?")); return; }
+      var dump = JSON.parse(raw.text || "{}");
+      var n = 0, k;
+      for (k in dump) {
+        if (k === "__mayaBackup") continue;
+        localStorage.setItem(k, dump[k]); n++;
+      }
+      show("\u2705 RESTORE ho gaya! (" + n + " cheezein wapas)\n\n  File: " + (pick.name || "") + "\n  Backup: " + ((dump.__mayaBackup && dump.__mayaBackup.at) || "?") + "\n\n  App dobara khul rahi hai — settings lag jayengi...");
+      pushLog("RESTORE: " + (pick.name || "?") + " se " + n + " cheezein wapas");
+      setTimeout(function(){ try { location.reload(); } catch (e) {} }, 1200);
+    } catch (e) { show("\u274C Restore error: " + e.message); }
+  });
+
   b = $("#labDiag");
   if (b) b.addEventListener("click", function(){
     var txt = DIAG.build();
@@ -9283,7 +9338,7 @@ var SMART_PRO = {
    📡 UPDATE-CHECK — naya APK aaya? (Roadmap Phase 5 · auto-updates ka pehla qadam)
    ---------------------------------------------------------------------------
    GitHub Releases se `releases/latest` uthata hai (public API — koi key nahi,
-   koi paisa nahi). Tag (v5.10.1) ko apni version se milata hai:
+   koi paisa nahi). Tag (v5.10.2) ko apni version se milata hai:
      • naya ho → 🔄 card + HUD log + (APK mein) notification + seedha download link
      • sab theek → kuch nahi (silent — shor bilkul nahi)
    Auto-check: boot ke 12s baad, roz max 1 dafa. Button: LAB → 🔄 APP UPDATE.
@@ -9292,7 +9347,7 @@ var SMART_PRO = {
    package.json, sw.js, hudBuild) is se match karne hain (test-invariants).
    ═══════════════════════════════════════════════════════════════════════════ */
 var UPDATE_CHECK = {
-  VER: "5.10.1",
+  VER: "5.10.2",
   REPO: "adil-chandio/Mana-android",
   KEY: "maya_update",
   COOLDOWN_MS: 21600000,   /* auto-check: 6 ghante */
@@ -9309,7 +9364,7 @@ var UPDATE_CHECK = {
     try { localStorage.setItem(UPDATE_CHECK.KEY, JSON.stringify(UPDATE_CHECK.state)); } catch (e) {}
   },
 
-  /* "v5.10.1" → [5,10,1] */
+  /* "v5.10.2" → [5,10,1] */
   parse: function (tag) {
     var m = String(tag || "").match(/(\d+)\.(\d+)\.(\d+)/);
     return m ? [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)] : null;
@@ -9355,7 +9410,7 @@ var UPDATE_CHECK = {
       UPDATE_CHECK.save();
       if (tag && UPDATE_CHECK.newer(tag, UPDATE_CHECK.VER)) {
         var link = j.html_url || ("https://github.com/" + UPDATE_CHECK.REPO + "/releases");
-        UPDATE_CHECK.setHint("🔄 NAYA VERSION: " + tag + " (aap ke paas " + UPDATE_CHECK.VER + ") — click: download");
+        UPDATE_CHECK.setHint("🔄 NAYA VERSION: " + tag + " (aap ke paas " + UPDATE_CHECK.VER + ") — click: download. ⚙️ Settings safe rahengi — update hai, uninstall nahi.");
         try { pushLog("UPDATE: naya version " + tag + " available — " + link); } catch (e) {}
         try {
           var bh = document.getElementById("updHint");
@@ -9365,7 +9420,7 @@ var UPDATE_CHECK = {
         if (s.notified !== tag) {
           try {
             if (NATIVE && window.MayaBridge && window.MayaBridge.notify) {
-              window.MayaBridge.notify("🔄 MAYA UPDATE", "Version " + tag + " aaya hai — Settings → LAB → 🔄 APP UPDATE");
+              window.MayaBridge.notify("🔄 MAYA UPDATE", "Version " + tag + " aaya hai — Settings → LAB → 🔄 APP UPDATE (settings safe: update hai, uninstall nahi)");
             }
           } catch (e) {}
           s.notified = tag;
@@ -9717,8 +9772,8 @@ function startProactive(){ if (typeof SMART_PRO !== "undefined") SMART_PRO.start
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.10.1"; } catch(e){}
-try { pushLog("MAYA v5.10.1 — SMART-PRO + AUTO-UPDATE ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.10.2"; } catch(e){}
+try { pushLog("MAYA v5.10.2 — SMART-PRO + AUTO-UPDATE ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
@@ -9977,7 +10032,7 @@ var MayaUI = (function () {
     for (i = 0; i < reopen.length; i++) delCls(reopen[i], "is-open");
 
     var out = [];
-    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v" + ((typeof UPDATE_CHECK !== "undefined" && UPDATE_CHECK.VER) ? UPDATE_CHECK.VER : ((typeof APP_VER !== "undefined" && APP_VER) ? APP_VER : "5.10.1")));
+    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v" + ((typeof UPDATE_CHECK !== "undefined" && UPDATE_CHECK.VER) ? UPDATE_CHECK.VER : ((typeof APP_VER !== "undefined" && APP_VER) ? APP_VER : "5.10.2")));
     out.push("WEBVIEW: Chrome " + (window.__webviewMajor || "?") + (window.__oldWebview ? " (PURANA)" : ""));
     out.push("");
     out.push("VISIBLE: " + okc + "   INVISIBLE: " + bad + (bad ? "  \u274C" : "  \u2705"));

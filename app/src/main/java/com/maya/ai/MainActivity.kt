@@ -126,7 +126,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.10.1 • SMART-PRO + scroll + auto-update (team build)", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.10.2 • SMART-PRO + scroll + auto-update (team build)", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -358,7 +358,7 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.10.1-native"
+        fun appVersion(): String = "5.10.2-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
@@ -928,6 +928,51 @@ class MainActivity : AppCompatActivity() {
                 ActivityCompat.requestPermissions(this@MainActivity, perms, REQ_PERMS)
                 true
             } catch (e: Exception) { false }
+        }
+
+        /* ===== SETTINGS BACKUP / RESTORE (v5.10.2) =====
+           Uninstall/update se pehle user apni saari settings ek file mein
+           mehfooz kar sake, aur naye install mein ek tap se wapas la sake. */
+        @JavascriptInterface
+        fun saveTextToDownloads(name: String, text: String): String {
+            return try {
+                val safe = name.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val vals = android.content.ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, safe)
+                        put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                    }
+                    val uri = contentResolver.insert(
+                        MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL), vals
+                    ) ?: return JSONObject().put("ok", false).put("why", "file bana nahi saki").toString()
+                    contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                    JSONObject().put("ok", true).put("uri", uri.toString()).put("name", safe).toString()
+                } else {
+                    val dir = java.io.File(
+                        android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
+                        ""
+                    )
+                    dir.mkdirs()
+                    val f = java.io.File(dir, safe)
+                    f.writeText(text, Charsets.UTF_8)
+                    JSONObject().put("ok", true).put("uri", Uri.fromFile(f).toString()).put("name", safe).toString()
+                }
+            } catch (e: Exception) {
+                JSONObject().put("ok", false).put("why", e.message ?: "x").toString()
+            }
+        }
+
+        @JavascriptInterface
+        fun readText(uriStr: String): String {
+            return try {
+                val txt = contentResolver.openInputStream(Uri.parse(uriStr))?.use {
+                    it.readBytes().toString(Charsets.UTF_8)
+                } ?: ""
+                JSONObject().put("ok", true).put("text", txt).toString()
+            } catch (e: Exception) {
+                JSONObject().put("ok", false).put("why", e.message ?: "x").toString()
+            }
         }
 
         /* ===== QUICK CONTROLS (Phase 9) ===== */

@@ -2,7 +2,7 @@
    📡 UPDATE-CHECK — naya APK aaya? (Roadmap Phase 5 · auto-updates ka pehla qadam)
    ---------------------------------------------------------------------------
    GitHub Releases se `releases/latest` uthata hai (public API — koi key nahi,
-   koi paisa nahi). Tag (v5.10.1) ko apni version se milata hai:
+   koi paisa nahi). Tag (v5.10.2) ko apni version se milata hai:
      • naya ho → 🔄 card + HUD log + (APK mein) notification + seedha download link
      • sab theek → kuch nahi (silent — shor bilkul nahi)
    Auto-check: boot ke 12s baad, roz max 1 dafa. Button: LAB → 🔄 APP UPDATE.
@@ -11,7 +11,7 @@
    package.json, sw.js, hudBuild) is se match karne hain (test-invariants).
    ═══════════════════════════════════════════════════════════════════════════ */
 var UPDATE_CHECK = {
-  VER: "5.10.1",
+  VER: "5.10.2",
   REPO: "adil-chandio/Mana-android",
   KEY: "maya_update",
   COOLDOWN_MS: 21600000,   /* auto-check: 6 ghante */
@@ -28,7 +28,7 @@ var UPDATE_CHECK = {
     try { localStorage.setItem(UPDATE_CHECK.KEY, JSON.stringify(UPDATE_CHECK.state)); } catch (e) {}
   },
 
-  /* "v5.10.1" → [5,10,1] */
+  /* "v5.10.2" → [5,10,1] */
   parse: function (tag) {
     var m = String(tag || "").match(/(\d+)\.(\d+)\.(\d+)/);
     return m ? [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)] : null;
@@ -74,7 +74,7 @@ var UPDATE_CHECK = {
       UPDATE_CHECK.save();
       if (tag && UPDATE_CHECK.newer(tag, UPDATE_CHECK.VER)) {
         var link = j.html_url || ("https://github.com/" + UPDATE_CHECK.REPO + "/releases");
-        UPDATE_CHECK.setHint("🔄 NAYA VERSION: " + tag + " (aap ke paas " + UPDATE_CHECK.VER + ") — click: download");
+        UPDATE_CHECK.setHint("🔄 NAYA VERSION: " + tag + " (aap ke paas " + UPDATE_CHECK.VER + ") — click: download. ⚙️ Settings safe rahengi — update hai, uninstall nahi.");
         try { pushLog("UPDATE: naya version " + tag + " available — " + link); } catch (e) {}
         try {
           var bh = document.getElementById("updHint");
@@ -84,7 +84,7 @@ var UPDATE_CHECK = {
         if (s.notified !== tag) {
           try {
             if (NATIVE && window.MayaBridge && window.MayaBridge.notify) {
-              window.MayaBridge.notify("🔄 MAYA UPDATE", "Version " + tag + " aaya hai — Settings → LAB → 🔄 APP UPDATE");
+              window.MayaBridge.notify("🔄 MAYA UPDATE", "Version " + tag + " aaya hai — Settings → LAB → 🔄 APP UPDATE (settings safe: update hai, uninstall nahi)");
             }
           } catch (e) {}
           s.notified = tag;

@@ -70,6 +70,17 @@ is(/UPDATE_CHECK = \{/.test(read('web/02-main/31-auto-update.js')) && /btnUpdChe
    'UPDATE-CHECK: engine + LAB button dono maujood');
 is(/MAX: 1000/.test(read('web/02-main/17-ijazat-ledger.js')), 'LEDGER.MAX = 1000 (aadat mining ke liye)');
 
+/* ═══ 4. UPDATE-SAFE APK (settings kabhi na udein) ═══ */
+is(/debug\.keystore/.test(wf) && /actions\/cache/.test(wf),
+   'CI: debug keystore CACHED — har APK ek hi key (update install, settings safe)');
+const wfRel = read('.github/workflows/release-apk.yml');
+is(/debug\.keystore/.test(wfRel) && /actions\/cache/.test(wfRel),
+   'release-apk.yml: wohi cached key (dono workflows ek signature)');
+is(/labBackup/.test(read('web/00-head.html')) && /saveTextToDownloads/.test(read('app/src/main/java/com/maya/ai/MainActivity.kt')) && /readText/.test(read('app/src/main/java/com/maya/ai/MainActivity.kt')),
+   'SETTINGS BACKUP/RESTORE zinda (LAB buttons + Kotlin file I/O)');
+is(/settingsBackup|labBackup/.test(read('web/02-main/25-lab-ui.js')) && /maya-settings/i.test(read('web/02-main/25-lab-ui.js')),
+   'BACKUP/RESTORE handlers wired (maya-settings*.json)');
+
 console.log('');
 if (fail) {
   console.log('\u274C INVARIANTS — ' + fail + ' toot gayin / ' + pass + ' zinda');

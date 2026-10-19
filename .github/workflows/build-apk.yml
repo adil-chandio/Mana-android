@@ -45,6 +45,17 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: 3.5 STABLE DEBUG KEYSTORE (update-safe signature)
+        # Android har naye runner par NAYA debug keystore bana deta tha —
+        # isliye har APK ka signature alag tha, update ki jagah UNINSTALL
+        # karna parta tha aur user ki saari SETTINGS udd jati thin (2026-10-19).
+        # Ab wohi keystore cache se wapas aata hai → sab future APKs EK hi key
+        # se sign → seedha UPDATE install, settings safe. (v5.10.2 se onward.)
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: maya-debug-keystore-v1
+
       - name: 4. Signing keystore (Secrets se — docs/SECURITY.md)
         env:
           MAYA_KEYSTORE_BASE64: ${{ secrets.MAYA_KEYSTORE_BASE64 }}
