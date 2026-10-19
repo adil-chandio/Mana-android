@@ -89,15 +89,19 @@ jobs:
         # fingerprint ko jaan-boojh kar pin na kiya jaye (docs/signing-cert-sha256.txt).
         # Matlab: user ko kabhi "mehnat se settings dobara" ka surprise nahi.
         run: |
-          KS="$HOME/.android/debug.keystore"
           PIN="docs/signing-cert-sha256.txt"
-          if [ -f "$KS" ]; then
-            FP=$(keytool -list -v -keystore "$KS" -storepass android -alias androiddebugkey 2>/dev/null | grep -o 'SHA256:.*' | head -1 | sed 's/SHA256://;s/ //g')
-          else
-            FP=""
+          FP=""
+          WHICH="none"
+          if [ -n "$MAYA_KEYSTORE_FILE" ] && [ -f "$MAYA_KEYSTORE_FILE" ]; then
+            FP=$(keytool -list -v -keystore "$MAYA_KEYSTORE_FILE" -storepass "${MAYA_KEYSTORE_PASSWORD}" -alias "${MAYA_KEY_ALIAS}" 2>&1 | grep -oE 'SHA-?256:.*' | head -1 | sed -E 's/SHA-?256://;s/ //g')
+            WHICH="maya-keystore(secret)"
+          fi
+          if [ -z "$FP" ] && [ -f "$HOME/.android/debug.keystore" ]; then
+            FP=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey 2>&1 | grep -oE 'SHA-?256:.*' | head -1 | sed -E 's/SHA-?256://;s/ //g')
+            WHICH="debug-keystore(cache)"
           fi
           echo "SIGNATURE_SHA256=$FP" >> "$GITHUB_ENV"
-          echo "::notice::APK signature (SHA256): ${FP:-unknown}"
+          echo "::notice::SIGNATURE-DIAG which=$WHICH fp=${FP:-NONE} kt=$(command -v keytool || echo MISSING) android_dir=$(ls $HOME/.android 2>&1 | tr '\n' '|' | cut -c1-120) secret_file=${MAYA_KEYSTORE_FILE:-unset}"
           if [ -s "$PIN" ]; then
             PIN_FP=$(tr -d ' \n\r' < "$PIN")
             if [ -z "$FP" ] || [ "$FP" != "$PIN_FP" ]; then
@@ -106,7 +110,7 @@ jobs:
             fi
             echo "✅ Signature LOCKED — pinned ke sath match"
           else
-            echo "::notice::BOOTSTRAP — pehli dafa signature capture: $FP — isse docs/signing-cert-sha256.txt mein pin karo."
+            echo "::notice::BOOTSTRAP — pehli dafa signature capture: ${FP:-EMPTY} — isse docs/signing-cert-sha256.txt mein pin karo."
           fi
 
       - name: 7. 🌐 LATEST RELEASE — hamesha taaza download link
