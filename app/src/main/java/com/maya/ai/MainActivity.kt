@@ -138,7 +138,7 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {}
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.13.0 • Play-ready (targetSdk 36) + AAB (team build)", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.13.1 • Play-ready (targetSdk 36) + AAB (team build)", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -370,7 +370,7 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.13.0-native"
+        fun appVersion(): String = "5.13.1-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
@@ -1001,11 +1001,64 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        /* ===== ONE-TAP UPDATE (v5.12.0) — download + install prompt =====
-           Ab update card sirf link nahi kholti — APK khud download kar ke
-           Android ka "install update?" prompt khola jata hai. Signature
-           stable hai to yeh UPDATE hota hai — settings safe. */
-        @Volatile private var apkDlBusy = false
+        /* ===== ONE-TAP UPDATE (v5.12.0) — download + install =====
+           v5.13.1 — SILENT SELF-UPDATE (Android 12+): PackageInstaller session
+           + USER_ACTION_NOT_REQUIRED + UPDATE_PACKAGES_WITHOUT_USER_ACTION.
+           Ye app KHUD ko update kar rahi hai (same package + same signature =
+           pin key) — system ko dialog ki zaroorat nahi, seedha update.
+           Na chale (OEM/Old Android) → purana "install update?" dialog —
+           kabhi pehle se behatar, kam nahi. */
+        @JavascriptInterface
+        fun installApk(path: String): Boolean {
+            return try {
+                val f = java.io.File(path)
+                if (!f.exists() || f.length() < 1000000L) return false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && silentInstall(f)) return true
+                /* Fallback (Android <12, ya silent session fail): normal dialog */
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    this@MainActivity, packageName + ".fileprovider", f
+                )
+                val i = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(i)
+                true
+            } catch (e: Exception) { false }
+        }
+
+        /* Silent self-update. Docs ki shartein (sab poori):
+           REQUEST_INSTALL_PACKAGES + UPDATE_PACKAGES_WITHOUT_USER_ACTION (manifest)
+           + khud ka update + same signature + targetSdk chain (36).
+           STATUS_PENDING_USER_ACTION aaye to MayaInstallReceiver normal dialog
+           dikha deta hai — kabhi hang nahi. */
+        private fun silentInstall(f: java.io.File): Boolean {
+            return try {
+                val installer = packageManager.packageInstaller
+                val params = android.content.pm.PackageInstaller.SessionParams(
+                    android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL)
+                params.setAppPackageName(packageName)
+                params.setRequireUserAction(
+                    android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                val session = installer.openSession(installer.createSession(params))
+                session.openWrite("maya_update.apk", 0L, f.length()).use { out ->
+                    java.io.FileInputStream(f).use { input ->
+                        val buf = ByteArray(65536)
+                        var n: Int
+                        while (input.read(buf).also { n = it } > 0) out.write(buf, 0, n)
+                    }
+                    session.fsync(out)
+                }
+                val pi = PendingIntent.getBroadcast(
+                    this@MainActivity, 9911,
+                    Intent(this@MainActivity, MayaInstallReceiver::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+                session.commit(pi.intentSender)
+                session.close()
+                true
+            } catch (e: Exception) { false }
+        }
 
         @JavascriptInterface
         fun downloadApk(url: String): String {
@@ -1051,23 +1104,6 @@ class MainActivity : AppCompatActivity() {
                 synchronized(this) { apkDlBusy = false }
                 JSONObject().put("ok", false).put("why", e.message ?: "x").toString()
             }
-        }
-
-        @JavascriptInterface
-        fun installApk(path: String): Boolean {
-            return try {
-                val f = java.io.File(path)
-                if (!f.exists() || f.length() < 1000000L) return false
-                val uri = androidx.core.content.FileProvider.getUriForFile(
-                    this@MainActivity, packageName + ".fileprovider", f
-                )
-                val i = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(uri, "application/vnd.android.package-archive")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(i)
-                true
-            } catch (e: Exception) { false }
         }
 
         /* ===== QUICK CONTROLS (Phase 9) ===== */

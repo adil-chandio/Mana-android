@@ -20,6 +20,8 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- v5.13.1: silent self-update (same-signature) — bina install dialog ke -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <application
         android:label="@string/app_name"
@@ -72,6 +74,11 @@
         <!-- 🛑 Roadmap Phase 1: kill-switch button receiver -->
         <receiver
             android:name=".MayaStopReceiver"
+            android:exported="false" />
+
+        <!-- v5.13.1: silent self-update status (success → notification) -->
+        <receiver
+            android:name=".MayaInstallReceiver"
             android:exported="false" />
 
         <provider

@@ -1415,10 +1415,10 @@ Here's a thinking process:
       '👁️ KAAN report mein HAAL + roko ki ginti nazar aati hai');
 
     /* ── version qanoon ── */
-    is(/appVersion\(\): String = "5\.13\.0-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1,
+    is(/appVersion\(\): String = "5\.13\.1-native"/.test(MA) && MA.indexOf('4.3.0-native') === -1,
       '🩹 BONUS — appVersion() ka purana 4.3.0 jhoot bhi ab qatl');
-    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.13.0') > 0 &&
-       /versionCode 80/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')),
+    is(fs.readFileSync(path.join(ROOT, 'app/src/main/assets/web/sw.js'), 'utf8').indexOf('maya-v5.13.1') > 0 &&
+       /versionCode 81/.test(fs.readFileSync(path.join(ROOT, 'app/build.gradle'), 'utf8')),
       '🏷️ poore app mein VERSION v5.10.1 (cache saaf, splash saaf, APK saaf)');
     is(HTML.indexOf('5.8.0') === -1, 'kahi purana 5.8.0 version nazar nahi aata');
 

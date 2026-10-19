@@ -11,7 +11,7 @@
    package.json, sw.js, hudBuild) is se match karne hain (test-invariants).
    ═══════════════════════════════════════════════════════════════════════════ */
 var UPDATE_CHECK = {
-  VER: "5.13.0",
+  VER: "5.13.1",
   REPO: "adil-chandio/Mana-android",
   KEY: "maya_update",
   COOLDOWN_MS: 21600000,   /* auto-check: 6 ghante */
@@ -48,7 +48,7 @@ var UPDATE_CHECK = {
   apkUrl: function () {
     return "https://github.com/" + UPDATE_CHECK.REPO + "/releases/download/latest/MAYA-latest.apk";
   },
-  /* ONE-TAP: download → Android install prompt (UPDATE = settings safe) */
+  /* ONE-TAP: download → khud update (silent, bina install dialog ke) */
   installNow: function (link) {
     try {
       UPDATE_CHECK.setHint("⏬ Update download ho raha hai... (settings safe rahengi)");
@@ -157,15 +157,15 @@ try {
   if (_updBtn) _updBtn.onclick = function () { UPDATE_CHECK.check(false); };
 } catch (e) {}
 
-/* ONE-TAP UPDATE: Kotlin download ke baad yahan aata hai → install prompt */
+/* ONE-TAP UPDATE: Kotlin download ke baad yahan aata hai → khud update (silent) */
 window.__apkDone = function (payload) {
   try {
     var r = JSON.parse(payload || "{}");
     if (r && r.ok) {
-      UPDATE_CHECK.setHint("⏬ Download ho gaya — INSTALL prompt khul raha hai (INSTALL dabao — settings safe!)");
-      try { pushLog("UPDATE: APK download (" + r.size + "B) — install prompt"); } catch (e) {}
+      UPDATE_CHECK.setHint("⏬ Download ho gaya — update KHUD install ho raha hai (bina prompt ke, settings safe)");
+      try { pushLog("UPDATE: APK download (" + r.size + "B) — silent self-update"); } catch (e) {}
       if (!window.MayaBridge.installApk(r.path)) {
-        UPDATE_CHECK.setHint("⚠️ Install prompt nahi khul saki — click: browser se install karo");
+        UPDATE_CHECK.setHint("⚠️ Khud install nahi ho saki — click: browser se update karo (ek prompt aayega)");
         var bh = document.getElementById("updHint");
         if (bh) bh.onclick = function () { try { openURL("https://github.com/" + UPDATE_CHECK.REPO + "/releases/latest"); } catch (e) {} };
       }
