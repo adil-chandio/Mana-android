@@ -5,6 +5,7 @@
 MAYA = aap ka apna JARVIS — voice controlled AI assistant (Gemini brain),
 ab **asli Android app** (APK) ki soorat mein, native superpowers ke saath:
 
+> ⬇️ **APK DOWNLOAD (hamesha taaza):** https://github.com/adil-chandio/Mana-android/releases/download/latest/MAYA-latest.apk
 > 📦 **Ab se TEAM dhancha:** source `web/` mein hai (parts), `node build.js` se
 > `index.html` banta hai. Naqsha: [`docs/TEAM-MASTER-PLAN.md`](docs/TEAM-MASTER-PLAN.md) ·
 > Release qanoon: [`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) ·

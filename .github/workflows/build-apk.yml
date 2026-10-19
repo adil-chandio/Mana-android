@@ -1,7 +1,10 @@
 name: Build MAYA APK
 
-# Har push par: PEHLE test, phir APK — toota hua code kabhi APK nahi banta
+# Har push par: PEHLE test, phir APK, phir "latest" RELEASE mein seedha download link
 on: [push, workflow_dispatch]
+
+permissions:
+  contents: write
 
 jobs:
   test:
@@ -63,8 +66,29 @@ jobs:
       - name: 5. APK BUILD (3-6 minute)
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: 6. APK upload (download ke liye)
+      - name: 6. APK upload (Actions artifact)
         uses: actions/upload-artifact@v4
         with:
           name: MAYA-APK
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: 7. 🌐 LATEST RELEASE — hamesha taaza download link
+        # Hamesha ek hi URL: /releases/download/latest/MAYA-latest.apk
+        # Har push par asset replace — phone se seedha download & install
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/arena/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk MAYA-latest.apk
+          NOTES="Auto-build ${GITHUB_SHA::7} · $(date -u +'%Y-%m-%d %H:%M UTC') · Tests green · Download: MAYA-latest.apk"
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest MAYA-latest.apk --clobber
+            gh release edit latest --notes "$NOTES"
+            echo "✅ 'latest' release asset replace — /releases/download/latest/MAYA-latest.apk"
+          else
+            gh release create latest MAYA-latest.apk \
+              --prerelease \
+              --title "MAYA — Latest Build (auto)" \
+              --notes "$NOTES"
+            echo "✅ 'latest' release bana — /releases/download/latest/MAYA-latest.apk"
+          fi
