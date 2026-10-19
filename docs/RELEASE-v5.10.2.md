@@ -25,3 +25,11 @@ settings loss nahi.
 - versionName `5.10.2` · versionCode **77**
 - Tests: **1022/1022 green** (build-sync 13 · invariants 20 · css · settings 72 · voice 296 · brain 155 · lab 466)
 - Invariants nayi locks: CI keystore cache (dono workflows) + backup/restore zinda
+
+## 🔒 SIGNATURE LOCK (baad mein add hua — do layer aur)
+
+1. **Keystore ensure**: workflow khud `~/.android/debug.keystore` banata/cache se laata hai (AGP ke bharose nahi)
+2. **Ground truth gate**: `apksigner verify --print-certs` se APK ke ASLI certificate ka SHA-256 pin (`docs/signing-cert-sha256.txt`) se match hota hai — mismatch/empty = build RED = APK "latest" par NAHI jayega
+3. **Pin**: `09de5212c7ace36e557b47aa5e40d9b24bd74fe7a537625d134ef3d494addf16` (cache `maya-debug-keystore-v1`)
+
+Result: signature kabhi khamoshi se nahi badalta; badalna ho to ek line ka jaan-boojh commit + user ko agle update par EK dafa batana.
