@@ -148,6 +148,7 @@ var SMART_PRO = {
       try { if (typeof MAYA_V4 !== "undefined") MAYA_V4.lastInteract = Date.now(); } catch (e) {}
       try { pushLog("PROACTIVE [" + r.id + "]: " + r.msg); } catch (e) {}
       try { reply(r.msg, true); } catch (e) {}
+      try { if (window.__ntfyPro) window.__ntfyPro(r.msg); } catch (e) {}
     } catch (e) {}
   },
 

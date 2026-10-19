@@ -536,7 +536,7 @@ nav{padding:8px 10px 10px}
   <div class="sring"><div class="r1"></div><div class="r2"></div><div class="r3"></div><span>M</span></div>
   <h1>MAYA</h1>
   <div class="sub">PERSONAL AI SYSTEM</div>
-  <div class="ver">v5.10.2 — 🕯️ SMART-PRO · 📡 AUTO-UPDATE · ✋ SCROLL — team build, poora mazboot</div>
+  <div class="ver">v5.11.0 — 🕯️ SMART-PRO · 📡 AUTO-UPDATE · ✋ SCROLL — team build, poora mazboot</div>
   <button id="bootBtn">⚡ INITIALIZE</button>
   <div class="bootline" id="bootLine"></div>
   <div id="errPanel" style="display:none; margin-top:14px; max-width:340px; width:100%; border:1px solid #c85050; background:#3c0a0f; border-radius:12px; padding:12px; text-align:left;">
@@ -561,14 +561,14 @@ nav{padding:8px 10px 10px}
   <div class="dsep"></div>
   <button class="dbtn" data-tab="tab-cmds">⚡ Commands</button>
   <button class="dbtn" data-tab="tab-set">⚙️ Settings</button>
-  <div class="dfoot">MAYA v5.10.2 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
+  <div class="dfoot">MAYA v5.11.0 • 0-BUDGET • BRAIN POOL + AWAAZ</div>
 </aside>
 
 <!-- ================= APP ================= -->
 <div id="app">
   <header>
     <button id="drawerBtn">☰</button>
-    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.10.2 ✨</small></div>
+    <div class="logo"><b>MAYA</b><small id="subTitle">PERSONAL AI v5.11.0 ✨</small></div>
     <div id="statusPill">OFFLINE MODE</div>
   </header>
 
@@ -729,7 +729,7 @@ nav{padding:8px 10px 10px}
         <div class="chip"><div class="k">◈ AUTO LISTEN</div><div class="v" id="hudAuto">OFF</div></div>
         <div class="chip"><div class="k">◈ MAUSAM — WEATHER</div><div class="v" id="hudWeather">—</div></div>
         <div class="chip" id="hudWakeChip" style="cursor:pointer"><div class="k">◈ WAKE WORD (tap = on/off)</div><div class="v" id="hudWake">OFF</div></div>
-        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.10.2</div></div>
+        <div class="chip"><div class="k">◈ BUILD</div><div class="v" id="hudBuild">v5.11.0</div></div>
       </div>
       <div class="qactions" style="margin-top:12px">
         <button data-cmd="waqt kya hua hai">⏰ TIME</button>
@@ -1178,6 +1178,28 @@ nav{padding:8px 10px 10px}
         </div>
         <div class="ui-hint">Yeh "Maya" sun-ne wale ka offline dimaag hai — khule Gboard → <b>Voice typing</b> mein <b>اردو + English (India)</b> download karyn (Wi-Fi par, ~80MB har ik). Iske baghair online Google "Maya" ko "ہے" jaisa ghalat parh leta hai.</div>
         <button type="button" class="ui-btn ui-btn-ghost" id="labKaan">👂 WAKE WORD KA HAAL — Maya ne kya suna?</button>
+
+        <!-- ===== CLOUD + ALERTS (WAQT 3-B) ===== -->
+        <div class="ui-row">
+          <div class="ui-row-txt">🔔 NTFY ALERTS — <b>phone ke bahar paighaam</b> <small>(ntfy.sh — free, koi account nahi. Topic = aap ka raaz)</small></div>
+          <div class="ui-row-ctl"><label class="ui-sw"><input type="checkbox" id="sNtfyOn"><span class="ui-sw-t"></span><span class="ui-sw-k"></span></label></div>
+        </div>
+        <div class="ui-field">
+          <div class="ui-label">🔔 NTFY TOPIC <small>(random rakhein — misal: maya-7f3k9x2q · ntfy app mein yehi topic subscribe karein)</small></div>
+          <input class="ui-input" id="sNtfyTopic" type="text" placeholder="maya-xxxxxxxx" maxlength="64">
+          <div class="ui-hint">Maya ke ahem paighaam (battery, safety stop, proactive) ntfy par aa jayenge — doosre phone/laptop par bhi.</div>
+        </div>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labNtfyTest">🔔 NTFY TEST — abhi ek alert bhejein</button>
+        <div class="ui-field">
+          <div class="ui-label">☁️ CLOUD CODE <small>(yaad ka backup is se encrypt hota hai — kahin likh lein!)</small></div>
+          <input class="ui-input" id="sCloudCode" type="text" placeholder="apna raaz code" maxlength="64">
+          <div class="ui-hint">Facts/diary ka encrypted backup GitHub repo ke /memory/ folder mein. Repo public hai — magar aap ki yaad sirf is code se khulti hai.</div>
+        </div>
+        <div class="ui-row" style="gap:6px">
+          <button type="button" class="ui-btn ui-btn-ghost" id="labCloudBackup" style="margin:0">☁️ MEMORY BACKUP → GitHub</button>
+          <button type="button" class="ui-btn ui-btn-ghost" id="labCloudRestore" style="margin:0">☁️ MEMORY RESTORE ← GitHub</button>
+        </div>
+        <button type="button" class="ui-btn ui-btn-ghost" id="labCloudInfo">☁️ MEMORY CLOUD — haal</button>
         <button type="button" class="ui-btn ui-btn-ghost" id="labNazarTest">👁️ SCREEN ABHI PARHO — dekho Maya kya dekh rahi hai</button>
         <button type="button" class="ui-btn ui-btn-ghost" id="labLedger">📜 AAJ KYA KYA KIYA — poora roznamcha</button>
         <button type="button" class="ui-btn ui-btn-ghost" id="labBaseline">📊 BASELINE DEKHO — aaj ke asli number</button>
@@ -1201,7 +1223,7 @@ nav{padding:8px 10px 10px}
       </div>
 
       <button type="button" class="ui-btn ui-btn-save" id="saveSettings">💾 SAVE KARO</button>
-      <div class="vtag">MAYA v5.10.2 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
+      <div class="vtag">MAYA v5.11.0 — BRAIN POOL + AWAAZ • MADE WITH ❤️ + AI</div>
       <div style="height:10px"></div>
     </section>
   </main>
@@ -1216,7 +1238,7 @@ nav{padding:8px 10px 10px}
 </div>
 
 <div id="toast"></div>
-<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.10.2 · OK</div>
+<div onclick="__mayaForceEnter()" style="position:fixed;top:2px;right:3px;z-index:999;font-size:9px;background:rgba(10,10,16,.92);border:1px solid rgba(255,122,26,.4);color:var(--accent2);padding:2px 7px;border-radius:8px;font-family:monospace;cursor:pointer" id="dbgBadge">v5.11.0 · OK</div>
 
 <script>
 /* ===== MAYA DEBUG EYES: console errors bhi badge par ===== */
@@ -1289,11 +1311,11 @@ setTimeout(function(){
 "use strict";
 /* ================= MAYA v2.1.1 — Doctor Build ================= */
 window.__mayaJSOK = true;
-try { document.getElementById("dbgBadge").textContent = "v5.10.2 OK \u2713"; } catch(e){}
+try { document.getElementById("dbgBadge").textContent = "v5.11.0 OK \u2713"; } catch(e){}
 try { if (window.MayaBridge && window.MayaBridge.markAlive) window.MayaBridge.markAlive(); } catch(e){}
 
 /* ---------- SETTINGS (v1 migration ke saath) ---------- */
-var DEFAULTS = { name:"Sir", apikey:"", groqKey:"", ghKey:"", cerebrasKey:"", mistralKey:"", orKey:"", nvidiaKey:"", zaiKey:"", llm7Key:"", ttsKey:"", voiceEngine:"auto", gVoice:"Kore", voiceMood:"auto", neuralWifiOnly:false, neuralMaxChars:1400, edgeTTS:true, edgeVoice:"", fishKey:"", fishVoice:"", fishVoiceName:"", fishTemp:0.35, fishOn:true, trustMode:false, fastShort:false, wakeDoor:15, micZoom:0.8, micNear:true, ttsModel:"", city:"Hyderabad", stt:"ur-PK", tts:"ur-PK", rate:1.0, pitch:1.05, voiceName:"", voiceArtist:"maya", model:"auto", autoListen:false, voiceOn:true, wakeWord:false, turbo:true, notifSpeak:false, batteryAlert:true, gender:"male", phone:"", musicApp:"youtube", favSong:"", ytChannel:"", assistName:"Maya", gfMode:false, persona:"maya", remember:true, convoMode:false, lang:"roman-ur", proactive:false, theme:"obsidian", accent:"#FF7A1A", radius:18, fontScale:1, edgeGlow:false };
+var DEFAULTS = { name:"Sir", apikey:"", groqKey:"", ghKey:"", cerebrasKey:"", mistralKey:"", orKey:"", nvidiaKey:"", zaiKey:"", llm7Key:"", ttsKey:"", voiceEngine:"auto", gVoice:"Kore", voiceMood:"auto", neuralWifiOnly:false, neuralMaxChars:1400, edgeTTS:true, edgeVoice:"", fishKey:"", fishVoice:"", fishVoiceName:"", fishTemp:0.35, fishOn:true, trustMode:false, fastShort:false, wakeDoor:15, micZoom:0.8, micNear:true, ttsModel:"", city:"Hyderabad", stt:"ur-PK", tts:"ur-PK", rate:1.0, pitch:1.05, voiceName:"", voiceArtist:"maya", model:"auto", autoListen:false, voiceOn:true, wakeWord:false, turbo:true, notifSpeak:false, batteryAlert:true, gender:"male", phone:"", musicApp:"youtube", favSong:"", ytChannel:"", assistName:"Maya", gfMode:false, persona:"maya", remember:true, convoMode:false, lang:"roman-ur", proactive:false, theme:"obsidian", accent:"#FF7A1A", radius:18, fontScale:1, edgeGlow:false, ntfyTopic:"", ntfyOn:false, cloudCode:"" };
 var settings = Object.assign({}, DEFAULTS);
 try {
   var s1 = JSON.parse(localStorage.getItem("maya_settings") || "null");
@@ -1302,7 +1324,7 @@ try {
 } catch(e){}
 function saveSettings(){
   localStorage.setItem("maya_settings", JSON.stringify(settings));
-  /* v5.10.2 — wake service ko hamesha wahi zubaan do jo UI dikha raha hai.
+  /* v5.11.0 — wake service ko hamesha wahi zubaan do jo UI dikha raha hai.
      Video review (2026-10-19): wake_lang "hi-IN" atka tha jabke settings
      "ur-PK" dikha raha thi. Service har start par ye pref padhti hai —
      sirf sync rakhna zaroori hai. */
@@ -1389,7 +1411,7 @@ var booted = false;
 function finishBoot(){
   try { $("#splash").classList.add("gone"); $("#app").classList.add("on"); } catch(e){ __mayaForceEnter(); }
   try {
-    pushLog("MAYA v5.10.2 — SYSTEMS ONLINE  (SMART-PRO: wajah se baat)");
+    pushLog("MAYA v5.11.0 — SYSTEMS ONLINE  (SMART-PRO: wajah se baat)");
     pushLog(settings.apikey ? "NEURAL LINK: READY" : "NEURAL LINK: NO API KEY");
     pushLog("MEMORY BANK: " + facts.length + " FACTS");
     if (window.MayaBridge) pushLog("NATIVE BRIDGE: ACTIVE");
@@ -7305,6 +7327,7 @@ var MAYA_AMAL = {
     try { window.MayaBridge.mayaStop && window.MayaBridge.mayaStop(); } catch (e) {}
     try { pushLog("\uD83D\uDED1 AMAL: STOP — automation foran band"); } catch (e) {}
     try { toast("\uD83D\uDED1 Maya automation band"); } catch (e) {}
+    try { if (window.__ntfySafety) window.__ntfySafety("kill-switch / stop hukm"); } catch (e) {}
   },
   act: function (args) {
     if (!MAYA_AMAL.can()) return { ok: false, why: "automation sirf APK + Accessibility ON ke sath chalti hai" };
@@ -7377,6 +7400,7 @@ setInterval(function(){
         _batAlerted = true;
         if (NATIVE) { try { window.MayaBridge.notify("\uD83D\uDD0B MAYA", "Charger nikal do " + settings.name + " — battery full!"); } catch(e){} }
         reply("Charger nikal do " + settings.name + ", battery hundred percent ho gayi hai!", true);
+        try { if (window.__ntfyBattery) window.__ntfyBattery(b.level); } catch (e) {}
       }
       if (b && (!b.charging || b.level < 95)) _batAlerted = false;
     };
@@ -8124,7 +8148,12 @@ var SET_FIELDS = [
   /* ---- shakl-o-surat ---- */
   { id: "sRadius",   key: "radius",    t: "int",   def: 18, out: "radiusVal" },
   { id: "sFont",     key: "fontScale", t: "num",   def: 1,  out: "fontVal", dp: 2 },
-  { id: "sEdgeGlow", key: "edgeGlow",  t: "check", def: false }
+  { id: "sEdgeGlow", key: "edgeGlow",  t: "check", def: false },
+
+  /* ---- cloud + alerts (WAQT 3-B) ---- */
+  { id: "sNtfyTopic", key: "ntfyTopic", t: "text",  def: "" },
+  { id: "sNtfyOn",    key: "ntfyOn",    t: "check", def: false },
+  { id: "sCloudCode", key: "cloudCode", t: "text",  def: "" }
 ];
 
 var SETFORM = {
@@ -8483,6 +8512,32 @@ function labPaint(){
       pushLog("RESTORE: " + (pick.name || "?") + " se " + n + " cheezein wapas");
       setTimeout(function(){ try { location.reload(); } catch (e) {} }, 1200);
     } catch (e) { show("\u274C Restore error: " + e.message); }
+  });
+
+  /* ===== NTFY + MEMORY CLOUD (WAQT 3-B) ===== */
+  b = $("#labNtfyTest");
+  if (b) b.addEventListener("click", function(){
+    if (typeof NTFY !== "undefined" && NTFY.test) NTFY.test(function (msg) { show(msg); });
+  });
+
+  b = $("#labCloudInfo");
+  if (b) b.addEventListener("click", function(){
+    if (typeof MEMCLOUD !== "undefined" && MEMCLOUD.report) show(MEMCLOUD.report());
+  });
+
+  b = $("#labCloudBackup");
+  if (b) b.addEventListener("click", function(){
+    if (typeof MEMCLOUD !== "undefined" && MEMCLOUD.backup) MEMCLOUD.backup(function (msg) { show(msg); });
+  });
+
+  b = $("#labCloudRestore");
+  if (b) b.addEventListener("click", function(){
+    if (typeof MEMCLOUD !== "undefined" && MEMCLOUD.restore) {
+      try {
+        if (!window.confirm("Cloud backup se yaad wapas aayengi (facts/diary).\nMojoooda yaad badal sakti hain. Jaari rakhein?")) return;
+      } catch (e) {}
+      MEMCLOUD.restore(function (msg) { show(msg); });
+    }
   });
 
   b = $("#labDiag");
@@ -9325,6 +9380,7 @@ var SMART_PRO = {
       try { if (typeof MAYA_V4 !== "undefined") MAYA_V4.lastInteract = Date.now(); } catch (e) {}
       try { pushLog("PROACTIVE [" + r.id + "]: " + r.msg); } catch (e) {}
       try { reply(r.msg, true); } catch (e) {}
+      try { if (window.__ntfyPro) window.__ntfyPro(r.msg); } catch (e) {}
     } catch (e) {}
   },
 
@@ -9338,7 +9394,7 @@ var SMART_PRO = {
    📡 UPDATE-CHECK — naya APK aaya? (Roadmap Phase 5 · auto-updates ka pehla qadam)
    ---------------------------------------------------------------------------
    GitHub Releases se `releases/latest` uthata hai (public API — koi key nahi,
-   koi paisa nahi). Tag (v5.10.2) ko apni version se milata hai:
+   koi paisa nahi). Tag (v5.11.0) ko apni version se milata hai:
      • naya ho → 🔄 card + HUD log + (APK mein) notification + seedha download link
      • sab theek → kuch nahi (silent — shor bilkul nahi)
    Auto-check: boot ke 12s baad, roz max 1 dafa. Button: LAB → 🔄 APP UPDATE.
@@ -9347,7 +9403,7 @@ var SMART_PRO = {
    package.json, sw.js, hudBuild) is se match karne hain (test-invariants).
    ═══════════════════════════════════════════════════════════════════════════ */
 var UPDATE_CHECK = {
-  VER: "5.10.2",
+  VER: "5.11.0",
   REPO: "adil-chandio/Mana-android",
   KEY: "maya_update",
   COOLDOWN_MS: 21600000,   /* auto-check: 6 ghante */
@@ -9364,12 +9420,12 @@ var UPDATE_CHECK = {
     try { localStorage.setItem(UPDATE_CHECK.KEY, JSON.stringify(UPDATE_CHECK.state)); } catch (e) {}
   },
 
-  /* "v5.10.2" → [5,10,1] */
+  /* "v5.11.0" → [5,10,1] */
   parse: function (tag) {
     var m = String(tag || "").match(/(\d+)\.(\d+)\.(\d+)/);
     return m ? [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)] : null;
   },
-  /* v5.10.2 — floating tag "latest" se version nahi milta (parse null).
+  /* v5.11.0 — floating tag "latest" se version nahi milta (parse null).
      Ab release NOTES mein "version: X.Y.Z" hota hai (workflow likhta hai),
      phir release NAME, phir tag — as a fallback chain. */
   verOf: function (j) {
@@ -9445,7 +9501,7 @@ var UPDATE_CHECK = {
         try {
           var bh = document.getElementById("updHint");
           if (bh) bh.onclick = function () {
-            /* v5.10.2 — APK mein ONE-TAP: download + install prompt (settings safe).
+            /* v5.11.0 — APK mein ONE-TAP: download + install prompt (settings safe).
                Browser/PWA mein seedha release page. */
             if (NATIVE && window.MayaBridge && window.MayaBridge.downloadApk && window.MayaBridge.installApk) {
               UPDATE_CHECK.installNow(link);
@@ -9513,6 +9569,294 @@ window.__apkDone = function (payload) {
   } catch (e) {}
 };
 try { UPDATE_CHECK.boot(); } catch (e) {}
+/* ═══════════════════════════════════════════════════════════════════════════
+   🔔 NTFY BRIDGE — WAQT 3-B · free alerts phone ke bahar
+   ---------------------------------------------------------------------------
+   ntfy.sh (0 paisa, koi signup nahi) par Maya ke ahem paighaam bhej do —
+   doosre phone/laptop/browser par aa jayenge (ntfy app ya web).
+   PRIVACY: topic AAP ka raaz hai — random rakhein (jaise "maya-7f3k9x2q").
+   ntfy topics unlisted hain magar jo naam jaane woh parh sakta hai — isliye
+   default OFF, aur sensitive matn (OTP/password) kabhi nahi bhejte.
+   Settings: settings.ntfyOn + settings.ntfyTopic.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var NTFY = {
+  MAX_CHARS: 900,           /* lamba matn kaat do — alert hai, kitaab nahi */
+
+  ready: function () {
+    try {
+      return !!(settings && settings.ntfyOn && settings.ntfyTopic &&
+                /^[A-Za-z0-9_-]{6,64}$/.test(String(settings.ntfyTopic)));
+    } catch (e) { return false; }
+  },
+
+  /* Ek alert bhejo. Kabhi app ko nahi rokti — nakaam par sirf log. */
+  send: function (title, text) {
+    if (!NTFY.ready()) return false;
+    try {
+      var body = String(text || "");
+      if (body.length > NTFY.MAX_CHARS) body = body.slice(0, NTFY.MAX_CHARS) + "…";
+      var url = "https://ntfy.sh/" + encodeURIComponent(String(settings.ntfyTopic));
+      /* ntfy CORS allow karta hai — plain POST + Title header (preflight OK) */
+      var done = false;
+      try {
+        fetch(url, {
+          method: "POST",
+          headers: { "Title": String(title || "MAYA").slice(0, 80), "Tags": "robot" },
+          body: body
+        }).then(function (r) {
+          if (!r.ok) { try { pushLog("NTFY: HTTP " + r.status); } catch (e) {} }
+        }).catch(function (e) {
+          try { pushLog("NTFY: nakaam — " + (e && e.message || e)); } catch (e2) {}
+        });
+        done = true;
+      } catch (e) { done = false; }
+      if (!done) return false;
+      try { pushLog("NTFY: " + title + " → " + String(settings.ntfyTopic).slice(0, 3) + "…"); } catch (e) {}
+      return true;
+    } catch (e) { return false; }
+  },
+
+  /* ═══ 🧪 LAB report + test ═══ */
+  report: function () {
+    var L = ["\uD83D\uDD14 NTFY BRIDGE", ""];
+    if (!NTFY.ready()) {
+      L.push("  \u26A0\uFE0F abhi band hai");
+      L.push("");
+      L.push("  Kholne ka tarika:");
+      L.push("  1. ntfy.sh app install karo (Play Store — free) ya ntfy.sh kholein");
+      L.push("  2. Apna topic chuno — MISAL: maya-" + Math.random().toString(36).slice(2, 10));
+      L.push("  3. Settings mein wohi topic likhein + switch ON");
+      L.push("");
+      L.push("  \uD83D\uDD12 Yaad rakhein: topic AAP ka raaz hai — kisi ko mat batana.");
+      return L.join("\n");
+    }
+    L.push("  \u2705 ON — topic: " + String(settings.ntfyTopic).slice(0, 3) + "\u2026 (" + String(settings.ntfyTopic).length + " harf)");
+    L.push("  Kahan se aate hain: proactive paighaam · battery alert · AMAL safety stop");
+    L.push("");
+    L.push("  \uD83E\uDDEA NEECHE TEST button se abhi ek alert bhej kar dekh lein.");
+    return L.join("\n");
+  },
+
+  test: function (cb) {
+    var ok = NTFY.send("MAYA TEST \u2705", "Salaam! Yeh Maya ka test alert hai — NTFY bridge chal raha hai. \uD83E\uDD16");
+    if (cb) {
+      cb(ok
+        ? "\uD83D\uDD14 NTFY TEST \u2014 alert bhej diya!\n\n  Ntfy app/web mein \"MAYA TEST \u2705\" aana chahiye.\n  Na aaye? Topic check karein + internet dekhein."
+        : "\u274C NTFY test nahi gaya.\n\n  Pehle Settings mein topic likhein + switch ON karein.");
+    }
+    return ok;
+  }
+};
+
+/* ═══ HOOKS — jahan ahem waqiat hote hain, wahan se alert ═══ */
+/* Battery alert (21-amal-tools battery-full se call hota hai) */
+window.__ntfyBattery = function (pct) {
+  try { NTFY.send("MAYA \u2014 BATTERY \u26A1", "Battery alert: " + pct + "% \u2014 charger ka khayal rakhein."); } catch (e) {}
+};
+/* Proactive message (30-smart-pro se) */
+window.__ntfyPro = function (msg) {
+  try { NTFY.send("MAYA \u2014 SOCH RAHI THI \uD83D\uDD6F", String(msg || "")); } catch (e) {}
+};
+/* AMAL safety stop (21-amal-tools kill-switch se) */
+window.__ntfySafety = function (why) {
+  try { NTFY.send("MAYA \u2014 SAFETY STOP \u1F6D1", "Automation ruk gayi: " + (why || "surkhi").slice(0, 120)); } catch (e) {}
+};
+/* ═══════════════════════════════════════════════════════════════════════════
+   ☁️ MEMORY CLOUD — WAQT 3-B · yaad ka cloud backup (encrypted)
+   ---------------------------------------------------------------------------
+   Facts + diary + summary + ledger ko AES-GCM se encrypt kar ke repo ke
+   /memory/ folder mein bhej do (GitHub Contents API). Device udd jaye to
+   bhi yaad rahegi — aur doosre phone par wapas aa jayegi.
+
+   HIFAZAT (3 teh):
+   1. API KEYS kabhi cloud par NAHI (sirf yaad: facts/diary/summary/ledger)
+   2. Sab kuch AES-GCM 256 + PBKDF2 se encrypted — repo PUBLIC hai, magar
+      ciphertext se koi faida nahi. Bina cloud-code ke file bekaar.
+   3. crypto.subtle na ho to BILKUL nahi bhejte (plaintext public repo par
+      kabhi nahi).
+
+   Settings: settings.cloudCode (aap ka backup code) + settings.ghKey
+   (GitHub PAT — repo scope). ═══════════════════════════════════════════════ */
+var MEMCLOUD = {
+  REPO: "adil-chandio/Mana-android",
+  PATH: "memory/maya-memory.json",
+  VER: 1,
+  PBKDF2_ITERS: 120000,
+
+  /* sirf yeh keys cloud par jati hain — keys/tokens/ghKey KABHI NAHI */
+  YAAD_KEYS: ["maya_facts", "maya_diary", "maya_summary", "maya_ledger"],
+
+  b64: {
+    enc: function (bytes) {
+      var s = "", i;
+      for (i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+      return btoa(s);
+    },
+    dec: function (str) {
+      var s = atob(String(str || "")), a = new Uint8Array(s.length), i;
+      for (i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+      return a;
+    }
+  },
+
+  subtle: function () {
+    try { return (window.crypto && window.crypto.subtle) || null; } catch (e) { return null; }
+  },
+
+  /* PBKDF2 → AES-GCM key */
+  _key: function (code, saltB) {
+    var subtle = MEMCLOUD.subtle();
+    return subtle.importKey("raw", MEMCLOUD._codeBytes(code), "PBKDF2", false, ["deriveKey"])
+      .then(function (base) {
+        return subtle.deriveKey(
+          { name: "PBKDF2", salt: saltB, iterations: MEMCLOUD.PBKDF2_ITERS, hash: "SHA-256" },
+          base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+      });
+  },
+  _codeBytes: function (code) {
+    /* code → UTF-8 bytes (bina TextEncoder ke bhi chale) */
+    var s = unescape(encodeURIComponent(String(code || ""))), a = new Uint8Array(s.length), i;
+    for (i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+    return a;
+  },
+
+  /* plain JSON string → { v, salt, iv, data } (sab base64) */
+  encrypt: function (plain, code) {
+    var subtle = MEMCLOUD.subtle();
+    if (!subtle) return Promise.reject(new Error("is WebView mein crypto.subtle nahi — encrypted backup nahi"));
+    if (!code || String(code).length < 4) return Promise.reject(new Error("cloud code kam az kam 4 harf ka rakhein"));
+    var saltB = window.crypto.getRandomValues(new Uint8Array(16));
+    var ivB = window.crypto.getRandomValues(new Uint8Array(12));
+    return MEMCLOUD._key(code, saltB).then(function (key) {
+      return subtle.encrypt({ name: "AES-GCM", iv: ivB }, key, MEMCLOUD._codeBytes(plain));
+    }).then(function (encBuf) {
+      return {
+        v: MEMCLOUD.VER,
+        salt: MEMCLOUD.b64.enc(saltB),
+        iv: MEMCLOUD.b64.enc(ivB),
+        data: MEMCLOUD.b64.enc(new Uint8Array(encBuf))
+      };
+    });
+  },
+
+  /* { v, salt, iv, data } → plain JSON string (ghalat code = saaf error) */
+  decrypt: function (wrap, code) {
+    var subtle = MEMCLOUD.subtle();
+    if (!subtle) return Promise.reject(new Error("crypto.subtle nahi"));
+    wrap = wrap || {};
+    return MEMCLOUD._key(code, MEMCLOUD.b64.dec(wrap.salt)).then(function (key) {
+      return subtle.decrypt({ name: "AES-GCM", iv: MEMCLOUD.b64.dec(wrap.iv) }, key, MEMCLOUD.b64.dec(wrap.data));
+    }).then(function (buf) {
+      return decodeURIComponent(escape(String.fromCharCode.apply(null, new Uint8Array(buf))));
+    }).catch(function (e) {
+      throw new Error("decrypt nahi hua — cloud code ghalat hai? (" + (e && e.message || e) + ")");
+    });
+  },
+
+  /* ─── GitHub Contents API (settings.ghKey — repo scope) ─── */
+  _gh: function (method, b64content, sha, msg) {
+    var url = "https://api.github.com/repos/" + MEMCLOUD.REPO + "/contents/" + MEMCLOUD.PATH;
+    var headers = {
+      "Authorization": "token " + settings.ghKey,
+      "Accept": "application/vnd.github+json"
+    };
+    var body;
+    if (method === "PUT") {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify({ message: msg || ("maya memory backup " + new Date().toISOString()), content: b64content, sha: sha || undefined });
+    }
+    return fetch(url, { method: method, headers: headers, body: body }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok) throw new Error("GitHub HTTP " + r.status + " — " + (j.message || "?"));
+        return j;
+      });
+    });
+  },
+
+  gather: function () {
+    var out = { v: MEMCLOUD.VER, at: (new Date()).toISOString(), ver: (typeof UPDATE_CHECK !== "undefined" ? UPDATE_CHECK.VER : "?"), yaad: {} };
+    var i, k;
+    for (i = 0; i < MEMCLOUD.YAAD_KEYS.length; i++) {
+      k = MEMCLOUD.YAAD_KEYS[i];
+      try { out.yaad[k] = localStorage.getItem(k); } catch (e) {}
+    }
+    return out;
+  },
+
+  /* ─── BACKUP: gather → encrypt → PUT ─── */
+  backup: function (cb) {
+    var code = settings.cloudCode;
+    if (!settings.ghKey) {
+      cb("\u2601\uFE0F MEMORY CLOUD\n\n\u274C GitHub key (ghKey) nahi hai.\n\n  Settings \u2192 API KEYS \u2192 GitHub token daalein:\n  github.com/settings/tokens \u2192 Generate new token (classic)\u2192 scope: repo.\n  Wohi token yahan paste karein.");
+      return;
+    }
+    if (!code || String(code).length < 4) {
+      cb("\u2601\uFE0F MEMORY CLOUD\n\n\u274C Cloud code nahi hai (kam az kam 4 harf).\n\n  Settings mein apna backup code rakhein — yehi code backup ko kholta hai.\n  \uD83D\uDD12 Bhool gaye to backup bekaar — kahin likh lein!");
+      return;
+    }
+    if (!MEMCLOUD.subtle()) {
+      cb("\u2601\uFE0F MEMORY CLOUD\n\n\u274C Is WebView mein encryption nahi — bina encrypt ke PUBLIC repo par kabhi nahi bhejte.");
+      return;
+    }
+    var plain;
+    try { plain = JSON.stringify(MEMCLOUD.gather()); } catch (e) {
+      cb("\u274C Backup error: " + e.message); return;
+    }
+    var shaP = MEMCLOUD._gh("GET").then(function (j) { return j.sha || ""; }).catch(function () { return ""; });
+    shaP.then(function (sha) {
+      return MEMCLOUD.encrypt(plain, code).then(function (wrap) {
+        return MEMCLOUD._gh("PUT", btoa(JSON.stringify(wrap)), sha, "maya: memory backup (encrypted) " + new Date().toISOString().slice(0, 10));
+      });
+    }).then(function (j) {
+      cb("\u2601\uFE0F MEMORY CLOUD BACKUP \u2014 tayyar! \u2705\n\n  Jagah: " + MEMCLOUD.REPO + "/" + MEMCLOUD.PATH + "\n  Encrypt: AES-GCM (cloud code se) \u2014 repo public hai, aap ki yaad mehfooz.\n  Kis cheez ka backup: facts · diary · summary · ledger\n  \u274C keys/tokens cloud par NAHI gaye.\n\n  Wapas laane ke liye: \u2601\uFE0F MEMORY RESTORE (usi cloud code se).");
+      try { pushLog("MEMCLOUD: backup OK (" + new Date().toLocaleTimeString() + ")"); } catch (e) {}
+    }).catch(function (e) {
+      cb("\u274C Backup nakaam: " + (e && e.message || e) + "\n\n  Internet / ghKey (repo scope) / cloud code check karein.");
+      try { pushLog("MEMCLOUD: backup fail — " + (e && e.message || e)); } catch (e2) {}
+    });
+  },
+
+  /* ─── RESTORE: GET → decrypt → apply ─── */
+  restore: function (cb) {
+    var code = settings.cloudCode;
+    if (!settings.ghKey) { cb("\u274C GitHub key (ghKey) nahi hai \u2014 Settings mein daalein."); return; }
+    if (!code) { cb("\u274C Cloud code nahi hai \u2014 wohi code chahiye jis se backup banaya tha."); return; }
+    MEMCLOUD._gh("GET").then(function (j) {
+      if (!j.content) throw new Error("file khali hai");
+      return JSON.parse(atob(String(j.content).replace(/\s/g, "")));
+    }).then(function (wrap) {
+      return MEMCLOUD.decrypt(wrap, code);
+    }).then(function (plain) {
+      var data = JSON.parse(plain);
+      var yaad = data.yaad || {}, k, n = 0;
+      for (k in yaad) {
+        if (MEMCLOUD.YAAD_KEYS.indexOf(k) < 0) continue;   /* sirf whitelist */
+        if (yaad[k] !== null && yaad[k] !== undefined) { localStorage.setItem(k, yaad[k]); n++; }
+      }
+      cb("\u2601\uFE0F MEMORY RESTORE \u2014 ho gaya! \u2705\n\n  " + n + " yaad wapas aa gayin (backup: " + (data.at || "?") + ").\n  App dobara khul rahi \u2014 sab apni jagah.");
+      try { pushLog("MEMCLOUD: restore OK — " + n + " yaad"); } catch (e) {}
+      setTimeout(function () { try { location.reload(); } catch (e) {} }, 1300);
+    }).catch(function (e) {
+      cb("\u274C Restore nakaam: " + (e && e.message || e) + "\n\n  Cloud code ghalat? Pehle backup bana tha is device par?");
+    });
+  },
+
+  report: function () {
+    var L = ["\u2601\uFE0F MEMORY CLOUD \u2014 yaad ka cloud backup", ""];
+    L.push("  GitHub key (ghKey) : " + (settings.ghKey ? "\u2705 lag rahi hai" : "\u274C nahi"));
+    L.push("  Cloud code         : " + (settings.cloudCode ? "\u2705 hai (" + String(settings.cloudCode).length + " harf)" : "\u274C nahi"));
+    L.push("  Encryption         : " + (MEMCLOUD.subtle() ? "\u2705 AES-GCM ready" : "\u274C is WebView mein nahi"));
+    L.push("");
+    L.push("  Backup kya jata hai: facts · diary · summary · ledger");
+    L.push("  Kabhi NAHI jata   : API keys · tokens · chat \u2014 sirf yaad");
+    L.push("");
+    L.push("  Kaise chalayein:");
+    L.push("  1. Settings \u2192 GitHub token (github.com/settings/tokens \u2192 scope: repo)");
+    L.push("  2. Settings \u2192 Cloud code (apna raaz code \u2014 kahin likh lein)");
+    L.push("  3. \u2601\uFE0F BACKUP button \u2014 bas!");
+    return L.join("\n");
+  }
+};
 </script>
 
 <script>
@@ -9830,8 +10174,8 @@ function startProactive(){ if (typeof SMART_PRO !== "undefined") SMART_PRO.start
 
 /* ---------- v4 INIT ---------- */
 applyTheme(); renderThemeUI(); paintPersonas(); loadV4Form(); try { renderFacts(); } catch(e){} startProactive();
-try { $("#hudBuild").textContent = "v5.10.2"; } catch(e){}
-try { pushLog("MAYA v5.10.2 — SMART-PRO + AUTO-UPDATE ONLINE"); } catch(e){}
+try { $("#hudBuild").textContent = "v5.11.0"; } catch(e){}
+try { pushLog("MAYA v5.11.0 — SMART-PRO + AUTO-UPDATE ONLINE"); } catch(e){}
 
 /* ============================================================================
    MAYA UI KIT v5 — "IRONCLAD" runtime   (v4.1.0)
@@ -10090,7 +10434,7 @@ var MayaUI = (function () {
     for (i = 0; i < reopen.length; i++) delCls(reopen[i], "is-open");
 
     var out = [];
-    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v" + ((typeof UPDATE_CHECK !== "undefined" && UPDATE_CHECK.VER) ? UPDATE_CHECK.VER : ((typeof APP_VER !== "undefined" && APP_VER) ? APP_VER : "5.10.2")));
+    out.push("\uD83E\uDDEA MAYA UI CHECK \u2014 v" + ((typeof UPDATE_CHECK !== "undefined" && UPDATE_CHECK.VER) ? UPDATE_CHECK.VER : ((typeof APP_VER !== "undefined" && APP_VER) ? APP_VER : "5.11.0")));
     out.push("WEBVIEW: Chrome " + (window.__webviewMajor || "?") + (window.__oldWebview ? " (PURANA)" : ""));
     out.push("");
     out.push("VISIBLE: " + okc + "   INVISIBLE: " + bad + (bad ? "  \u274C" : "  \u2705"));

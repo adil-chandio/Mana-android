@@ -22,7 +22,7 @@
 | WAQT 3 · 🕯️ SMART-PRO (P6 v2) | ✅ v5.10.0 (docs/RELEASE-v5.10.0.md) |
 | WAQT 3 · ✋ SCROLL (P7 hissa) | ✅ v5.10.0 |
 | WAQT 3 · 📡 Auto-APK update | ✅ v5.10.0 |
-| WAQT 3 · baqi: cloud brain · /memory/ · ntfy bridge | ⏳ agla chunk |
+| WAQT 3 — 1/2/3 (SMART-PRO · HAATH · auto-update) + 4/5 (/memory/ · ntfy) | ✅ v5.11.0 — cloud brain (6) MULAWWAT: Pollinations already free+direct, dispatch relay latency+privacy risk (docs/RELEASE-v5.11.0.md) |
 | WAQT 4 — Duniya ke liye (Manzil 2) | ⏳ aap ke "yes" ka intezar |
 
 ---

@@ -211,6 +211,32 @@ function labPaint(){
     } catch (e) { show("\u274C Restore error: " + e.message); }
   });
 
+  /* ===== NTFY + MEMORY CLOUD (WAQT 3-B) ===== */
+  b = $("#labNtfyTest");
+  if (b) b.addEventListener("click", function(){
+    if (typeof NTFY !== "undefined" && NTFY.test) NTFY.test(function (msg) { show(msg); });
+  });
+
+  b = $("#labCloudInfo");
+  if (b) b.addEventListener("click", function(){
+    if (typeof MEMCLOUD !== "undefined" && MEMCLOUD.report) show(MEMCLOUD.report());
+  });
+
+  b = $("#labCloudBackup");
+  if (b) b.addEventListener("click", function(){
+    if (typeof MEMCLOUD !== "undefined" && MEMCLOUD.backup) MEMCLOUD.backup(function (msg) { show(msg); });
+  });
+
+  b = $("#labCloudRestore");
+  if (b) b.addEventListener("click", function(){
+    if (typeof MEMCLOUD !== "undefined" && MEMCLOUD.restore) {
+      try {
+        if (!window.confirm("Cloud backup se yaad wapas aayengi (facts/diary).\nMojoooda yaad badal sakti hain. Jaari rakhein?")) return;
+      } catch (e) {}
+      MEMCLOUD.restore(function (msg) { show(msg); });
+    }
+  });
+
   b = $("#labDiag");
   if (b) b.addEventListener("click", function(){
     var txt = DIAG.build();

@@ -18,6 +18,7 @@ var MAYA_AMAL = {
     try { window.MayaBridge.mayaStop && window.MayaBridge.mayaStop(); } catch (e) {}
     try { pushLog("\uD83D\uDED1 AMAL: STOP — automation foran band"); } catch (e) {}
     try { toast("\uD83D\uDED1 Maya automation band"); } catch (e) {}
+    try { if (window.__ntfySafety) window.__ntfySafety("kill-switch / stop hukm"); } catch (e) {}
   },
   act: function (args) {
     if (!MAYA_AMAL.can()) return { ok: false, why: "automation sirf APK + Accessibility ON ke sath chalti hai" };
@@ -90,6 +91,7 @@ setInterval(function(){
         _batAlerted = true;
         if (NATIVE) { try { window.MayaBridge.notify("\uD83D\uDD0B MAYA", "Charger nikal do " + settings.name + " — battery full!"); } catch(e){} }
         reply("Charger nikal do " + settings.name + ", battery hundred percent ho gayi hai!", true);
+        try { if (window.__ntfyBattery) window.__ntfyBattery(b.level); } catch (e) {}
       }
       if (b && (!b.charging || b.level < 95)) _batAlerted = false;
     };

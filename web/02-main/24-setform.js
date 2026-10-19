@@ -89,7 +89,12 @@ var SET_FIELDS = [
   /* ---- shakl-o-surat ---- */
   { id: "sRadius",   key: "radius",    t: "int",   def: 18, out: "radiusVal" },
   { id: "sFont",     key: "fontScale", t: "num",   def: 1,  out: "fontVal", dp: 2 },
-  { id: "sEdgeGlow", key: "edgeGlow",  t: "check", def: false }
+  { id: "sEdgeGlow", key: "edgeGlow",  t: "check", def: false },
+
+  /* ---- cloud + alerts (WAQT 3-B) ---- */
+  { id: "sNtfyTopic", key: "ntfyTopic", t: "text",  def: "" },
+  { id: "sNtfyOn",    key: "ntfyOn",    t: "check", def: false },
+  { id: "sCloudCode", key: "cloudCode", t: "text",  def: "" }
 ];
 
 var SETFORM = {

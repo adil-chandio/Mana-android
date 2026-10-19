@@ -3,7 +3,7 @@
 > Source: `web/` · Build: `node build.js` → `index.html` (assets + public)
 > Rule: `02-main/` ke fragments EK hi `<script>` tag ke andar jodte hain
 > (hoisting safe) — unhe kabhi alag-alag script tags mat banana.
-> Har edit ke baad: `npm test` (1002+) · `node build.js` + commit built file bhi.
+> Har edit ke baad: `npm test` (1058+) · `node build.js` + commit built file bhi.
 
 ## `web/` — top level
 
@@ -14,7 +14,7 @@
 | `03-obsidian.js` | OBSIDIAN UI module (themes, enter/force-enter) |
 | `99-tail.html` | `</body></html>` |
 
-## `web/02-main/` — poora engine (30 modules, tartib = chalne ka tartib)
+## `web/02-main/` — poora engine (34 modules, tartib = chalne ka tartib)
 
 ### 🧱 CORE
 | Module | Kya | Aage yahan hoga |
@@ -74,15 +74,25 @@
 | `28-live-badges.js` | Awaaz badge + brain pool live naqsha |
 | `29-init.js` | Consolidate memory + INIT |
 
+### 🌩️ WAQT 3 (smart + cloud)
+| Module | Kya |
+|---|---|
+| `30-smart-pro.js` | 🕯️ SMART-PRO — wajah-based proactive (schedule/aadat/morning), roz max 3 |
+| `31-auto-update.js` | 📡 APP UPDATE — GitHub releases se version detect + ONE-TAP install |
+| `32-ntfy-bridge.js` | 🔔 NTFY — free alerts (proactive/battery/safety) phone ke bahar |
+| `33-memory-cloud.js` | ☁️ MEMORY CLOUD — encrypted yaad backup → repo /memory/ (AES-GCM) |
+
 ## `tools/` — tests (har module ke saath badhte hain)
 
 | File | Lock karta hai |
 |---|---|
 | `test-build-sync.js` | 🆕 pipeline: web/ fresh + fragments tartib ke saath |
+| `test-invariants.js` | 🛡️ hifazat qanoon (signing, safety, versions, signature lock) |
 | `check-oldwebview-css.js` | Purane WebView par CSS |
 | `test-settings-ui.js` | SETFORM + settings UI |
 | `test-voice-engine.js` | AWAAZ/EDGE/FISH |
 | `test-brain-engine.js` | DIMAAG/BRAIN pool |
+| `test-cloud-bridge.js` | 🔔☁️ NTFY + MEMORY CLOUD (encryption + privacy locks) |
 | `test-lab-engine.js` | LAB + safety + tools darje |
 
 ## `app/src/main/java/` — Kotlin (kam badalta hai)

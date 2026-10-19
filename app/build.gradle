@@ -32,8 +32,8 @@ android {
         applicationId "com.maya.ai"
         minSdk 26          // Android 8.0+ — vector icon + modern APIs
         targetSdk 34
-        versionCode 77
-        versionName "5.10.2"
+        versionCode 78
+        versionName "5.11.0"
     }
 
     signingConfigs {
@@ -45,7 +45,7 @@ android {
                 keyPassword ksKeyPass
             }
         }
-        /* v5.10.2 — jab secrets NA hon: debug key EK hi jagah se (CI cache +
+        /* v5.11.0 — jab secrets NA hon: debug key EK hi jagah se (CI cache +
            docs/signing-cert-sha256.txt pin). AGP ko khud apna random key
            banane ka moqa nahi — warna har build ka signature alag hota tha
            aur user ki settings udd jati thin. File missing/kharaab = build
