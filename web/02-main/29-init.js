@@ -16,6 +16,8 @@ populateVoiceSelect();
 renderArtists();
 setTimeout(consolidateMemory, 4000);
 if (NATIVE && settings.wakeWord) setTimeout(function(){ try { setWakeService(true); } catch(e){} }, 1500);
+/* v5.12.0 — pehli dafa wizard (sirf APK + onboarded=false) */
+setTimeout(function(){ try { if (typeof ONBOARD !== "undefined") ONBOARD.maybeStart(); } catch(e){} }, 900);
 setTimeout(refreshHandsFreeStatus, 800);
 setInterval(refreshHandsFreeStatus, 10000);
 if (NATIVE) {

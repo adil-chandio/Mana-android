@@ -217,6 +217,23 @@ function labPaint(){
     if (typeof NTFY !== "undefined" && NTFY.test) NTFY.test(function (msg) { show(msg); });
   });
 
+  /* ===== MEGA DOCTOR + ONBOARDING (WAQT 4-A) ===== */
+  b = $("#labMegaDoc");
+  if (b) b.addEventListener("click", function(){
+    if (typeof MAYADOCTOR !== "undefined" && MAYADOCTOR.mega) {
+      show(MAYADOCTOR.mega());
+      try { pushLog("MEGA DOCTOR: report bani"); } catch (e) {}
+    }
+  });
+
+  b = $("#labOnboard");
+  if (b) b.addEventListener("click", function(){
+    if (typeof ONBOARD !== "undefined" && ONBOARD.start) {
+      try { settings.onboarded = false; saveSettings(); } catch (e) {}
+      ONBOARD.start();
+    }
+  });
+
   b = $("#labCloudInfo");
   if (b) b.addEventListener("click", function(){
     if (typeof MEMCLOUD !== "undefined" && MEMCLOUD.report) show(MEMCLOUD.report());

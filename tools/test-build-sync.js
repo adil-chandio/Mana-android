@@ -33,8 +33,8 @@ is(fs.existsSync(path.join(WEB, '02-main')) && fs.statSync(path.join(WEB, '02-ma
    'web/02-main/ (module dir) maujood hai');
 const frags = fs.readdirSync(path.join(WEB, '02-main')).filter(function (f) { return f.endsWith('.js'); }).sort();
 is(frags.length >= 30, '02-main/ ke fragments: ' + frags.length + ' (kam az kam 30)');
-is(frags.join(',') === '00-core.js,01-boot-bridge.js,02-voice-artists.js,03-awaaz.js,04-lab-core.js,05-suno.js,06-boli.js,07-edge-tts.js,08-fish-audio.js,09-api-chat.js,10-local-commands.js,11-timers-weather.js,12-tools.js,13-never-stop.js,14-brain-pool.js,15-dimaag.js,16-nazar-bijli.js,17-ijazat-ledger.js,18-haqeeqat.js,19-amal-engine.js,20-skills-vision.js,21-amal-tools.js,22-kaan-sukoon.js,23-ui-tabs.js,24-setform.js,25-lab-ui.js,26-fish-edge-ui.js,27-studio-diag.js,28-live-badges.js,29-init.js,30-smart-pro.js,31-auto-update.js,32-ntfy-bridge.js,33-memory-cloud.js',
-   'fragment ke naam tartib ke saath (34 modules)');
+is(frags.join(',') === '00-core.js,01-boot-bridge.js,02-voice-artists.js,03-awaaz.js,04-lab-core.js,05-suno.js,06-boli.js,07-edge-tts.js,08-fish-audio.js,09-api-chat.js,10-local-commands.js,11-timers-weather.js,12-tools.js,13-never-stop.js,14-brain-pool.js,15-dimaag.js,16-nazar-bijli.js,17-ijazat-ledger.js,18-haqeeqat.js,19-amal-engine.js,20-skills-vision.js,21-amal-tools.js,22-kaan-sukoon.js,23-ui-tabs.js,24-setform.js,25-lab-ui.js,26-fish-edge-ui.js,27-studio-diag.js,28-live-badges.js,29-init.js,30-smart-pro.js,31-auto-update.js,32-ntfy-bridge.js,33-memory-cloud.js,34-onboard.js',
+   'fragment ke naam tartib ke saath (35 modules)');
 
 let checkOk = false;
 try {

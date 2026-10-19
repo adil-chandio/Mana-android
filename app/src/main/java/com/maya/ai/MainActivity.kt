@@ -126,7 +126,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = MayaWebViewClient()
         setContentView(webView)
         webView.loadUrl("https://$VIRTUAL_HOST/assets/web/index.html")
-        Toast.makeText(this, "MAYA v5.11.0 • SMART-PRO + scroll + auto-update (team build)", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "MAYA v5.12.0 • SMART-PRO + scroll + auto-update (team build)", Toast.LENGTH_LONG).show()
         // WebView zinda hai ya nahi — 8 second baad native check (v4.0.1: onPageFinished/markAlive true karte hain)
         webViewAlive = false
         android.os.Handler(Looper.getMainLooper()).postDelayed({
@@ -358,7 +358,7 @@ class MainActivity : AppCompatActivity() {
     inner class MayaBridge {
 
         @JavascriptInterface
-        fun appVersion(): String = "5.11.0-native"
+        fun appVersion(): String = "5.12.0-native"
 
         /* 🎚️ P9 SUKOON — JS (SUKOON) har awaaz/mic ki HAAL yahan bhejti hai.
            KHALI | BOL_RAHI | APP_SUN — WakeWordService har mic-darwaze par isi
@@ -930,7 +930,21 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) { false }
         }
 
-        /* ===== SETTINGS BACKUP / RESTORE (v5.11.0) =====
+        /* ===== ONBOARDING (v5.12.0) — pehle din ka wizard ===== */
+        @JavascriptInterface
+        fun micPerm(): Boolean {
+            return ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        }
+
+        @JavascriptInterface
+        fun requestMicPerm(): Boolean {
+            return try {
+                ActivityCompat.requestPermissions(this@MainActivity, arrayOf(Manifest.permission.RECORD_AUDIO), REQ_PERMS)
+                true
+            } catch (e: Exception) { false }
+        }
+
+        /* ===== SETTINGS BACKUP / RESTORE (v5.12.0) =====
            Uninstall/update se pehle user apni saari settings ek file mein
            mehfooz kar sake, aur naye install mein ek tap se wapas la sake. */
         @JavascriptInterface
@@ -975,7 +989,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        /* ===== ONE-TAP UPDATE (v5.11.0) — download + install prompt =====
+        /* ===== ONE-TAP UPDATE (v5.12.0) — download + install prompt =====
            Ab update card sirf link nahi kholti — APK khud download kar ke
            Android ka "install update?" prompt khola jata hai. Signature
            stable hai to yeh UPDATE hota hai — settings safe. */

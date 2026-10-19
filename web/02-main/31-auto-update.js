@@ -2,7 +2,7 @@
    📡 UPDATE-CHECK — naya APK aaya? (Roadmap Phase 5 · auto-updates ka pehla qadam)
    ---------------------------------------------------------------------------
    GitHub Releases se `releases/latest` uthata hai (public API — koi key nahi,
-   koi paisa nahi). Tag (v5.11.0) ko apni version se milata hai:
+   koi paisa nahi). Tag (v5.12.0) ko apni version se milata hai:
      • naya ho → 🔄 card + HUD log + (APK mein) notification + seedha download link
      • sab theek → kuch nahi (silent — shor bilkul nahi)
    Auto-check: boot ke 12s baad, roz max 1 dafa. Button: LAB → 🔄 APP UPDATE.
@@ -11,7 +11,7 @@
    package.json, sw.js, hudBuild) is se match karne hain (test-invariants).
    ═══════════════════════════════════════════════════════════════════════════ */
 var UPDATE_CHECK = {
-  VER: "5.11.0",
+  VER: "5.12.0",
   REPO: "adil-chandio/Mana-android",
   KEY: "maya_update",
   COOLDOWN_MS: 21600000,   /* auto-check: 6 ghante */
@@ -28,12 +28,12 @@ var UPDATE_CHECK = {
     try { localStorage.setItem(UPDATE_CHECK.KEY, JSON.stringify(UPDATE_CHECK.state)); } catch (e) {}
   },
 
-  /* "v5.11.0" → [5,10,1] */
+  /* "v5.12.0" → [5,10,1] */
   parse: function (tag) {
     var m = String(tag || "").match(/(\d+)\.(\d+)\.(\d+)/);
     return m ? [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)] : null;
   },
-  /* v5.11.0 — floating tag "latest" se version nahi milta (parse null).
+  /* v5.12.0 — floating tag "latest" se version nahi milta (parse null).
      Ab release NOTES mein "version: X.Y.Z" hota hai (workflow likhta hai),
      phir release NAME, phir tag — as a fallback chain. */
   verOf: function (j) {
@@ -109,7 +109,7 @@ var UPDATE_CHECK = {
         try {
           var bh = document.getElementById("updHint");
           if (bh) bh.onclick = function () {
-            /* v5.11.0 — APK mein ONE-TAP: download + install prompt (settings safe).
+            /* v5.12.0 — APK mein ONE-TAP: download + install prompt (settings safe).
                Browser/PWA mein seedha release page. */
             if (NATIVE && window.MayaBridge && window.MayaBridge.downloadApk && window.MayaBridge.installApk) {
               UPDATE_CHECK.installNow(link);
