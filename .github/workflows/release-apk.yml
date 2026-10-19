@@ -46,6 +46,19 @@ jobs:
           path: ~/.android/debug.keystore
           key: maya-debug-keystore-v1
 
+      - name: 4.6 DEBUG KEYSTORE ensure (cache khali ho to khud banao)
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug, O=Android, C=US" >/dev/null 2>&1
+            echo "::notice::Naya debug keystore bana (cache khali thi) — is run ka signature pin hoga."
+          else
+            echo "::notice::Debug keystore cache se mila — signature stable."
+          fi
+
       - name: 5. Signing keystore (Secrets se — docs/SECURITY.md)
         env:
           MAYA_KEYSTORE_BASE64: ${{ secrets.MAYA_KEYSTORE_BASE64 }}
@@ -68,22 +81,22 @@ jobs:
         run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: 6.5 SIGNATURE LOCK (kabhi khamoshi se na badle)
-        # build-apk.yml ke sath match — signature pin se alag key kabhi release nahi.
+        # GROUND TRUTH: APK ke ASLI signing certificate se fingerprint (apksigner).
+        # build-apk.yml ke sath match — pin se alag key kabhi release nahi.
         run: |
           PIN="docs/signing-cert-sha256.txt"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
           FP=""
-          WHICH="none"
-          if [ -n "$MAYA_KEYSTORE_FILE" ] && [ -f "$MAYA_KEYSTORE_FILE" ]; then
-            FP=$(keytool -list -v -keystore "$MAYA_KEYSTORE_FILE" -storepass "${MAYA_KEYSTORE_PASSWORD}" -alias "${MAYA_KEY_ALIAS}" 2>&1 | grep -oE 'SHA-?256:.*' | head -1 | sed -E 's/SHA-?256://;s/ //g')
-            WHICH="maya-keystore(secret)"
+          APS=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | tail -1)
+          if [ -f "$APK" ] && [ -n "$APS" ]; then
+            FP=$("$APS" verify --print-certs "$APK" 2>/dev/null | grep -m1 'SHA-256 digest' | sed 's/.*: //' | tr -d ' :' | tr 'A-F' 'a-f')
           fi
-          if [ -z "$FP" ] && [ -f "$HOME/.android/debug.keystore" ]; then
-            FP=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey 2>&1 | grep -oE 'SHA-?256:.*' | head -1 | sed -E 's/SHA-?256://;s/ //g')
-            WHICH="debug-keystore(cache)"
+          if [ -z "$FP" ] && [ -f "$APK" ]; then
+            FP=$(keytool -printcert -jarfile "$APK" 2>&1 | grep -oE 'SHA-?256:.*' | head -1 | sed -E 's/SHA-?256://;s/ //g' | tr -d ':' | tr 'A-F' 'a-f')
           fi
-          echo "::notice::SIGNATURE-DIAG which=$WHICH fp=${FP:-NONE} kt=$(command -v keytool || echo MISSING) android_dir=$(ls $HOME/.android 2>&1 | tr '\n' '|' | cut -c1-120) secret_file=${MAYA_KEYSTORE_FILE:-unset}"
+          echo "::notice::SIGNATURE-DIAG apk_size=$(wc -c < "$APK" 2>/dev/null || echo 0) fp=${FP:-NONE} aps=$(basename ${APS:-none}) android_dir=$(ls $HOME/.android 2>&1 | tr '\n' '|' | cut -c1-120)"
           if [ -s "$PIN" ]; then
-            PIN_FP=$(tr -d ' \n\r' < "$PIN")
+            PIN_FP=$(tr -d ' \n\r:' < "$PIN" | tr 'A-F' 'a-f')
             if [ -z "$FP" ] || [ "$FP" != "$PIN_FP" ]; then
               echo "::error::SIGNATURE BADAL GAYA! pinned=$PIN_FP mojooda=${FP:-none} — release NAHI banega (user ki settings udd jati hain). Jaan-boojh kar badalna ho to docs/signing-cert-sha256.txt update karo."
               exit 1
