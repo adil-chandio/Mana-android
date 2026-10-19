@@ -83,6 +83,32 @@ jobs:
           name: MAYA-APK
           path: app/build/outputs/apk/debug/app-debug.apk
 
+      - name: 6.5 SIGNATURE LOCK (kabhi khamoshi se na badle)
+        # Agar cache kho jaye (GitHub incident) to naya key banega — magar
+        # wo APK "latest" release par KABHI nahi jayega jab tak is ke
+        # fingerprint ko jaan-boojh kar pin na kiya jaye (docs/signing-cert-sha256.txt).
+        # Matlab: user ko kabhi "mehnat se settings dobara" ka surprise nahi.
+        run: |
+          KS="$HOME/.android/debug.keystore"
+          PIN="docs/signing-cert-sha256.txt"
+          if [ -f "$KS" ]; then
+            FP=$(keytool -list -v -keystore "$KS" -storepass android -alias androiddebugkey 2>/dev/null | grep -o 'SHA256:.*' | head -1 | sed 's/SHA256://;s/ //g')
+          else
+            FP=""
+          fi
+          echo "SIGNATURE_SHA256=$FP" >> "$GITHUB_ENV"
+          echo "::notice::APK signature (SHA256): ${FP:-unknown}"
+          if [ -s "$PIN" ]; then
+            PIN_FP=$(tr -d ' \n\r' < "$PIN")
+            if [ -z "$FP" ] || [ "$FP" != "$PIN_FP" ]; then
+              echo "::error::SIGNATURE BADAL GAYA! pinned=$PIN_FP mojooda=${FP:-none} — APK release par NAHI jayega (warna user ki settings udd jati hain). Agar yeh jaan-boojh kar hai to docs/signing-cert-sha256.txt update kar ke dobara chalao."
+              exit 1
+            fi
+            echo "✅ Signature LOCKED — pinned ke sath match"
+          else
+            echo "::notice::BOOTSTRAP — pehli dafa signature capture: $FP — isse docs/signing-cert-sha256.txt mein pin karo."
+          fi
+
       - name: 7. 🌐 LATEST RELEASE — hamesha taaza download link
         # Hamesha ek hi URL: /releases/download/latest/MAYA-latest.apk
         # Har push par asset replace — phone se seedha download & install
